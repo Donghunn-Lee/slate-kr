@@ -17,6 +17,16 @@
 /.next/
 /out/
 
+# web (Next.js)
+web/.next/
+web/node_modules/
+
+# collector (Python)
+collector/__pycache__/
+collector/*.pyc
+collector/.env
+collector/venv/
+
 # production
 /build
 
