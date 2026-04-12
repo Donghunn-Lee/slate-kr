@@ -4,6 +4,21 @@
 
 # CLAUDE.md — SlateKR
 
+## 이 프로젝트의 목적
+
+기존 포트폴리오(AimTest 등)는 복잡한 상호작용, 상태 흐름 제어, 런타임 구조 설계 쪽 강점이 있다.
+SlateKR은 그 반대 축을 보완한다.
+
+- 검색 → 상세 → 저장으로 이어지는 전형적인 서비스형 웹앱 구조
+- 외부 데이터를 조합하는 조회형 서비스 아키텍처
+- SEO 가능한 공개 상세 페이지
+- 서버 캐싱 / 재검증 / fallback 설계
+- 데이터 밀도가 높은 화면에서의 정보 구조화
+
+AI 공시 요약은 차별화 기능이지만, MVP 본체(검색·상세·저장 플로우)가
+AI 없이도 설득력 있어야 한다. AI는 투자 판단 도구가 아니라
+문서 읽기 부담을 줄여주는 도구로 포지셔닝한다.
+
 ## 프로젝트 정의
 
 **SlateKR**는 국내 상장 종목의 가격·재무·공시 정보를 구조화해서 빠르게 조회하는 서비스형 웹앱이다.
@@ -11,6 +26,15 @@
 
 이 프로젝트는 투자 추천/분석 서비스가 아니다. 흩어진 종목 데이터를 읽기 쉽게 구조화해서 제공하는 **조회형 서비스**다.
 포트폴리오 프로젝트이며, 서비스형 웹앱 프론트엔드 역량을 보여주는 게 핵심 목적이다.
+
+## 포트폴리오 관점에서 각 기능이 보여줘야 할 것
+
+- **검색**: debounce(300ms), 중복 요청 취소(AbortController), 최소 입력 조건, 키보드 탐색, 결과 없음 처리
+- **종목 상세**: Server Components + streaming, 섹션 단위 Suspense, generateMetadata
+- **정규화 레이어**: DB Row → 도메인 모델 변환, 순수 함수, Zod 검증
+- **fallback 구조**: 섹션별 독립 loading/error/empty, 부분 실패가 전체 실패로 번지지 않는 구조
+- **관심종목**: Zustand persist, localStorage 기반 저장
+- **공시**: 유형 분류, 체크포인트 배지, 요청형 AI 공시 요약 (사용자가 버튼 누를 때만 실행, 캐싱, 실패 처리 포함)
 
 ---
 
@@ -28,6 +52,7 @@
 - **데이터 수집**: Python + pykrx (collector/)
 - **배포**: AWS EC2 (Next.js + MySQL 단일 인스턴스)
 - **외부 API**: DART OpenAPI (공시 데이터)
+- **AI 요약**: 공시 원문 기반 요약 생성 (API 미확정, Server Action 또는 API Route)
 
 ---
 
@@ -131,23 +156,6 @@ DB / 외부 API
 - 미래 확장만 가정한 추상화 레이어 추가
 - 지금 단계에 필요 없는 과도한 파일 분리
 - 투자 추천/분석/판단을 암시하는 표현이나 기능
-- AI를 전면에 내세우는 기능 설계
+- AI를 투자 분석/추천 도구로 포지셔닝하는 기능 설계
+- "AI가 종목을 분석해드립니다" 같은 과장된 표현
 - 과장된 네이밍, 지금 필요 없는 거대한 추상화
-
----
-
-## 현재 완료된 작업
-
-- [x] Next.js 15 + TypeScript strict + Tailwind v4 + shadcn/ui 세팅
-- [x] 폴더 구조, ESLint/Prettier, SUIT Variable 폰트, 다크모드, TanStack Query Provider
-- [x] collector/ — stocks 2659건, daily_prices 636,099건, financial_statements 2031건 적재
-- [x] lib/db.ts — mysql2 connection pool
-- [x] shared/types/stock.ts — DB Row 타입 + 도메인 모델 타입
-- [x] lib/stocks.ts, lib/prices.ts, lib/financials.ts — DB 조회 + 정규화 함수
-
-## 다음 작업
-
-- [ ] 라우팅 구조 셋업 (`/`, `/stocks/[ticker]`, `/watchlist`)
-- [ ] 홈 페이지 UI — 검색창 중심 레이아웃
-- [ ] 검색 기능 — 자동완성, debounce, 결과 없음 처리
-- [ ] 종목 상세 페이지 — lib/ 함수 연결해서 실제 데이터 출력
