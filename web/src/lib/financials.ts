@@ -1,6 +1,23 @@
 import type { RowDataPacket } from "mysql2";
 import pool from "./db";
-import type { FinancialRow, StockFinancialSummary } from "@/shared/types/stock";
+import type { StockFinancialSummary } from "@/shared/types/stock";
+
+type FinancialRow = {
+  id: number;
+  ticker: string;
+  corp_code: string | null;
+  year: number;
+  quarter: number | null;
+  report_type: "annual" | "quarter";
+  revenue: number | null;
+  operating_profit: number | null;
+  net_income: number | null;
+  total_assets: number | null;
+  total_equity: number | null;
+  eps: number | null;
+  bps: number | null;
+  created_at: Date;
+};
 
 export const getFinancials = async (ticker: string): Promise<StockFinancialSummary[]> => {
   const [rows] = await pool.query<(FinancialRow & RowDataPacket)[]>(

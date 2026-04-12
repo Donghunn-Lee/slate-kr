@@ -1,6 +1,18 @@
 import type { RowDataPacket } from "mysql2";
 import pool from "./db";
-import type { DailyPriceRow, StockPriceSnapshot } from "@/shared/types/stock";
+import type { StockPriceSnapshot } from "@/shared/types/stock";
+
+type DailyPriceRow = {
+  id: number;
+  ticker: string;
+  date: Date;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  market_cap: number | null;
+};
 import { format } from "date-fns";
 
 export const getDailyPrices = async (

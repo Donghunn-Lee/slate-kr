@@ -1,6 +1,17 @@
 import type { RowDataPacket } from "mysql2";
 import pool from "./db";
-import type { StockRow, StockSummary } from "@/shared/types/stock";
+import type { StockSummary } from "@/shared/types/stock";
+
+type StockRow = {
+  ticker: string;
+  corp_code: string | null;
+  name: string;
+  market: "KOSPI" | "KOSDAQ";
+  sector: string | null;
+  listed_at: Date | null;
+  is_active: number;
+  updated_at: Date;
+};
 
 export const getStockByTicker = async (ticker: string): Promise<StockSummary | null> => {
   const [rows] = await pool.query<(StockRow & RowDataPacket)[]>(
