@@ -1,5 +1,5 @@
 import type { RowDataPacket } from "mysql2";
-import pool from "./db";
+import { pool } from "./db";
 import type { StockFinancialSummary } from "@/shared/types/stock";
 
 type FinancialRow = {
