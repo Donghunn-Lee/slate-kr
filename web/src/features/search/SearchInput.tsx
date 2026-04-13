@@ -1,7 +1,15 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+
+type SearchResult = {
+  ticker: string;
+  name: string;
+  market: string;
+};
 
 type SearchInputProps = {
   value: string;
@@ -11,21 +19,160 @@ type SearchInputProps = {
 };
 
 export const SearchInput = ({ value, onChange, onSubmit, disabled }: SearchInputProps) => {
+  const router = useRouter();
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (abortRef.current) abortRef.current.abort();
+    };
+  }, []);
+
+  const search = useCallback(async (q: string) => {
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    setIsLoading(true);
+    setIsOpen(true);
+    setResults([]);
+
+    try {
+      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`, {
+        signal: controller.signal,
+      });
+      if (!res.ok) throw new Error("Search failed");
+      const data: SearchResult[] = await res.json();
+      setResults(data);
+      setIsLoading(false);
+    } catch (err) {
+      if ((err as Error).name === "AbortError") return;
+      setIsOpen(false);
+      setIsLoading(false);
+    }
+  }, []);
+
+  const handleChange = (newValue: string) => {
+    onChange(newValue);
+    setActiveIndex(-1);
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    if (newValue.trim() === "") {
+      if (abortRef.current) abortRef.current.abort();
+      setResults([]);
+      setIsOpen(false);
+      setIsLoading(false);
+      return;
+    }
+
+    debounceRef.current = setTimeout(() => {
+      search(newValue.trim());
+    }, 300);
+  };
+
+  const handleSelect = (ticker: string) => {
+    setIsOpen(false);
+    setResults([]);
+    setActiveIndex(-1);
+    router.push(`/stocks/${ticker}`);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") onSubmit();
+    if (!isOpen) {
+      if (e.key === "Enter") onSubmit();
+      return;
+    }
+
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        setActiveIndex((prev) => Math.min(prev + 1, results.length - 1));
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        setActiveIndex((prev) => Math.max(prev - 1, -1));
+        break;
+      case "Enter":
+        e.preventDefault();
+        if (activeIndex >= 0 && results[activeIndex]) {
+          handleSelect(results[activeIndex].ticker);
+        } else {
+          setIsOpen(false);
+          onSubmit();
+        }
+        break;
+      case "Escape":
+        setIsOpen(false);
+        setActiveIndex(-1);
+        break;
+    }
   };
 
   return (
-    <div className="flex gap-2">
-      <Input
-        type="text"
-        placeholder="종목명 또는 종목코드 검색"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={handleKeyDown}
-        disabled={disabled}
-        className="w-full"
-      />
+    <div ref={containerRef} className="relative flex gap-2">
+      <div className="relative flex-1">
+        <Input
+          type="text"
+          placeholder="종목명 또는 종목코드 검색"
+          value={value}
+          onChange={(e) => handleChange(e.target.value)}
+          onKeyDown={handleKeyDown}
+          disabled={disabled}
+          className="w-full"
+          autoComplete="off"
+        />
+        {isOpen && (
+          <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-md border bg-popover shadow-md">
+            {isLoading && <div className="px-4 py-3 text-sm text-muted-foreground">검색 중...</div>}
+            {!isLoading && results.length === 0 && (
+              <div className="px-4 py-3 text-sm text-muted-foreground">검색 결과가 없습니다</div>
+            )}
+            {!isLoading && results.length > 0 && (
+              <ul role="listbox">
+                {results.map((stock, index) => (
+                  <li
+                    key={stock.ticker}
+                    role="option"
+                    aria-selected={index === activeIndex}
+                    className={`cursor-pointer px-4 py-2.5 transition-colors ${
+                      index === activeIndex ? "bg-accent" : "hover:bg-accent"
+                    }`}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      handleSelect(stock.ticker);
+                    }}
+                    onMouseEnter={() => setActiveIndex(index)}
+                  >
+                    <div className="text-sm font-medium">{stock.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {stock.ticker} · {stock.market}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
       <Button onClick={onSubmit} disabled={disabled}>
         검색
       </Button>
