@@ -30,6 +30,14 @@ export const getStockByTicker = async (ticker: string): Promise<StockSummary | n
   };
 };
 
+export const getCorpCode = async (ticker: string): Promise<string | null> => {
+  const [rows] = await pool.query<(StockRow & RowDataPacket)[]>(
+    "SELECT corp_code FROM stocks WHERE ticker = ? AND is_active = 1",
+    [ticker]
+  );
+  return rows.length > 0 ? (rows[0].corp_code ?? null) : null;
+};
+
 export const searchStocks = async (query: string): Promise<StockSummary[]> => {
   const [rows] = await pool.query<(StockRow & RowDataPacket)[]>(
     "SELECT ticker, name, market, sector FROM stocks WHERE (name LIKE ? OR ticker LIKE ?) AND is_active = 1 LIMIT 10",
