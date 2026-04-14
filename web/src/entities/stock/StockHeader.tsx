@@ -1,6 +1,7 @@
 import type { StockSummary, StockPriceSnapshot } from "@/shared/types/stock";
 import { getDailyPrices } from "@/lib/prices";
 import { formatPrice, formatVolume, formatMarketCap } from "@/shared/format";
+import { WatchlistButton } from "@/features/watchlist/WatchlistButton";
 
 type StockHeaderProps = {
   ticker: string;
@@ -22,14 +23,17 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
   if (!latest) {
     return (
       <div className="rounded-xl border bg-card p-6">
-        <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold">{stock.name}</h1>
-          <span className="rounded bg-muted px-2 py-0.5 text-sm text-muted-foreground">
-            {ticker}
-          </span>
-          <span className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-            {stock.market}
-          </span>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-bold">{stock.name}</h1>
+            <span className="rounded bg-muted px-2 py-0.5 text-sm text-muted-foreground">
+              {ticker}
+            </span>
+            <span className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+              {stock.market}
+            </span>
+          </div>
+          <WatchlistButton ticker={ticker} name={stock.name} market={stock.market} />
         </div>
         <p className="mt-3 text-sm text-muted-foreground">가격 데이터 없음</p>
       </div>
@@ -48,19 +52,22 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
 
   return (
     <div className="rounded-xl border bg-card p-6">
-      <div className="flex flex-wrap items-center gap-2">
-        <h1 className="text-2xl font-bold">{stock.name}</h1>
-        <span className="rounded bg-muted px-2 py-0.5 text-sm font-mono text-muted-foreground">
-          {ticker}
-        </span>
-        <span className="rounded bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
-          {stock.market}
-        </span>
-        {stock.sector && (
-          <span className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-            {stock.sector}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-2xl font-bold">{stock.name}</h1>
+          <span className="rounded bg-muted px-2 py-0.5 text-sm font-mono text-muted-foreground">
+            {ticker}
           </span>
-        )}
+          <span className="rounded bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
+            {stock.market}
+          </span>
+          {stock.sector && (
+            <span className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+              {stock.sector}
+            </span>
+          )}
+        </div>
+        <WatchlistButton ticker={ticker} name={stock.name} market={stock.market} />
       </div>
 
       <div className="mt-4 flex flex-wrap items-end gap-3">

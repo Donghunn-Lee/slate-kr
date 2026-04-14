@@ -1,5 +1,6 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import { Star } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,12 @@ type WatchlistButtonProps = {
 };
 
 export const WatchlistButton = ({ ticker, name, market }: WatchlistButtonProps) => {
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
+
   const isInWatchlist = useWatchlistStore((s) => s.isInWatchlist(ticker));
   const addToWatchlist = useWatchlistStore((s) => s.addToWatchlist);
   const removeFromWatchlist = useWatchlistStore((s) => s.removeFromWatchlist);
@@ -32,6 +39,15 @@ export const WatchlistButton = ({ ticker, name, market }: WatchlistButtonProps) 
 
     addToWatchlist({ ticker, name, market });
   };
+
+  if (!mounted) {
+    return (
+      <Button variant="outline" size="sm" disabled aria-label="관심종목 추가">
+        <Star />
+        관심종목 추가
+      </Button>
+    );
+  }
 
   return (
     <Button
