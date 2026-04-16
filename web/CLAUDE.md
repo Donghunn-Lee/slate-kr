@@ -149,6 +149,19 @@ DB / 외부 API
 
 ---
 
+## 디자인 언어 — Slate 패널
+
+SlateKR의 UI는 "slate(판)" 개념을 기반으로 한다.
+페이지를 구성하는 정보 단위들이 각각 독립된 패널로 놓여있는 느낌.
+
+- 모든 정보 섹션은 패널 단위로 시각적으로 구분된다
+- 패널은 심플하고 절제된 스타일 — 장식보다 정보 구조가 우선
+- 패널 간 위계는 있어야 함 (Header > 나머지 섹션)
+- shadcn/ui primitive를 직접 쓰지 않고 도메인 의미가 있는 컴포넌트로 감싸서 사용
+  예: `MetricCard`, `DisclosureCard`, `StockSummaryCard`
+
+---
+
 ## 절대 하지 말 것
 
 - DB Row 타입이나 외부 API 응답 타입을 UI에 직접 전달
