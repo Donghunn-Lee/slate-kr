@@ -81,7 +81,7 @@ export const StockChart = ({ prices, ticker }: StockChartProps) => {
 
   if (prices.length === 0) {
     return (
-      <StockPanel>
+      <StockPanel noBorder>
         <h2 className="mb-4 text-sm font-semibold text-muted-foreground">차트</h2>
         <p className="text-sm text-muted-foreground">가격 데이터 없음</p>
       </StockPanel>
@@ -89,7 +89,7 @@ export const StockChart = ({ prices, ticker }: StockChartProps) => {
   }
 
   return (
-    <StockPanel>
+    <StockPanel noBorder>
       <h2 className="mb-4 text-sm font-semibold text-muted-foreground">{ticker} — 최근 1년</h2>
       <div ref={containerRef} className="h-[300px] w-full" />
     </StockPanel>

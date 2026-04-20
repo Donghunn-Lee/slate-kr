@@ -45,7 +45,7 @@ export const StockMetrics = async ({ ticker }: StockMetricsProps) => {
   const hasData = financial !== null || price !== null;
 
   return (
-    <StockPanel>
+    <StockPanel noBorder>
       <h2 className="mb-4 text-sm font-semibold text-muted-foreground">
         핵심 지표
         {financial && <span className="ml-2 font-normal">({financial.year}년 연간 기준)</span>}

@@ -23,7 +23,7 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
 
   if (!latest) {
     return (
-      <StockPanel>
+      <StockPanel noBorder>
         <div className="flex items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-bold">{stock.name}</h1>
@@ -52,7 +52,7 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
   const changeSign = isRise ? "+" : "";
 
   return (
-    <StockPanel>
+    <StockPanel noBorder>
       <div className="flex items-start justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-2xl font-bold">{stock.name}</h1>
