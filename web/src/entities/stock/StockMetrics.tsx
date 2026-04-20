@@ -2,6 +2,7 @@ import type { StockPriceSnapshot, StockFinancialSummary } from "@/shared/types/s
 import { getLatestPrice } from "@/lib/prices";
 import { getLatestFinancial } from "@/lib/financials";
 import { formatRatio, formatEps } from "@/shared/format";
+import { StockPanel } from "./StockPanel";
 
 type MetricItemProps = {
   label: string;
@@ -44,7 +45,7 @@ export const StockMetrics = async ({ ticker }: StockMetricsProps) => {
   const hasData = financial !== null || price !== null;
 
   return (
-    <div className="rounded-xl border bg-card p-6">
+    <StockPanel>
       <h2 className="mb-4 text-sm font-semibold text-muted-foreground">
         핵심 지표
         {financial && <span className="ml-2 font-normal">({financial.year}년 연간 기준)</span>}
@@ -59,6 +60,6 @@ export const StockMetrics = async ({ ticker }: StockMetricsProps) => {
           <MetricItem label="BPS" value={formatEps(financial?.bps ?? null)} />
         </div>
       )}
-    </div>
+    </StockPanel>
   );
 };

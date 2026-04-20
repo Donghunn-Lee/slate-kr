@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { useTheme } from "next-themes";
 import { createChart, AreaSeries } from "lightweight-charts";
 import type { StockPriceSnapshot } from "@/shared/types/stock";
+import { StockPanel } from "./StockPanel";
 
 type StockChartProps = {
   prices: StockPriceSnapshot[];
@@ -80,17 +81,17 @@ export const StockChart = ({ prices, ticker }: StockChartProps) => {
 
   if (prices.length === 0) {
     return (
-      <div className="rounded-xl border bg-card p-6">
+      <StockPanel>
         <h2 className="mb-4 text-sm font-semibold text-muted-foreground">차트</h2>
         <p className="text-sm text-muted-foreground">가격 데이터 없음</p>
-      </div>
+      </StockPanel>
     );
   }
 
   return (
-    <div className="rounded-xl border bg-card p-6">
+    <StockPanel>
       <h2 className="mb-4 text-sm font-semibold text-muted-foreground">{ticker} — 최근 1년</h2>
       <div ref={containerRef} className="h-[300px] w-full" />
-    </div>
+    </StockPanel>
   );
 };

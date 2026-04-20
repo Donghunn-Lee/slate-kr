@@ -1,6 +1,7 @@
 import type { StockFinancialSummary } from "@/shared/types/stock";
 import { getFinancials } from "@/lib/financials";
 import { formatFinancial } from "@/shared/format";
+import { StockPanel } from "./StockPanel";
 
 type FinancialRowProps = {
   financial: StockFinancialSummary;
@@ -32,7 +33,7 @@ export const StockFinancials = async ({ ticker }: StockFinancialsProps) => {
   }
 
   return (
-    <div className="rounded-xl border bg-card p-6">
+    <StockPanel>
       <h2 className="mb-4 text-sm font-semibold text-muted-foreground">재무 요약 (연간)</h2>
       {annuals.length === 0 ? (
         <p className="text-sm text-muted-foreground">재무 데이터 없음</p>
@@ -59,6 +60,6 @@ export const StockFinancials = async ({ ticker }: StockFinancialsProps) => {
           </table>
         </div>
       )}
-    </div>
+    </StockPanel>
   );
 };

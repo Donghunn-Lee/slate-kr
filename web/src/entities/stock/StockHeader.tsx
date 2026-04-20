@@ -2,6 +2,7 @@ import type { StockSummary, StockPriceSnapshot } from "@/shared/types/stock";
 import { getDailyPrices } from "@/lib/prices";
 import { formatPrice, formatVolume, formatMarketCap } from "@/shared/format";
 import { WatchlistButton } from "@/features/watchlist/WatchlistButton";
+import { StockPanel } from "./StockPanel";
 
 type StockHeaderProps = {
   ticker: string;
@@ -22,7 +23,7 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
 
   if (!latest) {
     return (
-      <div className="rounded-xl border bg-card p-6">
+      <StockPanel>
         <div className="flex items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-bold">{stock.name}</h1>
@@ -36,7 +37,7 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
           <WatchlistButton ticker={ticker} name={stock.name} market={stock.market} />
         </div>
         <p className="mt-3 text-sm text-muted-foreground">가격 데이터 없음</p>
-      </div>
+      </StockPanel>
     );
   }
 
@@ -51,7 +52,7 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
   const changeSign = isRise ? "+" : "";
 
   return (
-    <div className="rounded-xl border bg-card p-6">
+    <StockPanel>
       <div className="flex items-start justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-2xl font-bold">{stock.name}</h1>
@@ -86,6 +87,6 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
         <span>시가총액 {formatMarketCap(latest.marketCap)}</span>
         <span>기준일 {latest.date}</span>
       </div>
-    </div>
+    </StockPanel>
   );
 };

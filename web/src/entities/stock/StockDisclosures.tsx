@@ -2,6 +2,7 @@ import type { DartDisclosure } from "@/shared/types/stock";
 import { getCorpCode } from "@/lib/stocks";
 import { getDisclosures } from "@/lib/dart";
 import { formatDartDate } from "@/shared/format";
+import { StockPanel } from "./StockPanel";
 
 type DisclosureItemProps = {
   disclosure: DartDisclosure;
@@ -49,7 +50,7 @@ export const StockDisclosures = async ({ ticker }: StockDisclosuresProps) => {
   }
 
   return (
-    <div className="rounded-xl border bg-card p-6">
+    <StockPanel>
       <h2 className="mb-4 text-sm font-semibold text-muted-foreground">최근 공시 (최근 3개월)</h2>
       {noApiKey ? (
         <p className="text-sm text-muted-foreground">
@@ -64,6 +65,6 @@ export const StockDisclosures = async ({ ticker }: StockDisclosuresProps) => {
           ))}
         </ul>
       )}
-    </div>
+    </StockPanel>
   );
 };
