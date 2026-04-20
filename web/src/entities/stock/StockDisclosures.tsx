@@ -9,7 +9,7 @@ type DisclosureItemProps = {
 };
 
 const DisclosureItem = ({ disclosure }: DisclosureItemProps) => (
-  <li className="border-b py-3 last:border-0">
+  <li className="border-b border-border/60 py-3.5 last:border-0">
     <a
       href={`https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${disclosure.rcpNo}`}
       target="_blank"

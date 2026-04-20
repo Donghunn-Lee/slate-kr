@@ -53,7 +53,7 @@ export const StockMetrics = async ({ ticker }: StockMetricsProps) => {
       {!hasData ? (
         <p className="text-sm text-muted-foreground">데이터 없음</p>
       ) : (
-        <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-x-8 gap-y-5">
           <MetricItem label="PER" value={formatRatio(per)} />
           <MetricItem label="PBR" value={formatRatio(pbr)} />
           <MetricItem label="EPS" value={formatEps(financial?.eps ?? null)} />
