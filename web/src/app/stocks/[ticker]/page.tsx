@@ -25,10 +25,10 @@ const getStock = cache(getStockByTicker);
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { ticker } = await params;
   const stock = await getStock(ticker);
-  if (!stock) return { title: "종목을 찾을 수 없습니다 | SlateKR" };
+  if (!stock) return { title: "종목을 찾을 수 없습니다" };
   return {
-    title: `${stock.name} (${ticker}) | SlateKR`,
-    description: `${stock.name} 주가, 재무제표, 공시 정보`,
+    title: `${stock.name} (${ticker})`,
+    description: `${stock.name}(${ticker}) 주가, 재무정보, 공시를 확인하세요`,
   };
 }
 

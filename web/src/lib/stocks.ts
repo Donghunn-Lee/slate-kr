@@ -1,5 +1,6 @@
 import type { RowDataPacket } from "mysql2";
 import { pool } from "./db";
+import { getLatestPrice } from "./prices";
 import type { StockSummary } from "@/shared/types/stock";
 
 type StockRow = {
@@ -8,6 +9,7 @@ type StockRow = {
   name: string;
   market: "KOSPI" | "KOSDAQ";
   sector: string | null;
+  shares: bigint | null;
   listed_at: Date | null;
   is_active: number;
   updated_at: Date;
@@ -15,18 +17,23 @@ type StockRow = {
 
 export const getStockByTicker = async (ticker: string): Promise<StockSummary | null> => {
   const [rows] = await pool.query<(StockRow & RowDataPacket)[]>(
-    "SELECT ticker, name, market, sector FROM stocks WHERE ticker = ? AND is_active = 1",
+    "SELECT ticker, name, market, sector, shares FROM stocks WHERE ticker = ? AND is_active = 1",
     [ticker]
   );
 
   if (rows.length === 0) return null;
 
   const row = rows[0];
+  const latestPrice = await getLatestPrice(row.ticker);
+  const marketCap =
+    row.shares != null && latestPrice != null ? Number(row.shares) * latestPrice.close : null;
+
   return {
     ticker: row.ticker,
     name: row.name,
     market: row.market,
     sector: row.sector,
+    marketCap,
   };
 };
 
@@ -36,6 +43,13 @@ export const getCorpCode = async (ticker: string): Promise<string | null> => {
     [ticker]
   );
   return rows.length > 0 ? (rows[0].corp_code ?? null) : null;
+};
+
+export const getAllTickers = async (): Promise<string[]> => {
+  const [rows] = await pool.query<(Pick<StockRow, "ticker"> & RowDataPacket)[]>(
+    "SELECT ticker FROM stocks WHERE is_active = 1"
+  );
+  return rows.map((row) => row.ticker);
 };
 
 export const searchStocks = async (query: string): Promise<StockSummary[]> => {
@@ -49,5 +63,6 @@ export const searchStocks = async (query: string): Promise<StockSummary[]> => {
     name: row.name,
     market: row.market,
     sector: row.sector,
+    marketCap: null,
   }));
 };

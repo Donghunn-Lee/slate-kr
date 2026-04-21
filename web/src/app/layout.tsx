@@ -11,8 +11,22 @@ const suit = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "SlateKR",
-  description: "국내 상장 종목 정보 조회 서비스",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000"),
+  title: {
+    template: "%s | SlateKR",
+    default: "SlateKR",
+  },
+  description: "국내 상장 종목의 가격·재무·공시 정보를 빠르게 조회하세요",
+  openGraph: {
+    title: "SlateKR",
+    description: "국내 상장 종목의 가격·재무·공시 정보를 빠르게 조회하세요",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "SlateKR",
+    description: "국내 상장 종목의 가격·재무·공시 정보를 빠르게 조회하세요",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
