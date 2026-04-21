@@ -22,6 +22,7 @@ def get_connection():
 def fetch_stock_list() -> list[dict]:
     biz_date = get_latest_biz_date()
     print(f"기준일자: {biz_date}")
+
     url = "https://apis.data.go.kr/1160100/service/GetKrxListedInfoService/getItemInfo"
     result = []
     page = 1

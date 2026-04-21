@@ -84,7 +84,7 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
 
       <div className="mt-3 flex flex-wrap gap-4 text-sm text-muted-foreground">
         <span>거래량 {formatVolume(latest.volume)}</span>
-        <span>시가총액 {formatMarketCap(latest.marketCap)}</span>
+        <span>시가총액 {formatMarketCap(stock.marketCap)}</span>
         <span>기준일 {latest.date}</span>
       </div>
     </StockPanel>
