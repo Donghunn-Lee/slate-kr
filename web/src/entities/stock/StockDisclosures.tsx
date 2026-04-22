@@ -2,31 +2,41 @@ import type { DartDisclosure } from "@/shared/types/stock";
 import { getCorpCode } from "@/lib/stocks";
 import { getDisclosures } from "@/lib/dart";
 import { formatDartDate } from "@/shared/format";
+import { classifyDisclosure } from "@/shared/utils/classifyDisclosure";
 import { StockPanel } from "./StockPanel";
+import { CheckpointBadge } from "./CheckpointBadge";
 
 type DisclosureItemProps = {
   disclosure: DartDisclosure;
 };
 
-const DisclosureItem = ({ disclosure }: DisclosureItemProps) => (
-  <li className="border-b border-border/60 py-3.5 last:border-0">
-    <a
-      href={`https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${disclosure.rcpNo}`}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="group block"
-    >
-      <p className="text-xs text-muted-foreground">
-        {formatDartDate(disclosure.rcptDt)}
-        {disclosure.flrNm && <span className="ml-2">{disclosure.flrNm}</span>}
-        {disclosure.rmk && (
-          <span className="ml-2 rounded bg-secondary px-1.5 py-0.5 text-xs">{disclosure.rmk}</span>
-        )}
-      </p>
-      <p className="mt-0.5 text-sm font-medium group-hover:underline">{disclosure.disclosureNm}</p>
-    </a>
-  </li>
-);
+const DisclosureItem = ({ disclosure }: DisclosureItemProps) => {
+  const type = classifyDisclosure(disclosure.disclosureNm);
+  return (
+    <li className="border-b border-border/60 py-3.5 last:border-0">
+      <a
+        href={`https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${disclosure.rcpNo}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="group flex items-start justify-between gap-3"
+      >
+        <div className="flex min-w-0 items-start gap-2">
+          {type && <CheckpointBadge type={type} />}
+          <p className="text-sm font-medium group-hover:underline">{disclosure.disclosureNm}</p>
+        </div>
+        <p className="shrink-0 text-xs text-muted-foreground">
+          {formatDartDate(disclosure.rcptDt)}
+          {disclosure.flrNm && <span className="ml-2">{disclosure.flrNm}</span>}
+          {disclosure.rmk && (
+            <span className="ml-2 rounded bg-secondary px-1.5 py-0.5 text-xs">
+              {disclosure.rmk}
+            </span>
+          )}
+        </p>
+      </a>
+    </li>
+  );
+};
 
 type StockDisclosuresProps = {
   ticker: string;
