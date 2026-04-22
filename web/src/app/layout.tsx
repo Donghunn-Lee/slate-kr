@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { Providers } from "./providers";
+import { Navbar } from "@/components/layout/Navbar";
+import { Footer } from "@/components/layout/Footer";
 
 const suit = localFont({
   src: "../../public/fonts/SUIT-Variable.woff2",
@@ -32,8 +34,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko" suppressHydrationWarning className={suit.variable}>
-      <body className="min-h-screen font-sans antialiased">
-        <Providers>{children}</Providers>
+      <body className="flex min-h-screen flex-col font-sans antialiased">
+        <Providers>
+          <Navbar />
+          <div className="flex-1">{children}</div>
+          <Footer />
+        </Providers>
       </body>
     </html>
   );
