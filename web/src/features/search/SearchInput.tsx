@@ -15,10 +15,17 @@ type SearchInputProps = {
   value: string;
   onChange: (value: string) => void;
   onSubmit: () => void;
+  onSelect?: (ticker: string, name: string) => void;
   disabled?: boolean;
 };
 
-export const SearchInput = ({ value, onChange, onSubmit, disabled }: SearchInputProps) => {
+export const SearchInput = ({
+  value,
+  onChange,
+  onSubmit,
+  onSelect,
+  disabled,
+}: SearchInputProps) => {
   const router = useRouter();
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -89,10 +96,11 @@ export const SearchInput = ({ value, onChange, onSubmit, disabled }: SearchInput
     }, 300);
   };
 
-  const handleSelect = (ticker: string) => {
+  const handleSelect = (ticker: string, name: string) => {
     setIsOpen(false);
     setResults([]);
     setActiveIndex(-1);
+    onSelect?.(ticker, name);
     router.push(`/stocks/${ticker}`);
   };
 
@@ -114,7 +122,7 @@ export const SearchInput = ({ value, onChange, onSubmit, disabled }: SearchInput
       case "Enter":
         e.preventDefault();
         if (activeIndex >= 0 && results[activeIndex]) {
-          handleSelect(results[activeIndex].ticker);
+          handleSelect(results[activeIndex].ticker, results[activeIndex].name);
         } else {
           setIsOpen(false);
           onSubmit();
@@ -158,7 +166,7 @@ export const SearchInput = ({ value, onChange, onSubmit, disabled }: SearchInput
                     }`}
                     onMouseDown={(e) => {
                       e.preventDefault();
-                      handleSelect(stock.ticker);
+                      handleSelect(stock.ticker, stock.name);
                     }}
                     onMouseEnter={() => setActiveIndex(index)}
                   >

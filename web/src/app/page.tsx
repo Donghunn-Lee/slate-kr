@@ -2,19 +2,28 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { X } from "lucide-react";
 
 import { SearchInput } from "@/features/search/SearchInput";
+import { useRecentSearchesStore } from "@/features/search/useRecentSearchesStore";
 import { WatchlistPreview } from "@/features/watchlist/WatchlistPreview";
 import { ServiceValue } from "@/entities/home/ServiceValue";
 
 const HomePage = () => {
   const router = useRouter();
   const [ticker, setTicker] = useState("");
+  const recentSearches = useRecentSearchesStore((s) => s.items);
+  const addRecent = useRecentSearchesStore((s) => s.add);
+  const removeRecent = useRecentSearchesStore((s) => s.remove);
 
   const handleSubmit = () => {
     const trimmed = ticker.trim();
     if (!trimmed) return;
     router.push(`/stocks/${trimmed}`);
+  };
+
+  const handleSelect = (t: string, name: string) => {
+    addRecent(t, name);
   };
 
   return (
@@ -26,8 +35,37 @@ const HomePage = () => {
           국내 상장 종목의 가격·재무·공시 정보를 빠르게 조회하세요
         </p>
         <div className="w-full">
-          <SearchInput value={ticker} onChange={setTicker} onSubmit={handleSubmit} />
+          <SearchInput
+            value={ticker}
+            onChange={setTicker}
+            onSubmit={handleSubmit}
+            onSelect={handleSelect}
+          />
         </div>
+        {recentSearches.length > 0 && (
+          <div className="mt-3 flex flex-wrap justify-center gap-2">
+            {recentSearches.map((s) => (
+              <span
+                key={s.ticker}
+                className="flex items-center gap-1 rounded-full border border-border/60 bg-muted/40 px-3 py-1 text-xs text-muted-foreground"
+              >
+                <button
+                  onClick={() => router.push(`/stocks/${s.ticker}`)}
+                  className="hover:text-foreground transition-colors"
+                >
+                  {s.name}
+                </button>
+                <button
+                  onClick={() => removeRecent(s.ticker)}
+                  aria-label={`${s.name} 최근 검색 삭제`}
+                  className="hover:text-foreground transition-colors"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
       </section>
 
       <WatchlistPreview />
