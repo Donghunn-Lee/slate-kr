@@ -162,9 +162,14 @@ export const SearchInput = ({ value, onChange, onSubmit, disabled }: SearchInput
                     }}
                     onMouseEnter={() => setActiveIndex(index)}
                   >
-                    <div className="text-sm font-medium">{stock.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {stock.ticker} · {stock.market}
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-sm font-medium truncate">{stock.name}</span>
+                        <span className="font-mono text-xs text-muted-foreground shrink-0">
+                          {stock.ticker}
+                        </span>
+                      </div>
+                      <span className="text-xs text-muted-foreground shrink-0">{stock.market}</span>
                     </div>
                   </li>
                 ))}
