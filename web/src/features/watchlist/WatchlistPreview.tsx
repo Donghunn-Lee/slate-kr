@@ -1,0 +1,105 @@
+"use client";
+
+import { useEffect, useState, useSyncExternalStore } from "react";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+import { StockPanel } from "@/entities/stock/StockPanel";
+import { useWatchlistStore } from "./store/useWatchlistStore";
+import type { TickerPriceSummary } from "@/app/api/prices/route";
+
+function formatClose(close: number) {
+  return close.toLocaleString("ko-KR") + "원";
+}
+
+function formatChange(change: number, changePct: number) {
+  const sign = change >= 0 ? "+" : "";
+  return `${sign}${change.toLocaleString("ko-KR")} (${sign}${changePct.toFixed(2)}%)`;
+}
+
+export function WatchlistPreview() {
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
+  const items = useWatchlistStore((s) => s.items);
+  const preview = [...items].sort((a, b) => b.addedAt - a.addedAt).slice(0, 3);
+
+  const [prices, setPrices] = useState<Record<string, TickerPriceSummary>>({});
+
+  useEffect(() => {
+    if (preview.length === 0) return;
+    const tickers = preview.map((i) => i.ticker).join(",");
+    fetch(`/api/prices?tickers=${tickers}`)
+      .then((r) => r.json())
+      .then((data: TickerPriceSummary[]) => {
+        setPrices(Object.fromEntries(data.map((d) => [d.ticker, d])));
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items]);
+
+  if (!mounted || preview.length === 0) return null;
+
+  return (
+    <section className="mb-8">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-sm font-semibold">내 관심종목</h2>
+        <Link
+          href="/watchlist"
+          className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+        >
+          전체 보기 <ArrowRight className="h-3 w-3" />
+        </Link>
+      </div>
+      <StockPanel>
+        <ul className="divide-y divide-border/60">
+          {preview.map((item, i) => {
+            const p = prices[item.ticker];
+            return (
+              <li key={item.ticker}>
+                <Link
+                  href={`/stocks/${item.ticker}`}
+                  className={`flex items-center justify-between transition-opacity hover:opacity-70 ${
+                    i === 0 ? "pb-3" : i === preview.length - 1 ? "pt-3" : "py-3"
+                  }`}
+                >
+                  <div>
+                    <p className="text-sm font-medium">{item.name}</p>
+                    <p className="mt-0.5 font-mono text-xs text-muted-foreground">
+                      {item.ticker} · {item.market}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    {p ? (
+                      <>
+                        <p className="text-sm font-semibold tabular-nums">
+                          {formatClose(p.close)}
+                        </p>
+                        {p.change !== null && p.changePct !== null && (
+                          <p
+                            className={`text-xs tabular-nums ${
+                              p.change > 0
+                                ? "text-red-400"
+                                : p.change < 0
+                                  ? "text-blue-400"
+                                  : "text-muted-foreground"
+                            }`}
+                          >
+                            {formatChange(p.change, p.changePct)}
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">—</p>
+                    )}
+                  </div>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </StockPanel>
+    </section>
+  );
+}
