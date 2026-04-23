@@ -14,6 +14,7 @@ import {
   FinancialsSkeleton,
   DisclosuresSkeleton,
 } from "@/entities/stock/Skeletons";
+import { RecentSearchRecorder } from "@/features/search/RecentSearchRecorder";
 
 type PageProps = {
   params: Promise<{ ticker: string }>;
@@ -40,6 +41,7 @@ async function StockDetailPage({ params }: PageProps) {
 
   return (
     <main className="container mx-auto max-w-4xl space-y-4 px-4 py-8">
+      <RecentSearchRecorder ticker={ticker} name={stock.name} />
       <Suspense fallback={<HeaderSkeleton />}>
         <StockHeader ticker={ticker} stock={stock} />
       </Suspense>

@@ -13,12 +13,7 @@ const HomePage = () => {
   const router = useRouter();
   const [ticker, setTicker] = useState("");
   const recentSearches = useRecentSearchesStore((s) => s.items);
-  const addRecent = useRecentSearchesStore((s) => s.add);
   const removeRecent = useRecentSearchesStore((s) => s.remove);
-
-  const handleSelect = (t: string, name: string) => {
-    addRecent(t, name);
-  };
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4">
@@ -29,7 +24,7 @@ const HomePage = () => {
           국내 상장 종목의 가격·재무·공시 정보를 빠르게 조회하세요
         </p>
         <div className="w-full">
-          <SearchInput value={ticker} onChange={setTicker} onSelect={handleSelect} />
+          <SearchInput value={ticker} onChange={setTicker} />
         </div>
         <div className="mt-3 flex min-h-[60px] flex-wrap content-start justify-center gap-2">
           {recentSearches.map((s) => (
