@@ -42,30 +42,28 @@ const HomePage = () => {
             onSelect={handleSelect}
           />
         </div>
-        {recentSearches.length > 0 && (
-          <div className="mt-3 flex flex-wrap justify-center gap-2">
-            {recentSearches.map((s) => (
-              <span
-                key={s.ticker}
-                className="flex items-center gap-1 rounded-full border border-border/60 bg-muted/40 px-3 py-1 text-xs text-muted-foreground"
+        <div className="mt-3 flex min-h-[60px] flex-wrap content-start justify-center gap-2">
+          {recentSearches.map((s) => (
+            <span
+              key={s.ticker}
+              className="flex items-center gap-1 rounded-full border border-border/60 bg-muted/40 px-3 py-1 text-xs text-muted-foreground"
+            >
+              <button
+                onClick={() => router.push(`/stocks/${s.ticker}`)}
+                className="transition-colors hover:text-foreground"
               >
-                <button
-                  onClick={() => router.push(`/stocks/${s.ticker}`)}
-                  className="hover:text-foreground transition-colors"
-                >
-                  {s.name}
-                </button>
-                <button
-                  onClick={() => removeRecent(s.ticker)}
-                  aria-label={`${s.name} 최근 검색 삭제`}
-                  className="hover:text-foreground transition-colors"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
+                {s.name}
+              </button>
+              <button
+                onClick={() => removeRecent(s.ticker)}
+                aria-label={`${s.name} 최근 검색 삭제`}
+                className="transition-colors hover:text-foreground"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+        </div>
       </section>
 
       <WatchlistPreview />
