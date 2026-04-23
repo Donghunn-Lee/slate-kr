@@ -14,18 +14,11 @@ type SearchResult = {
 type SearchInputProps = {
   value: string;
   onChange: (value: string) => void;
-  onSubmit: () => void;
   onSelect?: (ticker: string, name: string) => void;
   disabled?: boolean;
 };
 
-export const SearchInput = ({
-  value,
-  onChange,
-  onSubmit,
-  onSelect,
-  disabled,
-}: SearchInputProps) => {
+export const SearchInput = ({ value, onChange, onSelect, disabled }: SearchInputProps) => {
   const router = useRouter();
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -104,9 +97,15 @@ export const SearchInput = ({
     router.push(`/stocks/${ticker}`);
   };
 
+  const handleSearchNavigate = () => {
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    router.push(`/search?q=${encodeURIComponent(trimmed)}`);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (!isOpen) {
-      if (e.key === "Enter") onSubmit();
+      if (e.key === "Enter") handleSearchNavigate();
       return;
     }
 
@@ -125,7 +124,7 @@ export const SearchInput = ({
           handleSelect(results[activeIndex].ticker, results[activeIndex].name);
         } else {
           setIsOpen(false);
-          onSubmit();
+          handleSearchNavigate();
         }
         break;
       case "Escape":
@@ -186,7 +185,7 @@ export const SearchInput = ({
           </div>
         )}
       </div>
-      <Button onClick={onSubmit} disabled={disabled}>
+      <Button onClick={handleSearchNavigate} disabled={disabled}>
         검색
       </Button>
     </div>
