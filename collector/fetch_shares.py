@@ -7,6 +7,7 @@ corp_code 가 있는 종목만 처리 가능. (update_corp_codes.py 선행 필�
 
 import os
 import time
+from datetime import datetime
 import requests
 import mysql.connector
 from dotenv import load_dotenv
@@ -27,6 +28,12 @@ def get_connection():
     )
 
 
+def get_latest_bsns_year() -> str:
+    """사업보고서는 4월 이후 공시 → 4월부터 전년도, 3월까지는 전전년도"""
+    today = datetime.today()
+    return str(today.year - 1 if today.month >= 4 else today.year - 2)
+
+
 def fetch_stock_amount(corp_code: str) -> Optional[int]:
     try:
         res = requests.get(
@@ -34,7 +41,7 @@ def fetch_stock_amount(corp_code: str) -> Optional[int]:
             params={
                 "crtfc_key": DART_API_KEY,
                 "corp_code": corp_code,
-                "bsns_year": "2024",
+                "bsns_year": get_latest_bsns_year(),
                 "reprt_code": "11011",  # 사업보고서
             },
             timeout=10,

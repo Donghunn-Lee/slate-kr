@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from dotenv import load_dotenv
 from typing import Optional
 import requests
@@ -144,5 +145,35 @@ def run(bsns_year: str, reprt_code: str):
     print(f"\n완료: 성공={success}, 스킵={skip}, 오류={error}")
 
 
+def get_available_reports(years_back: int = 2) -> list[tuple[str, str]]:
+    """
+    현재 날짜 기준으로 이미 공시된 (bsns_year, reprt_code) 목록 반환.
+
+    DART 공시 일정 기준:
+      Q1  (11013) : 해당 연도 5월 이후 공시
+      Q2  (11012) : 해당 연도 8월 이후 공시
+      Q3  (11014) : 해당 연도 11월 이후 공시
+      Q4  (11011) : 다음 연도 4월 이후 공시 (사업보고서)
+    """
+    today = datetime.today()
+    y, m = today.year, today.month
+
+    reports = []
+    for year in range(y - years_back, y + 1):
+        if year < y or m >= 5:
+            reports.append((str(year), "11013"))  # Q1
+        if year < y or m >= 8:
+            reports.append((str(year), "11012"))  # Q2
+        if year < y or m >= 11:
+            reports.append((str(year), "11014"))  # Q3
+        if year < y - 1 or (year == y - 1 and m >= 4):
+            reports.append((str(year), "11011"))  # Q4 / 연간
+
+    return reports
+
+
 if __name__ == "__main__":
-    run(bsns_year="2024", reprt_code="11011")
+    reports = get_available_reports(years_back=5)
+    print(f"수집 대상: {reports}")
+    for bsns_year, reprt_code in reports:
+        run(bsns_year=bsns_year, reprt_code=reprt_code)
