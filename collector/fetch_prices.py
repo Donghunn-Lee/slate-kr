@@ -17,6 +17,16 @@ db = mysql.connector.connect(
 cursor = db.cursor()
 
 
+def get_last_date(ticker: str) -> str:
+    """DB에 저장된 마지막 날짜 반환. 없으면 전체 시작일."""
+    cursor.execute("SELECT MAX(date) FROM daily_prices WHERE ticker = %s", (ticker,))
+    row = cursor.fetchone()
+    if row and row[0]:
+        next_day = (row[0] + timedelta(days=1)).strftime("%Y%m%d")
+        return next_day
+    return "19900101"
+
+
 def fetch_and_insert(ticker: str, start: str, end: str) -> int:
     try:
         df = krx.get_market_ohlcv(start, end, ticker)
@@ -63,14 +73,15 @@ def get_all_tickers() -> list[str]:
     return [row[0] for row in cursor.fetchall()]
 
 
-def run(start: str, end: str):
+def run(end: str):
     tickers = get_all_tickers()
     total = len(tickers)
-    print(f"총 {total}개 종목 적재 시작 ({start} ~ {end})")
+    print(f"총 {total}개 종목 적재 시작 (~ {end})")
 
     success, skip, error = 0, 0, 0
 
     for i, ticker in enumerate(tickers, 1):
+        start = get_last_date(ticker)
         count = fetch_and_insert(ticker, start, end)
 
         if count > 0:
@@ -88,5 +99,4 @@ def run(start: str, end: str):
 
 if __name__ == "__main__":
     end = datetime.today().strftime("%Y%m%d")
-    start = (datetime.today() - timedelta(days=365)).strftime("%Y%m%d")
-    run(start, end)
+    run(end)
