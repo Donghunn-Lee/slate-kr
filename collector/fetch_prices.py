@@ -1,3 +1,4 @@
+import logging
 import os
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
@@ -7,6 +8,22 @@ import time
 
 load_dotenv()
 
+# ── 로깅 설정 ──────────────────────────────────────────────
+_log_dir = os.path.join(os.path.dirname(__file__), "logs")
+os.makedirs(_log_dir, exist_ok=True)
+_log_file = os.path.join(_log_dir, f"prices_{datetime.today().strftime('%Y%m%d')}.log")
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.FileHandler(_log_file, encoding="utf-8"),
+        logging.StreamHandler(),
+    ],
+)
+logger = logging.getLogger(__name__)
+
+# ── DB 연결 ────────────────────────────────────────────────
 db = mysql.connector.connect(
     host=os.getenv("DB_HOST"),
     port=int(os.getenv("DB_PORT", 3306)),
@@ -28,14 +45,20 @@ def get_last_date(ticker: str) -> str:
 
 
 def fetch_and_insert(ticker: str, start: str, end: str) -> int:
+    """
+    반환값 규약:
+      양수 : 적재 건수 (success)
+      0    : 데이터 없음 / 휴장 (skip)
+      -1   : 오류 발생 (error)
+    """
     try:
         df = krx.get_market_ohlcv(start, end, ticker)
     except Exception as e:
-        print(f"[ERROR] pykrx 호출 실패 {ticker}: {e}")
-        return 0
+        logger.error("pykrx 호출 실패 %s: %s", ticker, e)
+        return -1
 
     if df is None or df.empty:
-        print(f"[SKIP] 데이터 없음: {ticker} ({start}~{end})")
+        logger.debug("데이터 없음: %s (%s~%s)", ticker, start, end)
         return 0
 
     rows = []
@@ -62,8 +85,13 @@ def fetch_and_insert(ticker: str, start: str, end: str) -> int:
             open=VALUES(open), high=VALUES(high), low=VALUES(low),
             close=VALUES(close), volume=VALUES(volume)
     """
-    cursor.executemany(sql, rows)
-    db.commit()
+    try:
+        cursor.executemany(sql, rows)
+        db.commit()
+    except Exception as e:
+        logger.error("DB 적재 실패 %s: %s", ticker, e)
+        db.rollback()
+        return -1
 
     return len(rows)
 
@@ -76,27 +104,43 @@ def get_all_tickers() -> list[str]:
 def run(end: str):
     tickers = get_all_tickers()
     total = len(tickers)
-    print(f"총 {total}개 종목 적재 시작 (~ {end})")
+    logger.info("총 %d개 종목 적재 시작 (~ %s)", total, end)
 
     success, skip, error = 0, 0, 0
 
     for i, ticker in enumerate(tickers, 1):
         start = get_last_date(ticker)
-        count = fetch_and_insert(ticker, start, end)
 
-        if count > 0:
-            success += 1
-        else:
+        if start > end:
+            logger.debug(
+                "최신 상태 유지 중: %s (start=%s > end=%s)", ticker, start, end
+            )
             skip += 1
+        else:
+            count = fetch_and_insert(ticker, start, end)
+
+            if count > 0:
+                success += 1
+            elif count == 0:
+                skip += 1
+            else:  # -1
+                error += 1
 
         if i % 100 == 0:
-            print(f"  진행: {i}/{total} (성공={success}, 스킵={skip}, 오류={error})")
+            logger.info(
+                "진행: %d/%d (성공=%d, 스킵=%d, 오류=%d)",
+                i,
+                total,
+                success,
+                skip,
+                error,
+            )
 
         time.sleep(0.3)  # KRX 요청 간격
 
-    print(f"\n완료: 성공={success}, 스킵={skip}, 오류={error}")
+    logger.info("완료: 성공=%d, 스킵=%d, 오류=%d", success, skip, error)
 
 
 if __name__ == "__main__":
-    end = datetime.today().strftime("%Y%m%d")
+    end = (datetime.today() - timedelta(days=1)).strftime("%Y%m%d")
     run(end)
