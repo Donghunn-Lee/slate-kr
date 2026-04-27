@@ -26,6 +26,7 @@ collector/__pycache__/
 collector/*.pyc
 collector/.env
 collector/venv/
+collector/logs/
 
 # production
 /build

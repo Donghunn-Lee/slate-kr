@@ -1,3 +1,4 @@
+import logging
 import os
 from datetime import datetime
 from dotenv import load_dotenv
@@ -8,6 +9,24 @@ import time
 
 load_dotenv()
 
+# ── 로깅 설정 ──────────────────────────────────────────────
+_log_dir = os.path.join(os.path.dirname(__file__), "logs")
+os.makedirs(_log_dir, exist_ok=True)
+_log_file = os.path.join(
+    _log_dir, f"financials_{datetime.today().strftime('%Y%m%d')}.log"
+)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.FileHandler(_log_file, encoding="utf-8"),
+        logging.StreamHandler(),
+    ],
+)
+logger = logging.getLogger(__name__)
+
+# ── DB 연결 ────────────────────────────────────────────────
 db = mysql.connector.connect(
     host=os.getenv("DB_HOST"),
     port=int(os.getenv("DB_PORT", 3306)),
@@ -22,14 +41,29 @@ DART_API_KEY = os.getenv("DART_API_KEY")
 # 필요한 계정 항목만 추출
 TARGET_ACCOUNTS = {
     "ifrs-full_Revenue": "revenue",
-    "dart_OperatingIncomeLoss": "operating_profit",  # 수정
+    "dart_OperatingIncomeLoss": "operating_profit",
     "ifrs-full_ProfitLoss": "net_income",
     "ifrs-full_Assets": "total_assets",
     "ifrs-full_Equity": "total_equity",
-    "ifrs-full_Liabilities": "total_debt",
-    "ifrs-full_BasicEarningsLossPerShare": "eps",  # 수정
+    "ifrs-full_BasicEarningsLossPerShare": "eps",
     # bps, dps는 DART에서 직접 제공 안 함 — 별도 처리 필요
 }
+
+_QUARTER_MAP = {"11011": 4, "11012": 2, "11013": 1, "11014": 3}
+_REPORT_TYPE_MAP = {
+    "11011": "annual",
+    "11012": "quarter",
+    "11013": "quarter",
+    "11014": "quarter",
+}
+
+
+def get_existing_keys() -> set[tuple]:
+    """DB에 이미 적재된 (ticker, year, quarter, report_type) 집합 반환."""
+    cursor.execute(
+        "SELECT ticker, year, quarter, report_type FROM financial_statements"
+    )
+    return {(row[0], row[1], row[2], row[3]) for row in cursor.fetchall()}
 
 
 def fetch_financial(corp_code: str, bsns_year: str, reprt_code: str) -> Optional[dict]:
@@ -45,7 +79,7 @@ def fetch_financial(corp_code: str, bsns_year: str, reprt_code: str) -> Optional
         res = requests.get(url, params=params, timeout=10)
         data = res.json()
     except Exception as e:
-        print(f"[ERROR] 요청 실패 {corp_code}: {e}")
+        logger.error("DART 요청 실패 %s: %s", corp_code, e)
         return None
 
     if data.get("status") != "000":
@@ -70,7 +104,12 @@ def fetch_financial(corp_code: str, bsns_year: str, reprt_code: str) -> Optional
 
 def insert_financial(
     ticker: str, corp_code: str, bsns_year: str, reprt_code: str, data: dict
-):
+) -> bool:
+    """
+    반환값 규약:
+      True  : 적재 성공
+      False : DB 오류
+    """
     sql = """
         INSERT INTO financial_statements (
             ticker, corp_code, year, quarter, report_type,
@@ -84,65 +123,124 @@ def insert_financial(
             total_equity=VALUES(total_equity),
             eps=VALUES(eps), bps=VALUES(bps)
     """
-    quarter_map = {"11011": 4, "11012": 2, "11013": 1, "11014": 3}
-    report_type_map = {
-        "11011": "annual",
-        "11012": "quarter",
-        "11013": "quarter",
-        "11014": "quarter",
-    }
+    try:
+        cursor.execute(
+            sql,
+            (
+                ticker,
+                corp_code,
+                int(bsns_year),
+                _QUARTER_MAP.get(reprt_code, 4),
+                _REPORT_TYPE_MAP.get(reprt_code, "annual"),
+                data.get("revenue"),
+                data.get("operating_profit"),
+                data.get("net_income"),
+                data.get("total_assets"),
+                data.get("total_equity"),
+                data.get("eps"),
+                data.get("bps"),
+            ),
+        )
+        db.commit()
+    except Exception as e:
+        logger.error("DB 적재 실패 %s (%s/%s): %s", ticker, bsns_year, reprt_code, e)
+        db.rollback()
+        return False
 
+    return True
+
+
+def get_all_corps() -> list[tuple[str, str, str]]:
     cursor.execute(
-        sql,
-        (
-            ticker,
-            corp_code,
-            int(bsns_year),
-            quarter_map.get(reprt_code, 4),
-            report_type_map.get(reprt_code, "annual"),
-            data.get("revenue"),
-            data.get("operating_profit"),
-            data.get("net_income"),
-            data.get("total_assets"),
-            data.get("total_equity"),
-            data.get("eps"),
-            data.get("bps"),
-        ),
-    )
-    db.commit()
-
-
-def get_all_corps() -> list[tuple[str, str]]:
-    cursor.execute(
-        "SELECT ticker, corp_code FROM stocks WHERE corp_code IS NOT NULL AND is_active = 1"
+        """
+        SELECT ticker, corp_code, name FROM stocks
+        WHERE corp_code IS NOT NULL
+          AND is_active = 1
+          AND (is_financial_filer = 1 OR is_financial_filer IS NULL)
+        """
     )
     return cursor.fetchall()
 
 
-def run(bsns_year: str, reprt_code: str):
+def mark_non_filer(ticker: str, name: str) -> None:
+    """DART 응답이 없는 종목을 is_financial_filer = 0으로 표시.
+    적재 이력이 전혀 없는 종목에만 호출할 것.
+    """
+    try:
+        cursor.execute(
+            "UPDATE stocks SET is_financial_filer = 0 WHERE ticker = %s",
+            (ticker,),
+        )
+        db.commit()
+        logger.info(
+            "[MARK] %s (%s) → is_financial_filer=0 (DART 미공시 확인)", ticker, name
+        )
+    except Exception as e:
+        logger.error("is_financial_filer 업데이트 실패 %s: %s", ticker, e)
+        db.rollback()
+
+
+def run(bsns_year: str, reprt_code: str, existing_keys: set[tuple]):
     corps = get_all_corps()
     total = len(corps)
-    print(
-        f"총 {total}개 종목 재무제표 적재 시작 ({bsns_year}, reprt_code={reprt_code})"
+    quarter = _QUARTER_MAP.get(reprt_code, 4)
+    report_type = _REPORT_TYPE_MAP.get(reprt_code, "annual")
+    filed_tickers = {key[0] for key in existing_keys}
+    logger.info(
+        "재무제표 적재 시작: %s Q%s (%s) — 총 %d개 종목",
+        bsns_year,
+        quarter,
+        reprt_code,
+        total,
     )
 
     success, skip, error = 0, 0, 0
 
-    for i, (ticker, corp_code) in enumerate(corps, 1):
+    for i, (ticker, corp_code, name) in enumerate(corps, 1):
+        key = (ticker, int(bsns_year), quarter, report_type)
+
+        if key in existing_keys:
+            logger.debug("이미 적재됨 스킵: %s %s Q%s", ticker, bsns_year, quarter)
+            skip += 1
+            continue
+
         data = fetch_financial(corp_code, bsns_year, reprt_code)
 
-        if data:
-            insert_financial(ticker, corp_code, bsns_year, reprt_code, data)
-            success += 1
-        else:
+        if data is None:
+            logger.debug(
+                "DART 응답 없음 (공시 미존재): %s %s/%s", ticker, bsns_year, reprt_code
+            )
+            if ticker not in filed_tickers:
+                mark_non_filer(ticker, name)
             skip += 1
+        else:
+            ok = insert_financial(ticker, corp_code, bsns_year, reprt_code, data)
+            if ok:
+                existing_keys.add(key)
+                success += 1
+            else:
+                error += 1
 
         if i % 100 == 0:
-            print(f"  진행: {i}/{total} (성공={success}, 스킵={skip}, 오류={error})")
+            logger.info(
+                "진행: %d/%d (성공=%d, 스킵=%d, 오류=%d)",
+                i,
+                total,
+                success,
+                skip,
+                error,
+            )
 
         time.sleep(0.3)
 
-    print(f"\n완료: 성공={success}, 스킵={skip}, 오류={error}")
+    logger.info(
+        "완료 %s Q%s: 성공=%d, 스킵=%d, 오류=%d",
+        bsns_year,
+        quarter,
+        success,
+        skip,
+        error,
+    )
 
 
 def get_available_reports(years_back: int = 2) -> list[tuple[str, str]]:
@@ -174,6 +272,8 @@ def get_available_reports(years_back: int = 2) -> list[tuple[str, str]]:
 
 if __name__ == "__main__":
     reports = get_available_reports(years_back=5)
-    print(f"수집 대상: {reports}")
+    logger.info("수집 대상: %s", reports)
+    existing_keys = get_existing_keys()
+    logger.info("기존 적재 키 수: %d", len(existing_keys))
     for bsns_year, reprt_code in reports:
-        run(bsns_year=bsns_year, reprt_code=reprt_code)
+        run(bsns_year=bsns_year, reprt_code=reprt_code, existing_keys=existing_keys)
