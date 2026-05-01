@@ -27,6 +27,7 @@ collector/*.pyc
 collector/.env
 collector/venv/
 collector/logs/
+collector/experiments/
 
 # production
 /build
