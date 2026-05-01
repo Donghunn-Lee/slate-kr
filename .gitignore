@@ -20,6 +20,7 @@
 # web (Next.js)
 web/.next/
 web/node_modules/
+web/scripts/
 
 # collector (Python)
 collector/__pycache__/
