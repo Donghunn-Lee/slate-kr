@@ -17,7 +17,15 @@ const BOILERPLATE_PATTERNS: RegExp[] = [
   /^\(-\)$/,
 ];
 
-const fetchDocumentZip = async (rceptNo: string): Promise<ArrayBuffer> => {
+export type FetchDisclosureResult =
+  | { ok: true; text: string }
+  | { ok: false; error: { kind: "file_not_found" } };
+
+type DocumentRaw =
+  | { kind: "zip"; buffer: ArrayBuffer }
+  | { kind: "xml_error"; status: string; message: string };
+
+const fetchDocumentRaw = async (rceptNo: string): Promise<DocumentRaw> => {
   const apiKey = process.env.DART_API_KEY;
   if (!apiKey) throw new Error("DART_API_KEY 환경변수 없음");
 
@@ -31,11 +39,24 @@ const fetchDocumentZip = async (rceptNo: string): Promise<ArrayBuffer> => {
   const buffer = await res.arrayBuffer();
   const bytes = new Uint8Array(buffer, 0, 4);
   const isZip = ZIP_MAGIC.every((b, i) => bytes[i] === b);
-  if (!isZip) {
-    throw new Error("DART document.xml: 비ZIP 응답 (status code 응답 가능성)");
+  if (isZip) return { kind: "zip", buffer };
+
+  // 비ZIP — XML 에러 응답 파싱 시도
+  let body: string;
+  try {
+    body = new TextDecoder("utf-8", { fatal: true }).decode(buffer);
+  } catch {
+    throw new Error("DART document.xml: 비ZIP 응답이며 UTF-8 디코드 실패");
   }
 
-  return buffer;
+  const match = body.match(/<status>(\d+)<\/status>[\s\S]*?<message>([\s\S]*?)<\/message>/);
+  if (!match) {
+    throw new Error(
+      `DART document.xml: 비ZIP 응답이며 파싱 불가 (앞 200자: ${body.slice(0, 200)})`
+    );
+  }
+
+  return { kind: "xml_error", status: match[1], message: match[2] };
 };
 
 const extractXmlFromZip = async (buffer: ArrayBuffer): Promise<string> => {
@@ -94,13 +115,19 @@ const removeBoilerplate = (text: string): string => {
   return cleanWhitespace(kept.join("\n"));
 };
 
-export const fetchDisclosureText = async (rceptNo: string): Promise<string> => {
-  const buffer = await fetchDocumentZip(rceptNo);
-  const xml = await extractXmlFromZip(buffer);
+export const fetchDisclosureText = async (rceptNo: string): Promise<FetchDisclosureResult> => {
+  const raw = await fetchDocumentRaw(rceptNo);
 
+  if (raw.kind === "xml_error") {
+    if (raw.status === "014") return { ok: false, error: { kind: "file_not_found" } };
+    throw new Error(`DART document.xml 에러: status=${raw.status} message=${raw.message}`);
+  }
+
+  const xml = await extractXmlFromZip(raw.buffer);
   const noLibrary = removeLibraryBlocks(xml);
   const noEng = removeEngAttributes(noLibrary);
   const noTags = stripTags(noEng);
   const cleaned = cleanWhitespace(noTags);
-  return removeBoilerplate(cleaned);
+  const text = removeBoilerplate(cleaned);
+  return { ok: true, text };
 };
