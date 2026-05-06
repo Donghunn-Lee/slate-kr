@@ -11,11 +11,23 @@ export type DisclosureType = (typeof DisclosureType)[keyof typeof DisclosureType
 const PATTERNS: { type: DisclosureType; keywords: string[] }[] = [
   {
     type: DisclosureType.MAJOR_EVENT,
-    keywords: ["주요사항보고서"],
+    keywords: [
+      "주요사항보고서",
+      "증권발행실적보고서",
+      "증권발행결과",
+      "증권신고서",
+      "타법인주식및출자증권취득결정",
+      "주식병합결정",
+      "단일판매ㆍ공급계약체결",
+      "단일판매ㆍ공급계약해지",
+      "주식매수선택권부여",
+      "주권관련사채권의취득결정",
+      "전환가액의조정",
+    ],
   },
   {
     type: DisclosureType.FINANCIAL,
-    keywords: ["사업보고서", "분기보고서", "반기보고서"],
+    keywords: ["사업보고서", "분기보고서", "반기보고서", "영업(잠정)실적", "결산실적공시예고"],
   },
   {
     type: DisclosureType.OWNERSHIP,
@@ -27,7 +39,7 @@ const PATTERNS: { type: DisclosureType; keywords: string[] }[] = [
   },
   {
     type: DisclosureType.SHAREHOLDER_MEETING,
-    keywords: ["주주총회"],
+    keywords: ["주주총회", "의결권대리행사권유참고서류", "사외이사의선임ㆍ해임또는중도퇴임"],
   },
 ];
 
