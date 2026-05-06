@@ -35,7 +35,8 @@ export type SummarizeError =
   | { kind: "timeout" }
   | { kind: "safety_blocked" }
   | { kind: "empty_response" }
-  | { kind: "api_error"; message: string };
+  | { kind: "api_error"; message: string }
+  | { kind: "not_summarizable" };
 
 let _ai: GoogleGenAI | null = null;
 
