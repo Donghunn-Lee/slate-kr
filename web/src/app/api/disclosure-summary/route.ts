@@ -25,7 +25,12 @@ export async function POST(req: NextRequest) {
 
   const { rcept_no, disclosure_nm } = parsed.data;
 
-  const cached = await getDisclosureSummary(rcept_no);
+  let cached: Awaited<ReturnType<typeof getDisclosureSummary>>;
+  try {
+    cached = await getDisclosureSummary(rcept_no);
+  } catch {
+    return NextResponse.json({ ok: false, error: { kind: "api_error", message: "DB 조회 실패" } });
+  }
   if (cached) {
     return NextResponse.json({ ok: true, summary: cached.summaryText });
   }
@@ -49,11 +54,15 @@ export async function POST(req: NextRequest) {
   const result = await summarizeDisclosure(docResult.text);
 
   if (result.ok) {
-    await saveDisclosureSummary({
-      rceptNo: rcept_no,
-      summaryText: result.summary,
-      modelName: result.modelName,
-    });
+    try {
+      await saveDisclosureSummary({
+        rceptNo: rcept_no,
+        summaryText: result.summary,
+        modelName: result.modelName,
+      });
+    } catch {
+      // 캐시 저장 실패는 요약 반환에 영향 주지 않음
+    }
     return NextResponse.json({ ok: true, summary: result.summary });
   }
 

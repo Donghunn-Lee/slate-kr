@@ -1,42 +1,7 @@
 import type { DartDisclosure } from "@/shared/types/stock";
 import { getCorpCode } from "@/lib/stocks";
 import { getDisclosures } from "@/lib/dart";
-import { formatDartDate } from "@/shared/format";
-import { classifyDisclosure } from "@/shared/utils/classifyDisclosure";
-import { StockPanel } from "./StockPanel";
-import { CheckpointBadge } from "./CheckpointBadge";
-
-type DisclosureItemProps = {
-  disclosure: DartDisclosure;
-};
-
-const DisclosureItem = ({ disclosure }: DisclosureItemProps) => {
-  const type = classifyDisclosure(disclosure.disclosureNm);
-  return (
-    <li className="border-b border-border/60 py-3.5 last:border-0">
-      <a
-        href={`https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${disclosure.rcpNo}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="group flex items-start justify-between gap-3"
-      >
-        <div className="flex min-w-0 items-start gap-2">
-          {type && <CheckpointBadge type={type} />}
-          <p className="text-sm font-medium group-hover:underline">{disclosure.disclosureNm}</p>
-        </div>
-        <p className="shrink-0 text-xs text-muted-foreground">
-          {formatDartDate(disclosure.rcptDt)}
-          {disclosure.flrNm && <span className="ml-2">{disclosure.flrNm}</span>}
-          {disclosure.rmk && (
-            <span className="ml-2 rounded bg-secondary px-1.5 py-0.5 text-xs">
-              {disclosure.rmk}
-            </span>
-          )}
-        </p>
-      </a>
-    </li>
-  );
-};
+import { DisclosuresSection } from "./DisclosuresSection";
 
 type StockDisclosuresProps = {
   ticker: string;
@@ -59,22 +24,5 @@ export const StockDisclosures = async ({ ticker }: StockDisclosuresProps) => {
     // API 오류 시 빈 데이터로 폴백
   }
 
-  return (
-    <StockPanel variant="disclosures">
-      <h2 className="mb-4 text-sm font-semibold text-muted-foreground">최근 공시 (최근 3개월)</h2>
-      {noApiKey ? (
-        <p className="text-sm text-muted-foreground">
-          DART API 키 미설정 — 공시 데이터를 불러올 수 없습니다
-        </p>
-      ) : disclosures.length === 0 ? (
-        <p className="text-sm text-muted-foreground">최근 공시 없음</p>
-      ) : (
-        <ul>
-          {disclosures.map((d) => (
-            <DisclosureItem key={d.rcpNo} disclosure={d} />
-          ))}
-        </ul>
-      )}
-    </StockPanel>
-  );
+  return <DisclosuresSection disclosures={disclosures} noApiKey={noApiKey} />;
 };
