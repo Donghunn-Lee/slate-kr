@@ -48,9 +48,11 @@ const getAI = (): GoogleGenAI => {
   return _ai;
 };
 
-export const summarizeDisclosure = async (text: string): Promise<SummarizeResult> => {
-  const ai = getAI();
+const isTransient = (message: string): boolean =>
+  message.includes("503") || message.includes("UNAVAILABLE");
 
+const callGemini = async (text: string): Promise<SummarizeResult> => {
+  const ai = getAI();
   const prompt = PROMPT_TEMPLATE.replace("{text}", text);
 
   const controller = new AbortController();
@@ -63,7 +65,6 @@ export const summarizeDisclosure = async (text: string): Promise<SummarizeResult
       config: { abortSignal: controller.signal },
     });
 
-    // 안전 필터 차단 확인
     const candidate = response.candidates?.[0];
     if (candidate?.finishReason === "SAFETY") {
       return { ok: false, error: { kind: "safety_blocked" } };
@@ -92,4 +93,17 @@ export const summarizeDisclosure = async (text: string): Promise<SummarizeResult
   } finally {
     clearTimeout(timer);
   }
+};
+
+export const summarizeDisclosure = async (text: string): Promise<SummarizeResult> => {
+  const first = await callGemini(text);
+  if (first.ok) return first;
+
+  // 503 일시 과부하 시 1초 대기 후 1회 재시도
+  if (!first.ok && first.error.kind === "api_error" && isTransient(first.error.message)) {
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+    return callGemini(text);
+  }
+
+  return first;
 };
