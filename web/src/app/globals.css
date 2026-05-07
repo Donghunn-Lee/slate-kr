@@ -47,38 +47,55 @@
 }
 
 :root {
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  /* ── Base tokens (light) ── */
+  --bg-base: oklch(0.98 0.005 85);       /* 따뜻한 오프화이트 페이지 배경 */
+  --bg-elevated: oklch(0.995 0.003 85);  /* 패널·카드가 떠 있을 때 */
+  --text-primary: oklch(0.25 0.02 270);  /* 짙은 네이비, 순검정 대체 */
+  --text-secondary: oklch(0.5 0.015 270);
+  --text-tertiary: oklch(0.65 0.01 270);
+  --border-subtle: oklch(0.92 0.005 85);
+  --border-default: oklch(0.88 0.008 85);
+
+  /* ── Functional tokens — 등락 (Korean market: red=up, blue=down) ── */
+  --price-up: oklch(0.52 0.2 25);        /* 상승 — 레드 */
+  --price-up-muted: oklch(0.52 0.2 25 / 12%);
+  --price-down: oklch(0.48 0.18 260);    /* 하락 — 블루 */
+  --price-down-muted: oklch(0.48 0.18 260 / 12%);
+  --price-neutral: oklch(0.55 0.01 270); /* 보합 */
+
+  /* ── shadcn/ui tokens (light, warm-aligned) ── */
+  --background: var(--bg-base);
+  --foreground: var(--text-primary);
+  --card: var(--bg-elevated);
+  --card-foreground: var(--text-primary);
+  --popover: var(--bg-elevated);
+  --popover-foreground: var(--text-primary);
+  --primary: oklch(0.25 0.02 270);
+  --primary-foreground: oklch(0.98 0.005 85);
+  --secondary: oklch(0.94 0.006 85);
+  --secondary-foreground: oklch(0.35 0.02 270);
+  --muted: oklch(0.94 0.006 85);
+  --muted-foreground: var(--text-secondary);
+  --accent: oklch(0.94 0.006 85);
+  --accent-foreground: oklch(0.35 0.02 270);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --border: var(--border-default);
+  --input: var(--border-default);
+  --ring: oklch(0.65 0.01 270);
+  --chart-1: oklch(0.52 0.2 25);
+  --chart-2: oklch(0.48 0.18 260);
+  --chart-3: oklch(0.55 0.15 180);
+  --chart-4: oklch(0.6 0.12 120);
+  --chart-5: oklch(0.55 0.14 300);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --sidebar: var(--bg-elevated);
+  --sidebar-foreground: var(--text-primary);
+  --sidebar-primary: oklch(0.25 0.02 270);
+  --sidebar-primary-foreground: oklch(0.98 0.005 85);
+  --sidebar-accent: oklch(0.94 0.006 85);
+  --sidebar-accent-foreground: oklch(0.35 0.02 270);
+  --sidebar-border: var(--border-subtle);
+  --sidebar-ring: oklch(0.65 0.01 270);
 }
 
 .dark {

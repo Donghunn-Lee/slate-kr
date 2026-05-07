@@ -23,7 +23,7 @@ export const Providers = ({ children }: ProvidersProps) => {
   );
 
   return (
-    <NextThemesProvider attribute="class" defaultTheme="dark" enableSystem>
+    <NextThemesProvider attribute="class" defaultTheme="light" enableSystem>
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
       <Toaster richColors />
     </NextThemesProvider>
