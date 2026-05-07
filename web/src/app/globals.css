@@ -44,6 +44,38 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  /* ── Semantic base ── */
+  --color-bg-base: var(--bg-base);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-default: var(--border-default);
+  /* ── Functional: 등락 ── */
+  --color-price-up: var(--price-up);
+  --color-price-up-muted: var(--price-up-muted);
+  --color-price-down: var(--price-down);
+  --color-price-down-muted: var(--price-down-muted);
+  --color-price-neutral: var(--price-neutral);
+  /* ── Accent palette ── */
+  --color-sky-bg: var(--sky-bg);
+  --color-sky-border: var(--sky-border);
+  --color-sky-accent: var(--sky-accent);
+  --color-sage-bg: var(--sage-bg);
+  --color-sage-border: var(--sage-border);
+  --color-sage-accent: var(--sage-accent);
+  --color-amber-bg: var(--amber-bg);
+  --color-amber-border: var(--amber-border);
+  --color-amber-accent: var(--amber-accent);
+  --color-lavender-bg: var(--lavender-bg);
+  --color-lavender-border: var(--lavender-border);
+  --color-lavender-accent: var(--lavender-accent);
+  --color-peach-bg: var(--peach-bg);
+  --color-peach-border: var(--peach-border);
+  --color-peach-accent: var(--peach-accent);
+  /* ── Shadow ── */
+  --shadow-slate: 0 1px 3px oklch(0.25 0.02 270 / 8%), 0 4px 12px oklch(0.25 0.02 270 / 5%);
 }
 
 :root {
@@ -62,6 +94,29 @@
   --price-down: oklch(0.48 0.18 260);    /* 하락 — 블루 */
   --price-down-muted: oklch(0.48 0.18 260 / 12%);
   --price-neutral: oklch(0.55 0.01 270); /* 보합 */
+
+  /* ── Accent palette (5 colors × 3 stages: bg / border / accent) ── */
+  --sky-bg:          oklch(0.97 0.03 220);
+  --sky-border:      oklch(0.87 0.05 220);
+  --sky-accent:      oklch(0.55 0.12 220);
+  --sage-bg:         oklch(0.96 0.04 165);
+  --sage-border:     oklch(0.85 0.06 165);
+  --sage-accent:     oklch(0.5 0.12 165);
+  --amber-bg:        oklch(0.97 0.05 80);
+  --amber-border:    oklch(0.88 0.08 80);
+  --amber-accent:    oklch(0.6 0.15 60);
+  --lavender-bg:     oklch(0.96 0.04 290);
+  --lavender-border: oklch(0.85 0.06 290);
+  --lavender-accent: oklch(0.5 0.13 290);
+  --peach-bg:        oklch(0.97 0.04 35);
+  --peach-border:    oklch(0.88 0.07 35);
+  --peach-accent:    oklch(0.6 0.16 35);
+
+  /* ── Motion ── */
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 350ms;
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
 
   /* ── shadcn/ui tokens (light, warm-aligned) ── */
   --background: var(--bg-base);
