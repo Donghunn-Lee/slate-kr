@@ -3,6 +3,7 @@ import { ColorTokens } from "./sections/ColorTokens";
 import { Typography } from "./sections/Typography";
 import { SlatePanels } from "./sections/SlatePanels";
 import { InContextPreview } from "./sections/InContextPreview";
+import { InteractionDemo } from "./sections/InteractionDemo";
 
 export const metadata: Metadata = {
   title: "Styleguide — SlateKR",
@@ -45,7 +46,7 @@ export default function StyleguidePage() {
               color: "var(--text-tertiary)",
             }}
           >
-            {["Base", "Functional", "Accent ×5", "Motion", "Shadow"].map((tag) => (
+            {["Base", "Functional", "Accent ×5", "Motion", "Shadow", "Interaction"].map((tag) => (
               <span
                 key={tag}
                 style={{
@@ -66,6 +67,7 @@ export default function StyleguidePage() {
           <Typography />
           <SlatePanels />
           <InContextPreview />
+          <InteractionDemo />
         </div>
 
         {/* 푸터 */}
