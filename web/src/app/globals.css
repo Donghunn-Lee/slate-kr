@@ -99,7 +99,7 @@
   --sky-bg:          oklch(0.97 0.03 220);
   --sky-border:      oklch(0.87 0.05 220);
   --sky-accent:      oklch(0.55 0.12 220);
-  --sage-bg:         oklch(0.96 0.04 165);
+  --sage-bg:         oklch(0.95 0.05 165);
   --sage-border:     oklch(0.85 0.06 165);
   --sage-accent:     oklch(0.5 0.12 165);
   --amber-bg:        oklch(0.97 0.05 80);
@@ -108,9 +108,9 @@
   --lavender-bg:     oklch(0.96 0.04 290);
   --lavender-border: oklch(0.85 0.06 290);
   --lavender-accent: oklch(0.5 0.13 290);
-  --peach-bg:        oklch(0.97 0.04 35);
-  --peach-border:    oklch(0.88 0.07 35);
-  --peach-accent:    oklch(0.6 0.16 35);
+  --peach-bg:        oklch(0.97 0.04 45);
+  --peach-border:    oklch(0.88 0.07 45);
+  --peach-accent:    oklch(0.6 0.14 45);
 
   /* ── Motion ── */
   --duration-fast: 120ms;
