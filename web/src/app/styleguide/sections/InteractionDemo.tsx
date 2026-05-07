@@ -54,7 +54,7 @@ const PanelHoverDemo = () => {
   return (
     <DemoBlock
       title="Panel Hover"
-      description="duration-fast (120ms) + ease-smooth — 가벼운 떠오름"
+      description="duration-fast (150ms) + ease-smooth — 가벼운 떠오름"
       token="--duration-fast"
     >
       <div
@@ -66,9 +66,9 @@ const PanelHoverDemo = () => {
           borderRadius: "var(--radius-lg, 0.625rem)",
           boxShadow: hovered ? "var(--shadow-slate-hover)" : "var(--shadow-slate)",
           padding: "20px 24px",
-          transform: hovered ? "translateY(-2px)" : "translateY(0)",
+          transform: hovered ? "translateY(-3px)" : "translateY(0)",
           transition:
-            "transform var(--duration-fast, 120ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1)), box-shadow var(--duration-fast, 120ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1)), border-color var(--duration-fast, 120ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1))",
+            "transform var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1)), box-shadow var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1)), border-color var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1))",
           cursor: "default",
           maxWidth: "400px",
         }}
@@ -116,7 +116,7 @@ const PanelExpandDemo = () => {
   return (
     <DemoBlock
       title="Panel Expand"
-      description="duration-base (200ms) — 패널 내부 정보 펼침"
+      description="duration-base (250ms) — 패널 내부 정보 펼침"
       token="--duration-base"
     >
       <div
@@ -170,7 +170,7 @@ const PanelExpandDemo = () => {
               flexShrink: 0,
               color: "var(--text-secondary)",
               transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
-              transition: `transform var(--duration-base, 200ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1))`,
+              transition: `transform var(--duration-base, 250ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1))`,
             }}
           >
             <path
@@ -218,7 +218,7 @@ const PanelExpandDemo = () => {
               maxHeight: expanded ? "500px" : "0",
               opacity: expanded ? 1 : 0,
               overflow: "hidden",
-              transition: `max-height var(--duration-base, 200ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1)), opacity var(--duration-base, 200ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1))`,
+              transition: `max-height var(--duration-base, 250ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1)), opacity var(--duration-base, 250ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1))`,
             }}
           >
             <div style={{ borderTop: "1px solid var(--sage-border)", paddingTop: "4px" }}>
@@ -314,7 +314,7 @@ const DisclosureRowItem = ({
         padding: "12px 16px",
         borderBottom: "1px solid var(--amber-border)",
         backgroundColor: hovered ? "var(--amber-border)" : "transparent",
-        transition: `background-color var(--duration-fast, 120ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1))`,
+        transition: `background-color var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1))`,
         cursor: "default",
       }}
     >
@@ -379,7 +379,7 @@ const DisclosureRowItem = ({
             borderRadius: "4px",
             opacity: hovered ? 1 : 0,
             transform: hovered ? "translateX(0)" : "translateX(8px)",
-            transition: `opacity var(--duration-fast, 120ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1)), transform var(--duration-fast, 120ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1))`,
+            transition: `opacity var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1)), transform var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1))`,
             pointerEvents: hovered ? "auto" : "none",
             cursor: "pointer",
             whiteSpace: "nowrap",
@@ -557,7 +557,7 @@ const CountUpDemo = () => {
             color:
               current.dir === "up" ? "var(--price-up)" : "var(--price-down)",
             marginBottom: "16px",
-            transition: `color var(--duration-fast, 120ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1))`,
+            transition: `color var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1))`,
           }}
         >
           {current.dir === "up" ? "+" : ""}

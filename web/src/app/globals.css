@@ -76,7 +76,7 @@
   --color-peach-accent: var(--peach-accent);
   /* ── Shadow ── */
   --shadow-slate: 0 1px 3px oklch(0.25 0.02 270 / 8%), 0 4px 12px oklch(0.25 0.02 270 / 5%);
-  --shadow-slate-hover: 0 2px 4px oklch(0.5 0.02 270 / 6%), 0 8px 20px oklch(0.5 0.02 270 / 6%);
+  --shadow-slate-hover: inset 0 1px 0 oklch(1 0 0 / 0.6), 0 2px 4px oklch(0.5 0.02 270 / 0.08), 0 8px 20px oklch(0.5 0.02 270 / 0.08);
 }
 
 :root {
@@ -114,9 +114,9 @@
   --peach-accent:    oklch(0.6 0.14 45);
 
   /* ── Motion ── */
-  --duration-fast: 120ms;
-  --duration-base: 200ms;
-  --duration-slow: 350ms;
+  --duration-fast: 150ms;
+  --duration-base: 250ms;
+  --duration-slow: 400ms;
   --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
 
   /* ── shadcn/ui tokens (light, warm-aligned) ── */
