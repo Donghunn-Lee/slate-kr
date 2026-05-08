@@ -1,8 +1,9 @@
 import type { StockSummary, StockPriceSnapshot } from "@/shared/types/stock";
 import { getDailyPrices } from "@/lib/prices";
-import { formatPrice, formatVolume, formatMarketCap } from "@/shared/format";
+import { formatVolume, formatMarketCap } from "@/shared/format";
 import { WatchlistButton } from "@/features/watchlist/WatchlistButton";
 import { StockPanel } from "./StockPanel";
+import { PriceCountUp } from "./PriceCountUp";
 
 type StockHeaderProps = {
   ticker: string;
@@ -72,7 +73,9 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
       </div>
 
       <div className="mt-4 flex flex-wrap items-end gap-3">
-        <span className="text-4xl font-bold tracking-tight">{formatPrice(latest.close)}</span>
+        <span className="text-4xl font-bold tracking-tight">
+          <PriceCountUp from={prev?.close ?? latest.close} to={latest.close} />원
+        </span>
         {change !== null && changeRate !== null && (
           <span className={`mb-1 text-lg font-medium ${changeColor}`}>
             {changeSign}
