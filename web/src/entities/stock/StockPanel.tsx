@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-type StockPanelVariant = "default" | "chart" | "financials" | "disclosures";
+export type StockPanelVariant = "plain" | "sky" | "sage" | "amber" | "lavender" | "peach";
 
 type StockPanelProps = {
   children: ReactNode;
@@ -10,27 +10,25 @@ type StockPanelProps = {
   className?: string;
 };
 
-const variantClasses: Record<StockPanelVariant, string> = {
-  default: "",
-  chart: "border-l-[3px] border-l-violet-400/70",
-  financials: "border-l-[3px] border-l-teal-400/70",
-  disclosures: "border-l-[3px] border-l-amber-400/70",
+const PANEL_VARIANT_CLASSES: Record<StockPanelVariant, { bg: string; border: string }> = {
+  plain: { bg: "bg-elevated", border: "border-subtle" },
+  sky: { bg: "bg-sky-bg", border: "border-sky-border" },
+  sage: { bg: "bg-sage-bg", border: "border-sage-border" },
+  amber: { bg: "bg-amber-bg", border: "border-amber-border" },
+  lavender: { bg: "bg-lavender-bg", border: "border-lavender-border" },
+  peach: { bg: "bg-peach-bg", border: "border-peach-border" },
 };
 
 export const StockPanel = ({
   children,
-  variant = "default",
+  variant = "plain",
   noBorder = false,
   className,
 }: StockPanelProps) => {
+  const { bg, border } = PANEL_VARIANT_CLASSES[variant];
   return (
     <div
-      className={cn(
-        "rounded-xl bg-elevated p-6",
-        !noBorder && "border border-subtle",
-        !noBorder && variantClasses[variant],
-        className
-      )}
+      className={cn("rounded-lg shadow-slate p-6", bg, !noBorder && `border ${border}`, className)}
     >
       {children}
     </div>

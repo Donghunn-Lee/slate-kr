@@ -95,7 +95,7 @@ export const DisclosuresSection = ({ disclosures, noApiKey }: DisclosuresSection
         )}
       </button>
 
-      <StockPanel variant="disclosures">
+      <StockPanel variant="plain">
         <h2 className="mb-4 text-sm font-semibold text-muted-foreground">최근 공시 (최근 3개월)</h2>
         {noApiKey ? (
           <p className="text-sm text-muted-foreground">
