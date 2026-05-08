@@ -89,7 +89,7 @@ export const SummarySlate = ({ open, onOpenChange, selection }: SummarySlateProp
       <SheetContent
         side="right"
         showOverlay={false}
-        className="flex w-[400px] flex-col overflow-y-auto sm:max-w-[400px] border-l border-border/60 shadow-xl"
+        className="flex w-[400px] flex-col overflow-y-auto sm:max-w-[400px] bg-lavender-bg border-l border-lavender-border shadow-xl"
       >
         <SheetHeader className="border-b border-border/60 pb-4">
           <SheetTitle className="pr-8 text-sm font-semibold leading-snug">{title}</SheetTitle>
