@@ -81,9 +81,9 @@ export const DisclosuresSection = ({ disclosures, noApiKey }: DisclosuresSection
         className={cn(
           "fixed top-1/2 z-40 -translate-y-1/2",
           "flex h-14 w-5 items-center justify-center",
-          "rounded-l-md border border-r-0 border-white/10 bg-neutral-800",
+          "rounded-l-md border border-r-0 border-subtle bg-elevated",
           "text-muted-foreground transition-all duration-200",
-          "hover:bg-neutral-700 hover:text-foreground",
+          "hover:bg-muted hover:text-foreground",
           panelOpen ? "right-[384px]" : "right-0"
         )}
         aria-label={panelOpen ? "AI 요약 패널 닫기" : "AI 요약 패널 열기"}

@@ -26,8 +26,8 @@ export const StockPanel = ({
   return (
     <div
       className={cn(
-        "rounded-xl bg-neutral-900 p-6",
-        !noBorder && "border border-white/10",
+        "rounded-xl bg-elevated p-6",
+        !noBorder && "border border-subtle",
         !noBorder && variantClasses[variant],
         className
       )}
