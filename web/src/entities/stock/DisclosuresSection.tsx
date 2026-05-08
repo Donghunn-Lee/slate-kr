@@ -9,7 +9,6 @@ import { cn } from "@/lib/utils";
 import { StockPanel } from "./StockPanel";
 import { CheckpointBadge } from "./CheckpointBadge";
 import { SummarySlate, type SummarySelection } from "@/features/disclosure-summary/SummarySlate";
-import { Button } from "@/components/ui/button";
 
 type DisclosureItemProps = {
   disclosure: DartDisclosure;
@@ -18,17 +17,30 @@ type DisclosureItemProps = {
 
 const DisclosureItem = ({ disclosure, onSummaryRequest }: DisclosureItemProps) => {
   const type = classifyDisclosure(disclosure.disclosureNm);
+  const [hovered, setHovered] = useState(false);
+
   return (
-    <li className="border-b border-border/60 py-3 last:border-0">
+    <li
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="-mx-6 border-b border-amber-border px-6 py-3 last:border-0"
+      style={{
+        backgroundColor: hovered ? "var(--amber-border)" : "transparent",
+        transition:
+          "background-color var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1))",
+      }}
+    >
       <div className="flex items-start justify-between gap-2">
         <a
           href={`https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${disclosure.rcpNo}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="group flex min-w-0 flex-1 items-start gap-2"
+          className="flex min-w-0 flex-1 items-start gap-2"
         >
           {type && <CheckpointBadge type={type} />}
-          <p className="text-sm font-medium group-hover:underline">{disclosure.disclosureNm}</p>
+          <p className={cn("text-sm font-medium", hovered && "underline")}>
+            {disclosure.disclosureNm}
+          </p>
         </a>
         <div className="flex shrink-0 items-center gap-2">
           <p className="text-xs text-muted-foreground">
@@ -40,10 +52,17 @@ const DisclosureItem = ({ disclosure, onSummaryRequest }: DisclosureItemProps) =
               </span>
             )}
           </p>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground hover:text-foreground"
+          <button
+            type="button"
+            className="bg-elevated cursor-pointer rounded border border-amber-border px-2 py-0.5 text-[11px] font-medium text-amber-accent whitespace-nowrap"
+            style={{
+              backgroundColor: "var(--bg-elevated)",
+              opacity: hovered ? 1 : 0,
+              transform: hovered ? "translateX(0)" : "translateX(8px)",
+              pointerEvents: hovered ? "auto" : "none",
+              transition:
+                "opacity var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1)), transform var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1))",
+            }}
             onClick={() =>
               onSummaryRequest({
                 rcept_no: disclosure.rcpNo,
@@ -52,7 +71,7 @@ const DisclosureItem = ({ disclosure, onSummaryRequest }: DisclosureItemProps) =
             }
           >
             AI 요약
-          </Button>
+          </button>
         </div>
       </div>
     </li>
