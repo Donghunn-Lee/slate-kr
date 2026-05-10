@@ -48,97 +48,7 @@ const calculateDerivedMetrics = (raw: {
   return { operatingMargin, netMargin, debtRatio, roe, roa };
 };
 
-const convertYtdToQuarterly = (
-  quarterRows: FinancialRow[],
-  annualRow: FinancialRow | undefined
-): FinancialPeriod[] => {
-  const byQuarter = new Map<number, FinancialRow>();
-  for (const row of quarterRows) {
-    if (row.quarter !== null) byQuarter.set(row.quarter, row);
-  }
-
-  const diffFields = (curr: number | null, prev: number | null): number | null => {
-    if (curr === null || prev === null) return null;
-    return curr - prev;
-  };
-
-  const makePeriod = (
-    row: FinancialRow,
-    q: number,
-    revenue: number | null,
-    operatingProfit: number | null,
-    netIncome: number | null
-  ): FinancialPeriod => {
-    const raw = {
-      revenue,
-      operatingProfit,
-      netIncome,
-      totalAssets: row.total_assets,
-      totalEquity: row.total_equity,
-    };
-    return {
-      ticker: row.ticker,
-      year: row.year,
-      quarter: q,
-      reportType: "quarter",
-      revenue,
-      operatingProfit,
-      netIncome,
-      totalAssets: row.total_assets,
-      totalEquity: row.total_equity,
-      eps: row.eps,
-      bps: row.bps,
-      ...calculateDerivedMetrics(raw),
-    };
-  };
-
-  const result: FinancialPeriod[] = [];
-
-  const q1 = byQuarter.get(1);
-  const q2 = byQuarter.get(2);
-  const q3 = byQuarter.get(3);
-
-  if (q1) {
-    result.push(makePeriod(q1, 1, q1.revenue, q1.operating_profit, q1.net_income));
-  }
-  if (q2) {
-    result.push(
-      makePeriod(
-        q2,
-        2,
-        diffFields(q2.revenue, q1?.revenue ?? null),
-        diffFields(q2.operating_profit, q1?.operating_profit ?? null),
-        diffFields(q2.net_income, q1?.net_income ?? null)
-      )
-    );
-  }
-  if (q3) {
-    result.push(
-      makePeriod(
-        q3,
-        3,
-        diffFields(q3.revenue, q2?.revenue ?? null),
-        diffFields(q3.operating_profit, q2?.operating_profit ?? null),
-        diffFields(q3.net_income, q2?.net_income ?? null)
-      )
-    );
-  }
-  if (annualRow && q3) {
-    result.push(
-      makePeriod(
-        annualRow,
-        4,
-        diffFields(annualRow.revenue, q3.revenue),
-        diffFields(annualRow.operating_profit, q3.operating_profit),
-        diffFields(annualRow.net_income, q3.net_income)
-      )
-    );
-  }
-
-  return result.sort((a, b) => (b.quarter ?? 0) - (a.quarter ?? 0));
-};
-
-const rowToAnnual = (row: FinancialRow): FinancialPeriod => {
+const rowToFinancialPeriod = (row: FinancialRow): FinancialPeriod => {
   const raw = {
     revenue: row.revenue,
     operatingProfit: row.operating_profit,
@@ -149,8 +59,8 @@ const rowToAnnual = (row: FinancialRow): FinancialPeriod => {
   return {
     ticker: row.ticker,
     year: row.year,
-    quarter: null,
-    reportType: "annual",
+    quarter: row.quarter,
+    reportType: row.report_type,
     revenue: row.revenue,
     operatingProfit: row.operating_profit,
     netIncome: row.net_income,
@@ -162,6 +72,79 @@ const rowToAnnual = (row: FinancialRow): FinancialPeriod => {
   };
 };
 
+const sumFlow = (
+  rows: (FinancialRow | undefined)[],
+  field: "revenue" | "operating_profit" | "net_income"
+): number | null => {
+  let total = 0;
+  for (const row of rows) {
+    const v = row?.[field] ?? null;
+    if (v === null) return null;
+    total += v;
+  }
+  return total;
+};
+
+const buildQuarterlyPeriods = (
+  quarterRows: FinancialRow[],
+  annualRow: FinancialRow | null
+): FinancialPeriod[] => {
+  const byQuarter = new Map<number, FinancialRow>();
+  for (const row of quarterRows) {
+    if (row.quarter !== null) byQuarter.set(row.quarter, row);
+  }
+
+  const result: FinancialPeriod[] = [];
+
+  for (const row of byQuarter.values()) {
+    result.push(rowToFinancialPeriod(row));
+  }
+
+  if (annualRow) {
+    const q1 = byQuarter.get(1);
+    const q2 = byQuarter.get(2);
+    const q3 = byQuarter.get(3);
+    const qRows = [q1, q2, q3];
+
+    const subFlow = (annual: number | null, sum: number | null): number | null => {
+      if (annual === null || sum === null) return null;
+      return annual - sum;
+    };
+
+    const q4Revenue = subFlow(annualRow.revenue, sumFlow(qRows, "revenue"));
+    const q4OperatingProfit = subFlow(
+      annualRow.operating_profit,
+      sumFlow(qRows, "operating_profit")
+    );
+    const q4NetIncome = subFlow(annualRow.net_income, sumFlow(qRows, "net_income"));
+
+    const raw = {
+      revenue: q4Revenue,
+      operatingProfit: q4OperatingProfit,
+      netIncome: q4NetIncome,
+      totalAssets: annualRow.total_assets,
+      totalEquity: annualRow.total_equity,
+    };
+
+    result.push({
+      ticker: annualRow.ticker,
+      year: annualRow.year,
+      quarter: 4,
+      reportType: "quarter",
+      revenue: q4Revenue,
+      operatingProfit: q4OperatingProfit,
+      netIncome: q4NetIncome,
+      totalAssets: annualRow.total_assets,
+      totalEquity: annualRow.total_equity,
+      eps: annualRow.eps,
+      bps: annualRow.bps,
+      ...calculateDerivedMetrics(raw),
+    });
+  }
+
+  return result.sort((a, b) => (a.quarter ?? 0) - (b.quarter ?? 0));
+};
+
 export const getFinancials = async (ticker: string): Promise<StockFinancials> => {
   const [rows] = await pool.query<(FinancialRow & RowDataPacket)[]>(
     "SELECT * FROM financial_statements WHERE ticker = ? ORDER BY year DESC, quarter DESC",
@@ -171,15 +154,15 @@ export const getFinancials = async (ticker: string): Promise<StockFinancials> =>
   const annualRows = rows.filter((r) => r.report_type === "annual").slice(0, 5);
   const quarterRows = rows.filter((r) => r.report_type === "quarter");
 
-  const annual = annualRows.map(rowToAnnual);
+  const annual = annualRows.map(rowToFinancialPeriod);
 
   // 연도별 그룹핑 후 단분기 변환
   const yearSet = new Set(quarterRows.map((r) => r.year));
   const quarterly: FinancialPeriod[] = [];
   for (const year of yearSet) {
     const yearQuarters = quarterRows.filter((r) => r.year === year);
-    const annualForYear = annualRows.find((r) => r.year === year);
-    quarterly.push(...convertYtdToQuarterly(yearQuarters, annualForYear));
+    const annualForYear = annualRows.find((r) => r.year === year) ?? null;
+    quarterly.push(...buildQuarterlyPeriods(yearQuarters, annualForYear));
   }
   quarterly.sort((a, b) => b.year - a.year || (b.quarter ?? 0) - (a.quarter ?? 0));
 
@@ -193,5 +176,5 @@ export const getLatestFinancial = async (ticker: string): Promise<FinancialPerio
   );
 
   if (rows.length === 0) return null;
-  return rowToAnnual(rows[0]);
+  return rowToFinancialPeriod(rows[0]);
 };
