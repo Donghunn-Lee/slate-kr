@@ -30,14 +30,22 @@ const calculateDerivedMetrics = (raw: {
   netIncome: number | null;
   totalAssets: number | null;
   totalEquity: number | null;
-}): { operatingMargin: number | null; debtRatio: number | null; roe: number | null } => {
+}): {
+  operatingMargin: number | null;
+  netMargin: number | null;
+  debtRatio: number | null;
+  roe: number | null;
+  roa: number | null;
+} => {
   const operatingMargin = safeDivide(raw.operatingProfit, raw.revenue);
+  const netMargin = safeDivide(raw.netIncome, raw.revenue);
   const debtRatio =
     raw.totalAssets !== null && raw.totalEquity !== null
       ? safeDivide(raw.totalAssets - raw.totalEquity, raw.totalEquity)
       : null;
   const roe = safeDivide(raw.netIncome, raw.totalEquity);
-  return { operatingMargin, debtRatio, roe };
+  const roa = safeDivide(raw.netIncome, raw.totalAssets);
+  return { operatingMargin, netMargin, debtRatio, roe, roa };
 };
 
 const convertYtdToQuarterly = (

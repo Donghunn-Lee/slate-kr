@@ -12,19 +12,24 @@ export const formatMarketCap = (value: number | null): string => {
 
 // 재무 수치 (원 단위 → 억원 표시)
 export const formatFinancial = (value: number | null): string => {
-  if (value === null) return "-";
+  if (value === null) return "—";
   const billion = value / 100_000_000;
   return Math.round(billion).toLocaleString("ko-KR") + "억원";
 };
 
 export const formatRatio = (value: number | null, digits = 2): string => {
-  if (value === null) return "-";
+  if (value === null) return "—";
   return value.toFixed(digits) + "배";
 };
 
 export const formatEps = (value: number | null): string => {
-  if (value === null) return "-";
+  if (value === null) return "—";
   return value.toLocaleString("ko-KR") + "원";
+};
+
+export const formatPercent = (value: number | null): string => {
+  if (value === null) return "—";
+  return (value * 100).toFixed(2) + "%";
 };
 
 // 'YYYYMMDD' → 'YYYY.MM.DD'

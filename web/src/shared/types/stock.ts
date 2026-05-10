@@ -42,8 +42,10 @@ export type FinancialPeriod = {
   bps: number | null;
   // 파생 지표
   operatingMargin: number | null;
+  netMargin: number | null;
   debtRatio: number | null;
   roe: number | null;
+  roa: number | null;
 };
 
 export type StockFinancials = {
