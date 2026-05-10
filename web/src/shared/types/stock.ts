@@ -28,9 +28,10 @@ export type StockPriceSnapshot = {
   marketCap: number | null;
 };
 
-export type StockFinancialSummary = {
+export type FinancialPeriod = {
   ticker: string;
   year: number;
+  quarter: number | null; // null = annual
   reportType: "annual" | "quarter";
   revenue: number | null;
   operatingProfit: number | null;
@@ -39,4 +40,13 @@ export type StockFinancialSummary = {
   totalEquity: number | null;
   eps: number | null;
   bps: number | null;
+  // 파생 지표
+  operatingMargin: number | null;
+  debtRatio: number | null;
+  roe: number | null;
+};
+
+export type StockFinancials = {
+  annual: FinancialPeriod[]; // 최신순 (최대 5년)
+  quarterly: FinancialPeriod[]; // 최신순 단분기 (Q1~Q4)
 };

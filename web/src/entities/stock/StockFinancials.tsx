@@ -1,10 +1,10 @@
-import type { StockFinancialSummary } from "@/shared/types/stock";
+import type { FinancialPeriod } from "@/shared/types/stock";
 import { getFinancials } from "@/lib/financials";
 import { formatFinancial } from "@/shared/format";
 import { StockPanel } from "./StockPanel";
 
 type FinancialRowProps = {
-  financial: StockFinancialSummary;
+  financial: FinancialPeriod;
 };
 
 const FinancialRow = ({ financial }: FinancialRowProps) => (
@@ -23,11 +23,11 @@ type StockFinancialsProps = {
 };
 
 export const StockFinancials = async ({ ticker }: StockFinancialsProps) => {
-  let annuals: StockFinancialSummary[] = [];
+  let annuals: FinancialPeriod[] = [];
 
   try {
-    const all = await getFinancials(ticker);
-    annuals = all.filter((f) => f.reportType === "annual").slice(0, 3);
+    const result = await getFinancials(ticker);
+    annuals = result.annual.slice(0, 3);
   } catch {
     // DB 오류 시 빈 데이터로 폴백
   }

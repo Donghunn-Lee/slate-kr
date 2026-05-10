@@ -1,4 +1,4 @@
-import type { StockPriceSnapshot, StockFinancialSummary } from "@/shared/types/stock";
+import type { StockPriceSnapshot, FinancialPeriod } from "@/shared/types/stock";
 import { getLatestPrice } from "@/lib/prices";
 import { getLatestFinancial } from "@/lib/financials";
 import { formatRatio, formatEps } from "@/shared/format";
@@ -22,7 +22,7 @@ type StockMetricsProps = {
 
 export const StockMetrics = async ({ ticker }: StockMetricsProps) => {
   let price: StockPriceSnapshot | null = null;
-  let financial: StockFinancialSummary | null = null;
+  let financial: FinancialPeriod | null = null;
 
   try {
     [price, financial] = await Promise.all([getLatestPrice(ticker), getLatestFinancial(ticker)]);
