@@ -102,6 +102,15 @@ def fetch_financial(corp_code: str, bsns_year: str, reprt_code: str) -> Optional
     return result if result else None
 
 
+def get_shares(ticker: str) -> Optional[int]:
+    """stocks 테이블에서 발행주식총수를 조회한다."""
+    cursor.execute("SELECT shares FROM stocks WHERE ticker = %s", (ticker,))
+    row = cursor.fetchone()
+    if row and row[0] and row[0] > 0:
+        return row[0]
+    return None
+
+
 def insert_financial(
     ticker: str, corp_code: str, bsns_year: str, reprt_code: str, data: dict
 ) -> bool:
@@ -110,6 +119,13 @@ def insert_financial(
       True  : 적재 성공
       False : DB 오류
     """
+    total_equity = data.get("total_equity")
+    shares = get_shares(ticker)
+    if total_equity is not None and shares is not None:
+        bps = round(total_equity / shares)
+    else:
+        bps = None
+
     sql = """
         INSERT INTO financial_statements (
             ticker, corp_code, year, quarter, report_type,
@@ -136,9 +152,9 @@ def insert_financial(
                 data.get("operating_profit"),
                 data.get("net_income"),
                 data.get("total_assets"),
-                data.get("total_equity"),
+                total_equity,
                 data.get("eps"),
-                data.get("bps"),
+                bps,
             ),
         )
         db.commit()
