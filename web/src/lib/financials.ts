@@ -68,6 +68,8 @@ const rowToFinancialPeriod = (row: FinancialRow): FinancialPeriod => {
     totalEquity: row.total_equity,
     eps: row.eps,
     bps: row.bps,
+    per: null,
+    pbr: null,
     ...calculateDerivedMetrics(raw),
   };
 };
@@ -138,6 +140,8 @@ const buildQuarterlyPeriods = (
       totalEquity: annualRow.total_equity,
       eps: annualRow.eps,
       bps: annualRow.bps,
+      per: null,
+      pbr: null,
       ...calculateDerivedMetrics(raw),
     });
   }

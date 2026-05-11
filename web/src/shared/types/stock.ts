@@ -40,6 +40,8 @@ export type FinancialPeriod = {
   totalEquity: number | null;
   eps: number | null;
   bps: number | null;
+  per: number | null;
+  pbr: number | null;
   // 파생 지표
   operatingMargin: number | null;
   netMargin: number | null;
