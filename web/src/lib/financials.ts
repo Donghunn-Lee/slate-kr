@@ -1,4 +1,3 @@
-import type { RowDataPacket } from "mysql2";
 import { pool } from "./db";
 import type { FinancialPeriod, StockFinancials } from "@/shared/types/stock";
 
@@ -150,7 +149,7 @@ const buildQuarterlyPeriods = (
 };
 
 export const getFinancials = async (ticker: string): Promise<StockFinancials> => {
-  const [rows] = await pool.query<(FinancialRow & RowDataPacket)[]>(
+  const [rows] = await pool.query<FinancialRow[]>(
     "SELECT * FROM financial_statements WHERE ticker = ? ORDER BY year DESC, quarter DESC",
     [ticker]
   );
@@ -174,7 +173,7 @@ export const getFinancials = async (ticker: string): Promise<StockFinancials> =>
 };
 
 export const getLatestFinancial = async (ticker: string): Promise<FinancialPeriod | null> => {
-  const [rows] = await pool.query<(FinancialRow & RowDataPacket)[]>(
+  const [rows] = await pool.query<FinancialRow[]>(
     'SELECT * FROM financial_statements WHERE ticker = ? AND report_type = "annual" ORDER BY year DESC LIMIT 1',
     [ticker]
   );

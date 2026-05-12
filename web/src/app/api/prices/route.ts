@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { RowDataPacket } from "mysql2";
 import { pool } from "@/lib/db";
 
 type PriceRow = {
@@ -31,7 +30,7 @@ export async function GET(req: NextRequest) {
 
   const placeholders = tickers.map(() => "?").join(",");
 
-  const [rows] = await pool.query<(PriceRow & RowDataPacket)[]>(
+  const [rows] = await pool.query<PriceRow[]>(
     `SELECT p1.ticker, p1.close, p1.date
      FROM daily_prices p1
      INNER JOIN (
@@ -47,7 +46,7 @@ export async function GET(req: NextRequest) {
   // 이전 종가: 종목별로 최신 날짜 이전 1건
   const prevResults = await Promise.all(
     rows.map(async (row) => {
-      const [prev] = await pool.query<(PriceRow & RowDataPacket)[]>(
+      const [prev] = await pool.query<PriceRow[]>(
         "SELECT close FROM daily_prices WHERE ticker = ? AND date < ? ORDER BY date DESC LIMIT 1",
         [row.ticker, row.date]
       );

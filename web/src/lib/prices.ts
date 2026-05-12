@@ -1,4 +1,3 @@
-import type { RowDataPacket } from "mysql2";
 import { pool } from "./db";
 import type { StockPriceSnapshot } from "@/shared/types/stock";
 
@@ -19,7 +18,7 @@ export const getDailyPrices = async (
   ticker: string,
   limit = 365
 ): Promise<StockPriceSnapshot[]> => {
-  const [rows] = await pool.query<(DailyPriceRow & RowDataPacket)[]>(
+  const [rows] = await pool.query<DailyPriceRow[]>(
     "SELECT * FROM daily_prices WHERE ticker = ? ORDER BY date DESC LIMIT ?",
     [ticker, limit]
   );
@@ -37,7 +36,7 @@ export const getDailyPrices = async (
 };
 
 export const getLatestPrice = async (ticker: string): Promise<StockPriceSnapshot | null> => {
-  const [rows] = await pool.query<(DailyPriceRow & RowDataPacket)[]>(
+  const [rows] = await pool.query<DailyPriceRow[]>(
     "SELECT * FROM daily_prices WHERE ticker = ? ORDER BY date DESC LIMIT 1",
     [ticker]
   );

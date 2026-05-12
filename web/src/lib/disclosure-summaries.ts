@@ -1,4 +1,3 @@
-import type { RowDataPacket } from "mysql2";
 import { pool } from "./db";
 
 export type DisclosureSummary = {
@@ -29,7 +28,7 @@ const normalizeDisclosureSummary = (row: DisclosureSummaryRow): DisclosureSummar
 });
 
 export const getDisclosureSummary = async (rceptNo: string): Promise<DisclosureSummary | null> => {
-  const [rows] = await pool.query<(DisclosureSummaryRow & RowDataPacket)[]>(
+  const [rows] = await pool.query<DisclosureSummaryRow[]>(
     "SELECT rcept_no, summary_text, model_name, created_at FROM disclosure_summaries WHERE rcept_no = ?",
     [rceptNo]
   );

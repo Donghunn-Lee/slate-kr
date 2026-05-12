@@ -1,11 +1,10 @@
-import mysql from "mysql2/promise";
+import { neon } from "@neondatabase/serverless";
 
-export const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT ?? 3306),
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  waitForConnections: true,
-  connectionLimit: 10,
-});
+const sql = neon(process.env.DATABASE_URL!);
+
+export const pool = {
+  query: async <T = unknown[]>(queryStr: string, params?: unknown[]): Promise<[T, unknown]> => {
+    const rows = (await sql.query(queryStr, params)) as T;
+    return [rows, null];
+  },
+};
