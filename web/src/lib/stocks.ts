@@ -16,7 +16,7 @@ type StockRow = {
 
 export const getStockByTicker = async (ticker: string): Promise<StockSummary | null> => {
   const [rows] = await pool.query<StockRow[]>(
-    "SELECT ticker, name, market, sector, shares FROM stocks WHERE ticker = ? AND is_active = 1",
+    "SELECT ticker, name, market, sector, shares FROM stocks WHERE ticker = $1 AND is_active = true",
     [ticker]
   );
 
@@ -38,7 +38,7 @@ export const getStockByTicker = async (ticker: string): Promise<StockSummary | n
 
 export const getCorpCode = async (ticker: string): Promise<string | null> => {
   const [rows] = await pool.query<StockRow[]>(
-    "SELECT corp_code FROM stocks WHERE ticker = ? AND is_active = 1",
+    "SELECT corp_code FROM stocks WHERE ticker = $1 AND is_active = true",
     [ticker]
   );
   return rows.length > 0 ? (rows[0].corp_code ?? null) : null;
@@ -46,14 +46,14 @@ export const getCorpCode = async (ticker: string): Promise<string | null> => {
 
 export const getAllTickers = async (): Promise<string[]> => {
   const [rows] = await pool.query<Pick<StockRow, "ticker">[]>(
-    "SELECT ticker FROM stocks WHERE is_active = 1"
+    "SELECT ticker FROM stocks WHERE is_active = true"
   );
   return rows.map((row) => row.ticker);
 };
 
 export const searchStocks = async (query: string): Promise<StockSummary[]> => {
   const [rows] = await pool.query<StockRow[]>(
-    "SELECT ticker, name, market, sector FROM stocks WHERE (name LIKE ? OR ticker LIKE ?) AND is_active = 1 LIMIT 10",
+    "SELECT ticker, name, market, sector FROM stocks WHERE (name LIKE $1 OR ticker LIKE $2) AND is_active = true LIMIT 10",
     [`%${query}%`, `%${query}%`]
   );
 

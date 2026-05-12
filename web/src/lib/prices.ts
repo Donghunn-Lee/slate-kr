@@ -19,7 +19,7 @@ export const getDailyPrices = async (
   limit = 365
 ): Promise<StockPriceSnapshot[]> => {
   const [rows] = await pool.query<DailyPriceRow[]>(
-    "SELECT * FROM daily_prices WHERE ticker = ? ORDER BY date DESC LIMIT ?",
+    "SELECT * FROM daily_prices WHERE ticker = $1 ORDER BY date DESC LIMIT $2",
     [ticker, limit]
   );
 
@@ -37,7 +37,7 @@ export const getDailyPrices = async (
 
 export const getLatestPrice = async (ticker: string): Promise<StockPriceSnapshot | null> => {
   const [rows] = await pool.query<DailyPriceRow[]>(
-    "SELECT * FROM daily_prices WHERE ticker = ? ORDER BY date DESC LIMIT 1",
+    "SELECT * FROM daily_prices WHERE ticker = $1 ORDER BY date DESC LIMIT 1",
     [ticker]
   );
 

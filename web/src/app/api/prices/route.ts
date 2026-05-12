@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json([]);
   }
 
-  const placeholders = tickers.map(() => "?").join(",");
+  const placeholders = tickers.map((_, i) => `$${i + 1}`).join(",");
 
   const [rows] = await pool.query<PriceRow[]>(
     `SELECT p1.ticker, p1.close, p1.date
@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
   const prevResults = await Promise.all(
     rows.map(async (row) => {
       const [prev] = await pool.query<PriceRow[]>(
-        "SELECT close FROM daily_prices WHERE ticker = ? AND date < ? ORDER BY date DESC LIMIT 1",
+        "SELECT close FROM daily_prices WHERE ticker = $1 AND date < $2 ORDER BY date DESC LIMIT 1",
         [row.ticker, row.date]
       );
       return { ticker: row.ticker, prevClose: prev[0]?.close ?? null };

@@ -29,7 +29,7 @@ const normalizeDisclosureSummary = (row: DisclosureSummaryRow): DisclosureSummar
 
 export const getDisclosureSummary = async (rceptNo: string): Promise<DisclosureSummary | null> => {
   const [rows] = await pool.query<DisclosureSummaryRow[]>(
-    "SELECT rcept_no, summary_text, model_name, created_at FROM disclosure_summaries WHERE rcept_no = ?",
+    "SELECT rcept_no, summary_text, model_name, created_at FROM disclosure_summaries WHERE rcept_no = $1",
     [rceptNo]
   );
 
@@ -41,11 +41,11 @@ export const getDisclosureSummary = async (rceptNo: string): Promise<DisclosureS
 export const saveDisclosureSummary = async (input: SaveDisclosureSummaryInput): Promise<void> => {
   await pool.query(
     `INSERT INTO disclosure_summaries (rcept_no, summary_text, model_name)
-     VALUES (?, ?, ?)
-     ON DUPLICATE KEY UPDATE
-       summary_text = VALUES(summary_text),
-       model_name   = VALUES(model_name),
-       created_at   = CURRENT_TIMESTAMP`,
+     VALUES ($1, $2, $3)
+     ON CONFLICT (rcept_no) DO UPDATE SET
+       summary_text = EXCLUDED.summary_text,
+       model_name   = EXCLUDED.model_name,
+       created_at   = NOW()`,
     [input.rceptNo, input.summaryText, input.modelName]
   );
 };
