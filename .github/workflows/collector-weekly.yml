@@ -1,0 +1,34 @@
+name: Collector Weekly
+
+on:
+  schedule:
+    - cron: "0 8 * * 5"
+  workflow_dispatch:
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+
+    env:
+      DATABASE_URL: ${{ secrets.NEON_DIRECT_URL }}
+      DART_API_KEY: ${{ secrets.DART_API_KEY }}
+      FSS_API_KEY: ${{ secrets.FSS_API_KEY }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        working-directory: collector
+        run: pip install -r requirements.txt
+
+      - name: Run fetch_stocks
+        working-directory: collector
+        run: python fetch_stocks.py
+
+      - name: Run fetch_shares
+        working-directory: collector
+        run: python fetch_shares.py
