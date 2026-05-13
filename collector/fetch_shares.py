@@ -10,7 +10,7 @@ import os
 import time
 from datetime import datetime
 import requests
-import mysql.connector
+import psycopg2
 from dotenv import load_dotenv
 from typing import Optional
 
@@ -35,13 +35,7 @@ DART_API_KEY = os.getenv("DART_API_KEY")
 
 
 def get_connection():
-    return mysql.connector.connect(
-        host=os.getenv("DB_HOST"),
-        port=int(os.getenv("DB_PORT", 3306)),
-        user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASSWORD"),
-        database=os.getenv("DB_NAME"),
-    )
+    return psycopg2.connect(os.getenv("DATABASE_URL"))
 
 
 def get_latest_bsns_year() -> str:
@@ -90,7 +84,7 @@ def main():
     cursor = conn.cursor()
 
     cursor.execute(
-        "SELECT ticker, corp_code FROM stocks WHERE corp_code IS NOT NULL AND is_active = 1"
+        "SELECT ticker, corp_code FROM stocks WHERE corp_code IS NOT NULL AND is_active = true"
     )
     rows = cursor.fetchall()
     total = len(rows)
@@ -125,7 +119,12 @@ def main():
 
         if i % 100 == 0:
             logger.info(
-                "진행: %d/%d (성공=%d, 스킵=%d, 오류=%d)", i, total, success, skip, error
+                "진행: %d/%d (성공=%d, 스킵=%d, 오류=%d)",
+                i,
+                total,
+                success,
+                skip,
+                error,
             )
 
         time.sleep(0.2)

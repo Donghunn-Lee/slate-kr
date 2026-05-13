@@ -1,7 +1,7 @@
 import logging
 import os
 import requests
-import mysql.connector
+import psycopg2
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 
@@ -26,13 +26,7 @@ FSS_API_KEY = os.getenv("FSS_API_KEY")
 
 
 def get_connection():
-    return mysql.connector.connect(
-        host=os.getenv("DB_HOST"),
-        port=int(os.getenv("DB_PORT", 3306)),
-        user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASSWORD"),
-        database=os.getenv("DB_NAME"),
-    )
+    return psycopg2.connect(os.getenv("DATABASE_URL"))
 
 
 def fetch_stock_list() -> list[dict]:
@@ -93,9 +87,9 @@ def upsert_stocks(conn, stocks: list[dict]):
     sql = """
         INSERT INTO stocks (ticker, name, market)
         VALUES (%s, %s, %s)
-        ON DUPLICATE KEY UPDATE
-            name = VALUES(name),
-            market = VALUES(market),
+        ON CONFLICT (ticker) DO UPDATE SET
+            name = EXCLUDED.name,
+            market = EXCLUDED.market,
             updated_at = CURRENT_TIMESTAMP
     """
     rows = [(s["ticker"], s["name"], s["market"]) for s in stocks]

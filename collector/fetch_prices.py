@@ -2,7 +2,7 @@ import logging
 import os
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
-import mysql.connector
+import psycopg2
 from pykrx import stock as krx
 import time
 
@@ -23,18 +23,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# ── DB 연결 ────────────────────────────────────────────────
-db = mysql.connector.connect(
-    host=os.getenv("DB_HOST"),
-    port=int(os.getenv("DB_PORT", 3306)),
-    user=os.getenv("DB_USER"),
-    password=os.getenv("DB_PASSWORD"),
-    database=os.getenv("DB_NAME"),
-)
-cursor = db.cursor()
+
+def get_connection():
+    return psycopg2.connect(os.getenv("DATABASE_URL"))
 
 
-def get_last_date(ticker: str) -> str:
+def get_last_date(cursor, ticker: str) -> str:
     """DB에 저장된 마지막 날짜 반환. 없으면 전체 시작일."""
     cursor.execute("SELECT MAX(date) FROM daily_prices WHERE ticker = %s", (ticker,))
     row = cursor.fetchone()
@@ -44,7 +38,7 @@ def get_last_date(ticker: str) -> str:
     return "19900101"
 
 
-def fetch_and_insert(ticker: str, start: str, end: str) -> int:
+def fetch_and_insert(conn, cursor, ticker: str, start: str, end: str) -> int:
     """
     반환값 규약:
       양수 : 적재 건수 (success)
@@ -81,64 +75,73 @@ def fetch_and_insert(ticker: str, start: str, end: str) -> int:
     sql = """
         INSERT INTO daily_prices (ticker, date, open, high, low, close, volume)
         VALUES (%s, %s, %s, %s, %s, %s, %s)
-        ON DUPLICATE KEY UPDATE
-            open=VALUES(open), high=VALUES(high), low=VALUES(low),
-            close=VALUES(close), volume=VALUES(volume)
+        ON CONFLICT (ticker, date) DO UPDATE SET
+            open = EXCLUDED.open,
+            high = EXCLUDED.high,
+            low = EXCLUDED.low,
+            close = EXCLUDED.close,
+            volume = EXCLUDED.volume
     """
     try:
         cursor.executemany(sql, rows)
-        db.commit()
+        conn.commit()
     except Exception as e:
         logger.error("DB 적재 실패 %s: %s", ticker, e)
-        db.rollback()
+        conn.rollback()
         return -1
 
     return len(rows)
 
 
-def get_all_tickers() -> list[str]:
-    cursor.execute("SELECT ticker FROM stocks WHERE is_active = 1")
+def get_all_tickers(cursor) -> list[str]:
+    cursor.execute("SELECT ticker FROM stocks WHERE is_active = true")
     return [row[0] for row in cursor.fetchall()]
 
 
 def run(end: str):
-    tickers = get_all_tickers()
-    total = len(tickers)
-    logger.info("총 %d개 종목 적재 시작 (~ %s)", total, end)
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        tickers = get_all_tickers(cursor)
+        total = len(tickers)
+        logger.info("총 %d개 종목 적재 시작 (~ %s)", total, end)
 
-    success, skip, error = 0, 0, 0
+        success, skip, error = 0, 0, 0
 
-    for i, ticker in enumerate(tickers, 1):
-        start = get_last_date(ticker)
+        for i, ticker in enumerate(tickers, 1):
+            start = get_last_date(cursor, ticker)
 
-        if start > end:
-            logger.debug(
-                "최신 상태 유지 중: %s (start=%s > end=%s)", ticker, start, end
-            )
-            skip += 1
-        else:
-            count = fetch_and_insert(ticker, start, end)
-
-            if count > 0:
-                success += 1
-            elif count == 0:
+            if start > end:
+                logger.debug(
+                    "최신 상태 유지 중: %s (start=%s > end=%s)", ticker, start, end
+                )
                 skip += 1
-            else:  # -1
-                error += 1
+            else:
+                count = fetch_and_insert(conn, cursor, ticker, start, end)
 
-        if i % 100 == 0:
-            logger.info(
-                "진행: %d/%d (성공=%d, 스킵=%d, 오류=%d)",
-                i,
-                total,
-                success,
-                skip,
-                error,
-            )
+                if count > 0:
+                    success += 1
+                elif count == 0:
+                    skip += 1
+                else:  # -1
+                    error += 1
 
-        time.sleep(0.3)  # KRX 요청 간격
+            if i % 100 == 0:
+                logger.info(
+                    "진행: %d/%d (성공=%d, 스킵=%d, 오류=%d)",
+                    i,
+                    total,
+                    success,
+                    skip,
+                    error,
+                )
 
-    logger.info("완료: 성공=%d, 스킵=%d, 오류=%d", success, skip, error)
+            time.sleep(0.3)  # KRX 요청 간격
+
+        logger.info("완료: 성공=%d, 스킵=%d, 오류=%d", success, skip, error)
+    finally:
+        cursor.close()
+        conn.close()
 
 
 if __name__ == "__main__":

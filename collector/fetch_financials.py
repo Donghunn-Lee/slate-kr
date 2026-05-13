@@ -4,7 +4,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 from typing import Optional
 import requests
-import mysql.connector
+import psycopg2
 import time
 
 load_dotenv()
@@ -25,16 +25,6 @@ logging.basicConfig(
     ],
 )
 logger = logging.getLogger(__name__)
-
-# ── DB 연결 ────────────────────────────────────────────────
-db = mysql.connector.connect(
-    host=os.getenv("DB_HOST"),
-    port=int(os.getenv("DB_PORT", 3306)),
-    user=os.getenv("DB_USER"),
-    password=os.getenv("DB_PASSWORD"),
-    database=os.getenv("DB_NAME"),
-)
-cursor = db.cursor()
 
 DART_API_KEY = os.getenv("DART_API_KEY")
 
@@ -58,7 +48,11 @@ _REPORT_TYPE_MAP = {
 }
 
 
-def get_existing_keys() -> set[tuple]:
+def get_connection():
+    return psycopg2.connect(os.getenv("DATABASE_URL"))
+
+
+def get_existing_keys(cursor) -> set[tuple]:
     """DB에 이미 적재된 (ticker, year, quarter, report_type) 집합 반환."""
     cursor.execute(
         "SELECT ticker, year, quarter, report_type FROM financial_statements"
@@ -102,7 +96,7 @@ def fetch_financial(corp_code: str, bsns_year: str, reprt_code: str) -> Optional
     return result if result else None
 
 
-def get_shares(ticker: str) -> Optional[int]:
+def get_shares(cursor, ticker: str) -> Optional[int]:
     """stocks 테이블에서 발행주식총수를 조회한다."""
     cursor.execute("SELECT shares FROM stocks WHERE ticker = %s", (ticker,))
     row = cursor.fetchone()
@@ -112,7 +106,13 @@ def get_shares(ticker: str) -> Optional[int]:
 
 
 def insert_financial(
-    ticker: str, corp_code: str, bsns_year: str, reprt_code: str, data: dict
+    conn,
+    cursor,
+    ticker: str,
+    corp_code: str,
+    bsns_year: str,
+    reprt_code: str,
+    data: dict,
 ) -> bool:
     """
     반환값 규약:
@@ -120,7 +120,7 @@ def insert_financial(
       False : DB 오류
     """
     total_equity = data.get("total_equity")
-    shares = get_shares(ticker)
+    shares = get_shares(cursor, ticker)
     if total_equity is not None and shares is not None:
         bps = round(total_equity / shares)
     else:
@@ -133,11 +133,14 @@ def insert_financial(
             total_assets, total_equity,
             eps, bps
         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        ON DUPLICATE KEY UPDATE
-            revenue=VALUES(revenue), operating_profit=VALUES(operating_profit),
-            net_income=VALUES(net_income), total_assets=VALUES(total_assets),
-            total_equity=VALUES(total_equity),
-            eps=VALUES(eps), bps=VALUES(bps)
+        ON CONFLICT (ticker, year, quarter, report_type) DO UPDATE SET
+            revenue = EXCLUDED.revenue,
+            operating_profit = EXCLUDED.operating_profit,
+            net_income = EXCLUDED.net_income,
+            total_assets = EXCLUDED.total_assets,
+            total_equity = EXCLUDED.total_equity,
+            eps = EXCLUDED.eps,
+            bps = EXCLUDED.bps
     """
     try:
         cursor.execute(
@@ -157,47 +160,47 @@ def insert_financial(
                 bps,
             ),
         )
-        db.commit()
+        conn.commit()
     except Exception as e:
         logger.error("DB 적재 실패 %s (%s/%s): %s", ticker, bsns_year, reprt_code, e)
-        db.rollback()
+        conn.rollback()
         return False
 
     return True
 
 
-def get_all_corps() -> list[tuple[str, str, str]]:
+def get_all_corps(cursor) -> list[tuple[str, str, str]]:
     cursor.execute(
         """
         SELECT ticker, corp_code, name FROM stocks
         WHERE corp_code IS NOT NULL
-          AND is_active = 1
-          AND (is_financial_filer = 1 OR is_financial_filer IS NULL)
+          AND is_active = true
+          AND (is_financial_filer = true OR is_financial_filer IS NULL)
         """
     )
     return cursor.fetchall()
 
 
-def mark_non_filer(ticker: str, name: str) -> None:
-    """DART 응답이 없는 종목을 is_financial_filer = 0으로 표시.
+def mark_non_filer(conn, cursor, ticker: str, name: str) -> None:
+    """DART 응답이 없는 종목을 is_financial_filer = false로 표시.
     적재 이력이 전혀 없는 종목에만 호출할 것.
     """
     try:
         cursor.execute(
-            "UPDATE stocks SET is_financial_filer = 0 WHERE ticker = %s",
+            "UPDATE stocks SET is_financial_filer = false WHERE ticker = %s",
             (ticker,),
         )
-        db.commit()
+        conn.commit()
         logger.info(
-            "[MARK] %s (%s) → is_financial_filer=0 (DART 미공시 확인)", ticker, name
+            "[MARK] %s (%s) → is_financial_filer=false (DART 미공시 확인)", ticker, name
         )
     except Exception as e:
         logger.error("is_financial_filer 업데이트 실패 %s: %s", ticker, e)
-        db.rollback()
+        conn.rollback()
 
 
-def run(bsns_year: str, reprt_code: str, existing_keys: set[tuple]):
-    corps = get_all_corps()
+def run(conn, cursor, bsns_year: str, reprt_code: str, existing_keys: set[tuple]):
+    corps = get_all_corps(cursor)
     total = len(corps)
     quarter = _QUARTER_MAP.get(reprt_code, 4)
     report_type = _REPORT_TYPE_MAP.get(reprt_code, "annual")
@@ -227,10 +230,12 @@ def run(bsns_year: str, reprt_code: str, existing_keys: set[tuple]):
                 "DART 응답 없음 (공시 미존재): %s %s/%s", ticker, bsns_year, reprt_code
             )
             if ticker not in filed_tickers:
-                mark_non_filer(ticker, name)
+                mark_non_filer(conn, cursor, ticker, name)
             skip += 1
         else:
-            ok = insert_financial(ticker, corp_code, bsns_year, reprt_code, data)
+            ok = insert_financial(
+                conn, cursor, ticker, corp_code, bsns_year, reprt_code, data
+            )
             if ok:
                 existing_keys.add(key)
                 success += 1
@@ -289,7 +294,19 @@ def get_available_reports(years_back: int = 2) -> list[tuple[str, str]]:
 if __name__ == "__main__":
     reports = get_available_reports(years_back=5)
     logger.info("수집 대상: %s", reports)
-    existing_keys = get_existing_keys()
-    logger.info("기존 적재 키 수: %d", len(existing_keys))
-    for bsns_year, reprt_code in reports:
-        run(bsns_year=bsns_year, reprt_code=reprt_code, existing_keys=existing_keys)
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        existing_keys = get_existing_keys(cursor)
+        logger.info("기존 적재 키 수: %d", len(existing_keys))
+        for bsns_year, reprt_code in reports:
+            run(
+                conn,
+                cursor,
+                bsns_year=bsns_year,
+                reprt_code=reprt_code,
+                existing_keys=existing_keys,
+            )
+    finally:
+        cursor.close()
+        conn.close()
