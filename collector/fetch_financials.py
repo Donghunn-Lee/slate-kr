@@ -1,3 +1,4 @@
+import argparse
 import logging
 import os
 from datetime import datetime
@@ -241,6 +242,7 @@ def run(bsns_year: str, reprt_code: str, existing_keys: set[tuple]):
             if ticker not in filed_tickers:
                 mark_non_filer(conn, cursor, ticker, name)
             skip += 1
+            time.sleep(0.05)
         else:
             ok = insert_financial(
                 conn, cursor, ticker, corp_code, bsns_year, reprt_code, data
@@ -250,6 +252,7 @@ def run(bsns_year: str, reprt_code: str, existing_keys: set[tuple]):
                 success += 1
             else:
                 error += 1
+            time.sleep(0.3)
 
         if i % 100 == 0:
             logger.info(
@@ -260,8 +263,6 @@ def run(bsns_year: str, reprt_code: str, existing_keys: set[tuple]):
                 skip,
                 error,
             )
-
-        time.sleep(0.3)
 
     logger.info(
         "완료 %s Q%s: 성공=%d, 스킵=%d, 오류=%d",
@@ -303,8 +304,17 @@ def get_available_reports(years_back: int = 2) -> list[tuple[str, str]]:
 
 
 if __name__ == "__main__":
-    reports = get_available_reports(years_back=5)
-    logger.info("수집 대상: %s", reports)
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--years-back",
+        type=int,
+        default=5,
+        help="수집할 연도 범위 (기본값: 5)",
+    )
+    args = parser.parse_args()
+
+    reports = get_available_reports(years_back=args.years_back)
+    logger.info("수집 대상 (years_back=%d): %s", args.years_back, reports)
     conn = get_connection()
     cursor = conn.cursor()
     existing_keys = get_existing_keys(cursor)
