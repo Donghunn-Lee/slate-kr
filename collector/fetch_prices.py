@@ -98,17 +98,33 @@ def get_all_tickers(cursor) -> list[str]:
     return [row[0] for row in cursor.fetchall()]
 
 
+BATCH_SIZE = 200
+
+
 def run(end: str):
+    # 종목 목록은 단명 커넥션으로 읽고 즉시 닫는다
     conn = get_connection()
     cursor = conn.cursor()
-    try:
-        tickers = get_all_tickers(cursor)
-        total = len(tickers)
-        logger.info("총 %d개 종목 적재 시작 (~ %s)", total, end)
+    tickers = get_all_tickers(cursor)
+    cursor.close()
+    conn.close()
 
-        success, skip, error = 0, 0, 0
+    total = len(tickers)
+    logger.info("총 %d개 종목 적재 시작 (~ %s)", total, end)
 
-        for i, ticker in enumerate(tickers, 1):
+    success, skip, error = 0, 0, 0
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    for i, ticker in enumerate(tickers, 1):
+        # 배치 경계: BATCH_SIZE개마다 커넥션 교체
+        if i > 1 and (i - 1) % BATCH_SIZE == 0:
+            cursor.close()
+            conn.close()
+            conn = get_connection()
+            cursor = conn.cursor()
+
+        try:
             start = get_last_date(cursor, ticker)
 
             if start > end:
@@ -125,23 +141,25 @@ def run(end: str):
                     skip += 1
                 else:  # -1
                     error += 1
+        except Exception as e:
+            logger.error("처리 실패, 스킵: %s: %s", ticker, e)
+            error += 1
 
-            if i % 100 == 0:
-                logger.info(
-                    "진행: %d/%d (성공=%d, 스킵=%d, 오류=%d)",
-                    i,
-                    total,
-                    success,
-                    skip,
-                    error,
-                )
+        if i % 100 == 0:
+            logger.info(
+                "진행: %d/%d (성공=%d, 스킵=%d, 오류=%d)",
+                i,
+                total,
+                success,
+                skip,
+                error,
+            )
 
-            time.sleep(0.3)  # KRX 요청 간격
+        time.sleep(0.3)  # KRX 요청 간격
 
-        logger.info("완료: 성공=%d, 스킵=%d, 오류=%d", success, skip, error)
-    finally:
-        cursor.close()
-        conn.close()
+    cursor.close()
+    conn.close()
+    logger.info("완료: 성공=%d, 스킵=%d, 오류=%d", success, skip, error)
 
 
 if __name__ == "__main__":

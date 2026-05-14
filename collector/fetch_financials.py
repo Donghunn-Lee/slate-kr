@@ -199,8 +199,17 @@ def mark_non_filer(conn, cursor, ticker: str, name: str) -> None:
         conn.rollback()
 
 
-def run(conn, cursor, bsns_year: str, reprt_code: str, existing_keys: set[tuple]):
-    corps = get_all_corps(cursor)
+def run(bsns_year: str, reprt_code: str, existing_keys: set[tuple]):
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        corps = get_all_corps(cursor)
+    except Exception as e:
+        logger.error("종목 목록 조회 실패 (%s/%s): %s", bsns_year, reprt_code, e)
+        cursor.close()
+        conn.close()
+        return
+
     total = len(corps)
     quarter = _QUARTER_MAP.get(reprt_code, 4)
     report_type = _REPORT_TYPE_MAP.get(reprt_code, "annual")
@@ -262,6 +271,8 @@ def run(conn, cursor, bsns_year: str, reprt_code: str, existing_keys: set[tuple]
         skip,
         error,
     )
+    cursor.close()
+    conn.close()
 
 
 def get_available_reports(years_back: int = 2) -> list[tuple[str, str]]:
@@ -296,17 +307,13 @@ if __name__ == "__main__":
     logger.info("수집 대상: %s", reports)
     conn = get_connection()
     cursor = conn.cursor()
-    try:
-        existing_keys = get_existing_keys(cursor)
-        logger.info("기존 적재 키 수: %d", len(existing_keys))
-        for bsns_year, reprt_code in reports:
-            run(
-                conn,
-                cursor,
-                bsns_year=bsns_year,
-                reprt_code=reprt_code,
-                existing_keys=existing_keys,
-            )
-    finally:
-        cursor.close()
-        conn.close()
+    existing_keys = get_existing_keys(cursor)
+    cursor.close()
+    conn.close()
+    logger.info("기존 적재 키 수: %d", len(existing_keys))
+    for bsns_year, reprt_code in reports:
+        run(
+            bsns_year=bsns_year,
+            reprt_code=reprt_code,
+            existing_keys=existing_keys,
+        )
