@@ -40,6 +40,8 @@ TARGET_ACCOUNTS = {
     # bps, dps는 DART에서 직접 제공 안 함 — 별도 처리 필요
 }
 
+RECONNECT_EVERY = 500  # period 내 연속 스킵 시 Neon SSL 타임아웃 방지
+
 _QUARTER_MAP = {"11011": 4, "11012": 2, "11013": 1, "11014": 3}
 _REPORT_TYPE_MAP = {
     "11011": "annual",
@@ -226,6 +228,14 @@ def run(bsns_year: str, reprt_code: str, existing_keys: set[tuple]):
     success, skip, error = 0, 0, 0
 
     for i, (ticker, corp_code, name) in enumerate(corps, 1):
+        # period 내부 루프에서 일정 간격마다 커넥션 재생성 (연속 스킵 시 Neon SSL 타임아웃 방지)
+        if i > 1 and (i - 1) % RECONNECT_EVERY == 0:
+            cursor.close()
+            conn.close()
+            conn = get_connection()
+            cursor = conn.cursor()
+            logger.info("[RECONNECT] %s Q%s — %d번째 iteration", bsns_year, quarter, i)
+
         key = (ticker, int(bsns_year), quarter, report_type)
 
         if key in existing_keys:
