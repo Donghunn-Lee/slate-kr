@@ -28,14 +28,14 @@ def get_connection():
     return psycopg2.connect(os.getenv("DATABASE_URL"))
 
 
-def get_last_date(cursor, ticker: str) -> str:
-    """DB에 저장된 마지막 날짜 반환. 없으면 전체 시작일."""
-    cursor.execute("SELECT MAX(date) FROM daily_prices WHERE ticker = %s", (ticker,))
-    row = cursor.fetchone()
-    if row and row[0]:
-        next_day = (row[0] + timedelta(days=1)).strftime("%Y%m%d")
-        return next_day
-    return "19900101"
+def get_all_last_dates(cursor) -> dict[str, str]:
+    """DB에 저장된 모든 ticker의 마지막 날짜를 한 번에 반환. 없으면 전체 시작일."""
+    cursor.execute("SELECT ticker, MAX(date) FROM daily_prices GROUP BY ticker")
+    result = {}
+    for ticker, max_date in cursor.fetchall():
+        if max_date:
+            result[ticker] = (max_date + timedelta(days=1)).strftime("%Y%m%d")
+    return result
 
 
 def fetch_and_insert(conn, cursor, ticker: str, start: str, end: str) -> int:
@@ -102,10 +102,10 @@ BATCH_SIZE = 200
 
 
 def run(end: str):
-    # 종목 목록은 단명 커넥션으로 읽고 즉시 닫는다
     conn = get_connection()
     cursor = conn.cursor()
     tickers = get_all_tickers(cursor)
+    last_dates = get_all_last_dates(cursor)
     cursor.close()
     conn.close()
 
@@ -125,7 +125,7 @@ def run(end: str):
             cursor = conn.cursor()
 
         try:
-            start = get_last_date(cursor, ticker)
+            start = last_dates.get(ticker, "19900101")
 
             if start > end:
                 logger.debug(
@@ -134,6 +134,7 @@ def run(end: str):
                 skip += 1
             else:
                 count = fetch_and_insert(conn, cursor, ticker, start, end)
+                time.sleep(0.3)  # KRX 요청 간격
 
                 if count > 0:
                     success += 1
@@ -154,8 +155,6 @@ def run(end: str):
                 skip,
                 error,
             )
-
-        time.sleep(0.3)  # KRX 요청 간격
 
     cursor.close()
     conn.close()
