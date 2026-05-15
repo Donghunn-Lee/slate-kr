@@ -30,4 +30,4 @@ jobs:
 
       - name: Run fetch_financials
         working-directory: collector
-        run: python fetch_financials.py --years-back 2
+        run: python fetch_financials.py --periods 2

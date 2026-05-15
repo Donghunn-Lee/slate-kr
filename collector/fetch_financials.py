@@ -286,7 +286,7 @@ def run(bsns_year: str, reprt_code: str, existing_keys: set[tuple]):
     conn.close()
 
 
-def get_available_reports(years_back: int = 2) -> list[tuple[str, str]]:
+def get_available_reports(years_back: int = 5) -> list[tuple[str, str]]:
     """
     현재 날짜 기준으로 이미 공시된 (bsns_year, reprt_code) 목록 반환.
 
@@ -316,15 +316,17 @@ def get_available_reports(years_back: int = 2) -> list[tuple[str, str]]:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--years-back",
+        "--periods",
         type=int,
-        default=5,
-        help="수집할 연도 범위 (기본값: 5)",
+        default=None,
+        help="순회할 최신 period 수 (기본값: 5년 전체)",
     )
     args = parser.parse_args()
 
-    reports = get_available_reports(years_back=args.years_back)
-    logger.info("수집 대상 (years_back=%d): %s", args.years_back, reports)
+    reports = get_available_reports()
+    if args.periods is not None:
+        reports = reports[-args.periods :]
+    logger.info("수집 대상 (periods=%s): %s", args.periods, reports)
     conn = get_connection()
     cursor = conn.cursor()
     existing_keys = get_existing_keys(cursor)
