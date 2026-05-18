@@ -133,7 +133,7 @@ def fetch_financial(corp_code: str, bsns_year: str, reprt_code: str) -> Optional
             logger.debug(
                 "CFS 응답 없음, OFS 폴백: %s %s/%s", corp_code, bsns_year, reprt_code
             )
-            time.sleep(0.3)
+            time.sleep(0.05)
     else:
         return None
 
@@ -244,7 +244,9 @@ def mark_non_filer(conn, cursor, ticker: str, name: str) -> None:
         conn.rollback()
 
 
-def run(bsns_year: str, reprt_code: str, existing_keys: set[tuple]):
+def run(
+    bsns_year: str, reprt_code: str, existing_keys: set[tuple], force: bool = False
+):
     conn = get_connection()
     cursor = conn.cursor()
     try:
@@ -291,7 +293,7 @@ def run(bsns_year: str, reprt_code: str, existing_keys: set[tuple]):
             logger.debug(
                 "DART 응답 없음 (공시 미존재): %s %s/%s", ticker, bsns_year, reprt_code
             )
-            if ticker not in filed_tickers:
+            if not force and ticker not in filed_tickers:
                 mark_non_filer(conn, cursor, ticker, name)
             skip += 1
             time.sleep(0.05)
@@ -304,7 +306,7 @@ def run(bsns_year: str, reprt_code: str, existing_keys: set[tuple]):
                 success += 1
             else:
                 error += 1
-            time.sleep(0.3)
+            time.sleep(0.15)
 
         if i % 100 == 0:
             logger.info(
@@ -395,4 +397,5 @@ if __name__ == "__main__":
             bsns_year=bsns_year,
             reprt_code=reprt_code,
             existing_keys=existing_keys,
+            force=args.force,
         )
