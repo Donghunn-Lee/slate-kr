@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+import sys
 from datetime import datetime
 from dotenv import load_dotenv
 from typing import Optional
@@ -33,11 +34,21 @@ DART_API_KEY = os.getenv("DART_API_KEY")
 TARGET_ACCOUNTS = {
     "ifrs-full_Revenue": "revenue",
     "dart_OperatingIncomeLoss": "operating_profit",
-    "ifrs-full_ProfitLoss": "net_income",
+    "ifrs-full_ProfitLossAttributableToOwnersOfParent": "net_income",
     "ifrs-full_Assets": "total_assets",
-    "ifrs-full_Equity": "total_equity",
+    "ifrs-full_EquityAttributableToOwnersOfParent": "total_equity",
     "ifrs-full_BasicEarningsLossPerShare": "eps",
     # bps, dps는 DART에서 직접 제공 안 함 — 별도 처리 필요
+}
+
+# sj_div 우선순위: 해당 key에 선호 구분이 있으면 그 값을 우선 사용
+_PREFERRED_SJ_DIV = {
+    "revenue": "IS",
+    "operating_profit": "IS",
+    "net_income": "IS",
+    "total_assets": "BS",
+    "total_equity": "BS",
+    # eps: 우선순위 없음 (첫 번째 값 사용)
 }
 
 RECONNECT_EVERY = 500  # period 내 연속 스킵 시 Neon SSL 타임아웃 방지
@@ -63,39 +74,70 @@ def get_existing_keys(cursor) -> set[tuple]:
     return {(row[0], row[1], row[2], row[3]) for row in cursor.fetchall()}
 
 
+def _parse_financial_list(items: list) -> dict:
+    """DART list 항목에서 TARGET_ACCOUNTS 값을 추출한다.
+    sj_div 우선순위(_PREFERRED_SJ_DIV)가 있는 항목은 선호 구분 값을 우선 사용하고,
+    없으면 첫 번째 값을 사용한다.
+    """
+    result: dict = {}
+    result_preferred: set = set()
+    for item in items:
+        account_id = item.get("account_id", "")
+        if account_id not in TARGET_ACCOUNTS:
+            continue
+        key = TARGET_ACCOUNTS[account_id]
+        raw = item.get("thstrm_amount", "").replace(",", "").strip()
+        try:
+            value = int(raw) if raw else None
+        except ValueError:
+            value = None
+
+        sj_div = item.get("sj_div", "")
+        preferred_div = _PREFERRED_SJ_DIV.get(key)
+        is_preferred = preferred_div is not None and sj_div == preferred_div
+
+        if key not in result:
+            result[key] = value
+            if is_preferred:
+                result_preferred.add(key)
+        elif is_preferred and key not in result_preferred:
+            # 기존 값이 비선호 구분이었으면 선호 구분 값으로 교체
+            result[key] = value
+            result_preferred.add(key)
+
+    return result
+
+
 def fetch_financial(corp_code: str, bsns_year: str, reprt_code: str) -> Optional[dict]:
     url = "https://opendart.fss.or.kr/api/fnlttSinglAcntAll.json"
-    params = {
+    base_params = {
         "crtfc_key": DART_API_KEY,
         "corp_code": corp_code,
         "bsns_year": bsns_year,
         "reprt_code": reprt_code,
-        "fs_div": "CFS",  # 연결재무제표 우선
     }
-    try:
-        res = requests.get(url, params=params, timeout=10)
-        data = res.json()
-    except Exception as e:
-        logger.error("DART 요청 실패 %s: %s", corp_code, e)
+
+    for fs_div in ("CFS", "OFS"):
+        params = {**base_params, "fs_div": fs_div}
+        try:
+            res = requests.get(url, params=params, timeout=10)
+            data = res.json()
+        except Exception as e:
+            logger.error("DART 요청 실패 %s: %s", corp_code, e)
+            return None
+
+        if data.get("status") == "000":
+            break
+
+        if fs_div == "CFS":
+            logger.debug(
+                "CFS 응답 없음, OFS 폴백: %s %s/%s", corp_code, bsns_year, reprt_code
+            )
+            time.sleep(0.3)
+    else:
         return None
 
-    if data.get("status") != "000":
-        return None
-
-    result = {}
-    for item in data["list"]:
-        account_id = item.get("account_id", "")
-        if account_id in TARGET_ACCOUNTS:
-            key = TARGET_ACCOUNTS[account_id]
-            raw = item.get("thstrm_amount", "").replace(",", "").strip()
-            try:
-                value = int(raw) if raw else None
-            except ValueError:
-                value = None
-
-            if key not in result:  # 첫 번째 값만 사용
-                result[key] = value
-
+    result = _parse_financial_list(data["list"])
     return result if result else None
 
 
@@ -321,18 +363,33 @@ if __name__ == "__main__":
         default=None,
         help="순회할 최신 period 수 (기본값: 5년 전체)",
     )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        default=False,
+        help="기존 적재 데이터 무시하고 전체 재적재 (upsert)",
+    )
     args = parser.parse_args()
 
     reports = get_available_reports()
     if args.periods is not None:
         reports = reports[-args.periods :]
     logger.info("수집 대상 (periods=%s): %s", args.periods, reports)
-    conn = get_connection()
-    cursor = conn.cursor()
-    existing_keys = get_existing_keys(cursor)
-    cursor.close()
-    conn.close()
-    logger.info("기존 적재 키 수: %d", len(existing_keys))
+    if args.force:
+        answer = input(
+            f"--force: 기존 {len(reports)}개 period 전체 재적재합니다. 계속하시겠습니까? (y/N): "
+        )
+        if answer.strip() not in ("y", "Y"):
+            sys.exit(0)
+        existing_keys = set()
+        logger.info("--force 모드: existing_keys 무시, 전체 재적재")
+    else:
+        conn = get_connection()
+        cursor = conn.cursor()
+        existing_keys = get_existing_keys(cursor)
+        cursor.close()
+        conn.close()
+        logger.info("기존 적재 키 수: %d", len(existing_keys))
     for bsns_year, reprt_code in reports:
         run(
             bsns_year=bsns_year,
