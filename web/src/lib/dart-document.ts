@@ -33,7 +33,7 @@ const fetchDocumentRaw = async (rceptNo: string): Promise<DocumentRaw> => {
   url.searchParams.set("crtfc_key", apiKey);
   url.searchParams.set("rcept_no", rceptNo);
 
-  const res = await fetch(url.toString());
+  const res = await fetch(url.toString(), { cache: "no-store" });
   if (!res.ok) throw new Error(`DART API 호출 실패: ${res.status} ${res.statusText}`);
 
   const buffer = await res.arrayBuffer();

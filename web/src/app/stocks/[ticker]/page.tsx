@@ -20,6 +20,8 @@ type PageProps = {
   params: Promise<{ ticker: string }>;
 };
 
+export const revalidate = 3600;
+
 // 동일 요청 내에서 getStockByTicker 중복 DB 호출 방지
 const getStock = cache(getStockByTicker);
 
