@@ -35,8 +35,10 @@ TARGET_ACCOUNTS = {
     "ifrs-full_Revenue": "revenue",
     "dart_OperatingIncomeLoss": "operating_profit",
     "ifrs-full_ProfitLossAttributableToOwnersOfParent": "net_income",
+    "ifrs-full_ProfitLoss": "net_income",  # OFS 폴백
     "ifrs-full_Assets": "total_assets",
     "ifrs-full_EquityAttributableToOwnersOfParent": "total_equity",
+    "ifrs-full_Equity": "total_equity",  # OFS 폴백
     "ifrs-full_BasicEarningsLossPerShare": "eps",
     # bps, dps는 DART에서 직접 제공 안 함 — 별도 처리 필요
 }
@@ -49,6 +51,13 @@ _PREFERRED_SJ_DIV = {
     "total_assets": "BS",
     "total_equity": "BS",
     # eps: 우선순위 없음 (첫 번째 값 사용)
+}
+
+# account_id 우선순위: 해당 key에 선호 account_id가 있으면 그 값을 우선 사용
+# 선호 account_id로 적재된 이후엔 폴백 account_id 값을 무시한다
+_PREFERRED_ACCOUNTS = {
+    "net_income": "ifrs-full_ProfitLossAttributableToOwnersOfParent",
+    "total_equity": "ifrs-full_EquityAttributableToOwnersOfParent",
 }
 
 RECONNECT_EVERY = 500  # period 내 연속 스킵 시 Neon SSL 타임아웃 방지
@@ -76,11 +85,16 @@ def get_existing_keys(cursor) -> set[tuple]:
 
 def _parse_financial_list(items: list) -> dict:
     """DART list 항목에서 TARGET_ACCOUNTS 값을 추출한다.
-    sj_div 우선순위(_PREFERRED_SJ_DIV)가 있는 항목은 선호 구분 값을 우선 사용하고,
-    없으면 첫 번째 값을 사용한다.
+
+    우선순위:
+      1. account_id: _PREFERRED_ACCOUNTS에 선호 account_id가 있으면 해당 값을 우선 사용.
+         선호 account_id로 적재된 이후엔 폴백 account_id 값을 무시한다.
+      2. sj_div: _PREFERRED_SJ_DIV에 선호 구분이 있으면 그 값을 우선 사용.
+         동일 account_id 티어 내에서만 적용된다.
     """
     result: dict = {}
-    result_preferred: set = set()
+    result_preferred_div: set = set()     # sj_div 기준 선호 달성 여부
+    result_preferred_account: set = set() # account_id 기준 선호 달성 여부
     for item in items:
         account_id = item.get("account_id", "")
         if account_id not in TARGET_ACCOUNTS:
@@ -94,16 +108,32 @@ def _parse_financial_list(items: list) -> dict:
 
         sj_div = item.get("sj_div", "")
         preferred_div = _PREFERRED_SJ_DIV.get(key)
-        is_preferred = preferred_div is not None and sj_div == preferred_div
+        is_preferred_div = preferred_div is not None and sj_div == preferred_div
+
+        preferred_account = _PREFERRED_ACCOUNTS.get(key)
+        is_preferred_account = preferred_account is not None and account_id == preferred_account
+
+        # 선호 account_id가 이미 적재됐으면 폴백 account_id 값은 무시
+        if key in result_preferred_account and not is_preferred_account:
+            continue
 
         if key not in result:
             result[key] = value
-            if is_preferred:
-                result_preferred.add(key)
-        elif is_preferred and key not in result_preferred:
-            # 기존 값이 비선호 구분이었으면 선호 구분 값으로 교체
+            if is_preferred_div:
+                result_preferred_div.add(key)
+            if is_preferred_account:
+                result_preferred_account.add(key)
+        elif is_preferred_account and key not in result_preferred_account:
+            # 폴백 account_id 값이 먼저 들어왔던 경우 → 선호 account_id로 교체
             result[key] = value
-            result_preferred.add(key)
+            result_preferred_account.add(key)
+            result_preferred_div.discard(key)
+            if is_preferred_div:
+                result_preferred_div.add(key)
+        elif is_preferred_div and key not in result_preferred_div:
+            # 동일 account_id 티어 내에서 선호 sj_div로 교체
+            result[key] = value
+            result_preferred_div.add(key)
 
     return result
 
@@ -245,7 +275,10 @@ def mark_non_filer(conn, cursor, ticker: str, name: str) -> None:
 
 
 def run(
-    bsns_year: str, reprt_code: str, existing_keys: set[tuple], force: bool = False
+    bsns_year: str,
+    reprt_code: str,
+    existing_keys: set[tuple],
+    force: bool = False,
 ):
     conn = get_connection()
     cursor = conn.cursor()
@@ -255,7 +288,7 @@ def run(
         logger.error("종목 목록 조회 실패 (%s/%s): %s", bsns_year, reprt_code, e)
         cursor.close()
         conn.close()
-        return
+        return set()
 
     total = len(corps)
     quarter = _QUARTER_MAP.get(reprt_code, 4)
