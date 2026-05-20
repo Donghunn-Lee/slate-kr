@@ -32,3 +32,7 @@ jobs:
       - name: Run fetch_shares
         working-directory: collector
         run: python fetch_shares.py
+
+      - name: Run fetch_financials
+        working-directory: collector
+        run: python fetch_financials.py --periods 1

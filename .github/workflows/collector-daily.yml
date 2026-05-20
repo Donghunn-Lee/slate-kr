@@ -27,7 +27,3 @@ jobs:
       - name: Run fetch_prices
         working-directory: collector
         run: python fetch_prices.py
-
-      - name: Run fetch_financials
-        working-directory: collector
-        run: python fetch_financials.py --periods 2

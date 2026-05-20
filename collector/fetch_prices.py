@@ -162,5 +162,5 @@ def run(end: str):
 
 
 if __name__ == "__main__":
-    end = (datetime.today() - timedelta(days=1)).strftime("%Y%m%d")
+    end = datetime.today().strftime("%Y%m%d")
     run(end)
