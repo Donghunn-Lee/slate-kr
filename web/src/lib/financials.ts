@@ -18,9 +18,42 @@ type FinancialRow = {
   created_at: Date;
 };
 
+type PriceRow = { yr: number; qtr: number; close: number };
+type PriceMap = Map<string, number>; // key: `${year}-${quarter}`
+
+const priceKey = (year: number, quarter: number) => `${year}-${quarter}`;
+
+const fetchClosePricesByQuarter = async (ticker: string): Promise<PriceMap> => {
+  const [rows] = await pool.query<PriceRow[]>(
+    `SELECT DISTINCT ON (yr, qtr)
+       EXTRACT(year FROM date)::int AS yr,
+       CEIL(EXTRACT(month FROM date) / 3.0)::int AS qtr,
+       close
+     FROM daily_prices
+     WHERE ticker = $1
+     ORDER BY yr, qtr, date DESC`,
+    [ticker]
+  );
+  const map: PriceMap = new Map();
+  for (const row of rows) {
+    map.set(priceKey(row.yr, row.qtr), row.close);
+  }
+  return map;
+};
+
 const safeDivide = (a: number | null, b: number | null): number | null => {
   if (a === null || b === null || b === 0) return null;
   return a / b;
+};
+
+const calcPer = (close: number | undefined, eps: number | null): number | null => {
+  if (close === undefined || eps === null || eps <= 0) return null;
+  return close / eps;
+};
+
+const calcPbr = (close: number | undefined, bps: number | null): number | null => {
+  if (close === undefined || bps === null || bps <= 0) return null;
+  return close / bps;
 };
 
 const calculateDerivedMetrics = (raw: {
@@ -47,7 +80,7 @@ const calculateDerivedMetrics = (raw: {
   return { operatingMargin, netMargin, debtRatio, roe, roa };
 };
 
-const rowToFinancialPeriod = (row: FinancialRow): FinancialPeriod => {
+const rowToFinancialPeriod = (row: FinancialRow, close?: number): FinancialPeriod => {
   const raw = {
     revenue: row.revenue,
     operatingProfit: row.operating_profit,
@@ -67,8 +100,8 @@ const rowToFinancialPeriod = (row: FinancialRow): FinancialPeriod => {
     totalEquity: row.total_equity,
     eps: row.eps,
     bps: row.bps,
-    per: null,
-    pbr: null,
+    per: calcPer(close, row.eps),
+    pbr: calcPbr(close, row.bps),
     ...calculateDerivedMetrics(raw),
   };
 };
@@ -88,7 +121,8 @@ const sumFlow = (
 
 const buildQuarterlyPeriods = (
   quarterRows: FinancialRow[],
-  annualRow: FinancialRow | null
+  annualRow: FinancialRow | null,
+  priceMap: PriceMap
 ): FinancialPeriod[] => {
   const byQuarter = new Map<number, FinancialRow>();
   for (const row of quarterRows) {
@@ -98,7 +132,8 @@ const buildQuarterlyPeriods = (
   const result: FinancialPeriod[] = [];
 
   for (const row of byQuarter.values()) {
-    result.push(rowToFinancialPeriod(row));
+    const close = priceMap.get(priceKey(row.year, row.quarter!));
+    result.push(rowToFinancialPeriod(row, close));
   }
 
   if (annualRow) {
@@ -127,6 +162,9 @@ const buildQuarterlyPeriods = (
       totalEquity: annualRow.total_equity,
     };
 
+    // Q4 종가 = 해당 연도 마지막 거래일 종가 (= 연간 마지막 분기)
+    const q4Close = priceMap.get(priceKey(annualRow.year, 4));
+
     result.push({
       ticker: annualRow.ticker,
       year: annualRow.year,
@@ -139,8 +177,8 @@ const buildQuarterlyPeriods = (
       totalEquity: annualRow.total_equity,
       eps: annualRow.eps,
       bps: annualRow.bps,
-      per: null,
-      pbr: null,
+      per: calcPer(q4Close, annualRow.eps),
+      pbr: calcPbr(q4Close, annualRow.bps),
       ...calculateDerivedMetrics(raw),
     });
   }
@@ -149,15 +187,22 @@ const buildQuarterlyPeriods = (
 };
 
 export const getFinancials = async (ticker: string): Promise<StockFinancials> => {
-  const [rows] = await pool.query<FinancialRow[]>(
-    "SELECT * FROM financial_statements WHERE ticker = $1 ORDER BY year DESC, quarter DESC",
-    [ticker]
-  );
+  const [[rows], priceMap] = await Promise.all([
+    pool.query<FinancialRow[]>(
+      "SELECT * FROM financial_statements WHERE ticker = $1 ORDER BY year DESC, quarter DESC",
+      [ticker]
+    ),
+    fetchClosePricesByQuarter(ticker),
+  ]);
 
   const annualRows = rows.filter((r) => r.report_type === "annual").slice(0, 5);
   const quarterRows = rows.filter((r) => r.report_type === "quarter");
 
-  const annual = annualRows.map(rowToFinancialPeriod);
+  // 연간: 해당 연도 마지막 거래일 종가 = Q4 마지막 거래일 종가
+  const annual = annualRows.map((row) => {
+    const close = priceMap.get(priceKey(row.year, 4));
+    return rowToFinancialPeriod(row, close);
+  });
 
   // 연도별 그룹핑 후 단분기 변환
   const yearSet = new Set(quarterRows.map((r) => r.year));
@@ -165,7 +210,7 @@ export const getFinancials = async (ticker: string): Promise<StockFinancials> =>
   for (const year of yearSet) {
     const yearQuarters = quarterRows.filter((r) => r.year === year);
     const annualForYear = annualRows.find((r) => r.year === year) ?? null;
-    quarterly.push(...buildQuarterlyPeriods(yearQuarters, annualForYear));
+    quarterly.push(...buildQuarterlyPeriods(yearQuarters, annualForYear, priceMap));
   }
   quarterly.sort((a, b) => b.year - a.year || (b.quarter ?? 0) - (a.quarter ?? 0));
 
