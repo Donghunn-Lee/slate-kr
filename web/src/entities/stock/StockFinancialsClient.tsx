@@ -25,7 +25,7 @@ const METRIC_ROWS: MetricRow[] = [
     getRaw: (p) => p.operatingProfit,
   },
   {
-    label: "영업이익률",
+    label: "영업이익률(%)",
     getValue: (p) => formatPercent(p.operatingMargin, false),
     getRaw: (p) => p.operatingMargin,
   },
@@ -35,18 +35,18 @@ const METRIC_ROWS: MetricRow[] = [
     getRaw: (p) => p.netIncome,
   },
   {
-    label: "순이익률",
+    label: "순이익률(%)",
     getValue: (p) => formatPercent(p.netMargin, false),
     getRaw: (p) => p.netMargin,
   },
   // 수익성
-  { label: "ROE", getValue: (p) => formatPercent(p.roe, false), getRaw: (p) => p.roe },
-  { label: "ROA", getValue: (p) => formatPercent(p.roa, false), getRaw: (p) => p.roa },
+  { label: "ROE(%)", getValue: (p) => formatPercent(p.roe, false), getRaw: (p) => p.roe },
+  { label: "ROA(%)", getValue: (p) => formatPercent(p.roa, false), getRaw: (p) => p.roa },
   // 주당 / 밸류에이션
-  { label: "EPS", getValue: (p) => formatEps(p.eps, false), getRaw: (p) => p.eps },
-  { label: "BPS", getValue: (p) => formatEps(p.bps, false), getRaw: (p) => p.bps },
-  { label: "PER", getValue: (p) => formatRatio(p.per, 2, false), getRaw: (p) => p.per },
-  { label: "PBR", getValue: (p) => formatRatio(p.pbr, 2, false), getRaw: (p) => p.pbr },
+  { label: "EPS(원)", getValue: (p) => formatEps(p.eps, false), getRaw: (p) => p.eps },
+  { label: "BPS(원)", getValue: (p) => formatEps(p.bps, false), getRaw: (p) => p.bps },
+  { label: "PER(배)", getValue: (p) => formatRatio(p.per, 2, false), getRaw: (p) => p.per },
+  { label: "PBR(배)", getValue: (p) => formatRatio(p.pbr, 2, false), getRaw: (p) => p.pbr },
   // 재무 건전성
   {
     label: "자산총계",
@@ -59,7 +59,7 @@ const METRIC_ROWS: MetricRow[] = [
     getRaw: (p) => p.totalEquity,
   },
   {
-    label: "부채비율",
+    label: "부채비율(%)",
     getValue: (p) => formatPercent(p.debtRatio, false),
     getRaw: (p) => p.debtRatio,
   },
@@ -143,7 +143,7 @@ export const StockFinancialsClient = ({ annual, quarterly }: StockFinancialsClie
           </TabsTrigger>
         </TabsList>
       </div>
-      <p className="mb-3 text-xs text-muted-foreground">단위: 억원, %, 원, 배</p>
+      <p className="mb-3 text-xs text-muted-foreground">단위: 억원 (별도 표기 없는 항목 기준)</p>
       <TabsContent value="annual">
         <FinancialsTable periods={annual} mode="annual" />
       </TabsContent>
