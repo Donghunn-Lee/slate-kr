@@ -56,13 +56,22 @@ const calcPbr = (close: number | undefined, bps: number | null): number | null =
   return close / bps;
 };
 
-const calculateDerivedMetrics = (raw: {
-  revenue: number | null;
-  operatingProfit: number | null;
-  netIncome: number | null;
-  totalAssets: number | null;
-  totalEquity: number | null;
-}): {
+const avgOf = (curr: number | null, prev: number | null): number | null => {
+  if (curr === null) return null;
+  if (prev === null) return curr; // 전기 데이터 없으면 기말 단순 폴백
+  return (curr + prev) / 2;
+};
+
+const calculateDerivedMetrics = (
+  raw: {
+    revenue: number | null;
+    operatingProfit: number | null;
+    netIncome: number | null;
+    totalAssets: number | null;
+    totalEquity: number | null;
+  },
+  prevTotals?: { totalEquity: number | null; totalAssets: number | null }
+): {
   operatingMargin: number | null;
   netMargin: number | null;
   debtRatio: number | null;
@@ -75,12 +84,18 @@ const calculateDerivedMetrics = (raw: {
     raw.totalAssets !== null && raw.totalEquity !== null
       ? safeDivide(raw.totalAssets - raw.totalEquity, raw.totalEquity)
       : null;
-  const roe = safeDivide(raw.netIncome, raw.totalEquity);
-  const roa = safeDivide(raw.netIncome, raw.totalAssets);
+  const denomEquity = avgOf(raw.totalEquity, prevTotals?.totalEquity ?? null);
+  const denomAssets = avgOf(raw.totalAssets, prevTotals?.totalAssets ?? null);
+  const roe = safeDivide(raw.netIncome, denomEquity);
+  const roa = safeDivide(raw.netIncome, denomAssets);
   return { operatingMargin, netMargin, debtRatio, roe, roa };
 };
 
-const rowToFinancialPeriod = (row: FinancialRow, close?: number): FinancialPeriod => {
+const rowToFinancialPeriod = (
+  row: FinancialRow,
+  close?: number,
+  prevRow?: FinancialRow | null
+): FinancialPeriod => {
   const raw = {
     revenue: row.revenue,
     operatingProfit: row.operating_profit,
@@ -88,6 +103,9 @@ const rowToFinancialPeriod = (row: FinancialRow, close?: number): FinancialPerio
     totalAssets: row.total_assets,
     totalEquity: row.total_equity,
   };
+  const prevTotals = prevRow
+    ? { totalEquity: prevRow.total_equity, totalAssets: prevRow.total_assets }
+    : undefined;
   return {
     ticker: row.ticker,
     year: row.year,
@@ -102,7 +120,7 @@ const rowToFinancialPeriod = (row: FinancialRow, close?: number): FinancialPerio
     bps: row.bps,
     per: calcPer(close, row.eps),
     pbr: calcPbr(close, row.bps),
-    ...calculateDerivedMetrics(raw),
+    ...calculateDerivedMetrics(raw, prevTotals),
   };
 };
 
@@ -122,18 +140,27 @@ const sumFlow = (
 const buildQuarterlyPeriods = (
   quarterRows: FinancialRow[],
   annualRow: FinancialRow | null,
-  priceMap: PriceMap
+  priceMap: PriceMap,
+  prevAnnualRow: FinancialRow | null
 ): FinancialPeriod[] => {
   const byQuarter = new Map<number, FinancialRow>();
   for (const row of quarterRows) {
     if (row.quarter !== null) byQuarter.set(row.quarter, row);
   }
 
+  // 분기별 전기 행: Q1→전년 annual, Q2→Q1, Q3→Q2
+  const prevByQuarter = new Map<number, FinancialRow | null>([
+    [1, prevAnnualRow],
+    [2, byQuarter.get(1) ?? null],
+    [3, byQuarter.get(2) ?? null],
+  ]);
+
   const result: FinancialPeriod[] = [];
 
   for (const row of byQuarter.values()) {
     const close = priceMap.get(priceKey(row.year, row.quarter!));
-    result.push(rowToFinancialPeriod(row, close));
+    const prevRow = prevByQuarter.get(row.quarter!) ?? null;
+    result.push(rowToFinancialPeriod(row, close, prevRow));
   }
 
   if (annualRow) {
@@ -153,6 +180,11 @@ const buildQuarterlyPeriods = (
       sumFlow(qRows, "operating_profit")
     );
     const q4NetIncome = subFlow(annualRow.net_income, sumFlow(qRows, "net_income"));
+
+    // Q4 전기 = Q3 (기말 자산/자본)
+    const q3PrevTotals = q3
+      ? { totalEquity: q3.total_equity, totalAssets: q3.total_assets }
+      : undefined;
 
     const raw = {
       revenue: q4Revenue,
@@ -179,7 +211,7 @@ const buildQuarterlyPeriods = (
       bps: annualRow.bps,
       per: calcPer(q4Close, annualRow.eps),
       pbr: calcPbr(q4Close, annualRow.bps),
-      ...calculateDerivedMetrics(raw),
+      ...calculateDerivedMetrics(raw, q3PrevTotals),
     });
   }
 
@@ -199,9 +231,11 @@ export const getFinancials = async (ticker: string): Promise<StockFinancials> =>
   const quarterRows = rows.filter((r) => r.report_type === "quarter");
 
   // 연간: 해당 연도 마지막 거래일 종가 = Q4 마지막 거래일 종가
-  const annual = annualRows.map((row) => {
+  // annualRows는 year DESC 정렬이므로 [i+1]이 전년도
+  const annual = annualRows.map((row, i) => {
     const close = priceMap.get(priceKey(row.year, 4));
-    return rowToFinancialPeriod(row, close);
+    const prevRow = annualRows[i + 1] ?? null;
+    return rowToFinancialPeriod(row, close, prevRow);
   });
 
   // 연도별 그룹핑 후 단분기 변환
@@ -210,7 +244,10 @@ export const getFinancials = async (ticker: string): Promise<StockFinancials> =>
   for (const year of yearSet) {
     const yearQuarters = quarterRows.filter((r) => r.year === year);
     const annualForYear = annualRows.find((r) => r.year === year) ?? null;
-    quarterly.push(...buildQuarterlyPeriods(yearQuarters, annualForYear, priceMap));
+    const prevAnnualForYear = annualRows.find((r) => r.year === year - 1) ?? null;
+    quarterly.push(
+      ...buildQuarterlyPeriods(yearQuarters, annualForYear, priceMap, prevAnnualForYear)
+    );
   }
   quarterly.sort((a, b) => b.year - a.year || (b.quarter ?? 0) - (a.quarter ?? 0));
 
