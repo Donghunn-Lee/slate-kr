@@ -126,7 +126,7 @@ const rowToFinancialPeriod = (
 
 const sumFlow = (
   rows: (FinancialRow | undefined)[],
-  field: "revenue" | "operating_profit" | "net_income"
+  field: "revenue" | "operating_profit" | "net_income" | "eps"
 ): number | null => {
   let total = 0;
   for (const row of rows) {
@@ -180,6 +180,7 @@ const buildQuarterlyPeriods = (
       sumFlow(qRows, "operating_profit")
     );
     const q4NetIncome = subFlow(annualRow.net_income, sumFlow(qRows, "net_income"));
+    const q4Eps = subFlow(annualRow.eps, sumFlow(qRows, "eps"));
 
     // Q4 전기 = Q3 (기말 자산/자본)
     const q3PrevTotals = q3
@@ -207,9 +208,9 @@ const buildQuarterlyPeriods = (
       netIncome: q4NetIncome,
       totalAssets: annualRow.total_assets,
       totalEquity: annualRow.total_equity,
-      eps: annualRow.eps,
+      eps: q4Eps,
       bps: annualRow.bps,
-      per: calcPer(q4Close, annualRow.eps),
+      per: calcPer(q4Close, q4Eps),
       pbr: calcPbr(q4Close, annualRow.bps),
       ...calculateDerivedMetrics(raw, q3PrevTotals),
     });
