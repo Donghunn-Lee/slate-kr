@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -67,6 +68,7 @@ export const SearchInput = ({ value, onChange, onSelect, disabled }: SearchInput
       if ((err as Error).name === "AbortError") return;
       setIsOpen(false);
       setIsLoading(false);
+      toast.error("검색 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
     }
   }, []);
 

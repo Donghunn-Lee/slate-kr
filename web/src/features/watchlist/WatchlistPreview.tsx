@@ -26,16 +26,23 @@ export function WatchlistPreview() {
   const preview = [...items].sort((a, b) => b.addedAt - a.addedAt).slice(0, 3);
 
   const [prices, setPrices] = useState<Record<string, TickerPriceSummary>>({});
+  const [fetchError, setFetchError] = useState(false);
 
   useEffect(() => {
     if (preview.length === 0) return;
+    setFetchError(false);
     const tickers = preview.map((i) => i.ticker).join(",");
     fetch(`/api/prices?tickers=${tickers}`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error("fetch failed");
+        return r.json();
+      })
       .then((data: TickerPriceSummary[]) => {
         setPrices(Object.fromEntries(data.map((d) => [d.ticker, d])));
       })
-      .catch(() => {});
+      .catch(() => {
+        setFetchError(true);
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items]);
 
@@ -53,6 +60,9 @@ export function WatchlistPreview() {
         </Link>
       </div>
       <StockPanel>
+        {fetchError ? (
+          <p className="text-sm text-muted-foreground">관심종목 데이터를 불러오지 못했습니다</p>
+        ) : null}
         <ul className="divide-y divide-border/60">
           {preview.map((item, i) => {
             const p = prices[item.ticker];
