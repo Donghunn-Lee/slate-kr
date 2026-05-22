@@ -12,17 +12,18 @@ type StockHeaderProps = {
 
 export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
   let prices: StockPriceSnapshot[] = [];
+  let hasError = false;
 
   try {
     prices = await getDailyPrices(ticker, 2);
   } catch {
-    // DB 오류 시 빈 데이터로 폴백
+    hasError = true;
   }
 
   const latest = prices[0] ?? null;
   const prev = prices[1] ?? null;
 
-  if (!latest) {
+  if (hasError || !latest) {
     return (
       <StockPanel noBorder>
         <div className="flex items-center justify-between gap-2">
@@ -37,7 +38,9 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
           </div>
           <WatchlistButton ticker={ticker} name={stock.name} market={stock.market} />
         </div>
-        <p className="mt-3 text-sm text-muted-foreground">가격 데이터 없음</p>
+        <p className="mt-3 text-sm text-muted-foreground">
+          {hasError ? "가격 데이터를 불러오지 못했습니다" : "가격 데이터 없음"}
+        </p>
       </StockPanel>
     );
   }

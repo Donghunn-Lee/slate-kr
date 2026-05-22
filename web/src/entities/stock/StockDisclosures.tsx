@@ -10,6 +10,7 @@ type StockDisclosuresProps = {
 export const StockDisclosures = async ({ ticker }: StockDisclosuresProps) => {
   let disclosures: DartDisclosure[] = [];
   let noApiKey = false;
+  let hasError = false;
 
   try {
     if (!process.env.DART_API_KEY) {
@@ -21,8 +22,8 @@ export const StockDisclosures = async ({ ticker }: StockDisclosuresProps) => {
       }
     }
   } catch {
-    // API 오류 시 빈 데이터로 폴백
+    hasError = true;
   }
 
-  return <DisclosuresSection disclosures={disclosures} noApiKey={noApiKey} />;
+  return <DisclosuresSection disclosures={disclosures} noApiKey={noApiKey} hasError={hasError} />;
 };

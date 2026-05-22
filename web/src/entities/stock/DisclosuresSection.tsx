@@ -81,9 +81,10 @@ const DisclosureItem = ({ disclosure, onSummaryRequest }: DisclosureItemProps) =
 type DisclosuresSectionProps = {
   disclosures: DartDisclosure[];
   noApiKey: boolean;
+  hasError: boolean;
 };
 
-export const DisclosuresSection = ({ disclosures, noApiKey }: DisclosuresSectionProps) => {
+export const DisclosuresSection = ({ disclosures, noApiKey, hasError }: DisclosuresSectionProps) => {
   const [panelOpen, setPanelOpen] = useState(false);
   const [selection, setSelection] = useState<SummarySelection | null>(null);
 
@@ -120,6 +121,8 @@ export const DisclosuresSection = ({ disclosures, noApiKey }: DisclosuresSection
           <p className="text-sm text-muted-foreground">
             DART API 키 미설정 — 공시 데이터를 불러올 수 없습니다
           </p>
+        ) : hasError ? (
+          <p className="text-sm text-muted-foreground">공시를 불러오지 못했습니다</p>
         ) : disclosures.length === 0 ? (
           <p className="text-sm text-muted-foreground">최근 공시 없음</p>
         ) : (
