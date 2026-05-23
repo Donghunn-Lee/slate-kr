@@ -27,7 +27,12 @@ const getStock = cache(getStockByTicker);
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { ticker } = await params;
-  const stock = await getStock(ticker);
+  let stock = null;
+  try {
+    stock = await getStock(ticker);
+  } catch {
+    return { title: "종목을 찾을 수 없습니다" };
+  }
   if (!stock) return { title: "종목을 찾을 수 없습니다" };
   return {
     title: `${stock.name} (${ticker})`,
@@ -37,7 +42,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 async function StockDetailPage({ params }: PageProps) {
   const { ticker } = await params;
-  const stock = await getStock(ticker);
+  let stock = null;
+  try {
+    stock = await getStock(ticker);
+  } catch {
+    notFound();
+  }
 
   if (!stock) notFound();
 

@@ -31,11 +31,15 @@ export const getDisclosures = async (corpCode: string, limit = 10): Promise<Dart
   url.searchParams.set("page_count", String(limit));
 
   const res = await fetch(url.toString(), { next: { revalidate: 3600 } });
-  if (!res.ok) return [];
+  if (!res.ok) throw new Error(`DART HTTP 오류: ${res.status}`);
 
   const json: unknown = await res.json();
   const parsed = DartResponseSchema.safeParse(json);
-  if (!parsed.success || parsed.data.status !== "000") return [];
+  if (!parsed.success) throw new Error("DART 응답 파싱 실패");
+
+  const { status } = parsed.data;
+  if (status === "013") return []; // 조회된 데이터 없음 (정상 empty)
+  if (status !== "000") throw new Error(`DART API 오류: ${status}`);
 
   return (parsed.data.list ?? []).map((item) => ({
     rcpNo: item.rcept_no,
