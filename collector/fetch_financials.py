@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+import re
 import sys
 from datetime import datetime
 from dotenv import load_dotenv
@@ -70,6 +71,82 @@ _REPORT_TYPE_MAP = {
     "11014": "quarter",
 }
 
+# ── EPS 폴백 상수 ──────────────────────────────────────────
+_AID_EPS_CONT = "ifrs-full_BasicEarningsLossPerShareFromContinuingOperations"
+_AID_EPS_DISC = "ifrs-full_BasicEarningsLossPerShareFromDiscontinuedOperations"
+_EPS_DIV_PRIO = {"IS": 0, "CIS": 1}
+# 정규화 후 매칭 대상 집합
+_EPS_NM_TARGETS = frozenset(
+    {
+        "보통주기본주당이익",
+        "보통주기본주당순이익",
+        "보통주기본주당순손익",
+    }
+)
+
+
+def _normalize_eps_nm(nm: str) -> str:
+    """account_nm 정규화: 공백/NBSP 제거 → 괄호 접미사 제거 → 희석 병기 제거."""
+    nm = nm.replace(" ", "").replace(" ", "")
+    nm = re.sub(r"\([^)]*\)$", "", nm)
+    nm = nm.replace("/희석", "").replace("및희석", "")
+    return nm
+
+
+def _eps_fallback(items: list) -> tuple:
+    """EPS 폴백 추출 (Tier 2/3).
+
+    Tier 2: FromContinuingOperations + FromDiscontinuedOperations 합산.
+            중단영업 값이 없으면 계속영업 단독 사용.
+    Tier 3: account_nm 정규화 후 보통주 기본 EPS 패턴 매칭.
+            공백·희석병기·괄호접미사 정규화로 유형 A/C 모두 대응.
+
+    반환: (value: int | None, reason: str)
+    """
+    # Tier 2 — 계속/중단영업 분리 공시
+    cont_val, cont_prio = None, 999
+    disc_val, disc_prio = None, 999
+    for item in items:
+        aid = item.get("account_id", "")
+        if aid not in (_AID_EPS_CONT, _AID_EPS_DISC):
+            continue
+        raw = item.get("thstrm_amount", "").replace(",", "").strip()
+        try:
+            value = int(raw) if raw else None
+        except ValueError:
+            value = None
+        if value is None:
+            continue
+        prio = _EPS_DIV_PRIO.get(item.get("sj_div", ""), 999)
+        if aid == _AID_EPS_CONT and prio < cont_prio:
+            cont_val, cont_prio = value, prio
+        elif aid == _AID_EPS_DISC and prio < disc_prio:
+            disc_val, disc_prio = value, prio
+    if cont_val is not None:
+        total = cont_val + (disc_val or 0)
+        return total, f"Tier2 Continuing({cont_val})+Discontinued({disc_val or 0})"
+
+    # Tier 3 — account_nm 정규화 매칭
+    best_val, best_prio, best_nm = None, 999, None
+    for item in items:
+        normalized = _normalize_eps_nm(item.get("account_nm", ""))
+        if normalized not in _EPS_NM_TARGETS:
+            continue
+        raw = item.get("thstrm_amount", "").replace(",", "").strip()
+        try:
+            value = int(raw) if raw else None
+        except ValueError:
+            value = None
+        if value is None:
+            continue
+        prio = _EPS_DIV_PRIO.get(item.get("sj_div", ""), 999)
+        if prio < best_prio:
+            best_val, best_prio, best_nm = value, prio, item.get("account_nm")
+    if best_val is not None:
+        return best_val, f"Tier3 account_nm='{best_nm}'"
+
+    return None, ""
+
 
 def get_connection():
     return psycopg2.connect(os.getenv("DATABASE_URL"))
@@ -93,8 +170,8 @@ def _parse_financial_list(items: list) -> dict:
          동일 account_id 티어 내에서만 적용된다.
     """
     result: dict = {}
-    result_preferred_div: set = set()     # sj_div 기준 선호 달성 여부
-    result_preferred_account: set = set() # account_id 기준 선호 달성 여부
+    result_preferred_div: set = set()  # sj_div 기준 선호 달성 여부
+    result_preferred_account: set = set()  # account_id 기준 선호 달성 여부
     for item in items:
         account_id = item.get("account_id", "")
         if account_id not in TARGET_ACCOUNTS:
@@ -111,7 +188,9 @@ def _parse_financial_list(items: list) -> dict:
         is_preferred_div = preferred_div is not None and sj_div == preferred_div
 
         preferred_account = _PREFERRED_ACCOUNTS.get(key)
-        is_preferred_account = preferred_account is not None and account_id == preferred_account
+        is_preferred_account = (
+            preferred_account is not None and account_id == preferred_account
+        )
 
         # 선호 account_id가 이미 적재됐으면 폴백 account_id 값은 무시
         if key in result_preferred_account and not is_preferred_account:
@@ -134,6 +213,13 @@ def _parse_financial_list(items: list) -> dict:
             # 동일 account_id 티어 내에서 선호 sj_div로 교체
             result[key] = value
             result_preferred_div.add(key)
+
+    # EPS 폴백 (Tier 2/3): ifrs-full_BasicEarningsLossPerShare 미공시 종목 대응
+    if "eps" not in result:
+        eps_val, reason = _eps_fallback(items)
+        if eps_val is not None:
+            result["eps"] = eps_val
+            logger.debug("EPS 폴백 적용: %s", reason)
 
     return result
 
@@ -274,11 +360,56 @@ def mark_non_filer(conn, cursor, ticker: str, name: str) -> None:
         conn.rollback()
 
 
+def check_unit_suspects(cursor) -> None:
+    """annual / (Q1+Q2+Q3 revenue 합) > 10 인 종목을 WARNING 로그로 출력.
+
+    한국 분기보고서 revenue는 누적값이므로 정상 비율은 ~0.67.
+    비율 > 10은 annual과 분기 간 단위 불일치(원/천원/백만원) 강력 의심.
+    분기 데이터가 3개 미만이면 false positive 방지를 위해 스킵.
+    """
+    cursor.execute(
+        """
+        WITH annual AS (
+            SELECT ticker, year, revenue AS annual_rev
+            FROM financial_statements
+            WHERE report_type = 'annual' AND revenue IS NOT NULL
+        ),
+        quarterly AS (
+            SELECT ticker, year, SUM(revenue) AS q_sum, COUNT(*) AS q_cnt
+            FROM financial_statements
+            WHERE report_type = 'quarter' AND revenue IS NOT NULL
+            GROUP BY ticker, year
+        )
+        SELECT a.ticker, a.year, q.q_sum, a.annual_rev,
+               a.annual_rev::float / q.q_sum AS ratio
+        FROM annual a
+        JOIN quarterly q ON a.ticker = q.ticker AND a.year = q.year
+        WHERE q.q_cnt >= 3
+          AND q.q_sum > 0
+          AND a.annual_rev::float / q.q_sum > 10
+        ORDER BY ratio DESC
+        """
+    )
+    rows = cursor.fetchall()
+    for ticker, year, q_sum, annual_rev, ratio in rows:
+        logger.warning(
+            "[UNIT_SUSPECT] ticker=%s year=%d q_sum=%s annual=%s ratio=%.2f",
+            ticker,
+            year,
+            f"{q_sum:,}",
+            f"{annual_rev:,}",
+            ratio,
+        )
+    if rows:
+        logger.info("[UNIT_SUSPECT] 의심 종목 총 %d건", len(rows))
+
+
 def run(
     bsns_year: str,
     reprt_code: str,
     existing_keys: set[tuple],
     force: bool = False,
+    ticker_filter: Optional[set] = None,
 ):
     conn = get_connection()
     cursor = conn.cursor()
@@ -289,6 +420,9 @@ def run(
         cursor.close()
         conn.close()
         return set()
+
+    if ticker_filter is not None:
+        corps = [(t, c, n) for t, c, n in corps if t in ticker_filter]
 
     total = len(corps)
     quarter = _QUARTER_MAP.get(reprt_code, 4)
@@ -404,7 +538,26 @@ if __name__ == "__main__":
         default=False,
         help="기존 적재 데이터 무시하고 전체 재적재 (upsert)",
     )
+    parser.add_argument(
+        "--tickers",
+        type=str,
+        default=None,
+        metavar="FILE",
+        help="처리할 ticker 목록 파일 경로 (한 줄당 ticker 하나). 미지정 시 전체 종목 처리.",
+    )
     args = parser.parse_args()
+
+    ticker_filter: Optional[set] = None
+    if args.tickers is not None:
+        if not os.path.isfile(args.tickers):
+            logger.error("ticker 파일을 찾을 수 없습니다: %s", args.tickers)
+            sys.exit(1)
+        with open(args.tickers, encoding="utf-8") as f:
+            ticker_filter = {line.strip() for line in f if line.strip()}
+        if not ticker_filter:
+            logger.error("ticker 파일이 비어 있습니다: %s", args.tickers)
+            sys.exit(1)
+        logger.info("ticker 필터 적용: %d개 종목", len(ticker_filter))
 
     reports = get_available_reports()
     if args.periods is not None:
@@ -431,4 +584,11 @@ if __name__ == "__main__":
             reprt_code=reprt_code,
             existing_keys=existing_keys,
             force=args.force,
+            ticker_filter=ticker_filter,
         )
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    check_unit_suspects(cursor)
+    cursor.close()
+    conn.close()
