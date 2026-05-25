@@ -21,14 +21,19 @@ type StockMetricsProps = {
 };
 
 export const StockMetrics = async ({ ticker }: StockMetricsProps) => {
-  let price: StockPriceSnapshot | null = null;
-  let financial: FinancialPeriod | null = null;
+  const [priceResult, financialResult] = await Promise.allSettled([
+    getLatestPrice(ticker),
+    getLatestFinancial(ticker),
+  ]);
 
-  try {
-    [price, financial] = await Promise.all([getLatestPrice(ticker), getLatestFinancial(ticker)]);
-  } catch {
-    // DB 오류 시 빈 데이터로 폴백
-  }
+  const price: StockPriceSnapshot | null =
+    priceResult.status === "fulfilled" ? priceResult.value : null;
+  const financial: FinancialPeriod | null =
+    financialResult.status === "fulfilled" ? financialResult.value : null;
+
+  const hasError =
+    priceResult.status === "rejected" && financialResult.status === "rejected";
+  const hasData = price !== null || financial !== null;
 
   const currentPrice = price?.close ?? null;
 
@@ -42,16 +47,16 @@ export const StockMetrics = async ({ ticker }: StockMetricsProps) => {
       ? currentPrice / financial.bps
       : null;
 
-  const hasData = financial !== null || price !== null;
-
   return (
     <StockPanel variant="sky">
       <h2 className="mb-4 text-sm font-semibold text-muted-foreground">
         핵심 지표
         {financial && <span className="ml-2 font-normal">({financial.year}년 연간 기준)</span>}
       </h2>
-      {!hasData ? (
-        <p className="text-sm text-muted-foreground">데이터 없음</p>
+      {hasError ? (
+        <p className="text-sm text-muted-foreground">지표 데이터를 불러오지 못했습니다</p>
+      ) : !hasData ? (
+        <p className="text-sm text-muted-foreground">지표 데이터 없음</p>
       ) : (
         <div className="grid grid-cols-2 gap-x-8 gap-y-5">
           <MetricItem label="PER" value={formatRatio(per)} />
