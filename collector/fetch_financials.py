@@ -81,6 +81,11 @@ _EPS_NM_TARGETS = frozenset(
         "보통주기본주당이익",
         "보통주기본주당순이익",
         "보통주기본주당순손익",
+        # 정규화 후 형태 — _normalize_eps_nm이 "및희석" 제거하므로
+        # "기본및희석주당이익" → "기본주당이익"
+        # "보통주기본및희석주당손익" → "보통주기본주당손익"
+        "기본주당이익",
+        "보통주기본주당손익",
     }
 )
 
@@ -112,7 +117,7 @@ def _eps_fallback(items: list) -> tuple:
             continue
         raw = item.get("thstrm_amount", "").replace(",", "").strip()
         try:
-            value = int(raw) if raw else None
+            value = float(raw) if raw else None
         except ValueError:
             value = None
         if value is None:
@@ -134,7 +139,7 @@ def _eps_fallback(items: list) -> tuple:
             continue
         raw = item.get("thstrm_amount", "").replace(",", "").strip()
         try:
-            value = int(raw) if raw else None
+            value = float(raw) if raw else None
         except ValueError:
             value = None
         if value is None:
@@ -179,7 +184,7 @@ def _parse_financial_list(items: list) -> dict:
         key = TARGET_ACCOUNTS[account_id]
         raw = item.get("thstrm_amount", "").replace(",", "").strip()
         try:
-            value = int(raw) if raw else None
+            value = float(raw) if raw else None
         except ValueError:
             value = None
 
@@ -283,7 +288,7 @@ def insert_financial(
     total_equity = data.get("total_equity")
     shares = get_shares(cursor, ticker)
     if total_equity is not None and shares is not None:
-        bps = round(total_equity / shares)
+        bps = round(total_equity / shares, 4)
     else:
         bps = None
 
