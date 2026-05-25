@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { pool } from "./db";
 import type { StockPriceSnapshot } from "@/shared/types/stock";
 
@@ -35,7 +36,7 @@ export const getDailyPrices = async (
   }));
 };
 
-export const getLatestPrice = async (ticker: string): Promise<StockPriceSnapshot | null> => {
+export const getLatestPrice = cache(async (ticker: string): Promise<StockPriceSnapshot | null> => {
   const [rows] = await pool.query<DailyPriceRow[]>(
     "SELECT * FROM daily_prices WHERE ticker = $1 ORDER BY date DESC LIMIT 1",
     [ticker]
@@ -54,4 +55,4 @@ export const getLatestPrice = async (ticker: string): Promise<StockPriceSnapshot
     volume: row.volume,
     marketCap: row.market_cap,
   };
-};
+});
