@@ -44,10 +44,9 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
-  /* ── Semantic base ── */
+  /* ── SlateKR semantic tokens (non-conflicting names) ── */
   --color-base: var(--bg-base);
   --color-elevated: var(--bg-elevated);
-  --color-primary: var(--text-primary);
   --color-tertiary: var(--text-tertiary);
   --color-subtle: var(--border-subtle);
   --color-default: var(--border-default);
@@ -212,15 +211,20 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
-/* shadcn 키워드 충돌 회피 — @theme inline 자동 생성 클래스를 사이트 토큰으로 재정의 */
-@utility text-primary {
-  color: var(--text-primary);
-}
-@utility text-secondary {
-  color: var(--text-secondary);
-}
-@utility text-tertiary {
-  color: var(--text-tertiary);
+/*
+ * text-primary/secondary conflict with shadcn-generated classes from @theme inline.
+ * @utility cannot override theme-generated names — it gets deduplicated away in compilation.
+ * Raw @layer utilities appends after Tailwind's generated utilities, winning in the cascade.
+ * shadcn components use text-primary-foreground / text-secondary-foreground, not these names.
+ * text-tertiary needs no override: --color-tertiary already maps to --text-tertiary correctly.
+ */
+@layer utilities {
+  .text-primary {
+    color: var(--text-primary);
+  }
+  .text-secondary {
+    color: var(--text-secondary);
+  }
 }
 
 @utility text-price-up {
