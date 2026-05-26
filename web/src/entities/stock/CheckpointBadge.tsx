@@ -1,22 +1,30 @@
-import { Badge, type badgeVariants } from "@/components/ui/badge";
 import { DisclosureType } from "@/shared/utils/classifyDisclosure";
-import type { VariantProps } from "class-variance-authority";
 
-type BadgeVariant = NonNullable<VariantProps<typeof badgeVariants>["variant"]>;
+const TYPE_CLASSES: Record<DisclosureType, string> = {
+  MAJOR_EVENT: "bg-disclosure-major-event-bg text-disclosure-major-event-text",
+  FINANCIAL: "bg-disclosure-financial-bg text-disclosure-financial-text",
+  OWNERSHIP: "bg-disclosure-ownership-bg text-disclosure-ownership-text",
+  AUDIT: "bg-disclosure-audit-bg text-disclosure-audit-text",
+  SHAREHOLDER_MEETING:
+    "bg-disclosure-shareholder-meeting-bg text-disclosure-shareholder-meeting-text",
+};
 
-const BADGE_CONFIG: Record<DisclosureType, { label: string; variant: BadgeVariant }> = {
-  MAJOR_EVENT: { label: "주요사항", variant: "red" },
-  FINANCIAL: { label: "정기보고서", variant: "blue" },
-  OWNERSHIP: { label: "소유상황", variant: "purple" },
-  AUDIT: { label: "감사", variant: "teal" },
-  SHAREHOLDER_MEETING: { label: "주주총회", variant: "amber" },
+const TYPE_LABELS: Record<DisclosureType, string> = {
+  MAJOR_EVENT: "주요사항",
+  FINANCIAL: "정기보고서",
+  OWNERSHIP: "소유상황",
+  AUDIT: "감사",
+  SHAREHOLDER_MEETING: "주주총회",
 };
 
 type CheckpointBadgeProps = {
   type: DisclosureType;
 };
 
-export const CheckpointBadge = ({ type }: CheckpointBadgeProps) => {
-  const { label, variant } = BADGE_CONFIG[type];
-  return <Badge variant={variant}>{label}</Badge>;
-};
+export const CheckpointBadge = ({ type }: CheckpointBadgeProps) => (
+  <span
+    className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium ${TYPE_CLASSES[type]}`}
+  >
+    {TYPE_LABELS[type]}
+  </span>
+);
