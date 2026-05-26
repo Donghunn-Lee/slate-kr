@@ -57,6 +57,17 @@
   --color-price-down: var(--price-down);
   --color-price-down-muted: var(--price-down-muted);
   --color-price-neutral: var(--price-neutral);
+  /* ── Disclosure category tokens ── */
+  --color-disclosure-major-event-bg: var(--disclosure-major-event-bg);
+  --color-disclosure-major-event-text: var(--disclosure-major-event-text);
+  --color-disclosure-financial-bg: var(--disclosure-financial-bg);
+  --color-disclosure-financial-text: var(--disclosure-financial-text);
+  --color-disclosure-ownership-bg: var(--disclosure-ownership-bg);
+  --color-disclosure-ownership-text: var(--disclosure-ownership-text);
+  --color-disclosure-audit-bg: var(--disclosure-audit-bg);
+  --color-disclosure-audit-text: var(--disclosure-audit-text);
+  --color-disclosure-shareholder-meeting-bg: var(--disclosure-shareholder-meeting-bg);
+  --color-disclosure-shareholder-meeting-text: var(--disclosure-shareholder-meeting-text);
   /* ── Accent palette ── */
   --color-sky-bg: var(--sky-bg);
   --color-sky-border: var(--sky-border);
@@ -96,6 +107,18 @@
   --price-down: oklch(0.48 0.18 260); /* 하락 — 블루 */
   --price-down-muted: oklch(0.48 0.18 260 / 12%);
   --price-neutral: oklch(0.55 0.01 270); /* 보합 */
+
+  /* ── Disclosure category tokens (5 types × bg / text) ── */
+  --disclosure-major-event-bg: oklch(0.96 0.04 25);   /* light warm red */
+  --disclosure-major-event-text: oklch(0.50 0.20 25);
+  --disclosure-financial-bg: oklch(0.96 0.03 260);    /* light blue */
+  --disclosure-financial-text: oklch(0.48 0.18 260);
+  --disclosure-ownership-bg: oklch(0.96 0.04 305);    /* light purple */
+  --disclosure-ownership-text: oklch(0.50 0.17 305);
+  --disclosure-audit-bg: oklch(0.96 0.04 185);        /* light teal */
+  --disclosure-audit-text: oklch(0.50 0.14 185);
+  --disclosure-shareholder-meeting-bg: oklch(0.97 0.05 80);  /* light amber */
+  --disclosure-shareholder-meeting-text: oklch(0.60 0.15 60);
 
   /* ── Accent palette (5 colors × 3 stages: bg / border / accent) ── */
   --sky-bg: oklch(0.97 0.03 220);
@@ -192,6 +215,18 @@
 /* shadcn --secondary와 키워드 충돌 회피 — @theme inline 사용 시 bg-secondary가 깨짐 */
 @utility text-secondary {
   color: var(--text-secondary);
+}
+
+@utility text-price-up {
+  color: var(--price-up);
+}
+
+@utility text-price-down {
+  color: var(--price-down);
+}
+
+@utility text-price-neutral {
+  color: var(--price-neutral);
 }
 
 @layer base {
