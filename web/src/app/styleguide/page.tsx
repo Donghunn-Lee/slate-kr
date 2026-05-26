@@ -11,49 +11,19 @@ export const metadata: Metadata = {
 
 export default function StyleguidePage() {
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        backgroundColor: "var(--bg-base)",
-        padding: "48px 24px",
-      }}
-    >
-      <div style={{ maxWidth: "960px", margin: "0 auto" }}>
+    <div className="min-h-screen bg-base px-6 py-12">
+      <div className="mx-auto max-w-[960px]">
         {/* 헤더 */}
-        <div style={{ marginBottom: "48px" }}>
-          <h1
-            style={{
-              fontSize: "28px",
-              fontWeight: 700,
-              letterSpacing: "-0.02em",
-              color: "var(--text-primary)",
-              marginBottom: "8px",
-            }}
-          >
+        <div className="mb-12">
+          <h1 className="mb-2 text-[28px] font-bold tracking-[-0.02em] text-primary">
             SlateKR 디자인 시스템
           </h1>
-          <p style={{ fontSize: "14px", color: "var(--text-secondary)", lineHeight: 1.6 }}>
+          <p className="text-sm leading-[1.6] text-secondary">
             SlateKR에서 사용하는 색·타이포·모션 토큰 가이드
           </p>
-          <div
-            style={{
-              display: "flex",
-              gap: "8px",
-              marginTop: "16px",
-              fontSize: "11px",
-              fontFamily: "monospace",
-              color: "var(--text-tertiary)",
-            }}
-          >
+          <div className="mt-4 flex gap-2 font-mono text-[11px] text-tertiary">
             {["Base", "Functional", "Accent ×5", "Disclosure", "Motion", "Shadow"].map((tag) => (
-              <span
-                key={tag}
-                style={{
-                  backgroundColor: "var(--border-subtle)",
-                  padding: "2px 8px",
-                  borderRadius: "4px",
-                }}
-              >
+              <span key={tag} className="rounded bg-subtle px-2 py-0.5">
                 {tag}
               </span>
             ))}
@@ -61,7 +31,7 @@ export default function StyleguidePage() {
         </div>
 
         {/* 섹션 */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "64px" }}>
+        <div className="flex flex-col gap-16">
           <ColorTokens />
           <Typography />
           <SlatePanels />
@@ -69,15 +39,7 @@ export default function StyleguidePage() {
         </div>
 
         {/* 푸터 */}
-        <div
-          style={{
-            marginTop: "64px",
-            paddingTop: "24px",
-            borderTop: "1px solid var(--border-subtle)",
-            fontSize: "12px",
-            color: "var(--text-tertiary)",
-          }}
-        >
+        <div className="mt-16 border-t border-subtle pt-6 text-xs text-tertiary">
           이 페이지는 개발 전용 디자인 시스템 문서입니다. 실제 서비스 기능과 무관합니다.
         </div>
       </div>

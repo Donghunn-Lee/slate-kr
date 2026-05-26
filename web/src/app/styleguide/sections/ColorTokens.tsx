@@ -5,77 +5,29 @@ type SwatchGroupProps = {
 
 const SwatchGroup = ({ title, tokens }: SwatchGroupProps) => (
   <div>
-    <h3
-      style={{
-        fontSize: "11px",
-        fontWeight: 600,
-        letterSpacing: "0.06em",
-        textTransform: "uppercase",
-        color: "var(--text-tertiary)",
-        marginBottom: "12px",
-      }}
-    >
+    <h3 className="mb-3 font-mono text-[11px] font-semibold uppercase tracking-[0.06em] text-tertiary">
       {title}
     </h3>
     <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-        gap: "10px",
-      }}
+      className="grid gap-2.5"
+      style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}
     >
       {tokens.map(({ token, value, label }) => (
         <div
           key={token}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-            padding: "8px",
-            borderRadius: "6px",
-            backgroundColor: "var(--bg-elevated)",
-            border: "1px solid var(--border-subtle)",
-          }}
+          className="flex items-center gap-2.5 rounded-sm border border-subtle bg-elevated p-2"
         >
           <div
+            className="h-9 w-9 shrink-0 rounded-sm"
             style={{
-              width: "36px",
-              height: "36px",
-              borderRadius: "6px",
               backgroundColor: `var(${token})`,
               border: "1px solid oklch(0.85 0.005 85 / 60%)",
-              flexShrink: 0,
             }}
           />
-          <div style={{ minWidth: 0 }}>
-            <p
-              style={{
-                fontSize: "11px",
-                fontWeight: 600,
-                color: "var(--text-primary)",
-                fontFamily: "monospace",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              {token}
-            </p>
-            <p
-              style={{
-                fontSize: "10px",
-                color: "var(--text-tertiary)",
-                fontFamily: "monospace",
-                marginTop: "1px",
-              }}
-            >
-              {value}
-            </p>
-            {label && (
-              <p style={{ fontSize: "10px", color: "var(--text-secondary)", marginTop: "1px" }}>
-                {label}
-              </p>
-            )}
+          <div className="min-w-0">
+            <p className="truncate font-mono text-[11px] font-semibold text-primary">{token}</p>
+            <p className="mt-px font-mono text-[10px] text-tertiary">{value}</p>
+            {label && <p className="mt-px text-[10px] text-secondary">{label}</p>}
           </div>
         </div>
       ))}
@@ -93,20 +45,11 @@ const ACCENT_COLORS = [
 
 export const ColorTokens = () => (
   <section>
-    <h2
-      style={{
-        fontSize: "18px",
-        fontWeight: 600,
-        color: "var(--text-primary)",
-        marginBottom: "24px",
-        paddingBottom: "12px",
-        borderBottom: "1px solid var(--border-subtle)",
-      }}
-    >
+    <h2 className="mb-6 border-b border-subtle pb-3 text-lg font-semibold text-primary">
       Color Tokens
     </h2>
 
-    <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
+    <div className="flex flex-col gap-8">
       <SwatchGroup
         title="Base"
         tokens={[
@@ -176,16 +119,8 @@ export const ColorTokens = () => (
             value: "oklch(0.50 0.17 305)",
             label: "소유상황 텍스트",
           },
-          {
-            token: "--disclosure-audit-bg",
-            value: "oklch(0.96 0.04 185)",
-            label: "감사 배경",
-          },
-          {
-            token: "--disclosure-audit-text",
-            value: "oklch(0.50 0.14 185)",
-            label: "감사 텍스트",
-          },
+          { token: "--disclosure-audit-bg", value: "oklch(0.96 0.04 185)", label: "감사 배경" },
+          { token: "--disclosure-audit-text", value: "oklch(0.50 0.14 185)", label: "감사 텍스트" },
           {
             token: "--disclosure-shareholder-meeting-bg",
             value: "oklch(0.97 0.05 80)",

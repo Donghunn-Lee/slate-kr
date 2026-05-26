@@ -6,31 +6,10 @@ type TypeRowProps = {
 };
 
 const TypeRow = ({ label, spec, children, style }: TypeRowProps) => (
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: "160px 1fr",
-      gap: "24px",
-      alignItems: "baseline",
-      padding: "20px 0",
-      borderBottom: "1px solid var(--border-subtle)",
-    }}
-  >
+  <div className="grid grid-cols-[160px_1fr] items-baseline gap-6 border-b border-subtle py-5">
     <div>
-      <p
-        style={{
-          fontSize: "11px",
-          fontWeight: 600,
-          color: "var(--text-primary)",
-          fontFamily: "monospace",
-          marginBottom: "2px",
-        }}
-      >
-        {label}
-      </p>
-      <p style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "monospace" }}>
-        {spec}
-      </p>
+      <p className="mb-0.5 font-mono text-[11px] font-semibold text-primary">{label}</p>
+      <p className="font-mono text-[10px] text-tertiary">{spec}</p>
     </div>
     <div style={style}>{children}</div>
   </div>
@@ -38,16 +17,7 @@ const TypeRow = ({ label, spec, children, style }: TypeRowProps) => (
 
 export const Typography = () => (
   <section>
-    <h2
-      style={{
-        fontSize: "18px",
-        fontWeight: 600,
-        color: "var(--text-primary)",
-        marginBottom: "24px",
-        paddingBottom: "12px",
-        borderBottom: "1px solid var(--border-subtle)",
-      }}
-    >
+    <h2 className="mb-6 border-b border-subtle pb-3 text-lg font-semibold text-primary">
       Typography
     </h2>
 
@@ -83,12 +53,7 @@ export const Typography = () => (
       <TypeRow
         label="body"
         spec="14px / 400 / 0"
-        style={{
-          fontSize: "14px",
-          fontWeight: 400,
-          color: "var(--text-primary)",
-          lineHeight: 1.6,
-        }}
+        style={{ fontSize: "14px", fontWeight: 400, color: "var(--text-primary)", lineHeight: 1.6 }}
       >
         주가·재무·공시 정보를 빠르게 조회할 수 있습니다.
       </TypeRow>
@@ -119,19 +84,12 @@ export const Typography = () => (
           fontFamily: "inherit",
         }}
       >
-        <div style={{ display: "flex", gap: "32px" }}>
+        <div className="flex gap-8">
           <span>1,222,000</span>
           <span>219,500</span>
           <span>513,000</span>
         </div>
-        <p
-          style={{
-            fontSize: "11px",
-            color: "var(--text-tertiary)",
-            marginTop: "6px",
-            fontVariantNumeric: "tabular-nums",
-          }}
-        >
+        <p className="mt-1.5 tabular-nums text-[11px] text-tertiary">
           자릿수 정렬 확인 — 각 숫자의 첫째 자리가 세로로 맞아야 함
         </p>
       </TypeRow>
