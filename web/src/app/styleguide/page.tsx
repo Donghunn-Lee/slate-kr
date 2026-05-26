@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import { ColorTokens } from "./sections/ColorTokens";
 import { Typography } from "./sections/Typography";
 import { SlatePanels } from "./sections/SlatePanels";
-import { InContextPreview } from "./sections/InContextPreview";
-import { InteractionDemo } from "./sections/InteractionDemo";
+import { MotionTokens } from "./sections/MotionTokens";
 
 export const metadata: Metadata = {
   title: "Styleguide — SlateKR",
@@ -34,7 +33,7 @@ export default function StyleguidePage() {
             SlateKR 디자인 시스템
           </h1>
           <p style={{ fontSize: "14px", color: "var(--text-secondary)", lineHeight: 1.6 }}>
-            토큰 시각화. 작업 진행에 따라 갱신됨.
+            SlateKR의 디자인 토큰 정의. 토큰이 본 페이지에서 어떻게 조합되는지는 본 페이지가 책임진다.
           </p>
           <div
             style={{
@@ -46,7 +45,7 @@ export default function StyleguidePage() {
               color: "var(--text-tertiary)",
             }}
           >
-            {["Base", "Functional", "Accent ×5", "Motion", "Shadow", "Interaction"].map((tag) => (
+            {["Base", "Functional", "Accent ×5", "Disclosure", "Motion", "Shadow"].map((tag) => (
               <span
                 key={tag}
                 style={{
@@ -66,8 +65,7 @@ export default function StyleguidePage() {
           <ColorTokens />
           <Typography />
           <SlatePanels />
-          <InContextPreview />
-          <InteractionDemo />
+          <MotionTokens />
         </div>
 
         {/* 푸터 */}

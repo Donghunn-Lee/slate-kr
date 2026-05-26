@@ -144,6 +144,62 @@ export const ColorTokens = () => (
       ))}
 
       <SwatchGroup
+        title="Disclosure — 공시 카테고리 (5종 × bg/text)"
+        tokens={[
+          {
+            token: "--disclosure-major-event-bg",
+            value: "oklch(0.96 0.04 25)",
+            label: "주요사항 배경",
+          },
+          {
+            token: "--disclosure-major-event-text",
+            value: "oklch(0.50 0.20 25)",
+            label: "주요사항 텍스트",
+          },
+          {
+            token: "--disclosure-financial-bg",
+            value: "oklch(0.96 0.03 260)",
+            label: "정기보고서 배경",
+          },
+          {
+            token: "--disclosure-financial-text",
+            value: "oklch(0.48 0.18 260)",
+            label: "정기보고서 텍스트",
+          },
+          {
+            token: "--disclosure-ownership-bg",
+            value: "oklch(0.96 0.04 305)",
+            label: "소유상황 배경",
+          },
+          {
+            token: "--disclosure-ownership-text",
+            value: "oklch(0.50 0.17 305)",
+            label: "소유상황 텍스트",
+          },
+          {
+            token: "--disclosure-audit-bg",
+            value: "oklch(0.96 0.04 185)",
+            label: "감사 배경",
+          },
+          {
+            token: "--disclosure-audit-text",
+            value: "oklch(0.50 0.14 185)",
+            label: "감사 텍스트",
+          },
+          {
+            token: "--disclosure-shareholder-meeting-bg",
+            value: "oklch(0.97 0.05 80)",
+            label: "주주총회 배경",
+          },
+          {
+            token: "--disclosure-shareholder-meeting-text",
+            value: "oklch(0.60 0.15 60)",
+            label: "주주총회 텍스트",
+          },
+        ]}
+      />
+
+      <SwatchGroup
         title="shadcn/ui — Semantic"
         tokens={[
           { token: "--background", value: "→ bg-base", label: "body 배경" },
