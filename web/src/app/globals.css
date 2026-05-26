@@ -96,7 +96,7 @@
   --bg-base: oklch(0.98 0.005 85); /* 따뜻한 오프화이트 페이지 배경 */
   --bg-elevated: oklch(0.995 0.003 85); /* 패널·카드가 떠 있을 때 */
   --text-primary: oklch(0.25 0.02 270); /* 짙은 네이비, 순검정 대체 */
-  --text-secondary: oklch(0.5 0.015 270);
+  --text-secondary: oklch(0.34 0.015 270);
   --text-tertiary: oklch(0.65 0.01 270);
   --border-subtle: oklch(0.92 0.005 85);
   --border-default: oklch(0.88 0.008 85);
@@ -109,16 +109,16 @@
   --price-neutral: oklch(0.55 0.01 270); /* 보합 */
 
   /* ── Disclosure category tokens (5 types × bg / text) ── */
-  --disclosure-major-event-bg: oklch(0.96 0.04 25);   /* light warm red */
-  --disclosure-major-event-text: oklch(0.50 0.20 25);
-  --disclosure-financial-bg: oklch(0.96 0.03 260);    /* light blue */
+  --disclosure-major-event-bg: oklch(0.96 0.04 25); /* light warm red */
+  --disclosure-major-event-text: oklch(0.5 0.2 25);
+  --disclosure-financial-bg: oklch(0.96 0.03 260); /* light blue */
   --disclosure-financial-text: oklch(0.48 0.18 260);
-  --disclosure-ownership-bg: oklch(0.96 0.04 305);    /* light purple */
-  --disclosure-ownership-text: oklch(0.50 0.17 305);
-  --disclosure-audit-bg: oklch(0.96 0.04 185);        /* light teal */
-  --disclosure-audit-text: oklch(0.50 0.14 185);
-  --disclosure-shareholder-meeting-bg: oklch(0.97 0.05 80);  /* light amber */
-  --disclosure-shareholder-meeting-text: oklch(0.60 0.15 60);
+  --disclosure-ownership-bg: oklch(0.96 0.04 305); /* light purple */
+  --disclosure-ownership-text: oklch(0.5 0.17 305);
+  --disclosure-audit-bg: oklch(0.96 0.04 185); /* light teal */
+  --disclosure-audit-text: oklch(0.5 0.14 185);
+  --disclosure-shareholder-meeting-bg: oklch(0.97 0.05 80); /* light amber */
+  --disclosure-shareholder-meeting-text: oklch(0.6 0.15 60);
 
   /* ── Accent palette (5 colors × 3 stages: bg / border / accent) ── */
   --sky-bg: oklch(0.97 0.03 220);
@@ -212,9 +212,15 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
-/* shadcn --secondary와 키워드 충돌 회피 — @theme inline 사용 시 bg-secondary가 깨짐 */
+/* shadcn 키워드 충돌 회피 — @theme inline 자동 생성 클래스를 사이트 토큰으로 재정의 */
+@utility text-primary {
+  color: var(--text-primary);
+}
 @utility text-secondary {
   color: var(--text-secondary);
+}
+@utility text-tertiary {
+  color: var(--text-tertiary);
 }
 
 @utility text-price-up {
