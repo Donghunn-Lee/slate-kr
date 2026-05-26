@@ -45,7 +45,7 @@
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
   /* ── SlateKR semantic tokens (non-conflicting names) ── */
-  --color-base: var(--bg-base);
+  /* --color-base removed: "base" collides with Tailwind's text-base font-size utility */
   --color-elevated: var(--bg-elevated);
   --color-tertiary: var(--text-tertiary);
   --color-subtle: var(--border-subtle);
