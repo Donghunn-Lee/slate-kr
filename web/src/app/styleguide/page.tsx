@@ -33,7 +33,7 @@ export default function StyleguidePage() {
             SlateKR 디자인 시스템
           </h1>
           <p style={{ fontSize: "14px", color: "var(--text-secondary)", lineHeight: 1.6 }}>
-            SlateKR의 디자인 토큰 정의. 토큰이 본 페이지에서 어떻게 조합되는지는 본 페이지가 책임진다.
+            SlateKR에서 사용하는 색·타이포·모션 토큰 가이드
           </p>
           <div
             style={{
