@@ -51,7 +51,7 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
   const isRise = change !== null && change > 0;
   const isFall = change !== null && change < 0;
 
-  const changeColor = isRise ? "text-red-500" : isFall ? "text-blue-500" : "text-muted-foreground";
+  const changeColor = isRise ? "text-price-up" : isFall ? "text-price-down" : "text-muted-foreground";
 
   const changeSign = isRise ? "+" : "";
 

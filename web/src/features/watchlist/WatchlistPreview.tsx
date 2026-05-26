@@ -90,9 +90,9 @@ export function WatchlistPreview() {
                           <p
                             className={`text-xs tabular-nums ${
                               p.change > 0
-                                ? "text-red-400"
+                                ? "text-price-up"
                                 : p.change < 0
-                                  ? "text-blue-400"
+                                  ? "text-price-down"
                                   : "text-muted-foreground"
                             }`}
                           >
