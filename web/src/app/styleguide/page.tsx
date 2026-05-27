@@ -15,13 +15,13 @@ export default function StyleguidePage() {
       <div className="mx-auto max-w-[960px]">
         {/* 헤더 */}
         <div className="mb-12">
-          <h1 className="mb-2 text-[28px] font-bold tracking-[-0.02em] text-primary">
+          <h1 className="mb-2 text-[28px] font-bold tracking-[-0.02em] text-foreground">
             SlateKR 디자인 시스템
           </h1>
-          <p className="text-sm leading-[1.6] text-secondary">
+          <p className="text-sm leading-[1.6] text-muted-foreground">
             SlateKR에서 사용하는 색·타이포·모션 토큰 가이드
           </p>
-          <div className="mt-4 flex gap-2 font-mono text-[11px] text-tertiary">
+          <div className="mt-4 flex gap-2 font-mono text-[11px] text-muted-foreground">
             {["Base", "Functional", "Accent ×5", "Disclosure", "Motion", "Shadow"].map((tag) => (
               <span key={tag} className="rounded bg-subtle px-2 py-0.5">
                 {tag}
@@ -39,7 +39,7 @@ export default function StyleguidePage() {
         </div>
 
         {/* 푸터 */}
-        <div className="mt-16 border-t border-subtle pt-6 text-xs text-tertiary">
+        <div className="mt-16 border-t border-subtle pt-6 text-xs text-muted-foreground">
           이 페이지는 개발 전용 디자인 시스템 문서입니다. 실제 서비스 기능과 무관합니다.
         </div>
       </div>

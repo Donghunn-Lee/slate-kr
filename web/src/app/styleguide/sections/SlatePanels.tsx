@@ -12,7 +12,7 @@ const VARIANTS: PanelVariant[] = [
     name: "Plain",
     bg: "bg-elevated",
     border: "border-subtle",
-    dot: "bg-tertiary",
+    dot: "bg-muted",
     codeBg: "bg-subtle",
     label: "기본 패널 — bg-elevated + border-subtle",
   },
@@ -60,10 +60,10 @@ const VARIANTS: PanelVariant[] = [
 
 export const SlatePanels = () => (
   <section>
-    <h2 className="mb-2 border-b border-subtle pb-3 text-lg font-semibold text-primary">
+    <h2 className="mb-2 border-b border-subtle pb-3 text-lg font-semibold text-foreground">
       Slate Panels
     </h2>
-    <p className="mb-6 text-[13px] text-secondary">
+    <p className="mb-6 text-[13px] text-muted-foreground">
       6종 패널 변형 — 동일 구조에서 배경·테두리 색만 교체
     </p>
 
@@ -79,14 +79,18 @@ export const SlatePanels = () => (
         >
           <div className="mb-2 flex items-center gap-2">
             <div className={`size-2 shrink-0 rounded-full ${dot}`} />
-            <p className="text-sm font-semibold text-primary">패널 제목 — {name}</p>
+            <p className="text-sm font-semibold text-foreground">패널 제목 — {name}</p>
           </div>
-          <p className="text-xs leading-normal text-secondary">{label}</p>
+          <p className="text-xs leading-normal text-muted-foreground">{label}</p>
           <div className="mt-3 flex gap-1.5">
-            <code className={`rounded font-mono text-[10px] text-tertiary ${codeBg} px-1.5 py-0.5`}>
+            <code
+              className={`rounded font-mono text-[10px] text-muted-foreground ${codeBg} px-1.5 py-0.5`}
+            >
               bg: --{name.toLowerCase()}-bg
             </code>
-            <code className={`rounded font-mono text-[10px] text-tertiary ${codeBg} px-1.5 py-0.5`}>
+            <code
+              className={`rounded font-mono text-[10px] text-muted-foreground ${codeBg} px-1.5 py-0.5`}
+            >
               border: --{name.toLowerCase()}-border
             </code>
           </div>

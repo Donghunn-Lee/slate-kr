@@ -5,7 +5,7 @@ type SwatchGroupProps = {
 
 const SwatchGroup = ({ title, tokens }: SwatchGroupProps) => (
   <div>
-    <h3 className="mb-3 font-mono text-[11px] font-semibold uppercase tracking-[0.06em] text-tertiary">
+    <h3 className="mb-3 font-mono text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
       {title}
     </h3>
     <div
@@ -25,9 +25,9 @@ const SwatchGroup = ({ title, tokens }: SwatchGroupProps) => (
             }}
           />
           <div className="min-w-0">
-            <p className="truncate font-mono text-[11px] font-semibold text-primary">{token}</p>
-            <p className="mt-px font-mono text-[10px] text-tertiary">{value}</p>
-            {label && <p className="mt-px text-[10px] text-secondary">{label}</p>}
+            <p className="truncate font-mono text-[11px] font-semibold text-foreground">{token}</p>
+            <p className="mt-px font-mono text-[10px] text-muted-foreground">{value}</p>
+            {label && <p className="mt-px text-[10px] text-muted-foreground">{label}</p>}
           </div>
         </div>
       ))}
@@ -45,7 +45,7 @@ const ACCENT_COLORS = [
 
 export const ColorTokens = () => (
   <section>
-    <h2 className="mb-6 border-b border-subtle pb-3 text-lg font-semibold text-primary">
+    <h2 className="mb-6 border-b border-subtle pb-3 text-lg font-semibold text-foreground">
       Color Tokens
     </h2>
 
@@ -56,7 +56,7 @@ export const ColorTokens = () => (
           { token: "--bg-base", value: "oklch(0.98 0.005 85)", label: "페이지 배경" },
           { token: "--bg-elevated", value: "oklch(0.995 0.003 85)", label: "패널·카드 배경" },
           { token: "--text-primary", value: "oklch(0.25 0.02 270)", label: "본문 텍스트" },
-          { token: "--text-secondary", value: "oklch(0.5 0.015 270)", label: "보조 텍스트" },
+          { token: "--text-secondary", value: "oklch(0.34 0.015 270)", label: "보조 텍스트" },
           { token: "--text-tertiary", value: "oklch(0.65 0.01 270)", label: "캡션·레이블" },
           { token: "--border-subtle", value: "oklch(0.92 0.005 85)", label: "구분선" },
           { token: "--border-default", value: "oklch(0.88 0.008 85)", label: "컴포넌트 테두리" },
