@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import type { DartDisclosure } from "@/shared/types/stock";
 import { formatDartDate } from "@/shared/format";
 import { classifyDisclosure } from "@/shared/utils/classifyDisclosure";
@@ -56,7 +55,6 @@ const DisclosureItem = ({ disclosure, onSummaryRequest }: DisclosureItemProps) =
             type="button"
             className="bg-elevated cursor-pointer rounded border border-amber-border px-2 py-0.5 text-[11px] font-medium text-amber-accent whitespace-nowrap"
             style={{
-              backgroundColor: "var(--bg-elevated)",
               opacity: hovered ? 1 : 0,
               transform: hovered ? "translateX(0)" : "translateX(8px)",
               pointerEvents: hovered ? "auto" : "none",
@@ -84,7 +82,11 @@ type DisclosuresSectionProps = {
   hasError: boolean;
 };
 
-export const DisclosuresSection = ({ disclosures, noApiKey, hasError }: DisclosuresSectionProps) => {
+export const DisclosuresSection = ({
+  disclosures,
+  noApiKey,
+  hasError,
+}: DisclosuresSectionProps) => {
   const [panelOpen, setPanelOpen] = useState(false);
   const [selection, setSelection] = useState<SummarySelection | null>(null);
 
@@ -95,26 +97,6 @@ export const DisclosuresSection = ({ disclosures, noApiKey, hasError }: Disclosu
 
   return (
     <>
-      {/* 우측 고정 슬라이드 토글 */}
-      <button
-        onClick={() => setPanelOpen((o) => !o)}
-        className={cn(
-          "fixed top-1/2 z-40 -translate-y-1/2",
-          "flex h-14 w-5 items-center justify-center",
-          "rounded-l-md border border-r-0 border-subtle bg-elevated",
-          "text-muted-foreground transition-all duration-200",
-          "hover:bg-muted hover:text-foreground",
-          panelOpen ? "right-[384px]" : "right-0"
-        )}
-        aria-label={panelOpen ? "AI 요약 패널 닫기" : "AI 요약 패널 열기"}
-      >
-        {panelOpen ? (
-          <ChevronRightIcon className="size-3" />
-        ) : (
-          <ChevronLeftIcon className="size-3" />
-        )}
-      </button>
-
       <StockPanel variant="amber">
         <h2 className="mb-4 text-sm font-semibold text-muted-foreground">최근 공시 (최근 3개월)</h2>
         {noApiKey ? (

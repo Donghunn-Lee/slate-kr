@@ -9,6 +9,7 @@ import { StockPanel } from "./StockPanel";
 type StockChartProps = {
   prices: StockPriceSnapshot[];
   ticker: string;
+  label?: string;
 };
 
 const LIGHT = {
@@ -29,7 +30,7 @@ const DARK = {
   bottomFill: "rgba(163,163,163,0)",
 } as const;
 
-export const StockChart = ({ prices, ticker }: StockChartProps) => {
+export const StockChart = ({ prices, ticker, label }: StockChartProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { resolvedTheme } = useTheme();
 
@@ -90,7 +91,9 @@ export const StockChart = ({ prices, ticker }: StockChartProps) => {
 
   return (
     <StockPanel noBorder>
-      <h2 className="mb-4 text-sm font-semibold text-muted-foreground">{ticker} — 최근 1년</h2>
+      <h2 className="mb-4 text-sm font-semibold text-muted-foreground">
+        {ticker} — {label ?? "최근 1년"}
+      </h2>
       <div ref={containerRef} className="h-[300px] w-full" />
     </StockPanel>
   );

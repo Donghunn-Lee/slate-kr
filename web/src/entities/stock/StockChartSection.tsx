@@ -1,18 +1,20 @@
 import type { StockPriceSnapshot } from "@/shared/types/stock";
 import { getDailyPrices } from "@/lib/prices";
 import { StockPanel } from "./StockPanel";
-import { StockChart } from "./StockChart";
+import { StockChartDynamic } from "./StockChartDynamic";
 
 type StockChartSectionProps = {
   ticker: string;
+  limit?: number;
+  label?: string;
 };
 
-export const StockChartSection = async ({ ticker }: StockChartSectionProps) => {
+export const StockChartSection = async ({ ticker, limit, label }: StockChartSectionProps) => {
   let prices: StockPriceSnapshot[] = [];
   let hasError = false;
 
   try {
-    prices = await getDailyPrices(ticker, 365);
+    prices = await getDailyPrices(ticker, limit ?? 365);
   } catch {
     hasError = true;
   }
@@ -26,5 +28,5 @@ export const StockChartSection = async ({ ticker }: StockChartSectionProps) => {
     );
   }
 
-  return <StockChart prices={prices} ticker={ticker} />;
+  return <StockChartDynamic prices={prices} ticker={ticker} label={label} />;
 };

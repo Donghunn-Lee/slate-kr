@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { pool } from "./db";
 import { getLatestPrice } from "./prices";
 import type { StockSummary } from "@/shared/types/stock";
@@ -36,13 +37,13 @@ export const getStockByTicker = async (ticker: string): Promise<StockSummary | n
   };
 };
 
-export const getCorpCode = async (ticker: string): Promise<string | null> => {
+export const getCorpCode = cache(async (ticker: string): Promise<string | null> => {
   const [rows] = await pool.query<StockRow[]>(
     "SELECT corp_code FROM stocks WHERE ticker = $1 AND is_active = true",
     [ticker]
   );
   return rows.length > 0 ? (rows[0].corp_code ?? null) : null;
-};
+});
 
 export const getAllTickers = async (): Promise<string[]> => {
   const [rows] = await pool.query<Pick<StockRow, "ticker">[]>(

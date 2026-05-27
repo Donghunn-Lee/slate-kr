@@ -1,5 +1,5 @@
 export const HeaderSkeleton = () => (
-  <div className="animate-pulse space-y-3 rounded-xl border bg-card p-6">
+  <div className="animate-pulse space-y-3 rounded-xl border bg-elevated p-6">
     <div className="flex items-center gap-2">
       <div className="h-7 w-32 rounded bg-muted" />
       <div className="h-5 w-14 rounded bg-muted" />
@@ -12,7 +12,7 @@ export const HeaderSkeleton = () => (
 );
 
 export const MetricsSkeleton = () => (
-  <div className="animate-pulse rounded-xl border bg-card p-6">
+  <div className="animate-pulse rounded-xl border bg-elevated p-6">
     <div className="mb-4 h-5 w-20 rounded bg-muted" />
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
       {Array.from({ length: 4 }).map((_, i) => (
@@ -26,14 +26,14 @@ export const MetricsSkeleton = () => (
 );
 
 export const ChartSkeleton = () => (
-  <div className="animate-pulse rounded-xl border bg-card p-6">
+  <div className="animate-pulse rounded-xl border bg-elevated p-6">
     <div className="mb-4 h-5 w-16 rounded bg-muted" />
     <div className="h-[300px] w-full rounded bg-muted" />
   </div>
 );
 
 export const FinancialsSkeleton = () => (
-  <div className="animate-pulse rounded-xl border bg-card p-6">
+  <div className="animate-pulse rounded-xl border bg-elevated p-6">
     <div className="mb-4 h-5 w-20 rounded bg-muted" />
     <div className="space-y-3">
       {Array.from({ length: 4 }).map((_, i) => (
@@ -49,7 +49,7 @@ export const FinancialsSkeleton = () => (
 );
 
 export const DisclosuresSkeleton = () => (
-  <div className="animate-pulse rounded-xl border bg-card p-6">
+  <div className="animate-pulse rounded-xl border bg-elevated p-6">
     <div className="mb-4 h-5 w-20 rounded bg-muted" />
     <div className="space-y-4">
       {Array.from({ length: 5 }).map((_, i) => (
