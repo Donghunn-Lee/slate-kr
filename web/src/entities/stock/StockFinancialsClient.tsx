@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import type { FinancialPeriod } from "@/shared/types/stock";
 import { formatFinancial, formatEps, formatPercent, formatRatio } from "@/shared/format";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -124,16 +125,28 @@ const FinancialsTable = ({ periods, mode }: FinancialsTableProps) => {
 type StockFinancialsClientProps = {
   annual: FinancialPeriod[];
   quarterly: FinancialPeriod[];
+  viewAllHref?: string;
 };
 
-export const StockFinancialsClient = ({ annual, quarterly }: StockFinancialsClientProps) => {
+export const StockFinancialsClient = ({
+  annual,
+  quarterly,
+  viewAllHref,
+}: StockFinancialsClientProps) => {
   const defaultTab = annual.length === 0 && quarterly.length > 0 ? "quarterly" : "annual";
   const [tab, setTab] = useState<"annual" | "quarterly">(defaultTab);
 
   return (
     <Tabs value={tab} onValueChange={(v) => setTab(v as "annual" | "quarterly")}>
       <div className="mb-1 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-muted-foreground">재무 요약</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-sm font-semibold text-muted-foreground">재무 요약</h2>
+          {viewAllHref && (
+            <Link href={viewAllHref} className="text-xs text-sage-accent hover:underline">
+              전체 보기 →
+            </Link>
+          )}
+        </div>
         <TabsList className="h-7">
           <TabsTrigger value="annual" className="text-xs px-3 h-6">
             연간

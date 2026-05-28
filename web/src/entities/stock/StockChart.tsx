@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import Link from "next/link";
 import { useTheme } from "next-themes";
 import { createChart, AreaSeries } from "lightweight-charts";
 import type { StockPriceSnapshot } from "@/shared/types/stock";
@@ -10,6 +11,7 @@ type StockChartProps = {
   prices: StockPriceSnapshot[];
   ticker: string;
   label?: string;
+  viewAllHref?: string;
 };
 
 const LIGHT = {
@@ -30,7 +32,7 @@ const DARK = {
   bottomFill: "rgba(163,163,163,0)",
 } as const;
 
-export const StockChart = ({ prices, ticker, label }: StockChartProps) => {
+export const StockChart = ({ prices, ticker, label, viewAllHref }: StockChartProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { resolvedTheme } = useTheme();
 
@@ -91,9 +93,16 @@ export const StockChart = ({ prices, ticker, label }: StockChartProps) => {
 
   return (
     <StockPanel noBorder>
-      <h2 className="mb-4 text-sm font-semibold text-muted-foreground">
-        {ticker} — {label ?? "최근 1년"}
-      </h2>
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-muted-foreground">
+          {ticker} — {label ?? "최근 1년"}
+        </h2>
+        {viewAllHref && (
+          <Link href={viewAllHref} className="text-xs text-muted-foreground hover:underline">
+            전체 보기 →
+          </Link>
+        )}
+      </div>
       <div ref={containerRef} className="h-[300px] w-full" />
     </StockPanel>
   );

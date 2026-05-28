@@ -5,9 +5,10 @@ import { StockFinancialsClient } from "./StockFinancialsClient";
 
 type StockFinancialsProps = {
   ticker: string;
+  viewAllHref?: string;
 };
 
-export const StockFinancials = async ({ ticker }: StockFinancialsProps) => {
+export const StockFinancials = async ({ ticker, viewAllHref }: StockFinancialsProps) => {
   let annual: FinancialPeriod[] = [];
   let quarterly: FinancialPeriod[] = [];
   let hasError = false;
@@ -35,7 +36,7 @@ export const StockFinancials = async ({ ticker }: StockFinancialsProps) => {
           <p className="text-sm text-muted-foreground">재무 데이터 없음</p>
         </>
       ) : (
-        <StockFinancialsClient annual={annual} quarterly={quarterly} />
+        <StockFinancialsClient annual={annual} quarterly={quarterly} viewAllHref={viewAllHref} />
       )}
     </StockPanel>
   );

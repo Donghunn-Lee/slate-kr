@@ -12,6 +12,7 @@ type StockChartDynamicProps = {
   prices: StockPriceSnapshot[];
   ticker: string;
   label?: string;
+  viewAllHref?: string;
 };
 
 export const StockChartDynamic = (props: StockChartDynamicProps) => <StockChartInner {...props} />;
