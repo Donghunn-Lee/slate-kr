@@ -54,3 +54,8 @@ export type StockFinancials = {
   annual: FinancialPeriod[]; // 최신순 (최대 5년)
   quarterly: FinancialPeriod[]; // 최신순 단분기 (Q1~Q4)
 };
+
+export type PriceStats = {
+  range52w: { high: number; low: number; current: number; position: number } | null;
+  returns: { period: "1M" | "3M" | "1Y"; value: number | null }[];
+};
