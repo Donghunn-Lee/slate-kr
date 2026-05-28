@@ -42,7 +42,7 @@ AI 없이도 설득력 있어야 한다. AI는 투자 판단 도구가 아니라
 
 ## 기술 스택
 
-- **Framework**: Next.js 15 App Router
+- **Framework**: Next.js 16 App Router
 - **Language**: TypeScript strict mode
 - **Styling**: Tailwind CSS v4 + shadcn/ui (neutral baseColor)
 - **서버 상태**: Server Components + fetch + revalidate 우선
