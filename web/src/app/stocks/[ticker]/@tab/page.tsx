@@ -29,7 +29,7 @@ export default async function OverviewPage({ params }: PageProps) {
         />
       </Suspense>
       <Suspense fallback={<FinancialsSkeleton />}>
-        <StockFinancials ticker={ticker} viewAllHref={`/stocks/${ticker}/financials`} />
+        <StockFinancials ticker={ticker} viewAllHref={`/stocks/${ticker}/financials`} compact />
       </Suspense>
       <Suspense fallback={<DisclosuresSkeleton />}>
         <StockDisclosuresPreview ticker={ticker} />

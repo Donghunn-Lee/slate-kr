@@ -9,6 +9,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 type FinancialsTableProps = {
   periods: FinancialPeriod[];
   mode: "annual" | "quarterly";
+  compact?: boolean;
 };
 
 type MetricRow = {
@@ -71,7 +72,7 @@ const periodLabel = (p: FinancialPeriod, mode: "annual" | "quarterly"): string =
   return `${p.year} Q${p.quarter}`;
 };
 
-const FinancialsTable = ({ periods, mode }: FinancialsTableProps) => {
+const FinancialsTable = ({ periods, mode, compact }: FinancialsTableProps) => {
   if (periods.length === 0) {
     return <p className="text-sm text-muted-foreground">데이터 없음</p>;
   }
@@ -83,13 +84,15 @@ const FinancialsTable = ({ periods, mode }: FinancialsTableProps) => {
       <table className="w-full">
         <thead>
           <tr className="border-b">
-            <th className="sticky left-0 z-10 bg-sage-bg pb-2 pr-4 text-left text-xs font-medium text-muted-foreground">
+            <th
+              className={`sticky left-0 z-10 bg-sage-bg ${compact ? "pb-1 pr-3" : "pb-2 pr-4"} text-left text-xs font-medium text-muted-foreground`}
+            >
               지표
             </th>
             {ordered.map((p) => (
               <th
                 key={mode === "annual" ? p.year : `${p.year}-${p.quarter}`}
-                className="pb-2 pl-4 text-right text-xs font-medium text-muted-foreground whitespace-nowrap"
+                className={`${compact ? "pb-1 pl-3" : "pb-2 pl-4"} text-right text-xs font-medium text-muted-foreground whitespace-nowrap`}
               >
                 {periodLabel(p, mode)}
               </th>
@@ -99,7 +102,9 @@ const FinancialsTable = ({ periods, mode }: FinancialsTableProps) => {
         <tbody>
           {METRIC_ROWS.map((row) => (
             <tr key={row.label} className="border-b last:border-0">
-              <td className="sticky left-0 z-10 bg-sage-bg border-r border-sage-border py-3 pr-4 text-sm font-medium whitespace-nowrap">
+              <td
+                className={`sticky left-0 z-10 bg-sage-bg border-r border-sage-border ${compact ? "py-1.5 pr-3 text-xs" : "py-3 pr-4 text-sm"} font-medium whitespace-nowrap`}
+              >
                 {row.label}
               </td>
               {ordered.map((p) => {
@@ -108,7 +113,7 @@ const FinancialsTable = ({ periods, mode }: FinancialsTableProps) => {
                 return (
                   <td
                     key={mode === "annual" ? p.year : `${p.year}-${p.quarter}`}
-                    className={`py-3 pl-4 text-right text-sm tabular-nums${isNegative ? " text-destructive" : ""}`}
+                    className={`${compact ? "py-1.5 pl-3 text-xs" : "py-3 pl-4 text-sm"} text-right tabular-nums${isNegative ? " text-destructive" : ""}`}
                   >
                     {row.getValue(p)}
                   </td>
@@ -126,12 +131,14 @@ type StockFinancialsClientProps = {
   annual: FinancialPeriod[];
   quarterly: FinancialPeriod[];
   viewAllHref?: string;
+  compact?: boolean;
 };
 
 export const StockFinancialsClient = ({
   annual,
   quarterly,
   viewAllHref,
+  compact,
 }: StockFinancialsClientProps) => {
   const defaultTab = annual.length === 0 && quarterly.length > 0 ? "quarterly" : "annual";
   const [tab, setTab] = useState<"annual" | "quarterly">(defaultTab);
@@ -140,28 +147,35 @@ export const StockFinancialsClient = ({
     <Tabs value={tab} onValueChange={(v) => setTab(v as "annual" | "quarterly")}>
       <div className="mb-1 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h2 className="text-sm font-semibold text-muted-foreground">재무 요약</h2>
+          <h2 className={`${compact ? "text-xs" : "text-sm"} font-semibold text-muted-foreground`}>
+            재무 요약
+          </h2>
           {viewAllHref && (
             <Link href={viewAllHref} className="text-xs text-sage-accent hover:underline">
               전체 보기 →
             </Link>
           )}
         </div>
-        <TabsList className="h-7">
-          <TabsTrigger value="annual" className="text-xs px-3 h-6">
+        <TabsList className={compact ? "h-6" : "h-7"}>
+          <TabsTrigger value="annual" className={compact ? "h-5 px-2 text-xs" : "h-6 px-3 text-xs"}>
             연간
           </TabsTrigger>
-          <TabsTrigger value="quarterly" className="text-xs px-3 h-6">
+          <TabsTrigger
+            value="quarterly"
+            className={compact ? "h-5 px-2 text-xs" : "h-6 px-3 text-xs"}
+          >
             분기
           </TabsTrigger>
         </TabsList>
       </div>
-      <p className="mb-3 text-xs text-muted-foreground">단위: 억원 (별도 표기 없는 항목 기준)</p>
+      <p className={`${compact ? "mb-2" : "mb-3"} text-xs text-muted-foreground`}>
+        단위: 억원 (별도 표기 없는 항목 기준)
+      </p>
       <TabsContent value="annual">
-        <FinancialsTable periods={annual} mode="annual" />
+        <FinancialsTable periods={annual} mode="annual" compact={compact} />
       </TabsContent>
       <TabsContent value="quarterly">
-        <FinancialsTable periods={quarterly} mode="quarterly" />
+        <FinancialsTable periods={quarterly} mode="quarterly" compact={compact} />
       </TabsContent>
     </Tabs>
   );
