@@ -46,8 +46,8 @@ export const StockFinancials = async ({ ticker, viewAllHref, compact }: StockFin
         </>
       ) : (
         <StockFinancialsClient
-          annual={annual}
-          quarterly={quarterly}
+          annual={compact ? annual.slice(0, 2) : annual}
+          quarterly={compact ? quarterly.slice(0, 2) : quarterly}
           viewAllHref={viewAllHref}
           compact={compact}
         />

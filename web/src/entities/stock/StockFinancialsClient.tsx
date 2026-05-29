@@ -67,6 +67,15 @@ const METRIC_ROWS: MetricRow[] = [
   },
 ];
 
+const SUMMARY_LABELS = new Set([
+  "매출",
+  "영업이익",
+  "당기순이익",
+  "영업이익률(%)",
+  "ROE(%)",
+  "부채비율(%)",
+]);
+
 const periodLabel = (p: FinancialPeriod, mode: "annual" | "quarterly"): string => {
   if (mode === "annual") return `${p.year}년`;
   return `${p.year} Q${p.quarter}`;
@@ -78,9 +87,10 @@ const FinancialsTable = ({ periods, mode, compact }: FinancialsTableProps) => {
   }
 
   const ordered = [...periods].reverse();
+  const rows = compact ? METRIC_ROWS.filter((r) => SUMMARY_LABELS.has(r.label)) : METRIC_ROWS;
 
   return (
-    <div className="overflow-x-auto">
+    <div className={compact ? undefined : "overflow-x-auto"}>
       <table className="w-full">
         <thead>
           <tr className="border-b">
@@ -100,7 +110,7 @@ const FinancialsTable = ({ periods, mode, compact }: FinancialsTableProps) => {
           </tr>
         </thead>
         <tbody>
-          {METRIC_ROWS.map((row) => (
+          {rows.map((row) => (
             <tr key={row.label} className="border-b last:border-0">
               <td
                 className={`sticky left-0 z-10 bg-sage-bg border-r border-sage-border ${compact ? "py-1.5 pr-3 text-xs" : "py-3 pr-4 text-sm"} font-medium whitespace-nowrap`}
