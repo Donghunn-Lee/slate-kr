@@ -35,7 +35,7 @@ AI 없이도 설득력 있어야 한다. AI는 투자 판단 도구가 아니라
 - **fallback 구조**: 섹션별 독립 loading/error/empty, 부분 실패가 전체 실패로 번지지 않는 구조
 - **관심종목**: Zustand persist, localStorage 기반 저장
 - **공시**: 유형 분류, 체크포인트 배지, 요청형 AI 공시 요약
-- **AI 공시 요약**: `POST /api/disclosure-summary` API Route, Gemini 기반, DART 원문 ZIP 추출 → 요약 → DB 캐시, discriminated union 결과 타입(`SummarizeResult`), `not_summarizable` 분기(FINANCIAL 카테고리 차단), Sheet 기반 사이드 드로어(`SummarySlate`), 503 retry 로직
+- **AI 공시 요약**: `POST /api/disclosure-summary` API Route, Gemini 기반, DART 원문 ZIP 추출 → 요약 → DB 캐시, discriminated union 결과 타입(`SummarizeResult`), `not_summarizable` 분기(FINANCIAL 카테고리 차단), row 인라인 확장 UI (`DisclosuresSection` 내 `DisclosureItem`), 503 retry 로직
 - **재무 슬레이트**: 5년 연간 + 분기(Q1~Q3), 12개 지표, 연간/분기 토글, 행=항목·열=기간 축 구조
 
 ---
@@ -225,7 +225,7 @@ SlateKR의 UI는 "slate(판)" 개념을 기반으로 한다.
 - 디자인 작업은 `/styleguide` 페이지의 디자인과 디자인 토큰을 기준으로 한다.
 - 아직 styleguide에 반영되지 않은 디자인 작업은 styleguide 우선 작업을 고려한다.
 - shadcn primitive는 도메인 컴포넌트로 감싸서 사용
-  예: `MetricCard`, `DisclosureCard`, `StockSummaryCard`, `CheckpointBadge`, `SummarySlate`
+  예: `MetricCard`, `DisclosureCard`, `StockSummaryCard`, `CheckpointBadge`
 
 ---
 
