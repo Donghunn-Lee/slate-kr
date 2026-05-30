@@ -1,14 +1,102 @@
 import type { DartDisclosure } from "@/shared/types/stock";
 import { getCorpCode } from "@/lib/stocks";
 import { getDisclosures } from "@/lib/dart";
+import { resolveDateRange } from "@/features/disclosure/resolveDateRange";
+import type { PeriodPreset } from "@/features/disclosure/types";
 import { DisclosuresSection } from "./DisclosuresSection";
+
+const PAGE_SIZE = 10;
+const DART_PAGE_COUNT = 100;
 
 type StockDisclosuresProps = {
   ticker: string;
+  preset: PeriodPreset;
+  bgnDate?: string;
+  endDate?: string;
+  query: string;
+  page: number;
 };
 
-export const StockDisclosures = async ({ ticker }: StockDisclosuresProps) => {
-  let disclosures: DartDisclosure[] = [];
+type FetchResult = {
+  items: DartDisclosure[];
+  totalCount: number;
+  totalPage: number;
+};
+
+const fetchUnfiltered = async (
+  corpCode: string,
+  page: number,
+  bgnDate: Date | undefined,
+  endDate: Date | undefined,
+): Promise<FetchResult> => {
+  const dartPage = Math.ceil(page / (DART_PAGE_COUNT / PAGE_SIZE));
+  const result = await getDisclosures(corpCode, {
+    pageNo: dartPage,
+    pageCount: DART_PAGE_COUNT,
+    bgnDate,
+    endDate,
+  });
+  const sliceStart = ((page - 1) % (DART_PAGE_COUNT / PAGE_SIZE)) * PAGE_SIZE;
+  const items = result.items.slice(sliceStart, sliceStart + PAGE_SIZE);
+  return {
+    items,
+    totalCount: result.totalCount,
+    totalPage: Math.max(1, Math.ceil(result.totalCount / PAGE_SIZE)),
+  };
+};
+
+const fetchFiltered = async (
+  corpCode: string,
+  query: string,
+  page: number,
+  bgnDate: Date | undefined,
+  endDate: Date | undefined,
+): Promise<FetchResult> => {
+  const first = await getDisclosures(corpCode, {
+    pageNo: 1,
+    pageCount: DART_PAGE_COUNT,
+    bgnDate,
+    endDate,
+  });
+  const allItems: DartDisclosure[] = [...first.items];
+
+  if (first.totalPage > 1) {
+    const rest = await Promise.all(
+      Array.from({ length: first.totalPage - 1 }, (_, i) =>
+        getDisclosures(corpCode, {
+          pageNo: i + 2,
+          pageCount: DART_PAGE_COUNT,
+          bgnDate,
+          endDate,
+        }),
+      ),
+    );
+    rest.forEach((r) => allItems.push(...r.items));
+  }
+
+  const needle = query.toLowerCase();
+  const filtered = allItems.filter((d) =>
+    d.disclosureNm.toLowerCase().includes(needle),
+  );
+  const sliceStart = (page - 1) * PAGE_SIZE;
+  return {
+    items: filtered.slice(sliceStart, sliceStart + PAGE_SIZE),
+    totalCount: filtered.length,
+    totalPage: Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)),
+  };
+};
+
+export const StockDisclosures = async ({
+  ticker,
+  preset,
+  bgnDate,
+  endDate,
+  query,
+  page,
+}: StockDisclosuresProps) => {
+  let items: DartDisclosure[] = [];
+  let totalCount = 0;
+  let totalPage = 0;
   let noApiKey = false;
   let hasError = false;
 
@@ -18,12 +106,37 @@ export const StockDisclosures = async ({ ticker }: StockDisclosuresProps) => {
     } else {
       const corpCode = await getCorpCode(ticker);
       if (corpCode) {
-        disclosures = await getDisclosures(corpCode, 10);
+        const { bgnDate: bgn, endDate: end } = resolveDateRange(
+          preset,
+          bgnDate,
+          endDate,
+        );
+        const result =
+          query === ""
+            ? await fetchUnfiltered(corpCode, page, bgn, end)
+            : await fetchFiltered(corpCode, query, page, bgn, end);
+        items = result.items;
+        totalCount = result.totalCount;
+        totalPage = result.totalPage;
       }
     }
   } catch {
     hasError = true;
   }
 
-  return <DisclosuresSection disclosures={disclosures} noApiKey={noApiKey} hasError={hasError} />;
+  return (
+    <DisclosuresSection
+      ticker={ticker}
+      disclosures={items}
+      totalCount={totalCount}
+      totalPage={totalPage}
+      currentPage={page}
+      preset={preset}
+      bgnDate={bgnDate}
+      endDate={endDate}
+      query={query}
+      noApiKey={noApiKey}
+      hasError={hasError}
+    />
+  );
 };

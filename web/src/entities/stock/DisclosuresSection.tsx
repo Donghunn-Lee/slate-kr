@@ -5,6 +5,9 @@ import type { DartDisclosure } from "@/shared/types/stock";
 import { formatDartDate } from "@/shared/format";
 import { classifyDisclosure } from "@/shared/utils/classifyDisclosure";
 import { cn } from "@/lib/utils";
+import { DisclosureFilters } from "@/features/disclosure/DisclosureFilters";
+import { DisclosurePagination } from "@/features/disclosure/DisclosurePagination";
+import type { PeriodPreset } from "@/features/disclosure/types";
 import { StockPanel } from "./StockPanel";
 import { CheckpointBadge } from "./CheckpointBadge";
 import { Button } from "@/components/ui/button";
@@ -23,11 +26,16 @@ const RETRYABLE = new Set(["rate_limit", "timeout", "api_error", "empty_response
 type DisclosureItemProps = {
   disclosure: DartDisclosure;
   isExpanded: boolean;
+  hasAnyExpanded: boolean;
   onToggle: () => void;
-  dimmed: boolean;
 };
 
-const DisclosureItem = ({ disclosure, isExpanded, onToggle, dimmed }: DisclosureItemProps) => {
+const DisclosureItem = ({
+  disclosure,
+  isExpanded,
+  hasAnyExpanded,
+  onToggle,
+}: DisclosureItemProps) => {
   const type = classifyDisclosure(disclosure.disclosureNm);
   const [summaryState, setSummaryState] = useState<SummaryState>({ kind: "idle" });
   const fetchInitiated = useRef(false);
@@ -74,14 +82,21 @@ const DisclosureItem = ({ disclosure, isExpanded, onToggle, dimmed }: Disclosure
   }, [isExpanded, doFetch]);
 
   const dartUrl = `https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${disclosure.rcpNo}`;
+  const dimmed = hasAnyExpanded && !isExpanded;
 
   return (
     <li
-      className="-mx-6 border-b border-amber-border px-6 py-3 last:border-0 hover:bg-amber-border"
+      className={cn(
+        "-mx-6 border-b border-amber-border px-6 py-3 last:border-0",
+        isExpanded
+          ? "bg-amber-border"
+          : "bg-amber-bg transition-colors hover:bg-amber-border",
+        dimmed && "opacity-50",
+      )}
       style={{
-        opacity: dimmed ? 0.5 : 1,
-        transition:
-          "opacity var(--duration-base, 250ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1)), background-color var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1))",
+        transition: isExpanded
+          ? "opacity var(--duration-base, 250ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1))"
+          : "opacity var(--duration-base, 250ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1)), background-color var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1))",
       }}
     >
       <div className="flex items-start justify-between gap-2">
@@ -133,7 +148,6 @@ const DisclosureItem = ({ disclosure, isExpanded, onToggle, dimmed }: Disclosure
         </div>
       </div>
 
-      {/* Inline expansion — grid trick for smooth height animation */}
       <div
         style={{
           display: "grid",
@@ -196,13 +210,29 @@ const DisclosureItem = ({ disclosure, isExpanded, onToggle, dimmed }: Disclosure
 };
 
 type DisclosuresSectionProps = {
+  ticker: string;
   disclosures: DartDisclosure[];
+  totalCount: number;
+  totalPage: number;
+  currentPage: number;
+  preset: PeriodPreset;
+  bgnDate?: string;
+  endDate?: string;
+  query: string;
   noApiKey: boolean;
   hasError: boolean;
 };
 
 export const DisclosuresSection = ({
+  ticker,
   disclosures,
+  totalCount,
+  totalPage,
+  currentPage,
+  preset,
+  bgnDate,
+  endDate,
+  query,
   noApiKey,
   hasError,
 }: DisclosuresSectionProps) => {
@@ -212,9 +242,30 @@ export const DisclosuresSection = ({
     setExpandedId((prev) => (prev === id ? null : id));
   };
 
+  const hasAnyExpanded = expandedId !== null;
+
+  const emptyMessage =
+    query !== ""
+      ? "현재 기간 내에 검색 결과가 없습니다. 기간을 늘려보세요."
+      : "최근 공시가 없습니다.";
+
   return (
     <StockPanel variant="amber">
-      <h2 className="mb-4 text-sm font-semibold text-muted-foreground">최근 공시 (최근 3개월)</h2>
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-muted-foreground">공시</h2>
+        {!noApiKey && !hasError && totalCount > 0 && (
+          <p className="text-xs text-muted-foreground">총 {totalCount.toLocaleString()}건</p>
+        )}
+      </div>
+
+      <DisclosureFilters
+        ticker={ticker}
+        currentPreset={preset}
+        currentBgnDate={bgnDate}
+        currentEndDate={endDate}
+        currentQuery={query}
+      />
+
       {noApiKey ? (
         <p className="text-sm text-muted-foreground">
           DART API 키 미설정 — 공시 데이터를 불러올 수 없습니다
@@ -222,19 +273,30 @@ export const DisclosuresSection = ({
       ) : hasError ? (
         <p className="text-sm text-muted-foreground">공시를 불러오지 못했습니다</p>
       ) : disclosures.length === 0 ? (
-        <p className="text-sm text-muted-foreground">최근 공시 없음</p>
+        <p className="text-sm text-muted-foreground">{emptyMessage}</p>
       ) : (
-        <ul>
-          {disclosures.map((d) => (
-            <DisclosureItem
-              key={d.rcpNo}
-              disclosure={d}
-              isExpanded={expandedId === d.rcpNo}
-              onToggle={() => handleToggle(d.rcpNo)}
-              dimmed={expandedId !== null && expandedId !== d.rcpNo}
-            />
-          ))}
-        </ul>
+        <>
+          <ul>
+            {disclosures.map((d) => (
+              <DisclosureItem
+                key={d.rcpNo}
+                disclosure={d}
+                isExpanded={expandedId === d.rcpNo}
+                hasAnyExpanded={hasAnyExpanded}
+                onToggle={() => handleToggle(d.rcpNo)}
+              />
+            ))}
+          </ul>
+          <DisclosurePagination
+            ticker={ticker}
+            currentPage={currentPage}
+            totalPage={totalPage}
+            preset={preset}
+            bgnDate={bgnDate}
+            endDate={endDate}
+            query={query}
+          />
+        </>
       )}
     </StockPanel>
   );
