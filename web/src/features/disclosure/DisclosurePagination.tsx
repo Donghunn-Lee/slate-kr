@@ -20,7 +20,7 @@ const buildHref = (
   preset: PeriodPreset,
   bgnDate: string | undefined,
   endDate: string | undefined,
-  query: string,
+  query: string
 ): string => {
   const sp = new URLSearchParams();
   sp.set("preset", preset);
@@ -59,18 +59,13 @@ export const DisclosurePagination = ({
   if (totalPage <= 1) return null;
 
   const pages = buildPageList(currentPage, totalPage);
-  const href = (page: number) =>
-    buildHref(ticker, page, preset, bgnDate, endDate, query);
+  const href = (page: number) => buildHref(ticker, page, preset, bgnDate, endDate, query);
 
   const hasPrev = currentPage > 1;
   const hasNext = currentPage < totalPage;
 
   return (
-    <nav
-      role="navigation"
-      aria-label="pagination"
-      className="mt-4 flex w-full justify-center"
-    >
+    <nav role="navigation" aria-label="pagination" className="flex w-full justify-center">
       <ul className="flex items-center gap-1">
         <li>
           {hasPrev ? (
@@ -86,12 +81,7 @@ export const DisclosurePagination = ({
               </Link>
             </Button>
           ) : (
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled
-              aria-label="이전 페이지"
-            >
+            <Button variant="ghost" size="sm" disabled aria-label="이전 페이지">
               <ChevronLeftIcon data-icon="inline-start" />
               <span className="hidden sm:inline">이전</span>
             </Button>
@@ -127,7 +117,7 @@ export const DisclosurePagination = ({
                 </Link>
               </Button>
             </li>
-          ),
+          )
         )}
 
         <li>
@@ -144,12 +134,7 @@ export const DisclosurePagination = ({
               </Link>
             </Button>
           ) : (
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled
-              aria-label="다음 페이지"
-            >
+            <Button variant="ghost" size="sm" disabled aria-label="다음 페이지">
               <span className="hidden sm:inline">다음</span>
               <ChevronRightIcon data-icon="inline-end" />
             </Button>

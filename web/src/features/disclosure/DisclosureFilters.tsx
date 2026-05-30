@@ -147,7 +147,7 @@ export const DisclosureFilters = ({
   const showCustomPickers = currentPreset === "CUSTOM";
 
   return (
-    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex flex-wrap items-center gap-2">
         <ToggleGroup
           type="single"
@@ -162,6 +162,7 @@ export const DisclosureFilters = ({
               key={opt.value}
               value={opt.value}
               aria-label={opt.label}
+              className="border-amber-border bg-transparent text-secondary-foreground hover:bg-amber-border/40 hover:text-foreground data-[state=on]:bg-elevated data-[state=on]:text-foreground"
             >
               {opt.label}
             </ToggleGroupItem>
@@ -200,7 +201,7 @@ export const DisclosureFilters = ({
           placeholder="공시 제목 검색"
           value={queryInput}
           onChange={(e) => handleQueryChange(e.target.value)}
-          className="h-8 pl-8 sm:w-56"
+          className="h-8 border-amber-border bg-elevated/80 pl-8 sm:w-56"
         />
       </div>
     </div>
@@ -230,14 +231,14 @@ const DatePickerPopover = ({
           variant="outline"
           size="sm"
           className={cn(
-            "h-8 px-2.5 text-xs font-normal",
+            "h-8 border-amber-border bg-elevated/80 px-2.5 text-xs font-normal",
             !value && "text-muted-foreground",
           )}
         >
           {value ? toYmd(value) : label}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
+      <PopoverContent className="w-auto bg-elevated p-0" align="start">
         <Calendar
           mode="single"
           selected={value}

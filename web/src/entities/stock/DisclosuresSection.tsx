@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { DartDisclosure } from "@/shared/types/stock";
 import { formatDartDate } from "@/shared/format";
 import { classifyDisclosure } from "@/shared/utils/classifyDisclosure";
@@ -12,12 +12,12 @@ import { StockPanel } from "./StockPanel";
 import { CheckpointBadge } from "./CheckpointBadge";
 import { Button } from "@/components/ui/button";
 
-type SummaryState =
-  | { kind: "idle" }
-  | { kind: "loading" }
+type SettledState =
   | { kind: "success"; summary: string }
   | { kind: "blocked"; reason: "file_not_found" | "not_summarizable" }
   | { kind: "error"; errorKind: string };
+
+type SummaryState = { kind: "idle" } | { kind: "loading" } | SettledState;
 
 type ApiResponse = { ok: true; summary: string } | { ok: false; error: { kind: string } };
 
@@ -37,11 +37,13 @@ const DisclosureItem = ({
   onToggle,
 }: DisclosureItemProps) => {
   const type = classifyDisclosure(disclosure.disclosureNm);
-  const [summaryState, setSummaryState] = useState<SummaryState>({ kind: "idle" });
+  const [settled, setSettled] = useState<SettledState | null>(null);
   const fetchInitiated = useRef(false);
 
+  const summaryState: SummaryState =
+    settled ?? (isExpanded ? { kind: "loading" } : { kind: "idle" });
+
   const doFetch = useCallback(async () => {
-    setSummaryState({ kind: "loading" });
     try {
       const res = await fetch("/api/disclosure-summary", {
         method: "POST",
@@ -53,33 +55,39 @@ const DisclosureItem = ({
       });
 
       if (!res.ok) {
-        setSummaryState({ kind: "error", errorKind: "api_error" });
+        setSettled({ kind: "error", errorKind: "api_error" });
         return;
       }
 
       const data = (await res.json()) as ApiResponse;
 
       if (data.ok) {
-        setSummaryState({ kind: "success", summary: data.summary });
+        setSettled({ kind: "success", summary: data.summary });
       } else {
         const kind = data.error?.kind ?? "api_error";
         if (kind === "file_not_found" || kind === "not_summarizable") {
-          setSummaryState({ kind: "blocked", reason: kind as "file_not_found" | "not_summarizable" });
+          setSettled({ kind: "blocked", reason: kind as "file_not_found" | "not_summarizable" });
         } else {
-          setSummaryState({ kind: "error", errorKind: kind });
+          setSettled({ kind: "error", errorKind: kind });
         }
       }
     } catch {
-      setSummaryState({ kind: "error", errorKind: "api_error" });
+      setSettled({ kind: "error", errorKind: "api_error" });
     }
   }, [disclosure.rcpNo, disclosure.disclosureNm]);
 
-  useEffect(() => {
-    if (isExpanded && !fetchInitiated.current) {
+  const handleRetry = useCallback(() => {
+    setSettled(null);
+    void doFetch();
+  }, [doFetch]);
+
+  const handleToggleClick = useCallback(() => {
+    if (!isExpanded && !fetchInitiated.current) {
       fetchInitiated.current = true;
-      doFetch();
+      void doFetch();
     }
-  }, [isExpanded, doFetch]);
+    onToggle();
+  }, [isExpanded, doFetch, onToggle]);
 
   const dartUrl = `https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${disclosure.rcpNo}`;
   const dimmed = hasAnyExpanded && !isExpanded;
@@ -87,11 +95,11 @@ const DisclosureItem = ({
   return (
     <li
       className={cn(
-        "-mx-6 border-b border-amber-border px-6 py-3 last:border-0",
+        "-mx-6 border-b border-amber-border/30 px-6 py-3 last:border-0",
         isExpanded
           ? "bg-amber-border"
-          : "bg-amber-bg transition-colors hover:bg-amber-border",
-        dimmed && "opacity-50",
+          : "bg-transparent transition-colors hover:bg-amber-border/40",
+        dimmed && "opacity-50"
       )}
       style={{
         transition: isExpanded
@@ -135,13 +143,15 @@ const DisclosureItem = ({
             type="button"
             className={cn(
               "rounded border border-amber-border bg-elevated px-2 py-0.5 text-[11px] font-medium whitespace-nowrap cursor-pointer",
-              isExpanded ? "text-muted-foreground hover:text-foreground" : "text-amber-accent hover:bg-amber-bg",
+              isExpanded
+                ? "text-muted-foreground hover:text-foreground"
+                : "text-amber-accent hover:bg-amber-bg"
             )}
             style={{
               transition:
                 "color var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1)), background-color var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1))",
             }}
-            onClick={onToggle}
+            onClick={handleToggleClick}
           >
             {isExpanded ? "닫기" : "AI 요약"}
           </button>
@@ -195,7 +205,7 @@ const DisclosureItem = ({
                           : "지금은 요약을 시도하기 어렵습니다. 잠시 후 다시 시도해주세요."}
                   </p>
                   {RETRYABLE.has(summaryState.errorKind) && (
-                    <Button variant="outline" size="sm" onClick={doFetch}>
+                    <Button variant="outline" size="sm" onClick={handleRetry}>
                       다시 시도
                     </Button>
                   )}
@@ -249,44 +259,51 @@ export const DisclosuresSection = ({
       ? "현재 기간 내에 검색 결과가 없습니다. 기간을 늘려보세요."
       : "최근 공시가 없습니다.";
 
+  const showFooter = !noApiKey && !hasError;
+
   return (
     <StockPanel variant="amber">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-muted-foreground">공시</h2>
-        {!noApiKey && !hasError && totalCount > 0 && (
-          <p className="text-xs text-muted-foreground">총 {totalCount.toLocaleString()}건</p>
-        )}
-      </div>
+      <header className="mb-3 border-b border-amber-border/50 pb-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold">공시 목록</h2>
+          {!noApiKey && !hasError && totalCount > 0 && (
+            <p className="text-xs text-muted-foreground">총 {totalCount.toLocaleString()}건</p>
+          )}
+        </div>
 
-      <DisclosureFilters
-        ticker={ticker}
-        currentPreset={preset}
-        currentBgnDate={bgnDate}
-        currentEndDate={endDate}
-        currentQuery={query}
-      />
+        <DisclosureFilters
+          ticker={ticker}
+          currentPreset={preset}
+          currentBgnDate={bgnDate}
+          currentEndDate={endDate}
+          currentQuery={query}
+        />
+      </header>
 
       {noApiKey ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="py-2 text-sm text-muted-foreground">
           DART API 키 미설정 — 공시 데이터를 불러올 수 없습니다
         </p>
       ) : hasError ? (
-        <p className="text-sm text-muted-foreground">공시를 불러오지 못했습니다</p>
+        <p className="py-2 text-sm text-muted-foreground">공시를 불러오지 못했습니다</p>
       ) : disclosures.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{emptyMessage}</p>
+        <p className="py-6 text-sm text-muted-foreground">{emptyMessage}</p>
       ) : (
-        <>
-          <ul>
-            {disclosures.map((d) => (
-              <DisclosureItem
-                key={d.rcpNo}
-                disclosure={d}
-                isExpanded={expandedId === d.rcpNo}
-                hasAnyExpanded={hasAnyExpanded}
-                onToggle={() => handleToggle(d.rcpNo)}
-              />
-            ))}
-          </ul>
+        <ul className="py-1">
+          {disclosures.map((d) => (
+            <DisclosureItem
+              key={d.rcpNo}
+              disclosure={d}
+              isExpanded={expandedId === d.rcpNo}
+              hasAnyExpanded={hasAnyExpanded}
+              onToggle={() => handleToggle(d.rcpNo)}
+            />
+          ))}
+        </ul>
+      )}
+
+      {showFooter && (
+        <footer className="mt-3 flex flex-col items-center gap-2 border-t border-amber-border/50 pt-3">
           <DisclosurePagination
             ticker={ticker}
             currentPage={currentPage}
@@ -296,7 +313,15 @@ export const DisclosuresSection = ({
             endDate={endDate}
             query={query}
           />
-        </>
+          <a
+            href="https://dart.fss.or.kr"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-tertiary hover:underline"
+          >
+            출처: DART 전자공시시스템
+          </a>
+        </footer>
       )}
     </StockPanel>
   );
