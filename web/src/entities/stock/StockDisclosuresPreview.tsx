@@ -22,7 +22,10 @@ export const StockDisclosuresPreview = async ({ ticker }: StockDisclosuresPrevie
     } else {
       const corpCode = await getCorpCode(ticker);
       if (corpCode) {
-        disclosures = await getDisclosures(corpCode, 5);
+        const bgnDate = new Date();
+        bgnDate.setMonth(bgnDate.getMonth() - 3);
+        const result = await getDisclosures(corpCode, { pageCount: 5, bgnDate });
+        disclosures = result.items;
       }
     }
   } catch {
