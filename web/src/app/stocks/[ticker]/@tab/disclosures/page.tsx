@@ -29,10 +29,7 @@ export default async function DisclosuresPage({ params, searchParams }: PageProp
   const end = sp.end;
 
   return (
-    <Suspense
-      key={`${ticker}-${preset}-${bgn ?? ""}-${end ?? ""}-${query}-${page}`}
-      fallback={<DisclosuresSkeleton />}
-    >
+    <Suspense fallback={<DisclosuresSkeleton />}>
       <StockDisclosures
         ticker={ticker}
         preset={preset}

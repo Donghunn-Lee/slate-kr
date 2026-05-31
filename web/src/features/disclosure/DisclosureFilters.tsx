@@ -1,18 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { cn } from "@/lib/utils";
 import type { PeriodPreset } from "./types";
 
 type DisclosureFiltersProps = {
@@ -53,33 +48,41 @@ export const DisclosureFilters = ({
   currentQuery,
 }: DisclosureFiltersProps) => {
   const router = useRouter();
+  const [, startTransition] = useTransition();
   const [queryInput, setQueryInput] = useState(currentQuery);
-  const [customBgn, setCustomBgn] = useState<Date | undefined>(
-    parseYmd(currentBgnDate),
-  );
-  const [customEnd, setCustomEnd] = useState<Date | undefined>(
-    parseYmd(currentEndDate),
-  );
+  const [customBgn, setCustomBgn] = useState<Date | undefined>(parseYmd(currentBgnDate));
+  const [customEnd, setCustomEnd] = useState<Date | undefined>(parseYmd(currentEndDate));
+  const [customMode, setCustomMode] = useState(currentPreset === "CUSTOM");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastPushedQuery = useRef(currentQuery);
 
-  useEffect(() => {
+  // Render-time prop sync — keeps local state aligned with URL changes
+  // without the cascading-render warning that useEffect-based sync triggers.
+  const [prevUrl, setPrevUrl] = useState({
+    preset: currentPreset,
+    query: currentQuery,
+    bgn: currentBgnDate,
+    end: currentEndDate,
+  });
+  if (
+    prevUrl.preset !== currentPreset ||
+    prevUrl.query !== currentQuery ||
+    prevUrl.bgn !== currentBgnDate ||
+    prevUrl.end !== currentEndDate
+  ) {
+    setPrevUrl({
+      preset: currentPreset,
+      query: currentQuery,
+      bgn: currentBgnDate,
+      end: currentEndDate,
+    });
     setQueryInput(currentQuery);
-    lastPushedQuery.current = currentQuery;
-  }, [currentQuery]);
-
-  useEffect(() => {
     setCustomBgn(parseYmd(currentBgnDate));
     setCustomEnd(parseYmd(currentEndDate));
-  }, [currentBgnDate, currentEndDate]);
+    setCustomMode(currentPreset === "CUSTOM");
+  }
 
   const buildUrl = useCallback(
-    (params: {
-      preset: PeriodPreset;
-      bgn?: string;
-      end?: string;
-      q?: string;
-    }) => {
+    (params: { preset: PeriodPreset; bgn?: string; end?: string; q?: string }) => {
       const sp = new URLSearchParams();
       sp.set("preset", params.preset);
       if (params.preset === "CUSTOM") {
@@ -90,32 +93,39 @@ export const DisclosureFilters = ({
       sp.set("page", "1");
       return `/stocks/${ticker}/disclosures?${sp.toString()}`;
     },
-    [ticker],
+    [ticker]
+  );
+
+  const navigate = useCallback(
+    (url: string) => {
+      startTransition(() => {
+        router.push(url, { scroll: false });
+      });
+    },
+    [router]
   );
 
   const handlePresetChange = (value: string) => {
-    if (!value || value === currentPreset) return;
+    if (!value) return;
     const preset = value as PeriodPreset;
     if (preset === "CUSTOM") {
-      // wait for both dates before navigating
+      setCustomMode(true);
       return;
     }
-    router.push(
-      buildUrl({ preset, q: queryInput.trim() || undefined }),
-      { scroll: false },
-    );
+    setCustomMode(false);
+    if (preset === currentPreset) return;
+    navigate(buildUrl({ preset, q: queryInput.trim() || undefined }));
   };
 
   const handleCustomApply = (next: { bgn?: Date; end?: Date }) => {
     if (!next.bgn || !next.end) return;
-    router.push(
+    navigate(
       buildUrl({
         preset: "CUSTOM",
         bgn: toYmd(next.bgn),
         end: toYmd(next.end),
         q: queryInput.trim() || undefined,
-      }),
-      { scroll: false },
+      })
     );
   };
 
@@ -124,16 +134,14 @@ export const DisclosureFilters = ({
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       const trimmed = next.trim();
-      if (trimmed === lastPushedQuery.current) return;
-      lastPushedQuery.current = trimmed;
-      router.push(
+      if (trimmed === currentQuery) return;
+      navigate(
         buildUrl({
           preset: currentPreset,
           bgn: currentBgnDate,
           end: currentEndDate,
           q: trimmed || undefined,
-        }),
-        { scroll: false },
+        })
       );
     }, 300);
   };
@@ -144,14 +152,15 @@ export const DisclosureFilters = ({
     };
   }, []);
 
-  const showCustomPickers = currentPreset === "CUSTOM";
+  const showCustomPickers = customMode;
+  const displayPreset: PeriodPreset = customMode ? "CUSTOM" : currentPreset;
 
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex flex-wrap items-center gap-2">
         <ToggleGroup
           type="single"
-          value={currentPreset}
+          value={displayPreset}
           onValueChange={handlePresetChange}
           variant="outline"
           size="sm"
@@ -216,13 +225,7 @@ type DatePickerPopoverProps = {
   onSelect: (date: Date | undefined) => void;
 };
 
-const DatePickerPopover = ({
-  label,
-  value,
-  min,
-  max,
-  onSelect,
-}: DatePickerPopoverProps) => {
+const DatePickerPopover = ({ label, value, min, max, onSelect }: DatePickerPopoverProps) => {
   const [open, setOpen] = useState(false);
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -230,12 +233,9 @@ const DatePickerPopover = ({
         <Button
           variant="outline"
           size="sm"
-          className={cn(
-            "h-8 border-amber-border bg-elevated/80 px-2.5 text-xs font-normal",
-            !value && "text-muted-foreground",
-          )}
+          className="h-8 w-28 border-amber-border bg-elevated/80 px-2.5 text-xs font-normal"
         >
-          {value ? toYmd(value) : label}
+          {value ? toYmd(value) : <span className="text-muted-foreground">{label}</span>}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto bg-elevated p-0" align="start">

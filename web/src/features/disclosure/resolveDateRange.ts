@@ -38,7 +38,9 @@ export const resolveDateRange = (
     case "5Y":
       return { bgnDate: subtractYears(5) };
     case "ALL":
-      return {};
+      // DART requires bgn_de — without it, only today's disclosures are returned.
+      // 1999-01-01 covers all DART history.
+      return { bgnDate: new Date("1999-01-01T00:00:00") };
     case "CUSTOM": {
       const bgnDate = bgn ? parseYmd(bgn) : null;
       const endDate = end ? parseYmd(end) : null;
