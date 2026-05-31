@@ -23,6 +23,9 @@ type ApiResponse = { ok: true; summary: string } | { ok: false; error: { kind: s
 
 const RETRYABLE = new Set(["rate_limit", "timeout", "api_error", "empty_response"]);
 
+const GRID_COLS =
+  "grid grid-cols-[72px_88px_minmax(0,1fr)_88px_72px_32px_60px] items-center gap-2";
+
 type DisclosureItemProps = {
   disclosure: DartDisclosure;
   isExpanded: boolean;
@@ -107,55 +110,47 @@ const DisclosureItem = ({
           : "opacity var(--duration-base, 250ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1)), background-color var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1))",
       }}
     >
-      <div className="flex items-start justify-between gap-2">
+      <div className={GRID_COLS}>
+        <div className="text-center">{type && <CheckpointBadge type={type} />}</div>
+        <div className="truncate text-xs text-muted-foreground">{disclosure.corpName}</div>
         <a
           href={dartUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="group flex min-w-0 flex-1 items-start gap-2"
+          className="truncate text-sm font-medium hover:underline"
+          title={disclosure.disclosureNm}
         >
-          {type && <CheckpointBadge type={type} />}
-          <p className="text-sm font-medium group-hover:underline">{disclosure.disclosureNm}</p>
+          {disclosure.disclosureNm}
         </a>
-        <div className="flex shrink-0 items-center gap-2">
-          <p className="text-xs text-muted-foreground">
-            {formatDartDate(disclosure.rcptDt)}
-            {disclosure.flrNm && <span className="ml-2">{disclosure.flrNm}</span>}
-            {disclosure.rmk && (
-              <span className="ml-2 rounded bg-secondary px-1.5 py-0.5 text-xs">
-                {disclosure.rmk}
-              </span>
-            )}
-          </p>
-          <a
-            href={dartUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rounded border border-amber-border bg-elevated px-2 py-0.5 text-[11px] font-medium text-muted-foreground whitespace-nowrap hover:text-foreground"
-            style={{
-              transition:
-                "color var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1))",
-            }}
-          >
-            DART 원문
-          </a>
-          <button
-            type="button"
-            className={cn(
-              "rounded border border-amber-border bg-elevated px-2 py-0.5 text-[11px] font-medium whitespace-nowrap cursor-pointer",
-              isExpanded
-                ? "text-muted-foreground hover:text-foreground"
-                : "text-amber-accent hover:bg-amber-bg"
-            )}
-            style={{
-              transition:
-                "color var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1)), background-color var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1))",
-            }}
-            onClick={handleToggleClick}
-          >
-            {isExpanded ? "닫기" : "AI 요약"}
-          </button>
+        <div className="truncate text-xs text-muted-foreground" title={disclosure.flrNm}>
+          {disclosure.flrNm}
         </div>
+        <div className="text-center text-xs text-muted-foreground">
+          {formatDartDate(disclosure.rcptDt)}
+        </div>
+        <div className="text-center text-xs text-muted-foreground">
+          {disclosure.rmk && (
+            <span className="rounded bg-secondary px-1.5 py-0.5 text-[11px]">
+              {disclosure.rmk}
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          className={cn(
+            "w-full rounded border border-amber-border bg-elevated px-2 py-0.5 text-[11px] font-medium whitespace-nowrap cursor-pointer",
+            isExpanded
+              ? "text-muted-foreground hover:text-foreground"
+              : "text-amber-accent hover:bg-amber-bg"
+          )}
+          style={{
+            transition:
+              "color var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1)), background-color var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1))",
+          }}
+          onClick={handleToggleClick}
+        >
+          {isExpanded ? "닫기" : "AI 요약"}
+        </button>
       </div>
 
       <div
@@ -263,7 +258,7 @@ export const DisclosuresSection = ({
 
   return (
     <StockPanel variant="amber">
-      <header className="mb-3 border-b border-amber-border/50 pb-4">
+      <header className="-mx-6 mb-3 border-b border-amber-border/50 px-6 pb-4">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold">공시 목록</h2>
           {!noApiKey && !hasError && totalCount > 0 && (
@@ -289,21 +284,37 @@ export const DisclosuresSection = ({
       ) : disclosures.length === 0 ? (
         <p className="py-6 text-sm text-muted-foreground">{emptyMessage}</p>
       ) : (
-        <ul className="py-1">
-          {disclosures.map((d) => (
-            <DisclosureItem
-              key={d.rcpNo}
-              disclosure={d}
-              isExpanded={expandedId === d.rcpNo}
-              hasAnyExpanded={hasAnyExpanded}
-              onToggle={() => handleToggle(d.rcpNo)}
-            />
-          ))}
-        </ul>
+        <>
+          <div
+            className={cn(
+              GRID_COLS,
+              "border-b border-amber-border/50 pt-1 pb-2 text-center text-[11px] font-medium text-muted-foreground"
+            )}
+          >
+            <div>유형</div>
+            <div>대상회사</div>
+            <div>보고서명</div>
+            <div>제출인</div>
+            <div>접수일자</div>
+            <div>비고</div>
+            <div />
+          </div>
+          <ul>
+            {disclosures.map((d) => (
+              <DisclosureItem
+                key={d.rcpNo}
+                disclosure={d}
+                isExpanded={expandedId === d.rcpNo}
+                hasAnyExpanded={hasAnyExpanded}
+                onToggle={() => handleToggle(d.rcpNo)}
+              />
+            ))}
+          </ul>
+        </>
       )}
 
       {showFooter && (
-        <footer className="mt-3 flex flex-col items-center gap-2 border-t border-amber-border/50 pt-3">
+        <footer className="mt-3 flex flex-col items-end gap-2 border-t border-amber-border/50 pt-3">
           <DisclosurePagination
             ticker={ticker}
             currentPage={currentPage}
@@ -313,14 +324,7 @@ export const DisclosuresSection = ({
             endDate={endDate}
             query={query}
           />
-          <a
-            href="https://dart.fss.or.kr"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-tertiary hover:underline"
-          >
-            출처: DART 전자공시시스템
-          </a>
+          <p className="text-xs text-tertiary">출처: DART 전자공시시스템</p>
         </footer>
       )}
     </StockPanel>
