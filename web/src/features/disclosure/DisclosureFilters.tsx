@@ -2,9 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Search } from "lucide-react";
+import { Calendar as CalendarIcon, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -38,6 +37,29 @@ const parseYmd = (value?: string): Date | undefined => {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
   const d = new Date(`${value}T00:00:00`);
   return Number.isNaN(d.getTime()) ? undefined : d;
+};
+
+// Auto-insert hyphens as user types: "20260531" -> "2026-05-31"
+const formatDateInput = (raw: string): string => {
+  const digits = raw.replace(/\D/g, "").slice(0, 8);
+  if (digits.length <= 4) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+  return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6)}`;
+};
+
+// Strict YYYY-MM-DD parser that rejects out-of-range or normalized dates (e.g., Feb 30)
+const parseInputToDate = (formatted: string): Date | null => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(formatted);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  const d = new Date(year, month - 1, day);
+  if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) {
+    return null;
+  }
+  return d;
 };
 
 export const DisclosureFilters = ({
@@ -227,33 +249,77 @@ type DatePickerPopoverProps = {
 
 const DatePickerPopover = ({ label, value, min, max, onSelect }: DatePickerPopoverProps) => {
   const [open, setOpen] = useState(false);
+  const [inputValue, setInputValue] = useState(value ? toYmd(value) : "");
+  const [prevValue, setPrevValue] = useState(value);
+
+  // Sync input text when parent value changes (URL navigation, calendar pick)
+  if (prevValue !== value) {
+    setPrevValue(value);
+    setInputValue(value ? toYmd(value) : "");
+  }
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatDateInput(e.target.value);
+    setInputValue(formatted);
+
+    if (formatted === "") {
+      onSelect(undefined);
+      return;
+    }
+
+    const date = parseInputToDate(formatted);
+    if (!date) return;
+    if (min && date < min) return;
+    if (max && date > max) return;
+    onSelect(date);
+  };
+
+  const handleCalendarSelect = (d: Date | undefined) => {
+    if (d) {
+      setInputValue(toYmd(d));
+      setOpen(false);
+    } else {
+      setInputValue("");
+    }
+    onSelect(d);
+  };
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 w-28 border-amber-border bg-elevated/80 px-2.5 text-xs font-normal"
-        >
-          {value ? toYmd(value) : <span className="text-muted-foreground">{label}</span>}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto bg-elevated p-0" align="start">
-        <Calendar
-          mode="single"
-          selected={value}
-          defaultMonth={value ?? max ?? min}
-          disabled={(date) => {
-            if (min && date < min) return true;
-            if (max && date > max) return true;
-            return false;
-          }}
-          onSelect={(d) => {
-            onSelect(d);
-            if (d) setOpen(false);
-          }}
-        />
-      </PopoverContent>
-    </Popover>
+    <div className="relative">
+      <Input
+        type="text"
+        value={inputValue}
+        onChange={handleInputChange}
+        placeholder="0000-00-00"
+        maxLength={10}
+        aria-label={label}
+        inputMode="numeric"
+        className="h-8 w-32 border-amber-border bg-elevated/80 pr-7 text-xs font-normal"
+      />
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            aria-label={`${label} 달력 열기`}
+            className="absolute right-1 top-1/2 flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-amber-border/40 hover:text-foreground"
+          >
+            <CalendarIcon className="size-3.5" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto bg-elevated p-0" align="end">
+          <Calendar
+            mode="single"
+            selected={value}
+            defaultMonth={value ?? max ?? min}
+            disabled={(date) => {
+              if (min && date < min) return true;
+              if (max && date > max) return true;
+              return false;
+            }}
+            onSelect={handleCalendarSelect}
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
   );
 };
