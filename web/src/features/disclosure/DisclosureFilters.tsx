@@ -23,7 +23,7 @@ const PRESET_OPTIONS: { value: PeriodPreset; label: string }[] = [
   { value: "3Y", label: "3년" },
   { value: "5Y", label: "5년" },
   { value: "ALL", label: "전체" },
-  { value: "CUSTOM", label: "직접 선택" },
+  { value: "CUSTOM", label: "직접 입력" },
 ];
 
 const toYmd = (date: Date): string => {
