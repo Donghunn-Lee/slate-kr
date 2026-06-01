@@ -9,9 +9,7 @@ const StockHeaderPanel = () => (
       padding: "24px",
     }}
   >
-    <div
-      style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}
-    >
+    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
       <span
         style={{
           fontSize: "20px",
@@ -184,14 +182,7 @@ type DisclosureRowProps = {
   filer: string;
 };
 
-const DisclosureRow = ({
-  badge,
-  badgeBg,
-  badgeColor,
-  title,
-  date,
-  filer,
-}: DisclosureRowProps) => (
+const DisclosureRow = ({ badge, badgeBg, badgeColor, title, date, filer }: DisclosureRowProps) => (
   <li
     style={{
       display: "flex",

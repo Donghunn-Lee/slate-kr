@@ -23,9 +23,7 @@ const DemoBlock = ({ title, description, token, children }: DemoBlockProps) => (
   >
     <div style={{ marginBottom: "20px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "4px" }}>
-        <p style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}>
-          {title}
-        </p>
+        <p style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}>{title}</p>
         <code
           style={{
             fontSize: "10px",
@@ -154,9 +152,7 @@ const PanelExpandDemo = () => {
                 flexShrink: 0,
               }}
             />
-            <span
-              style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}
-            >
+            <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}>
               재무 요약 (연간)
             </span>
           </div>
@@ -200,7 +196,11 @@ const PanelExpandDemo = () => {
             }}
           >
             <span
-              style={{ fontWeight: 600, color: "var(--text-secondary)", fontVariantNumeric: "tabular-nums" }}
+              style={{
+                fontWeight: 600,
+                color: "var(--text-secondary)",
+                fontVariantNumeric: "tabular-nums",
+              }}
             >
               2025년
             </span>
@@ -473,8 +473,7 @@ const PRICE_SEQUENCE = [
 
 const easeOutCubic = (x: number) => 1 - Math.pow(1 - x, 3);
 
-const formatPrice = (n: number) =>
-  Math.round(n).toLocaleString("ko-KR") + "원";
+const formatPrice = (n: number) => Math.round(n).toLocaleString("ko-KR") + "원";
 
 const CountUpDemo = () => {
   const [index, setIndex] = useState(0);
@@ -554,8 +553,7 @@ const CountUpDemo = () => {
             fontSize: "14px",
             fontWeight: 600,
             fontVariantNumeric: "tabular-nums",
-            color:
-              current.dir === "up" ? "var(--price-up)" : "var(--price-down)",
+            color: current.dir === "up" ? "var(--price-up)" : "var(--price-down)",
             marginBottom: "16px",
             transition: `color var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1))`,
           }}

@@ -10,7 +10,6 @@ import { StockTabNav } from "@/features/stock-detail/StockTabNav";
 
 type LayoutProps = {
   children: React.ReactNode;
-  tab: React.ReactNode;
   params: Promise<{ ticker: string }>;
 };
 
@@ -37,7 +36,7 @@ export async function generateMetadata({
   };
 }
 
-export default async function StockDetailLayout({ tab, params }: LayoutProps) {
+export default async function StockDetailLayout({ children, params }: LayoutProps) {
   const { ticker } = await params;
   let stock = null;
   try {
@@ -57,7 +56,7 @@ export default async function StockDetailLayout({ tab, params }: LayoutProps) {
         <StockMetrics ticker={ticker} />
       </Suspense>
       <StockTabNav ticker={ticker} />
-      <div>{tab}</div>
+      <div>{children}</div>
     </main>
   );
 }
