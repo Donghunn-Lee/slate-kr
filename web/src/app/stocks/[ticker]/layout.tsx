@@ -1,4 +1,4 @@
-import { Suspense, cache } from "react";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getStockByTicker } from "@/lib/stocks";
@@ -15,8 +15,6 @@ type LayoutProps = {
 
 export const revalidate = 86400;
 
-const getStock = cache(getStockByTicker);
-
 export async function generateMetadata({
   params,
 }: {
@@ -25,7 +23,7 @@ export async function generateMetadata({
   const { ticker } = await params;
   let stock = null;
   try {
-    stock = await getStock(ticker);
+    stock = await getStockByTicker(ticker);
   } catch {
     return { title: "종목을 찾을 수 없습니다" };
   }
@@ -40,7 +38,7 @@ export default async function StockDetailLayout({ children, params }: LayoutProp
   const { ticker } = await params;
   let stock = null;
   try {
-    stock = await getStock(ticker);
+    stock = await getStockByTicker(ticker);
   } catch {
     notFound();
   }

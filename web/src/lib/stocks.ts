@@ -15,7 +15,7 @@ type StockRow = {
   updated_at: Date;
 };
 
-export const getStockByTicker = async (ticker: string): Promise<StockSummary | null> => {
+export const getStockByTicker = cache(async (ticker: string): Promise<StockSummary | null> => {
   const [rows] = await pool.query<StockRow[]>(
     "SELECT ticker, name, market, sector, shares FROM stocks WHERE ticker = $1 AND is_active = true",
     [ticker]
@@ -35,7 +35,7 @@ export const getStockByTicker = async (ticker: string): Promise<StockSummary | n
     sector: row.sector,
     marketCap,
   };
-};
+});
 
 export const getCorpCode = cache(async (ticker: string): Promise<string | null> => {
   const [rows] = await pool.query<StockRow[]>(
