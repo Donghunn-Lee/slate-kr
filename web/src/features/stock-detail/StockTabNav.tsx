@@ -22,13 +22,15 @@ export const StockTabNav = ({ ticker }: StockTabNavProps) => {
     <nav className="sticky top-0 z-10 bg-background">
       <div className="flex border-b border-border">
         {tabs.map((tab) => {
-          const isActive = pathname === tab.href;
+          const isActive =
+            tab.href === `/stocks/${ticker}`
+              ? pathname === tab.href
+              : pathname.startsWith(tab.href);
           return (
             <Link
               key={tab.href}
               href={tab.href}
               scroll={false}
-              prefetch={false}
               data-active={isActive}
               className={cn(
                 "px-4 py-3 text-sm transition-colors -mb-px border-b-2",

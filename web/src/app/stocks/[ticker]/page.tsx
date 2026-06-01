@@ -1,4 +1,6 @@
 import { Suspense } from "react";
+import type { Metadata } from "next";
+import { getStockByTicker } from "@/lib/stocks";
 import { StockChartSection } from "@/entities/stock/StockChartSection";
 import { StockDisclosuresPreview } from "@/entities/stock/StockDisclosuresPreview";
 import { StockFinancials } from "@/entities/stock/StockFinancials";
@@ -14,6 +16,16 @@ export const revalidate = 3600;
 
 type PageProps = {
   params: Promise<{ ticker: string }>;
+};
+
+export const generateMetadata = async ({ params }: PageProps): Promise<Metadata> => {
+  const { ticker } = await params;
+  const stock = await getStockByTicker(ticker);
+  if (!stock) return { title: "종목을 찾을 수 없습니다 | SlateKR" };
+  return {
+    title: `${stock.name}(${ticker}) 종목 정보 | SlateKR`,
+    description: `${stock.name}의 주가, 재무, 공시 정보를 한눈에. 차트, 5년 재무 요약, 최근 공시를 제공합니다.`,
+  };
 };
 
 export default async function OverviewPage({ params }: PageProps) {
