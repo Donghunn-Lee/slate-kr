@@ -32,7 +32,7 @@ const DARK = {
   bottomFill: "rgba(163,163,163,0)",
 } as const;
 
-export const StockChart = ({ prices, ticker, label, viewAllHref }: StockChartProps) => {
+export const StockChart = ({ prices, label, viewAllHref }: StockChartProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { resolvedTheme } = useTheme();
 
@@ -84,18 +84,21 @@ export const StockChart = ({ prices, ticker, label, viewAllHref }: StockChartPro
 
   if (prices.length === 0) {
     return (
-      <StockPanel noBorder>
-        <h2 className="mb-4 text-sm font-semibold text-muted-foreground">차트</h2>
+      <StockPanel>
+        <h2 className="mb-3 text-sm font-semibold text-muted-foreground">가격 차트</h2>
         <p className="text-sm text-muted-foreground">가격 데이터 없음</p>
       </StockPanel>
     );
   }
 
   return (
-    <StockPanel noBorder>
-      <div className="mb-4 flex items-center justify-between">
+    <StockPanel>
+      <div className="mb-3 flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold text-muted-foreground">
-          {ticker} — {label ?? "최근 1년"}
+          가격 차트
+          {label && (
+            <span className="ml-1.5 text-xs font-normal text-muted-foreground/70">· {label}</span>
+          )}
         </h2>
         {viewAllHref && (
           <Link href={viewAllHref} className="text-xs text-muted-foreground hover:underline">

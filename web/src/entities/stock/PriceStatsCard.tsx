@@ -25,7 +25,7 @@ export const PriceStatsCard = ({ stats }: PriceStatsCardProps) => {
 
   return (
     <StockPanel variant="sky">
-      <h2 className="mb-4 text-sm font-semibold text-muted-foreground">가격 통계</h2>
+      <h2 className="mb-3 text-sm font-semibold text-muted-foreground">가격 통계</h2>
       {isEmpty ? (
         <p className="text-sm text-muted-foreground">가격 통계 데이터 없음</p>
       ) : (

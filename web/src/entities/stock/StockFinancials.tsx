@@ -28,20 +28,12 @@ export const StockFinancials = async ({ ticker, viewAllHref, compact }: StockFin
     <StockPanel variant="sage">
       {hasError ? (
         <>
-          <h2
-            className={`${compact ? "mb-2 text-xs" : "mb-4 text-sm"} font-semibold text-muted-foreground`}
-          >
-            재무 요약
-          </h2>
+          <h2 className="mb-3 text-sm font-semibold text-muted-foreground">재무 요약</h2>
           <p className="text-sm text-muted-foreground">재무 데이터를 불러오지 못했습니다</p>
         </>
       ) : isEmpty ? (
         <>
-          <h2
-            className={`${compact ? "mb-2 text-xs" : "mb-4 text-sm"} font-semibold text-muted-foreground`}
-          >
-            재무 요약
-          </h2>
+          <h2 className="mb-3 text-sm font-semibold text-muted-foreground">재무 요약</h2>
           <p className="text-sm text-muted-foreground">재무 데이터 없음</p>
         </>
       ) : (

@@ -27,8 +27,8 @@ export const StockChartSection = async ({
 
   if (hasError) {
     return (
-      <StockPanel noBorder>
-        <h2 className="mb-4 text-sm font-semibold text-muted-foreground">차트</h2>
+      <StockPanel>
+        <h2 className="mb-3 text-sm font-semibold text-muted-foreground">가격 차트</h2>
         <p className="text-sm text-muted-foreground">차트 데이터를 불러오지 못했습니다</p>
       </StockPanel>
     );

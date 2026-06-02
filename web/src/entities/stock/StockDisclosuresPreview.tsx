@@ -34,11 +34,11 @@ export const StockDisclosuresPreview = async ({ ticker }: StockDisclosuresPrevie
 
   return (
     <StockPanel variant="amber">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-muted-foreground">최근 공시 (최근 3개월)</h2>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold text-muted-foreground">최근 공시</h2>
         <Link
           href={`/stocks/${ticker}/disclosures`}
-          className="text-xs text-amber-accent hover:underline"
+          className="text-xs text-muted-foreground hover:underline"
         >
           전체 보기 →
         </Link>

@@ -155,29 +155,28 @@ export const StockFinancialsClient = ({
 
   return (
     <Tabs value={tab} onValueChange={(v) => setTab(v as "annual" | "quarterly")}>
-      <div className="mb-1 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h2 className={`${compact ? "text-xs" : "text-sm"} font-semibold text-muted-foreground`}>
-            재무 요약
-          </h2>
-          {viewAllHref && (
-            <Link href={viewAllHref} className="text-xs text-sage-accent hover:underline">
-              전체 보기 →
-            </Link>
-          )}
-        </div>
-        <TabsList className={compact ? "h-6" : "h-7"}>
-          <TabsTrigger value="annual" className={compact ? "h-5 px-2 text-xs" : "h-6 px-3 text-xs"}>
-            연간
-          </TabsTrigger>
-          <TabsTrigger
-            value="quarterly"
-            className={compact ? "h-5 px-2 text-xs" : "h-6 px-3 text-xs"}
-          >
-            분기
-          </TabsTrigger>
-        </TabsList>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold text-muted-foreground">재무 요약</h2>
+        {viewAllHref && (
+          <Link href={viewAllHref} className="text-xs text-muted-foreground hover:underline">
+            전체 보기 →
+          </Link>
+        )}
       </div>
+      <TabsList variant="line" className={compact ? "mb-3 h-5 p-0 self-end" : "mb-3 h-6 p-0"}>
+        <TabsTrigger
+          value="annual"
+          className={compact ? "h-5 px-2 py-0 text-xs" : "h-6 px-3 py-0 text-xs"}
+        >
+          연간
+        </TabsTrigger>
+        <TabsTrigger
+          value="quarterly"
+          className={compact ? "h-5 px-2 py-0 text-xs" : "h-6 px-3 py-0 text-xs"}
+        >
+          분기
+        </TabsTrigger>
+      </TabsList>
       <p className={`${compact ? "mb-2" : "mb-3"} text-xs text-muted-foreground`}>
         단위: 억원 (별도 표기 없는 항목 기준)
       </p>
