@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ColorTokens } from "./sections/ColorTokens";
 import { Typography } from "./sections/Typography";
 import { SlatePanels } from "./sections/SlatePanels";
+import { Tabs } from "./sections/Tabs";
 import { MotionTokens } from "./sections/MotionTokens";
 
 export const metadata: Metadata = {
@@ -22,7 +23,7 @@ export default function StyleguidePage() {
             SlateKR에서 사용하는 색·타이포·모션 토큰 가이드
           </p>
           <div className="mt-4 flex gap-2 font-mono text-[11px] text-muted-foreground">
-            {["Base", "Functional", "Accent ×5", "Disclosure", "Motion", "Shadow"].map((tag) => (
+            {["Base", "Functional", "Accent ×5", "Disclosure", "Tabs", "Motion", "Shadow"].map((tag) => (
               <span key={tag} className="rounded bg-subtle px-2 py-0.5">
                 {tag}
               </span>
@@ -35,6 +36,7 @@ export default function StyleguidePage() {
           <ColorTokens />
           <Typography />
           <SlatePanels />
+          <Tabs />
           <MotionTokens />
         </div>
 
