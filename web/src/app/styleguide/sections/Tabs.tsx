@@ -1,28 +1,24 @@
-type TabAccent = "sage" | "amber";
+type TabAccent = "lavender" | "sage" | "amber";
 
 type TabItem = {
   label: string;
   accent?: TabAccent;
 };
 
-const NEUTRAL_TABS: TabItem[] = [
-  { label: "종합정보" },
-  { label: "차트" },
-  { label: "재무" },
-  { label: "공시" },
-];
-
 const ACCENT_TABS: TabItem[] = [
   { label: "종합정보" },
-  { label: "차트" },
+  { label: "차트", accent: "lavender" },
   { label: "재무", accent: "sage" },
   { label: "공시", accent: "amber" },
 ];
 
 const INACTIVE_ACCENT_CLASSES: Record<TabAccent, string> = {
+  lavender: "border-lavender-border bg-lavender-bg text-muted-foreground",
   sage: "border-sage-border bg-sage-bg text-muted-foreground",
   amber: "border-amber-border bg-amber-bg text-muted-foreground",
 };
+
+const TAB_Z_CLASSES = ["z-40", "z-30", "z-20", "z-10"] as const;
 
 type FolderTabsProps = {
   tabs: TabItem[];
@@ -39,14 +35,18 @@ const FolderTabs = ({ tabs, activeIndex }: FolderTabsProps) => {
 
   return (
     <div>
-      <div className="-mb-px flex gap-1">
+      <div className="-mb-px flex">
         {tabs.map((tab, i) => {
           const isActive = i === activeIndex;
+          const overlap = i > 0 ? "-ml-1.5" : "";
+          const zClass = TAB_Z_CLASSES[i] ?? "z-10";
+          const commonClasses = `relative ${zClass} rounded-t-md px-4 py-2 text-sm ${overlap}`;
+
           if (isActive) {
             return (
               <div
                 key={tab.label}
-                className="relative z-10 rounded-t-md border border-b-0 border-subtle bg-elevated px-4 py-2 text-sm font-medium text-foreground"
+                className={`${commonClasses} border border-b-0 border-subtle bg-elevated font-medium text-foreground`}
               >
                 {tab.label}
               </div>
@@ -56,10 +56,7 @@ const FolderTabs = ({ tabs, activeIndex }: FolderTabsProps) => {
             ? INACTIVE_ACCENT_CLASSES[tab.accent]
             : "border-subtle bg-muted text-muted-foreground";
           return (
-            <div
-              key={tab.label}
-              className={`rounded-t-md border px-4 py-2 text-sm ${inactiveClasses}`}
-            >
+            <div key={tab.label} className={`${commonClasses} border ${inactiveClasses}`}>
               {tab.label}
             </div>
           );
@@ -83,17 +80,9 @@ export const Tabs = () => (
     </h2>
     <p className="mb-6 text-[13px] text-muted-foreground">
       종목 상세 페이지의 폴더 탭 패턴. 활성 탭이 콘텐츠 패널과 연결되어 하나의 폴더로 읽힌다.
+      차트=lavender, 재무=sage, 공시=amber, 종합정보=무채색.
     </p>
 
-    <div className="flex flex-col gap-10">
-      <div>
-        <p className="mb-3 text-xs text-muted-foreground">데모 1 — 기본형 (비활성 무채색)</p>
-        <FolderTabs tabs={NEUTRAL_TABS} activeIndex={0} />
-      </div>
-      <div>
-        <p className="mb-3 text-xs text-muted-foreground">데모 2 — 비활성 액센트 매핑</p>
-        <FolderTabs tabs={ACCENT_TABS} activeIndex={0} />
-      </div>
-    </div>
+    <FolderTabs tabs={ACCENT_TABS} activeIndex={0} />
   </section>
 );
