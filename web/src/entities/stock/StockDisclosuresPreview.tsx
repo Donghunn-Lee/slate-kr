@@ -4,6 +4,7 @@ import { getCorpCode } from "@/lib/stocks";
 import { getDisclosures } from "@/lib/dart";
 import { classifyDisclosure } from "@/shared/utils/classifyDisclosure";
 import { formatDartDate } from "@/shared/format";
+import { DisclosureAIHint } from "./DisclosureAIHint";
 import { StockPanel } from "./StockPanel";
 import { CheckpointBadge } from "./CheckpointBadge";
 
@@ -36,12 +37,17 @@ export const StockDisclosuresPreview = async ({ ticker }: StockDisclosuresPrevie
     <StockPanel variant="amber">
       <div className="mb-3 flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold text-muted-foreground">최근 공시</h2>
-        <Link
-          href={`/stocks/${ticker}/disclosures`}
-          className="text-xs text-muted-foreground hover:underline"
-        >
-          전체 보기 →
-        </Link>
+        <div className="relative">
+          <div className="absolute right-0 top-[-18px]">
+            <DisclosureAIHint />
+          </div>
+          <Link
+            href={`/stocks/${ticker}/disclosures`}
+            className="text-xs text-muted-foreground hover:underline"
+          >
+            전체 보기 →
+          </Link>
+        </div>
       </div>
       {noApiKey ? (
         <p className="text-sm text-muted-foreground">

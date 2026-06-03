@@ -2,10 +2,9 @@
 
 import dynamic from "next/dynamic";
 import type { StockPriceSnapshot } from "@/shared/types/stock";
-
 const StockChartInner = dynamic(
   () => import("./StockChart").then((m) => ({ default: m.StockChart })),
-  { ssr: false, loading: () => null }
+  { ssr: false, loading: () => <div className="h-[380px] rounded-xl border bg-elevated" /> }
 );
 
 type StockChartDynamicProps = {
