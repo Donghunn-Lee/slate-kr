@@ -38,6 +38,7 @@ export default async function OverviewPage({ params }: PageProps) {
           limit={60}
           label="최근 3개월"
           viewAllHref={`/stocks/${ticker}/chart`}
+          interactive={false}
         />
       </Suspense>
       <Suspense fallback={<FinancialsSkeleton />}>

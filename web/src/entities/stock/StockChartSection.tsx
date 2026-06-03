@@ -8,6 +8,7 @@ type StockChartSectionProps = {
   limit?: number;
   label?: string;
   viewAllHref?: string;
+  interactive?: boolean;
 };
 
 export const StockChartSection = async ({
@@ -15,6 +16,7 @@ export const StockChartSection = async ({
   limit,
   label,
   viewAllHref,
+  interactive = true,
 }: StockChartSectionProps) => {
   let prices: StockPriceSnapshot[] = [];
   let hasError = false;
@@ -35,6 +37,12 @@ export const StockChartSection = async ({
   }
 
   return (
-    <StockChartDynamic prices={prices} ticker={ticker} label={label} viewAllHref={viewAllHref} />
+    <StockChartDynamic
+      prices={prices}
+      ticker={ticker}
+      label={label}
+      viewAllHref={viewAllHref}
+      interactive={interactive}
+    />
   );
 };

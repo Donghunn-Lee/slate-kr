@@ -12,6 +12,7 @@ type StockChartProps = {
   ticker: string;
   label?: string;
   viewAllHref?: string;
+  interactive?: boolean;
 };
 
 const LIGHT = {
@@ -32,7 +33,7 @@ const DARK = {
   bottomFill: "rgba(163,163,163,0)",
 } as const;
 
-export const StockChart = ({ prices, label, viewAllHref }: StockChartProps) => {
+export const StockChart = ({ prices, label, viewAllHref, interactive = true }: StockChartProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { resolvedTheme } = useTheme();
 
@@ -50,6 +51,7 @@ export const StockChart = ({ prices, label, viewAllHref }: StockChartProps) => {
         background: { color: c.bg },
         textColor: c.text,
         fontFamily: "SUIT Variable, sans-serif",
+        attributionLogo: false,
       },
       grid: {
         vertLines: { color: c.border },
@@ -58,6 +60,8 @@ export const StockChart = ({ prices, label, viewAllHref }: StockChartProps) => {
       crosshair: { mode: 1 },
       timeScale: { borderColor: c.border },
       rightPriceScale: { borderColor: c.border },
+      handleScroll: interactive,
+      handleScale: interactive,
     });
 
     const areaSeries = chart.addSeries(AreaSeries, {
@@ -80,7 +84,7 @@ export const StockChart = ({ prices, label, viewAllHref }: StockChartProps) => {
     return () => {
       chart.remove();
     };
-  }, [prices, resolvedTheme]);
+  }, [prices, resolvedTheme, interactive]);
 
   if (prices.length === 0) {
     return (

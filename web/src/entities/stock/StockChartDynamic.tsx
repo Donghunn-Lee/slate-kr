@@ -12,6 +12,7 @@ type StockChartDynamicProps = {
   ticker: string;
   label?: string;
   viewAllHref?: string;
+  interactive?: boolean;
 };
 
 export const StockChartDynamic = (props: StockChartDynamicProps) => <StockChartInner {...props} />;
