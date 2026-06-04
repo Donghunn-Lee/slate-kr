@@ -8,7 +8,6 @@ import { cn } from "@/lib/utils";
 import { DisclosureFilters } from "@/features/disclosure/DisclosureFilters";
 import { DisclosurePagination } from "@/features/disclosure/DisclosurePagination";
 import type { PeriodPreset } from "@/features/disclosure/types";
-import { StockPanel } from "./StockPanel";
 import { CheckpointBadge } from "./CheckpointBadge";
 import { Button } from "@/components/ui/button";
 
@@ -23,8 +22,7 @@ type ApiResponse = { ok: true; summary: string } | { ok: false; error: { kind: s
 
 const RETRYABLE = new Set(["rate_limit", "timeout", "api_error", "empty_response"]);
 
-const GRID_COLS =
-  "grid grid-cols-[72px_88px_minmax(0,1fr)_88px_72px_32px_60px] items-center gap-2";
+const GRID_COLS = "grid grid-cols-[72px_88px_minmax(0,1fr)_88px_72px_32px_60px] items-center gap-2";
 
 type DisclosureItemProps = {
   disclosure: DartDisclosure;
@@ -98,7 +96,7 @@ const DisclosureItem = ({
   return (
     <li
       className={cn(
-        "-mx-6 border-b border-amber-border/30 px-6 py-3 last:border-0",
+        "group -mx-6 px-6",
         isExpanded
           ? "bg-amber-border"
           : "bg-transparent transition-colors hover:bg-amber-border/40",
@@ -110,7 +108,7 @@ const DisclosureItem = ({
           : "opacity var(--duration-base, 250ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1)), background-color var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1))",
       }}
     >
-      <div className={GRID_COLS}>
+      <div className={cn(GRID_COLS, "border-b border-amber-border/30 py-3 group-last:border-b-0")}>
         <div className="text-center">{type && <CheckpointBadge type={type} />}</div>
         <div className="truncate text-xs text-muted-foreground">{disclosure.corpName}</div>
         <a
@@ -130,9 +128,7 @@ const DisclosureItem = ({
         </div>
         <div className="text-center text-xs text-muted-foreground">
           {disclosure.rmk && (
-            <span className="rounded bg-secondary px-1.5 py-0.5 text-[11px]">
-              {disclosure.rmk}
-            </span>
+            <span className="rounded bg-secondary px-1.5 py-0.5 text-[11px]">{disclosure.rmk}</span>
           )}
         </div>
         <button
@@ -257,8 +253,8 @@ export const DisclosuresSection = ({
   const showFooter = !noApiKey && !hasError;
 
   return (
-    <StockPanel variant="amber">
-      <header className="-mx-6 mb-3 border-b border-amber-border/50 px-6 pb-4">
+    <>
+      <header className="-mx-6 mb-3 border-amber-border/50 px-6 pb-4">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold">공시 목록</h2>
           {!noApiKey && !hasError && totalCount > 0 && (
@@ -327,6 +323,6 @@ export const DisclosuresSection = ({
           <p className="text-xs text-tertiary">출처: DART 전자공시시스템</p>
         </footer>
       )}
-    </StockPanel>
+    </>
   );
 };

@@ -28,15 +28,16 @@ export const StockChartSection = async ({
   }
 
   if (hasError) {
-    return (
-      <StockPanel>
+    const errorContent = (
+      <>
         <h2 className="mb-3 text-sm font-semibold text-muted-foreground">가격 차트</h2>
         <p className="text-sm text-muted-foreground">차트 데이터를 불러오지 못했습니다</p>
-      </StockPanel>
+      </>
     );
+    return interactive ? errorContent : <StockPanel>{errorContent}</StockPanel>;
   }
 
-  return (
+  const chart = (
     <StockChartDynamic
       prices={prices}
       ticker={ticker}
@@ -45,4 +46,6 @@ export const StockChartSection = async ({
       interactive={interactive}
     />
   );
+
+  return interactive ? chart : <StockPanel>{chart}</StockPanel>;
 };

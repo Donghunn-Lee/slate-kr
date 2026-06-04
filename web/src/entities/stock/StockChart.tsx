@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useTheme } from "next-themes";
 import { createChart, AreaSeries } from "lightweight-charts";
 import type { StockPriceSnapshot } from "@/shared/types/stock";
-import { StockPanel } from "./StockPanel";
 
 type StockChartProps = {
   prices: StockPriceSnapshot[];
@@ -88,15 +87,15 @@ export const StockChart = ({ prices, label, viewAllHref, interactive = true }: S
 
   if (prices.length === 0) {
     return (
-      <StockPanel>
+      <>
         <h2 className="mb-3 text-sm font-semibold text-muted-foreground">가격 차트</h2>
         <p className="text-sm text-muted-foreground">가격 데이터 없음</p>
-      </StockPanel>
+      </>
     );
   }
 
   return (
-    <StockPanel>
+    <>
       <div className="mb-3 flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold text-muted-foreground">
           가격 차트
@@ -110,7 +109,7 @@ export const StockChart = ({ prices, label, viewAllHref, interactive = true }: S
           </Link>
         )}
       </div>
-      <div ref={containerRef} className="h-[300px] w-full" />
-    </StockPanel>
+      <div ref={containerRef} className="h-[300px] w-full overflow-hidden rounded-md" />
+    </>
   );
 };

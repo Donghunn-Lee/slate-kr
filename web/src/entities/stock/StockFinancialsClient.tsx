@@ -163,20 +163,22 @@ export const StockFinancialsClient = ({
           </Link>
         )}
       </div>
-      <TabsList variant="line" className={compact ? "mb-3 h-5 p-0 self-end" : "mb-3 h-6 p-0"}>
-        <TabsTrigger
-          value="annual"
-          className={compact ? "h-5 px-2 py-0 text-xs" : "h-6 px-3 py-0 text-xs"}
-        >
-          연간
-        </TabsTrigger>
-        <TabsTrigger
-          value="quarterly"
-          className={compact ? "h-5 px-2 py-0 text-xs" : "h-6 px-3 py-0 text-xs"}
-        >
-          분기
-        </TabsTrigger>
-      </TabsList>
+      <div className="mb-3 flex justify-end">
+        <TabsList variant="line" className={compact ? "h-5 p-0" : "h-6 p-0"}>
+          <TabsTrigger
+            value="annual"
+            className={compact ? "h-5 px-2 py-0 text-xs" : "h-6 px-3 py-0 text-xs"}
+          >
+            연간
+          </TabsTrigger>
+          <TabsTrigger
+            value="quarterly"
+            className={compact ? "h-5 px-2 py-0 text-xs" : "h-6 px-3 py-0 text-xs"}
+          >
+            분기
+          </TabsTrigger>
+        </TabsList>
+      </div>
       <p className={`${compact ? "mb-2" : "mb-3"} text-xs text-muted-foreground`}>
         단위: 억원 (별도 표기 없는 항목 기준)
       </p>
