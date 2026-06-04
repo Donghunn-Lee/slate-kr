@@ -6,7 +6,7 @@ import { StockHeader } from "@/entities/stock/StockHeader";
 import { StockMetrics } from "@/entities/stock/StockMetrics";
 import { HeaderSkeleton, MetricsSkeleton } from "@/entities/stock/Skeletons";
 import { RecentSearchRecorder } from "@/features/search/RecentSearchRecorder";
-import { StockTabNav } from "@/features/stock-detail/StockTabNav";
+import { StockTabPanel } from "@/entities/stock/StockTabPanel";
 
 type LayoutProps = {
   children: React.ReactNode;
@@ -53,8 +53,7 @@ export default async function StockDetailLayout({ children, params }: LayoutProp
       <Suspense fallback={<MetricsSkeleton />}>
         <StockMetrics ticker={ticker} />
       </Suspense>
-      <StockTabNav ticker={ticker} />
-      <div>{children}</div>
+      <StockTabPanel ticker={ticker}>{children}</StockTabPanel>
     </main>
   );
 }
