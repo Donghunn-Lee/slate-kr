@@ -45,7 +45,7 @@ export const StockTabPanel = ({ ticker, children }: StockTabPanelProps) => {
 
   return (
     <div className="w-full">
-      <div className="sticky top-0 z-20 flex items-end gap-2 bg-background pt-2">
+      <div className="flex items-end gap-2 pt-2">
         {TABS.map((tab, i) => {
           const href = `${base}${tab.hrefSuffix}`;
           const isActive = i === activeIndex;
