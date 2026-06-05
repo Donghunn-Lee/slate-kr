@@ -97,3 +97,22 @@ export const WatchlistRow = ({ item, price, disclosure, onRemove }: WatchlistRow
     </li>
   );
 };
+
+export const WatchlistRowSkeleton = () => (
+  <li className="group -mx-6 animate-pulse px-6">
+    <div className="border-b border-peach-border/60 py-3 group-last:border-b-0">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-baseline gap-2">
+          <div className="h-5 w-24 rounded bg-muted" />
+          <div className="h-3 w-28 rounded bg-muted" />
+        </div>
+        <div className="h-7 w-7 shrink-0 rounded-md bg-muted" />
+      </div>
+      <div className="mt-1.5 flex items-baseline gap-4">
+        <div className="h-5 w-20 rounded bg-muted" />
+        <div className="h-3 w-16 rounded bg-muted" />
+        <div className="h-3 w-20 rounded bg-muted" />
+      </div>
+    </div>
+  </li>
+);

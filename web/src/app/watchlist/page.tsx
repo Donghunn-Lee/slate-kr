@@ -5,7 +5,7 @@ import { useQueries } from "@tanstack/react-query";
 import type { TickerPriceSummary } from "@/app/api/prices/route";
 import type { TickerDisclosureCount } from "@/app/api/disclosures/recent-count/route";
 import { useWatchlistStore } from "@/features/watchlist/store/useWatchlistStore";
-import { WatchlistRow } from "@/entities/watchlist/WatchlistRow";
+import { WatchlistRow, WatchlistRowSkeleton } from "@/entities/watchlist/WatchlistRow";
 import { StockPanel } from "@/entities/stock/StockPanel";
 
 const WatchlistPage = () => {
@@ -53,18 +53,24 @@ const WatchlistPage = () => {
 
       {sorted.length === 0 ? (
         <p className="text-sm text-muted-foreground">관심종목이 없습니다</p>
+      ) : pricesQuery.isError && countsQuery.isError ? (
+        <p className="text-sm text-muted-foreground">
+          관심종목 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
+        </p>
       ) : (
         <StockPanel variant="peach">
           <ul>
-            {sorted.map((item) => (
-              <WatchlistRow
-                key={item.ticker}
-                item={item}
-                price={pricesMap[item.ticker]}
-                disclosure={countsMap[item.ticker]}
-                onRemove={() => removeFromWatchlist(item.ticker)}
-              />
-            ))}
+            {pricesQuery.isLoading
+              ? sorted.map((item) => <WatchlistRowSkeleton key={item.ticker} />)
+              : sorted.map((item) => (
+                  <WatchlistRow
+                    key={item.ticker}
+                    item={item}
+                    price={pricesMap[item.ticker]}
+                    disclosure={countsMap[item.ticker]}
+                    onRemove={() => removeFromWatchlist(item.ticker)}
+                  />
+                ))}
           </ul>
         </StockPanel>
       )}
