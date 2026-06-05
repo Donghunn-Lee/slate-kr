@@ -13,7 +13,11 @@ export type TickerPriceSummary = {
   prevClose: number | null;
   change: number | null;
   changePct: number | null;
+  change7d: number | null;
+  change7dPct: number | null;
 };
+
+const CHANGE_WINDOW_DAYS = 7;
 
 // GET /api/prices?tickers=005930,000660,035420
 export async function GET(req: NextRequest) {
@@ -44,29 +48,61 @@ export async function GET(req: NextRequest) {
       tickers
     );
 
-    // 이전 종가: 종목별로 최신 날짜 이전 1건, 개별 실패는 null 처리
-    const prevResults = await Promise.allSettled(
+    // 이전 종가 + 7일 전 종가: 종목별 lookback 2건, 개별 실패는 null 처리
+    const lookbackResults = await Promise.allSettled(
       rows.map(async (row) => {
+        const cutoff = new Date(row.date);
+        cutoff.setDate(cutoff.getDate() - CHANGE_WINDOW_DAYS);
+        const cutoffStr = cutoff.toISOString().slice(0, 10);
+
         const [prev] = await pool.query<PriceRow[]>(
           "SELECT close FROM daily_prices WHERE ticker = $1 AND date < $2 ORDER BY date DESC LIMIT 1",
           [row.ticker, row.date]
         );
-        return { ticker: row.ticker, prevClose: prev[0]?.close ?? null };
+        const [weekAgo] = await pool.query<PriceRow[]>(
+          "SELECT close FROM daily_prices WHERE ticker = $1 AND date <= $2 ORDER BY date DESC LIMIT 1",
+          [row.ticker, cutoffStr]
+        );
+        return {
+          ticker: row.ticker,
+          prevClose: prev[0]?.close ?? null,
+          weekAgoClose: weekAgo[0]?.close ?? null,
+        };
       })
     );
 
-    const prevMap = Object.fromEntries(
-      prevResults.map((result, i) => [
+    const lookbackMap = Object.fromEntries(
+      lookbackResults.map((result, i) => [
         rows[i].ticker,
-        result.status === "fulfilled" ? result.value.prevClose : null,
+        result.status === "fulfilled"
+          ? { prevClose: result.value.prevClose, weekAgoClose: result.value.weekAgoClose }
+          : { prevClose: null, weekAgoClose: null },
       ])
     );
 
+    const computeChange = (
+      current: number,
+      basis: number | null
+    ): { change: number | null; changePct: number | null } => {
+      if (basis === null) return { change: null, changePct: null };
+      const change = current - basis;
+      const changePct = basis === 0 ? null : (change / basis) * 100;
+      return { change, changePct };
+    };
+
     const response: TickerPriceSummary[] = rows.map((row) => {
-      const prevClose = prevMap[row.ticker] ?? null;
-      const change = prevClose !== null ? row.close - prevClose : null;
-      const changePct = prevClose !== null && prevClose !== 0 ? (change! / prevClose) * 100 : null;
-      return { ticker: row.ticker, close: row.close, prevClose, change, changePct };
+      const { prevClose, weekAgoClose } = lookbackMap[row.ticker];
+      const { change, changePct } = computeChange(row.close, prevClose);
+      const { change: change7d, changePct: change7dPct } = computeChange(row.close, weekAgoClose);
+      return {
+        ticker: row.ticker,
+        close: row.close,
+        prevClose,
+        change,
+        changePct,
+        change7d,
+        change7dPct,
+      };
     });
 
     return NextResponse.json(response);
