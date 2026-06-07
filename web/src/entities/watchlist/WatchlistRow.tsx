@@ -12,7 +12,7 @@ type WatchlistRowProps = {
   item: WatchlistItem;
   price?: TickerPriceSummary;
   disclosure?: TickerDisclosureCount;
-  onRemove: () => void;
+  onRemove?: () => void;
 };
 
 const changeColor = (n: number | null | undefined): string => {
@@ -34,7 +34,7 @@ export const WatchlistRow = ({ item, price, disclosure, onRemove }: WatchlistRow
   const handleRemove = (e: MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    onRemove();
+    onRemove?.();
   };
 
   return (
@@ -47,14 +47,16 @@ export const WatchlistRow = ({ item, price, disclosure, onRemove }: WatchlistRow
               {item.ticker} · {item.market}
             </span>
           </div>
-          <button
-            type="button"
-            onClick={handleRemove}
-            aria-label={`${item.name} 관심종목 해제`}
-            className="relative z-10 -mr-2 shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-peach-border hover:text-foreground"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+          {onRemove && (
+            <button
+              type="button"
+              onClick={handleRemove}
+              aria-label={`${item.name} 관심종목 해제`}
+              className="relative z-10 -mr-2 shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-peach-border hover:text-foreground"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
         </div>
 
         <div className="mt-1.5 flex flex-wrap items-baseline gap-x-4 gap-y-1">

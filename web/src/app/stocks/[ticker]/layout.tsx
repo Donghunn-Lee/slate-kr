@@ -46,7 +46,7 @@ export default async function StockDetailLayout({ children, params }: LayoutProp
 
   return (
     <main className="container mx-auto max-w-4xl space-y-4 px-4 py-8">
-      <RecentVisitedRecorder ticker={ticker} name={stock.name} />
+      <RecentVisitedRecorder ticker={ticker} name={stock.name} market={stock.market} />
       <Suspense fallback={<HeaderSkeleton />}>
         <StockHeader ticker={ticker} stock={stock} />
       </Suspense>
