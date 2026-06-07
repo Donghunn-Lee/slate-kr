@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { StockPanel } from "@/entities/stock/StockPanel";
-import { useWatchlistStore } from "./store/useWatchlistStore";
+import { useWatchlistStore, type WatchlistItem } from "./store/useWatchlistStore";
 import type { TickerPriceSummary } from "@/app/api/prices/route";
 
 function formatClose(close: number) {
@@ -22,17 +22,35 @@ export function WatchlistPreview() {
     () => true,
     () => false
   );
-  const items = useWatchlistStore((s) => s.items);
-  const preview = [...items].sort((a, b) => b.addedAt - a.addedAt).slice(0, 3);
+  const memberships = useWatchlistStore((s) => s.memberships);
+  const stockMeta = useWatchlistStore((s) => s.stockMeta);
+
+  const preview = useMemo<WatchlistItem[]>(() => {
+    const latestByTicker = new Map<string, number>();
+    for (const m of memberships) {
+      const cur = latestByTicker.get(m.ticker);
+      if (cur === undefined || m.addedAt > cur) latestByTicker.set(m.ticker, m.addedAt);
+    }
+    return Array.from(latestByTicker.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([ticker, addedAt]) => {
+        const meta = stockMeta[ticker];
+        if (!meta) return null;
+        return { ticker, name: meta.name, market: meta.market, addedAt };
+      })
+      .filter((x): x is WatchlistItem => x !== null);
+  }, [memberships, stockMeta]);
+
+  const tickersKey = preview.map((p) => p.ticker).join(",");
 
   const [prices, setPrices] = useState<Record<string, TickerPriceSummary>>({});
   const [fetchError, setFetchError] = useState(false);
 
   useEffect(() => {
-    if (preview.length === 0) return;
+    if (tickersKey.length === 0) return;
     setFetchError(false);
-    const tickers = preview.map((i) => i.ticker).join(",");
-    fetch(`/api/prices?tickers=${tickers}`)
+    fetch(`/api/prices?tickers=${tickersKey}`)
       .then((r) => {
         if (!r.ok) throw new Error("fetch failed");
         return r.json();
@@ -43,8 +61,7 @@ export function WatchlistPreview() {
       .catch(() => {
         setFetchError(true);
       });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items]);
+  }, [tickersKey]);
 
   if (!mounted || preview.length === 0) return null;
 

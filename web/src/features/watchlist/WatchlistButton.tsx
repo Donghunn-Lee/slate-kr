@@ -24,7 +24,9 @@ export const WatchlistButton = ({ ticker, name, market }: WatchlistButtonProps) 
   const isInWatchlist = useWatchlistStore((s) => s.isInWatchlist(ticker));
   const addToWatchlist = useWatchlistStore((s) => s.addToWatchlist);
   const removeFromWatchlist = useWatchlistStore((s) => s.removeFromWatchlist);
-  const itemCount = useWatchlistStore((s) => s.items.length);
+  const itemCount = useWatchlistStore(
+    (s) => new Set(s.memberships.map((m) => m.ticker)).size
+  );
 
   const handleClick = () => {
     if (isInWatchlist) {

@@ -4,15 +4,32 @@ import { useMemo } from "react";
 import { useQueries } from "@tanstack/react-query";
 import type { TickerPriceSummary } from "@/app/api/prices/route";
 import type { TickerDisclosureCount } from "@/app/api/disclosures/recent-count/route";
-import { useWatchlistStore } from "@/features/watchlist/store/useWatchlistStore";
+import {
+  useWatchlistStore,
+  type WatchlistItem,
+} from "@/features/watchlist/store/useWatchlistStore";
 import { WatchlistRow, WatchlistRowSkeleton } from "@/entities/watchlist/WatchlistRow";
 import { StockPanel } from "@/entities/stock/StockPanel";
 
 const WatchlistPage = () => {
-  const items = useWatchlistStore((s) => s.items);
+  const groups = useWatchlistStore((s) => s.groups);
+  const memberships = useWatchlistStore((s) => s.memberships);
+  const stockMeta = useWatchlistStore((s) => s.stockMeta);
   const removeFromWatchlist = useWatchlistStore((s) => s.removeFromWatchlist);
 
-  const sorted = useMemo(() => [...items].sort((a, b) => b.addedAt - a.addedAt), [items]);
+  const sorted = useMemo<WatchlistItem[]>(() => {
+    const defaultGroup = [...groups].sort((a, b) => a.order - b.order)[0];
+    if (!defaultGroup) return [];
+    return memberships
+      .filter((m) => m.groupId === defaultGroup.id)
+      .sort((a, b) => b.addedAt - a.addedAt)
+      .map((m) => {
+        const meta = stockMeta[m.ticker];
+        if (!meta) return null;
+        return { ticker: m.ticker, name: meta.name, market: meta.market, addedAt: m.addedAt };
+      })
+      .filter((x): x is WatchlistItem => x !== null);
+  }, [groups, memberships, stockMeta]);
   const tickersKey = sorted.map((i) => i.ticker).join(",");
 
   const [pricesQuery, countsQuery] = useQueries({
