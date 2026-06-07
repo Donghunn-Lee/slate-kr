@@ -1,20 +1,20 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-const MAX_ITEMS = 10;
+const MAX_ITEMS = 50;
 
-export type RecentSearch = {
+export type RecentVisited = {
   ticker: string;
   name: string;
 };
 
-type RecentSearchesState = {
-  items: RecentSearch[];
+type RecentVisitedState = {
+  items: RecentVisited[];
   add: (ticker: string, name: string) => void;
   remove: (ticker: string) => void;
 };
 
-export const useRecentSearchesStore = create<RecentSearchesState>()(
+export const useRecentVisitedStore = create<RecentVisitedState>()(
   persist(
     (set, get) => ({
       items: [],
@@ -24,6 +24,6 @@ export const useRecentSearchesStore = create<RecentSearchesState>()(
       },
       remove: (ticker) => set({ items: get().items.filter((i) => i.ticker !== ticker) }),
     }),
-    { name: "slatekr-recent-searches" }
+    { name: "slatekr-recent-visited" }
   )
 );

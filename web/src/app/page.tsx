@@ -5,15 +5,15 @@ import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 
 import { SearchInput } from "@/features/search/SearchInput";
-import { useRecentSearchesStore } from "@/features/search/useRecentSearchesStore";
+import { useRecentVisitedStore } from "@/features/search/useRecentVisitedStore";
 import { WatchlistPreview } from "@/features/watchlist/WatchlistPreview";
 import { ServiceValue } from "@/entities/home/ServiceValue";
 
 const HomePage = () => {
   const router = useRouter();
   const [ticker, setTicker] = useState("");
-  const recentSearches = useRecentSearchesStore((s) => s.items);
-  const removeRecent = useRecentSearchesStore((s) => s.remove);
+  const recentVisited = useRecentVisitedStore((s) => s.items).slice(0, 10);
+  const removeRecent = useRecentVisitedStore((s) => s.remove);
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4">
@@ -27,7 +27,7 @@ const HomePage = () => {
           <SearchInput value={ticker} onChange={setTicker} />
         </div>
         <div className="mt-3 flex min-h-[60px] flex-wrap content-start justify-center gap-2">
-          {recentSearches.map((s) => (
+          {recentVisited.map((s) => (
             <span
               key={s.ticker}
               className="flex items-center gap-1 rounded-full border border-border/60 bg-muted/40 px-3 py-1 text-xs text-muted-foreground"
@@ -40,7 +40,7 @@ const HomePage = () => {
               </button>
               <button
                 onClick={() => removeRecent(s.ticker)}
-                aria-label={`${s.name} 최근 검색 삭제`}
+                aria-label={`${s.name} 최근 조회 삭제`}
                 className="transition-colors hover:text-foreground"
               >
                 <X className="h-3 w-3" />

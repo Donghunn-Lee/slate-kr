@@ -5,7 +5,7 @@ import { getStockByTicker } from "@/lib/stocks";
 import { StockHeader } from "@/entities/stock/StockHeader";
 import { StockMetrics } from "@/entities/stock/StockMetrics";
 import { HeaderSkeleton, MetricsSkeleton } from "@/entities/stock/Skeletons";
-import { RecentSearchRecorder } from "@/features/search/RecentSearchRecorder";
+import { RecentVisitedRecorder } from "@/features/search/RecentVisitedRecorder";
 import { StockTabPanel } from "@/entities/stock/StockTabPanel";
 
 type LayoutProps = {
@@ -46,7 +46,7 @@ export default async function StockDetailLayout({ children, params }: LayoutProp
 
   return (
     <main className="container mx-auto max-w-4xl space-y-4 px-4 py-8">
-      <RecentSearchRecorder ticker={ticker} name={stock.name} />
+      <RecentVisitedRecorder ticker={ticker} name={stock.name} />
       <Suspense fallback={<HeaderSkeleton />}>
         <StockHeader ticker={ticker} stock={stock} />
       </Suspense>
