@@ -26,7 +26,7 @@ export type WatchlistItem = {
   addedAt: number;
 };
 
-const MAX_WATCHLIST_SIZE = 100;
+export const MAX_WATCHLIST_SIZE = 100;
 const DEFAULT_GROUP_NAME = "내 관심 종목";
 
 type WatchlistState = {

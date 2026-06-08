@@ -84,7 +84,7 @@ const WatchlistPage = () => {
   const groups = useWatchlistStore((s) => s.groups);
   const memberships = useWatchlistStore((s) => s.memberships);
   const stockMeta = useWatchlistStore((s) => s.stockMeta);
-  const removeFromWatchlist = useWatchlistStore((s) => s.removeFromWatchlist);
+  const removeMembership = useWatchlistStore((s) => s.removeMembership);
   const createGroup = useWatchlistStore((s) => s.createGroup);
   const renameGroup = useWatchlistStore((s) => s.renameGroup);
   const deleteGroup = useWatchlistStore((s) => s.deleteGroup);
@@ -350,7 +350,11 @@ const WatchlistPage = () => {
                         item={item}
                         price={pricesMap[item.ticker]}
                         disclosure={countsMap[item.ticker]}
-                        onRemove={isRecentTab ? undefined : () => removeFromWatchlist(item.ticker)}
+                        onRemove={
+                          isRecentTab || !currentGroup
+                            ? undefined
+                            : () => removeMembership(item.ticker, currentGroup.id)
+                        }
                       />
                     ))}
               </ul>
