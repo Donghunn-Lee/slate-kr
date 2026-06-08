@@ -26,13 +26,24 @@ export type WatchlistItem = {
   addedAt: number;
 };
 
-const MAX_WATCHLIST_SIZE = 50;
+const MAX_WATCHLIST_SIZE = 100;
 const DEFAULT_GROUP_NAME = "내 관심 종목";
 
 type WatchlistState = {
   groups: WatchlistGroup[];
   memberships: Membership[];
   stockMeta: Record<string, StockMeta>;
+
+  createGroup: (name: string) => void;
+  renameGroup: (id: string, name: string) => void;
+  deleteGroup: (id: string) => void;
+  moveGroup: (id: string, dir: "up" | "down") => void;
+
+  addMembership: (
+    item: { ticker: string; name: string; market: "KOSPI" | "KOSDAQ" },
+    groupId: string
+  ) => boolean;
+  removeMembership: (ticker: string, groupId: string) => void;
 
   addToWatchlist: (
     item: { ticker: string; name: string; market: "KOSPI" | "KOSDAQ" },
@@ -56,37 +67,114 @@ export const useWatchlistStore = create<WatchlistState>()(
       memberships: [],
       stockMeta: {},
 
-      addToWatchlist: (item, groupId) => {
+      createGroup: (name) => {
+        const { groups } = get();
+        const maxOrder = groups.length === 0
+          ? -1
+          : Math.max(...groups.map((g) => g.order));
+        set({
+          groups: [
+            ...groups,
+            {
+              id: crypto.randomUUID(),
+              name,
+              order: maxOrder + 1,
+              createdAt: Date.now(),
+            },
+          ],
+        });
+      },
+
+      renameGroup: (id, name) => {
+        set({
+          groups: get().groups.map((g) =>
+            g.id === id ? { ...g, name } : g
+          ),
+        });
+      },
+
+      deleteGroup: (id) => {
         const { groups, memberships, stockMeta } = get();
-        if (groups.length === 0) return;
+        const removedTickers = new Set(
+          memberships.filter((m) => m.groupId === id).map((m) => m.ticker)
+        );
+        const nextMemberships = memberships.filter((m) => m.groupId !== id);
+        const nextStockMeta = { ...stockMeta };
+        for (const ticker of removedTickers) {
+          if (!nextMemberships.some((m) => m.ticker === ticker)) {
+            delete nextStockMeta[ticker];
+          }
+        }
+        set({
+          groups: groups.filter((g) => g.id !== id),
+          memberships: nextMemberships,
+          stockMeta: nextStockMeta,
+        });
+      },
 
-        const targetGroupId =
-          groupId ?? [...groups].sort((a, b) => a.order - b.order)[0].id;
+      moveGroup: (id, dir) => {
+        const { groups } = get();
+        const sorted = [...groups].sort((a, b) => a.order - b.order);
+        const idx = sorted.findIndex((g) => g.id === id);
+        if (idx === -1) return;
+        const swapIdx = dir === "up" ? idx - 1 : idx + 1;
+        if (swapIdx < 0 || swapIdx >= sorted.length) return;
+        const current = sorted[idx];
+        const neighbor = sorted[swapIdx];
+        set({
+          groups: groups.map((g) => {
+            if (g.id === current.id) return { ...g, order: neighbor.order };
+            if (g.id === neighbor.id) return { ...g, order: current.order };
+            return g;
+          }),
+        });
+      },
 
+      addMembership: (item, groupId) => {
+        const { memberships, stockMeta } = get();
         if (
           memberships.some(
-            (m) => m.groupId === targetGroupId && m.ticker === item.ticker
+            (m) => m.groupId === groupId && m.ticker === item.ticker
           )
         ) {
-          return;
+          return true;
         }
-
         const isNewTicker = !memberships.some((m) => m.ticker === item.ticker);
         if (isNewTicker) {
           const distinctCount = new Set(memberships.map((m) => m.ticker)).size;
-          if (distinctCount >= MAX_WATCHLIST_SIZE) return;
+          if (distinctCount >= MAX_WATCHLIST_SIZE) return false;
         }
-
         set({
           memberships: [
             ...memberships,
-            { groupId: targetGroupId, ticker: item.ticker, addedAt: Date.now() },
+            { groupId, ticker: item.ticker, addedAt: Date.now() },
           ],
           stockMeta: {
             ...stockMeta,
             [item.ticker]: { name: item.name, market: item.market },
           },
         });
+        return true;
+      },
+
+      removeMembership: (ticker, groupId) => {
+        const { memberships, stockMeta } = get();
+        const nextMemberships = memberships.filter(
+          (m) => !(m.groupId === groupId && m.ticker === ticker)
+        );
+        const nextStockMeta = { ...stockMeta };
+        if (!nextMemberships.some((m) => m.ticker === ticker)) {
+          delete nextStockMeta[ticker];
+        }
+        set({ memberships: nextMemberships, stockMeta: nextStockMeta });
+      },
+
+      addToWatchlist: (item, groupId) => {
+        const { groups } = get();
+        if (groups.length === 0) return;
+        const targetGroupId =
+          groupId ?? [...groups].sort((a, b) => a.order - b.order)[0].id;
+        get().addMembership(item, targetGroupId);
       },
 
       removeFromWatchlist: (ticker) => {
