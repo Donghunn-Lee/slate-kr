@@ -1,23 +1,27 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import {
+  addMembershipIn,
+  createGroupIn,
+  deleteGroupIn,
+  moveGroupIn,
+  removeMembershipIn,
+  renameGroupIn,
+} from "./watchlistSnapshot";
+import type {
+  Membership,
+  StockMeta,
+  WatchlistGroup,
+  WatchlistSnapshot,
+} from "./watchlistSnapshot";
 
-export type WatchlistGroup = {
-  id: string;
-  name: string;
-  order: number;
-  createdAt: number;
-};
-
-export type Membership = {
-  groupId: string;
-  ticker: string;
-  addedAt: number;
-};
-
-export type StockMeta = {
-  name: string;
-  market: "KOSPI" | "KOSDAQ";
-};
+export type {
+  Membership,
+  StockMeta,
+  WatchlistGroup,
+  WatchlistSnapshot,
+} from "./watchlistSnapshot";
+export { MAX_WATCHLIST_SIZE } from "./watchlistSnapshot";
 
 export type WatchlistItem = {
   ticker: string;
@@ -26,7 +30,6 @@ export type WatchlistItem = {
   addedAt: number;
 };
 
-export const MAX_WATCHLIST_SIZE = 100;
 const DEFAULT_GROUP_NAME = "내 관심 종목";
 
 type WatchlistState = {
@@ -55,11 +58,6 @@ type WatchlistState = {
   replaceAll: (snapshot: WatchlistSnapshot) => void;
 };
 
-export type WatchlistSnapshot = Pick<
-  WatchlistState,
-  "groups" | "memberships" | "stockMeta"
->;
-
 const createDefaultGroup = (): WatchlistGroup => ({
   id: crypto.randomUUID(),
   name: DEFAULT_GROUP_NAME,
@@ -74,107 +72,20 @@ export const useWatchlistStore = create<WatchlistState>()(
       memberships: [],
       stockMeta: {},
 
-      createGroup: (name) => {
-        const { groups } = get();
-        const maxOrder = groups.length === 0
-          ? -1
-          : Math.max(...groups.map((g) => g.order));
-        set({
-          groups: [
-            ...groups,
-            {
-              id: crypto.randomUUID(),
-              name,
-              order: maxOrder + 1,
-              createdAt: Date.now(),
-            },
-          ],
-        });
-      },
-
-      renameGroup: (id, name) => {
-        set({
-          groups: get().groups.map((g) =>
-            g.id === id ? { ...g, name } : g
-          ),
-        });
-      },
-
-      deleteGroup: (id) => {
-        const { groups, memberships, stockMeta } = get();
-        const removedTickers = new Set(
-          memberships.filter((m) => m.groupId === id).map((m) => m.ticker)
-        );
-        const nextMemberships = memberships.filter((m) => m.groupId !== id);
-        const nextStockMeta = { ...stockMeta };
-        for (const ticker of removedTickers) {
-          if (!nextMemberships.some((m) => m.ticker === ticker)) {
-            delete nextStockMeta[ticker];
-          }
-        }
-        set({
-          groups: groups.filter((g) => g.id !== id),
-          memberships: nextMemberships,
-          stockMeta: nextStockMeta,
-        });
-      },
-
-      moveGroup: (id, dir) => {
-        const { groups } = get();
-        const sorted = [...groups].sort((a, b) => a.order - b.order);
-        const idx = sorted.findIndex((g) => g.id === id);
-        if (idx === -1) return;
-        const swapIdx = dir === "up" ? idx - 1 : idx + 1;
-        if (swapIdx < 0 || swapIdx >= sorted.length) return;
-        const current = sorted[idx];
-        const neighbor = sorted[swapIdx];
-        set({
-          groups: groups.map((g) => {
-            if (g.id === current.id) return { ...g, order: neighbor.order };
-            if (g.id === neighbor.id) return { ...g, order: current.order };
-            return g;
-          }),
-        });
-      },
+      createGroup: (name) => set((s) => createGroupIn(s, name)),
+      renameGroup: (id, name) => set((s) => renameGroupIn(s, id, name)),
+      deleteGroup: (id) => set((s) => deleteGroupIn(s, id)),
+      moveGroup: (id, dir) => set((s) => moveGroupIn(s, id, dir)),
 
       addMembership: (item, groupId) => {
-        const { memberships, stockMeta } = get();
-        if (
-          memberships.some(
-            (m) => m.groupId === groupId && m.ticker === item.ticker
-          )
-        ) {
-          return true;
-        }
-        const isNewTicker = !memberships.some((m) => m.ticker === item.ticker);
-        if (isNewTicker) {
-          const distinctCount = new Set(memberships.map((m) => m.ticker)).size;
-          if (distinctCount >= MAX_WATCHLIST_SIZE) return false;
-        }
-        set({
-          memberships: [
-            ...memberships,
-            { groupId, ticker: item.ticker, addedAt: Date.now() },
-          ],
-          stockMeta: {
-            ...stockMeta,
-            [item.ticker]: { name: item.name, market: item.market },
-          },
-        });
+        const next = addMembershipIn(get(), item, groupId);
+        if (next === null) return false;
+        set(next);
         return true;
       },
 
-      removeMembership: (ticker, groupId) => {
-        const { memberships, stockMeta } = get();
-        const nextMemberships = memberships.filter(
-          (m) => !(m.groupId === groupId && m.ticker === ticker)
-        );
-        const nextStockMeta = { ...stockMeta };
-        if (!nextMemberships.some((m) => m.ticker === ticker)) {
-          delete nextStockMeta[ticker];
-        }
-        set({ memberships: nextMemberships, stockMeta: nextStockMeta });
-      },
+      removeMembership: (ticker, groupId) =>
+        set((s) => removeMembershipIn(s, ticker, groupId)),
 
       addToWatchlist: (item, groupId) => {
         const { groups } = get();
@@ -216,14 +127,7 @@ export const useWatchlistStore = create<WatchlistState>()(
       version: 1,
       migrate: (persistedState, version) => {
         if (version === 0) {
-          const old = persistedState as {
-            items?: Array<{
-              ticker: string;
-              name: string;
-              market: "KOSPI" | "KOSDAQ";
-              addedAt: number;
-            }>;
-          };
+          const old = persistedState as { items?: WatchlistItem[] };
           const items = old?.items ?? [];
           const defaultGroup = createDefaultGroup();
           const memberships: Membership[] = items.map((i) => ({
