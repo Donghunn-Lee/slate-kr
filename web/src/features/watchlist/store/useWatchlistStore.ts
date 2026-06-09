@@ -51,7 +51,14 @@ type WatchlistState = {
   ) => void;
   removeFromWatchlist: (ticker: string) => void;
   isInWatchlist: (ticker: string) => boolean;
+
+  replaceAll: (snapshot: WatchlistSnapshot) => void;
 };
+
+export type WatchlistSnapshot = Pick<
+  WatchlistState,
+  "groups" | "memberships" | "stockMeta"
+>;
 
 const createDefaultGroup = (): WatchlistGroup => ({
   id: crypto.randomUUID(),
@@ -187,6 +194,21 @@ export const useWatchlistStore = create<WatchlistState>()(
 
       isInWatchlist: (ticker) => {
         return get().memberships.some((m) => m.ticker === ticker);
+      },
+
+      replaceAll: (snapshot) => {
+        const liveTickers = new Set(snapshot.memberships.map((m) => m.ticker));
+        const gcedStockMeta: Record<string, StockMeta> = {};
+        for (const ticker of Object.keys(snapshot.stockMeta)) {
+          if (liveTickers.has(ticker)) {
+            gcedStockMeta[ticker] = snapshot.stockMeta[ticker];
+          }
+        }
+        set({
+          groups: snapshot.groups,
+          memberships: snapshot.memberships,
+          stockMeta: gcedStockMeta,
+        });
       },
     }),
     {
