@@ -5,6 +5,7 @@ import {
   createGroupIn,
   deleteGroupIn,
   moveGroupIn,
+  moveMembershipIn,
   removeMembershipIn,
   renameGroupIn,
 } from "./watchlistSnapshot";
@@ -47,6 +48,7 @@ type WatchlistState = {
     groupId: string
   ) => boolean;
   removeMembership: (ticker: string, groupId: string) => void;
+  moveMembership: (ticker: string, groupId: string, dir: "up" | "down") => void;
 
   addToWatchlist: (
     item: { ticker: string; name: string; market: "KOSPI" | "KOSDAQ" },
@@ -87,6 +89,9 @@ export const useWatchlistStore = create<WatchlistState>()(
       removeMembership: (ticker, groupId) =>
         set((s) => removeMembershipIn(s, ticker, groupId)),
 
+      moveMembership: (ticker, groupId, dir) =>
+        set((s) => moveMembershipIn(s, ticker, groupId, dir)),
+
       addToWatchlist: (item, groupId) => {
         const { groups } = get();
         if (groups.length === 0) return;
@@ -124,16 +129,19 @@ export const useWatchlistStore = create<WatchlistState>()(
     }),
     {
       name: "slatekr-watchlist",
-      version: 1,
+      version: 2,
       migrate: (persistedState, version) => {
         if (version === 0) {
           const old = persistedState as { items?: WatchlistItem[] };
-          const items = old?.items ?? [];
+          const items = [...(old?.items ?? [])].sort(
+            (a, b) => b.addedAt - a.addedAt
+          );
           const defaultGroup = createDefaultGroup();
-          const memberships: Membership[] = items.map((i) => ({
+          const memberships: Membership[] = items.map((i, idx) => ({
             groupId: defaultGroup.id,
             ticker: i.ticker,
             addedAt: i.addedAt,
+            order: idx,
           }));
           const stockMeta: Record<string, StockMeta> = {};
           for (const i of items) {
@@ -143,6 +151,35 @@ export const useWatchlistStore = create<WatchlistState>()(
             groups: [defaultGroup],
             memberships,
             stockMeta,
+          } as WatchlistState;
+        }
+        if (version === 1) {
+          const old = persistedState as {
+            groups: WatchlistGroup[];
+            memberships: Array<{
+              groupId: string;
+              ticker: string;
+              addedAt: number;
+            }>;
+            stockMeta: Record<string, StockMeta>;
+          };
+          const nextMemberships: Membership[] = [];
+          for (const g of old.groups) {
+            const inGroup = old.memberships
+              .filter((m) => m.groupId === g.id)
+              .sort((a, b) => b.addedAt - a.addedAt);
+            inGroup.forEach((m, idx) => {
+              nextMemberships.push({
+                groupId: m.groupId,
+                ticker: m.ticker,
+                addedAt: m.addedAt,
+                order: idx,
+              });
+            });
+          }
+          return {
+            ...old,
+            memberships: nextMemberships,
           } as WatchlistState;
         }
         return persistedState as WatchlistState;
@@ -157,7 +194,7 @@ export const selectTickersByGroup = (
 ): Membership[] => {
   return state.memberships
     .filter((m) => m.groupId === groupId)
-    .sort((a, b) => b.addedAt - a.addedAt);
+    .sort((a, b) => a.order - b.order);
 };
 
 export const selectGroupsByTicker = (

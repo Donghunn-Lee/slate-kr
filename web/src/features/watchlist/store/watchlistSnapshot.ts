@@ -9,6 +9,7 @@ export type Membership = {
   groupId: string;
   ticker: string;
   addedAt: number;
+  order: number;
 };
 
 export type StockMeta = {
@@ -113,16 +114,52 @@ export const addMembershipIn = (
     const distinctCount = new Set(s.memberships.map((m) => m.ticker)).size;
     if (distinctCount >= MAX_WATCHLIST_SIZE) return null;
   }
+  const groupMemberships = s.memberships.filter((m) => m.groupId === groupId);
+  const maxOrder =
+    groupMemberships.length === 0
+      ? -1
+      : Math.max(...groupMemberships.map((m) => m.order));
   return {
     ...s,
     memberships: [
       ...s.memberships,
-      { groupId, ticker: item.ticker, addedAt: Date.now() },
+      {
+        groupId,
+        ticker: item.ticker,
+        addedAt: Date.now(),
+        order: maxOrder + 1,
+      },
     ],
     stockMeta: {
       ...s.stockMeta,
       [item.ticker]: { name: item.name, market: item.market },
     },
+  };
+};
+
+export const moveMembershipIn = (
+  s: WatchlistSnapshot,
+  ticker: string,
+  groupId: string,
+  dir: "up" | "down"
+): WatchlistSnapshot => {
+  const inGroup = s.memberships
+    .filter((m) => m.groupId === groupId)
+    .sort((a, b) => a.order - b.order);
+  const idx = inGroup.findIndex((m) => m.ticker === ticker);
+  if (idx === -1) return s;
+  const swapIdx = dir === "up" ? idx - 1 : idx + 1;
+  if (swapIdx < 0 || swapIdx >= inGroup.length) return s;
+  const current = inGroup[idx];
+  const neighbor = inGroup[swapIdx];
+  return {
+    ...s,
+    memberships: s.memberships.map((m) => {
+      if (m.groupId !== groupId) return m;
+      if (m.ticker === current.ticker) return { ...m, order: neighbor.order };
+      if (m.ticker === neighbor.ticker) return { ...m, order: current.order };
+      return m;
+    }),
   };
 };
 

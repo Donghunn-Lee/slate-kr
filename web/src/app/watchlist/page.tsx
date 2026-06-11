@@ -2,10 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { useQueries } from "@tanstack/react-query";
+import { useShallow } from "zustand/react/shallow";
 import { Settings2 } from "lucide-react";
 import type { TickerPriceSummary } from "@/app/api/prices/route";
 import type { TickerDisclosureCount } from "@/app/api/disclosures/recent-count/route";
 import {
+  selectTickersByGroup,
   useWatchlistStore,
   type WatchlistItem,
 } from "@/features/watchlist/store/useWatchlistStore";
@@ -20,7 +22,6 @@ const RECENT_TAB = "recent" as const;
 
 const WatchlistPage = () => {
   const groups = useWatchlistStore((s) => s.groups);
-  const memberships = useWatchlistStore((s) => s.memberships);
   const stockMeta = useWatchlistStore((s) => s.stockMeta);
   const removeMembership = useWatchlistStore((s) => s.removeMembership);
   const recentVisited = useRecentVisitedStore((s) => s.items);
@@ -37,6 +38,12 @@ const WatchlistPage = () => {
     [isRecentTab, sortedGroups, selectedTab]
   );
 
+  const groupMemberships = useWatchlistStore(
+    useShallow((s) =>
+      isRecentTab ? [] : selectTickersByGroup(s, selectedTab)
+    )
+  );
+
   const displayItems = useMemo<WatchlistItem[]>(() => {
     if (isRecentTab) {
       return recentVisited.map((v, idx) => ({
@@ -46,16 +53,14 @@ const WatchlistPage = () => {
         addedAt: -idx,
       }));
     }
-    return memberships
-      .filter((m) => m.groupId === selectedTab)
-      .sort((a, b) => b.addedAt - a.addedAt)
+    return groupMemberships
       .map((m) => {
         const meta = stockMeta[m.ticker];
         if (!meta) return null;
         return { ticker: m.ticker, name: meta.name, market: meta.market, addedAt: m.addedAt };
       })
       .filter((x): x is WatchlistItem => x !== null);
-  }, [isRecentTab, recentVisited, memberships, stockMeta, selectedTab]);
+  }, [isRecentTab, recentVisited, groupMemberships, stockMeta]);
 
   const tickersKey = displayItems.map((i) => i.ticker).join(",");
 

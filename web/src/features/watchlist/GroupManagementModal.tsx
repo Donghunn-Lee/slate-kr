@@ -44,6 +44,7 @@ import {
   deleteGroupIn,
   MAX_WATCHLIST_SIZE,
   moveGroupIn,
+  moveMembershipIn,
   removeMembershipIn,
   renameGroupIn,
 } from "./store/watchlistSnapshot";
@@ -202,7 +203,7 @@ export const GroupManagementModal = ({
     if (!selectedGroup) return [];
     return local.memberships
       .filter((m) => m.groupId === selectedGroup.id)
-      .sort((a, b) => b.addedAt - a.addedAt)
+      .sort((a, b) => a.order - b.order)
       .map((m) => {
         const meta = local.stockMeta[m.ticker];
         if (!meta) return null;
@@ -282,6 +283,11 @@ export const GroupManagementModal = ({
 
   const handleRemoveMembership = (ticker: string, groupId: string) => {
     setLocal((prev) => removeMembershipIn(prev, ticker, groupId));
+  };
+
+  const handleMoveTicker = (ticker: string, dir: "up" | "down") => {
+    if (!selectedGroup) return;
+    setLocal((prev) => moveMembershipIn(prev, ticker, selectedGroup.id, dir));
   };
 
   const handleAdd = (item: SearchResultItem) => {
@@ -525,33 +531,62 @@ export const GroupManagementModal = ({
                       </p>
                     ) : (
                       <ul className="space-y-1" aria-label="그룹 내 종목">
-                        {selectedTickers.map((t) => (
-                          <li
-                            key={t.ticker}
-                            className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 hover:bg-muted/40"
-                          >
-                            <div className="flex min-w-0 items-center gap-2">
-                              <span className="truncate text-sm">{t.name}</span>
-                              <span className="font-mono text-xs text-muted-foreground">
-                                {t.ticker}
-                              </span>
-                              <span className="text-[10px] text-muted-foreground">
-                                {t.market}
-                              </span>
-                            </div>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={() =>
-                                handleRemoveMembership(t.ticker, selectedGroup.id)
-                              }
-                              aria-label={`${t.name} 제거`}
+                        {selectedTickers.map((t, idx) => {
+                          const canMoveUp = idx > 0;
+                          const canMoveDown = idx < selectedTickers.length - 1;
+                          return (
+                            <li
+                              key={t.ticker}
+                              className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 hover:bg-muted/40"
                             >
-                              <X />
-                            </Button>
-                          </li>
-                        ))}
+                              <div className="flex min-w-0 items-center gap-2">
+                                <span className="truncate text-sm">{t.name}</span>
+                                <span className="font-mono text-xs text-muted-foreground">
+                                  {t.ticker}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground">
+                                  {t.market}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <div
+                                  className="flex flex-col"
+                                  aria-label="종목 순서 변경"
+                                >
+                                  <button
+                                    type="button"
+                                    disabled={!canMoveUp}
+                                    onClick={() => handleMoveTicker(t.ticker, "up")}
+                                    aria-label="종목 순서 위로"
+                                    className="flex h-3.5 w-5 items-center justify-center text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30 disabled:hover:text-muted-foreground"
+                                  >
+                                    <ChevronUp className="size-3" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={!canMoveDown}
+                                    onClick={() => handleMoveTicker(t.ticker, "down")}
+                                    aria-label="종목 순서 아래로"
+                                    className="flex h-3.5 w-5 items-center justify-center text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30 disabled:hover:text-muted-foreground"
+                                  >
+                                    <ChevronDown className="size-3" />
+                                  </button>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  onClick={() =>
+                                    handleRemoveMembership(t.ticker, selectedGroup.id)
+                                  }
+                                  aria-label={`${t.name} 제거`}
+                                >
+                                  <X />
+                                </Button>
+                              </div>
+                            </li>
+                          );
+                        })}
                       </ul>
                     )}
                   </div>
