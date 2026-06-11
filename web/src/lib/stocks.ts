@@ -54,7 +54,7 @@ export const getAllTickers = async (): Promise<string[]> => {
 
 export const searchStocks = async (query: string): Promise<StockSummary[]> => {
   const [rows] = await pool.query<StockRow[]>(
-    "SELECT ticker, name, market, sector FROM stocks WHERE (name LIKE $1 OR ticker LIKE $2) AND is_active = true LIMIT 10",
+    "SELECT ticker, name, market, sector FROM stocks WHERE (name ILIKE $1 OR ticker ILIKE $2) AND is_active = true LIMIT 10",
     [`%${query}%`, `%${query}%`]
   );
 
