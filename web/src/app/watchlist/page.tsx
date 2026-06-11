@@ -31,16 +31,21 @@ const WatchlistPage = () => {
   const [selectedTab, setSelectedTab] = useState<string>(RECENT_TAB);
   const [modalOpen, setModalOpen] = useState(false);
 
-  const isRecentTab = selectedTab === RECENT_TAB;
+  const effectiveTab = useMemo(() => {
+    if (selectedTab === RECENT_TAB) return RECENT_TAB;
+    return sortedGroups.find((g) => g.id === selectedTab)?.id ?? RECENT_TAB;
+  }, [selectedTab, sortedGroups]);
+
+  const isRecentTab = effectiveTab === RECENT_TAB;
 
   const currentGroup = useMemo(
-    () => (isRecentTab ? null : (sortedGroups.find((g) => g.id === selectedTab) ?? null)),
-    [isRecentTab, sortedGroups, selectedTab]
+    () => (isRecentTab ? null : (sortedGroups.find((g) => g.id === effectiveTab) ?? null)),
+    [isRecentTab, sortedGroups, effectiveTab]
   );
 
   const groupMemberships = useWatchlistStore(
     useShallow((s) =>
-      isRecentTab ? [] : selectTickersByGroup(s, selectedTab)
+      isRecentTab ? [] : selectTickersByGroup(s, effectiveTab)
     )
   );
 
@@ -122,7 +127,7 @@ const WatchlistPage = () => {
             key={t.key}
             type="button"
             onClick={() => setSelectedTab(t.key)}
-            className={tabButtonClass(selectedTab === t.key, "horizontal")}
+            className={tabButtonClass(effectiveTab === t.key, "horizontal")}
           >
             {t.label}
           </button>
@@ -137,7 +142,7 @@ const WatchlistPage = () => {
                 <button
                   type="button"
                   onClick={() => setSelectedTab(t.key)}
-                  className={tabButtonClass(selectedTab === t.key, "vertical")}
+                  className={tabButtonClass(effectiveTab === t.key, "vertical")}
                 >
                   {t.label}
                 </button>
@@ -200,7 +205,7 @@ const WatchlistPage = () => {
       <GroupManagementModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        initialGroupId={isRecentTab ? null : selectedTab}
+        initialGroupId={isRecentTab ? null : effectiveTab}
       />
     </main>
   );
