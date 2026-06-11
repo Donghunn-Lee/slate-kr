@@ -138,6 +138,7 @@ export const GroupManagementModal = ({
 
   const [query, setQuery] = useState("");
   const [searchDismissed, setSearchDismissed] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const {
     results: searchResults,
     isLoading: searchLoading,
@@ -164,12 +165,17 @@ export const GroupManagementModal = ({
       setShowLeaveConfirm(false);
       setQuery("");
       setSearchDismissed(false);
+      setActiveIndex(-1);
     }
   }
 
   useEffect(() => {
     if (searchError) toast.error(searchError);
   }, [searchError]);
+
+  useEffect(() => {
+    setActiveIndex(-1);
+  }, [searchResults]);
 
   useEffect(() => {
     const onMouseDown = (e: MouseEvent) => {
@@ -312,11 +318,37 @@ export const GroupManagementModal = ({
     setLocal(next);
   };
 
+  const findNextEnabled = (from: number, dir: 1 | -1): number => {
+    let i = from + dir;
+    while (i >= 0 && i < searchResults.length) {
+      if (!isAddedToSelected(searchResults[i].ticker)) return i;
+      i += dir;
+    }
+    return from;
+  };
+
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Escape" && showDropdown) {
       e.preventDefault();
       e.stopPropagation();
       setSearchDismissed(true);
+      setActiveIndex(-1);
+      return;
+    }
+    if (!showDropdown || searchResults.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((prev) => findNextEnabled(prev, 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((prev) => findNextEnabled(prev, -1));
+    } else if (e.key === "Enter") {
+      if (activeIndex < 0) return;
+      const target = searchResults[activeIndex];
+      if (!target) return;
+      if (isAddedToSelected(target.ticker)) return;
+      e.preventDefault();
+      handleAdd(target);
     }
   };
 
@@ -476,10 +508,16 @@ export const GroupManagementModal = ({
                             role="listbox"
                             aria-label="종목 검색 결과"
                           >
-                            {searchResults.map((r) => {
+                            {searchResults.map((r, index) => {
                               const added = isAddedToSelected(r.ticker);
+                              const active = index === activeIndex;
                               return (
-                                <li key={r.ticker}>
+                                <li
+                                  key={r.ticker}
+                                  role="option"
+                                  aria-selected={active}
+                                  aria-disabled={added}
+                                >
                                   <button
                                     type="button"
                                     disabled={added}
@@ -488,11 +526,16 @@ export const GroupManagementModal = ({
                                       e.preventDefault();
                                       handleAdd(r);
                                     }}
+                                    onMouseEnter={() => setActiveIndex(index)}
                                     className={cn(
                                       "flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors",
                                       added
-                                        ? "cursor-not-allowed text-muted-foreground"
-                                        : "hover:bg-accent"
+                                        ? active
+                                          ? "bg-muted/60 text-muted-foreground"
+                                          : "bg-muted/40 text-muted-foreground"
+                                        : active
+                                          ? "bg-accent"
+                                          : "hover:bg-accent"
                                     )}
                                   >
                                     <div className="flex min-w-0 items-center gap-2">
