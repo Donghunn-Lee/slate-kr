@@ -98,8 +98,8 @@ const DisclosureItem = ({
       className={cn(
         "group -mx-6 px-6",
         isExpanded
-          ? "bg-amber-border"
-          : "bg-transparent transition-colors hover:bg-amber-border/40",
+          ? "bg-sky-border"
+          : "bg-transparent transition-colors hover:bg-sky-border/40",
         dimmed && "opacity-50"
       )}
       style={{
@@ -108,7 +108,7 @@ const DisclosureItem = ({
           : "opacity var(--duration-base, 250ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1)), background-color var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1))",
       }}
     >
-      <div className={cn(GRID_COLS, "border-b border-amber-border/30 py-3 group-last:border-b-0")}>
+      <div className={cn(GRID_COLS, "border-b border-sky-border/30 py-3 group-last:border-b-0")}>
         <div className="text-center">{type && <CheckpointBadge type={type} />}</div>
         <div className="truncate text-xs text-muted-foreground">{disclosure.corpName}</div>
         <a
@@ -134,10 +134,10 @@ const DisclosureItem = ({
         <button
           type="button"
           className={cn(
-            "w-full rounded border border-amber-border bg-elevated px-2 py-0.5 text-[11px] font-medium whitespace-nowrap cursor-pointer",
+            "w-full rounded border border-sky-border bg-elevated px-2 py-0.5 text-[11px] font-medium whitespace-nowrap cursor-pointer",
             isExpanded
               ? "text-muted-foreground hover:text-foreground"
-              : "text-amber-accent hover:bg-amber-bg"
+              : "text-sky-accent hover:bg-sky-bg"
           )}
           style={{
             transition:
@@ -254,7 +254,7 @@ export const DisclosuresSection = ({
 
   return (
     <>
-      <header className="-mx-6 mb-3 border-amber-border/50 px-6 pb-4">
+      <header className="-mx-6 mb-3 border-sky-border/50 px-6 pb-4">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold">공시 목록</h2>
           {!noApiKey && !hasError && totalCount > 0 && (
@@ -284,7 +284,7 @@ export const DisclosuresSection = ({
           <div
             className={cn(
               GRID_COLS,
-              "border-b border-amber-border/50 pt-1 pb-2 text-center text-[11px] font-medium text-muted-foreground"
+              "border-b border-sky-border/50 pt-1 pb-2 text-center text-[11px] font-medium text-muted-foreground"
             )}
           >
             <div>유형</div>
@@ -310,7 +310,7 @@ export const DisclosuresSection = ({
       )}
 
       {showFooter && (
-        <footer className="mt-3 flex flex-col items-end gap-2 border-t border-amber-border/50 pt-3">
+        <footer className="mt-3 flex flex-col items-end gap-2 border-t border-sky-border/50 pt-3">
           <DisclosurePagination
             ticker={ticker}
             currentPage={currentPage}

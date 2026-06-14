@@ -193,7 +193,7 @@ export const DisclosureFilters = ({
               key={opt.value}
               value={opt.value}
               aria-label={opt.label}
-              className="border-amber-border bg-transparent text-secondary-foreground hover:bg-amber-border/40 hover:text-foreground data-[state=on]:bg-elevated data-[state=on]:text-foreground"
+              className="border-sky-border bg-transparent text-secondary-foreground hover:bg-sky-border/40 hover:text-foreground data-[state=on]:bg-elevated data-[state=on]:text-foreground"
             >
               {opt.label}
             </ToggleGroupItem>
@@ -232,7 +232,7 @@ export const DisclosureFilters = ({
           placeholder="공시 제목 검색"
           value={queryInput}
           onChange={(e) => handleQueryChange(e.target.value)}
-          className="h-8 border-amber-border bg-elevated/80 pl-8 sm:w-56"
+          className="h-8 border-sky-border bg-elevated/80 pl-8 sm:w-56"
         />
       </div>
     </div>
@@ -294,14 +294,14 @@ const DatePickerPopover = ({ label, value, min, max, onSelect }: DatePickerPopov
         maxLength={10}
         aria-label={label}
         inputMode="numeric"
-        className="h-8 w-32 border-amber-border bg-elevated/80 pr-7 text-xs font-normal"
+        className="h-8 w-32 border-sky-border bg-elevated/80 pr-7 text-xs font-normal"
       />
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button
             type="button"
             aria-label={`${label} 달력 열기`}
-            className="absolute right-1 top-1/2 flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-amber-border/40 hover:text-foreground"
+            className="absolute right-1 top-1/2 flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-sky-border/40 hover:text-foreground"
           >
             <CalendarIcon className="size-3.5" />
           </button>

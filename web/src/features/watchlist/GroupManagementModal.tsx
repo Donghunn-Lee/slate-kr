@@ -384,7 +384,7 @@ export const GroupManagementModal = ({
                       <div
                         className={cn(
                           "flex items-center gap-1 rounded-md px-2 py-1 transition-colors",
-                          isSelected ? "bg-peach-bg" : "hover:bg-muted/40"
+                          isSelected ? "bg-muted" : "hover:bg-muted/40"
                         )}
                       >
                         {isRenaming ? (

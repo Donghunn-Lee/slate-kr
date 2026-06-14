@@ -43,5 +43,5 @@ export const StockFinancials = async ({ ticker, viewAllHref, compact }: StockFin
     />
   );
 
-  return compact ? <StockPanel variant="sage">{content}</StockPanel> : content;
+  return compact ? <StockPanel variant="amber">{content}</StockPanel> : content;
 };

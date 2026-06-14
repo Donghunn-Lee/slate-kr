@@ -95,7 +95,7 @@ const FinancialsTable = ({ periods, mode, compact }: FinancialsTableProps) => {
         <thead>
           <tr className="border-b">
             <th
-              className={`sticky left-0 z-10 bg-sage-bg ${compact ? "pb-1 pr-3" : "pb-2 pr-4"} text-left text-xs font-medium text-muted-foreground`}
+              className={`sticky left-0 z-10 bg-amber-bg ${compact ? "pb-1 pr-3" : "pb-2 pr-4"} text-left text-xs font-medium text-muted-foreground`}
             >
               지표
             </th>
@@ -113,7 +113,7 @@ const FinancialsTable = ({ periods, mode, compact }: FinancialsTableProps) => {
           {rows.map((row) => (
             <tr key={row.label} className="border-b last:border-0">
               <td
-                className={`sticky left-0 z-10 bg-sage-bg border-r border-sage-border ${compact ? "py-1.5 pr-3 text-xs" : "py-3 pr-4 text-sm"} font-medium whitespace-nowrap`}
+                className={`sticky left-0 z-10 bg-amber-bg border-r border-amber-border ${compact ? "py-1.5 pr-3 text-xs" : "py-3 pr-4 text-sm"} font-medium whitespace-nowrap`}
               >
                 {row.label}
               </td>

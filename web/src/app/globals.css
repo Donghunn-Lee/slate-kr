@@ -110,7 +110,7 @@
   /* ── Disclosure category tokens (5 types × bg / text) ── */
   --disclosure-major-event-bg: oklch(0.96 0.04 25); /* light warm red */
   --disclosure-major-event-text: oklch(0.5 0.2 25);
-  --disclosure-financial-bg: oklch(0.96 0.03 260); /* light blue */
+  --disclosure-financial-bg: oklch(0.92 0.05 260); /* light blue */
   --disclosure-financial-text: oklch(0.48 0.18 260);
   --disclosure-ownership-bg: oklch(0.96 0.04 305); /* light purple */
   --disclosure-ownership-text: oklch(0.5 0.17 305);

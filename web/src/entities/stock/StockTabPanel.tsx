@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-type TabAccent = "neutral" | "lavender" | "sage" | "amber";
+type TabAccent = "neutral" | "lavender" | "amber" | "sky";
 
 type TabDef = {
   hrefSuffix: string;
@@ -16,15 +16,15 @@ type TabDef = {
 const TABS = [
   { hrefSuffix: "", label: "종합정보", accent: "neutral" },
   { hrefSuffix: "/chart", label: "차트", accent: "lavender" },
-  { hrefSuffix: "/financials", label: "재무", accent: "sage" },
-  { hrefSuffix: "/disclosures", label: "공시", accent: "amber" },
+  { hrefSuffix: "/financials", label: "재무", accent: "amber" },
+  { hrefSuffix: "/disclosures", label: "공시", accent: "sky" },
 ] as const satisfies readonly TabDef[];
 
 const ACCENT_CLASSES: Record<TabAccent, string> = {
   neutral: "bg-elevated border-subtle",
   lavender: "bg-lavender-bg border-lavender-border",
-  sage: "bg-sage-bg border-sage-border",
   amber: "bg-amber-bg border-amber-border",
+  sky: "bg-sky-bg border-sky-border",
 };
 
 type StockTabPanelProps = {

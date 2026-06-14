@@ -14,7 +14,7 @@ const VARIANTS: PanelVariant[] = [
     border: "border-subtle",
     dot: "bg-muted",
     codeBg: "bg-subtle",
-    label: "기본 패널 — bg-elevated + border-subtle",
+    label: "기본 패널 — 관심종목·무채색 섹션",
   },
   {
     name: "Sky",
@@ -22,7 +22,7 @@ const VARIANTS: PanelVariant[] = [
     border: "border-sky-border",
     dot: "bg-sky-accent",
     codeBg: "bg-sky-border",
-    label: "하늘색 강조 — 차트·가격 섹션",
+    label: "하늘색 강조 — 공시 섹션",
   },
   {
     name: "Sage",
@@ -30,7 +30,7 @@ const VARIANTS: PanelVariant[] = [
     border: "border-sage-border",
     dot: "bg-sage-accent",
     codeBg: "bg-sage-border",
-    label: "민트/세이지 — 재무·안전성 섹션",
+    label: "민트/세이지 — 가격 통계 섹션",
   },
   {
     name: "Amber",
@@ -38,7 +38,7 @@ const VARIANTS: PanelVariant[] = [
     border: "border-amber-border",
     dot: "bg-amber-accent",
     codeBg: "bg-amber-border",
-    label: "앰버 — 공시·주의 섹션",
+    label: "앰버 — 재무 요약 섹션",
   },
   {
     name: "Lavender",
@@ -54,7 +54,7 @@ const VARIANTS: PanelVariant[] = [
     border: "border-peach-border",
     dot: "bg-peach-accent",
     codeBg: "bg-peach-border",
-    label: "피치 — 알림·이벤트 섹션",
+    label: "피치 — 핵심 지표 섹션",
   },
 ];
 

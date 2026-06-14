@@ -24,7 +24,7 @@ export const PriceStatsCard = ({ stats }: PriceStatsCardProps) => {
   const isEmpty = range52w === null && returns.every((r) => r.value === null);
 
   return (
-    <StockPanel variant="sky">
+    <StockPanel variant="sage">
       <h2 className="mb-3 text-sm font-semibold text-muted-foreground">가격 통계</h2>
       {isEmpty ? (
         <p className="text-sm text-muted-foreground">가격 통계 데이터 없음</p>
@@ -38,9 +38,9 @@ export const PriceStatsCard = ({ stats }: PriceStatsCardProps) => {
               </div>
               <div className="space-y-1.5">
                 <div className="relative py-1.5">
-                  <div className="h-1.5 rounded-full bg-sky-border" />
+                  <div className="h-1.5 rounded-full bg-sage-border" />
                   <div
-                    className="absolute top-1/2 h-4 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-sm bg-sky-accent"
+                    className="absolute top-1/2 h-4 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-sm bg-sage-accent"
                     style={{ left: `${range52w.position * 100}%` }}
                   />
                 </div>

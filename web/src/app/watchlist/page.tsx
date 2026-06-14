@@ -111,7 +111,7 @@ const WatchlistPage = () => {
       "whitespace-nowrap rounded-md text-sm transition-colors",
       layout === "horizontal" ? "px-3 py-1.5" : "block w-full px-3 py-2 text-left",
       selected
-        ? "bg-peach-bg font-medium text-foreground"
+        ? "bg-muted font-medium text-foreground"
         : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
     );
 
@@ -179,7 +179,7 @@ const WatchlistPage = () => {
               관심종목 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
             </p>
           ) : (
-            <StockPanel variant="peach">
+            <StockPanel variant="plain">
               <ul>
                 {pricesQuery.isLoading
                   ? displayItems.map((item) => <WatchlistRowSkeleton key={item.ticker} />)

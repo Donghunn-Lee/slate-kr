@@ -34,7 +34,7 @@ export const StockDisclosuresPreview = async ({ ticker }: StockDisclosuresPrevie
   }
 
   return (
-    <StockPanel variant="amber">
+    <StockPanel variant="sky">
       <div className="mb-3 flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold text-muted-foreground">최근 공시</h2>
         <div className="relative">
@@ -64,7 +64,7 @@ export const StockDisclosuresPreview = async ({ ticker }: StockDisclosuresPrevie
             return (
               <li
                 key={d.rcpNo}
-                className="-mx-6 border-b border-amber-border px-6 py-2 last:border-0"
+                className="-mx-6 border-b border-sky-border px-6 py-2 last:border-0"
               >
                 <div className="flex items-start justify-between gap-2">
                   <a

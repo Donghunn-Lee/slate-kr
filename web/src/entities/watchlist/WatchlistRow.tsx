@@ -38,8 +38,8 @@ export const WatchlistRow = ({ item, price, disclosure, onRemove }: WatchlistRow
   };
 
   return (
-    <li className="group relative -mx-6 bg-transparent px-6 transition-colors hover:bg-peach-border/40">
-      <div className="border-b border-peach-border/60 py-3 group-last:border-b-0">
+    <li className="group relative -mx-6 bg-transparent px-6 transition-colors hover:bg-muted/40">
+      <div className="border-b border-subtle py-3 group-last:border-b-0">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-baseline gap-2">
             <span className="truncate text-base font-semibold text-foreground">{item.name}</span>
@@ -52,7 +52,7 @@ export const WatchlistRow = ({ item, price, disclosure, onRemove }: WatchlistRow
               type="button"
               onClick={handleRemove}
               aria-label={`${item.name} 관심종목 해제`}
-              className="relative z-10 -mr-2 shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-peach-border hover:text-foreground"
+              className="relative z-10 -mr-2 shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <Trash2 className="h-4 w-4" />
             </button>
@@ -83,7 +83,7 @@ export const WatchlistRow = ({ item, price, disclosure, onRemove }: WatchlistRow
           {disclosure?.count != null && disclosure.count > 0 && (
             <div className="flex items-baseline gap-1.5 text-xs">
               <span className="text-muted-foreground">신규 공시</span>
-              <span className="font-medium tabular-nums text-peach-accent">
+              <span className="font-medium tabular-nums text-amber-accent">
                 {disclosure.count}건
               </span>
             </div>
@@ -102,7 +102,7 @@ export const WatchlistRow = ({ item, price, disclosure, onRemove }: WatchlistRow
 
 export const WatchlistRowSkeleton = () => (
   <li className="group -mx-6 animate-pulse px-6">
-    <div className="border-b border-peach-border/60 py-3 group-last:border-b-0">
+    <div className="border-b border-subtle py-3 group-last:border-b-0">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-baseline gap-2">
           <div className="h-5 w-24 rounded bg-muted" />
