@@ -17,15 +17,17 @@ type SearchInputProps = {
 export const SearchInput = ({ value, onChange, onSelect, disabled }: SearchInputProps) => {
   const router = useRouter();
   const { results, isLoading, error } = useStockSearch(value);
-  const [isOpen, setIsOpen] = useState(false);
+  const [closedByUser, setClosedByUser] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+
+  const isOpen = !closedByUser && !error && (isLoading || results.length > 0);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
+        setClosedByUser(true);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -33,26 +35,17 @@ export const SearchInput = ({ value, onChange, onSelect, disabled }: SearchInput
   }, []);
 
   useEffect(() => {
-    if (isLoading) setIsOpen(true);
-  }, [isLoading]);
-
-  useEffect(() => {
-    if (error) {
-      setIsOpen(false);
-      toast.error(error);
-    }
+    if (error) toast.error(error);
   }, [error]);
 
   const handleChange = (newValue: string) => {
     onChange(newValue);
     setActiveIndex(-1);
-    if (newValue.trim() === "") {
-      setIsOpen(false);
-    }
+    setClosedByUser(false);
   };
 
   const handleSelect = (ticker: string, name: string) => {
-    setIsOpen(false);
+    setClosedByUser(true);
     setActiveIndex(-1);
     onSelect?.(ticker, name);
     router.push(`/stocks/${ticker}`);
@@ -84,12 +77,12 @@ export const SearchInput = ({ value, onChange, onSelect, disabled }: SearchInput
         if (activeIndex >= 0 && results[activeIndex]) {
           handleSelect(results[activeIndex].ticker, results[activeIndex].name);
         } else {
-          setIsOpen(false);
+          setClosedByUser(true);
           handleSearchNavigate();
         }
         break;
       case "Escape":
-        setIsOpen(false);
+        setClosedByUser(true);
         setActiveIndex(-1);
         break;
     }

@@ -49,7 +49,6 @@ export function WatchlistPreview() {
 
   useEffect(() => {
     if (tickersKey.length === 0) return;
-    setFetchError(false);
     fetch(`/api/prices?tickers=${tickersKey}`)
       .then((r) => {
         if (!r.ok) throw new Error("fetch failed");
@@ -57,6 +56,7 @@ export function WatchlistPreview() {
       })
       .then((data: TickerPriceSummary[]) => {
         setPrices(Object.fromEntries(data.map((d) => [d.ticker, d])));
+        setFetchError(false);
       })
       .catch(() => {
         setFetchError(true);
