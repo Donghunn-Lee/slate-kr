@@ -205,6 +205,16 @@ export const GroupManagementModal = ({
     [sortedGroups, selectedId]
   );
 
+  const selectedIndex = useMemo(
+    () => sortedGroups.findIndex((g) => g.id === selectedId),
+    [sortedGroups, selectedId]
+  );
+  const canMoveSelectedUp = selectedIndex > 0;
+  const canMoveSelectedDown =
+    selectedIndex >= 0 && selectedIndex < sortedGroups.length - 1;
+  const isRenamingSelected =
+    !!selectedGroup && renamingId === selectedGroup.id;
+
   const selectedTickers = useMemo(() => {
     if (!selectedGroup) return [];
     return local.memberships
@@ -265,7 +275,9 @@ export const GroupManagementModal = ({
   const performDelete = (id: string) => {
     const sorted = [...local.groups].sort((a, b) => a.order - b.order);
     const idx = sorted.findIndex((g) => g.id === id);
-    const replacement = sorted[idx + 1] ?? sorted[idx - 1] ?? null;
+    const remaining = sorted.filter((g) => g.id !== id);
+    const replacement =
+      remaining.length === 0 ? null : remaining[Math.max(0, idx - 1)];
     setLocal((prev) => deleteGroupIn(prev, id));
     if (selectedId === id) {
       setSelectedId(replacement?.id ?? null);
@@ -360,7 +372,7 @@ export const GroupManagementModal = ({
           if (!next) requestClose();
         }}
       >
-        <DialogContent className="flex h-[680px] max-h-[90dvh] flex-col sm:max-w-2xl">
+        <DialogContent className="flex h-[85dvh] max-h-[90dvh] flex-col sm:h-[680px] sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>관심종목 그룹 관리</DialogTitle>
             <DialogDescription>
@@ -368,84 +380,26 @@ export const GroupManagementModal = ({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid min-h-0 flex-1 gap-4 md:grid-cols-[14rem_1fr]">
+          <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto md:grid-cols-[14rem_1fr] md:overflow-visible">
             <div className="flex min-h-0 flex-col gap-1">
               <ul
-                className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1"
+                className="min-h-0 flex-1 space-y-1 pr-1 md:overflow-y-auto"
                 aria-label="관심종목 그룹 목록"
               >
-                {sortedGroups.map((g, idx) => {
+                {sortedGroups.map((g) => {
                   const isSelected = g.id === selectedId;
-                  const canMoveUp = idx > 0;
-                  const canMoveDown = idx < sortedGroups.length - 1;
-                  const isRenaming = renamingId === g.id;
                   return (
                     <li key={g.id}>
-                      <div
+                      <button
+                        type="button"
+                        onClick={() => setSelectedId(g.id)}
                         className={cn(
-                          "flex items-center gap-1 rounded-md px-2 py-1 transition-colors",
+                          "block w-full truncate rounded-md px-2 py-1.5 text-left text-sm transition-colors",
                           isSelected ? "bg-muted" : "hover:bg-muted/40"
                         )}
                       >
-                        {isRenaming ? (
-                          <GroupNameInline
-                            initial={g.name}
-                            onSubmit={(name) => handleRename(g.id, name)}
-                            onCancel={() => setRenamingId(null)}
-                            ariaLabel="그룹 이름 변경"
-                            className="flex-1"
-                          />
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setSelectedId(g.id)}
-                            className="flex-1 truncate text-left text-sm"
-                          >
-                            {g.name}
-                          </button>
-                        )}
-                        <div
-                          className="flex flex-col"
-                          aria-label="그룹 순서 변경"
-                        >
-                          <button
-                            type="button"
-                            disabled={!canMoveUp}
-                            onClick={() => handleMove(g.id, "up")}
-                            aria-label="그룹 순서 위로"
-                            className="flex h-6 w-7 items-center justify-center text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30 disabled:hover:text-muted-foreground"
-                          >
-                            <ChevronUp className="size-3" />
-                          </button>
-                          <button
-                            type="button"
-                            disabled={!canMoveDown}
-                            onClick={() => handleMove(g.id, "down")}
-                            aria-label="그룹 순서 아래로"
-                            className="flex h-6 w-7 items-center justify-center text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30 disabled:hover:text-muted-foreground"
-                          >
-                            <ChevronDown className="size-3" />
-                          </button>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => setRenamingId(g.id)}
-                          aria-label="그룹 이름 변경"
-                        >
-                          <Pencil />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => handleDeleteRequest(g)}
-                          aria-label="그룹 삭제"
-                        >
-                          <Trash2 />
-                        </Button>
-                      </div>
+                        {g.name}
+                      </button>
                     </li>
                   );
                 })}
@@ -471,13 +425,86 @@ export const GroupManagementModal = ({
             </div>
 
             <div className="flex min-h-0 min-w-0 flex-col rounded-md border border-subtle bg-background p-3">
+              <div className="flex shrink-0 items-center gap-2 border-b border-subtle pb-3">
+                <div className="min-w-0 flex-1">
+                  {isRenamingSelected && selectedGroup ? (
+                    <GroupNameInline
+                      initial={selectedGroup.name}
+                      onSubmit={(name) => handleRename(selectedGroup.id, name)}
+                      onCancel={() => setRenamingId(null)}
+                      ariaLabel="그룹 이름 변경"
+                    />
+                  ) : selectedGroup ? (
+                    <div className="truncate text-sm font-medium">
+                      {selectedGroup.name}
+                    </div>
+                  ) : (
+                    <div className="truncate text-sm text-muted-foreground">
+                      관심 그룹 선택
+                    </div>
+                  )}
+                </div>
+                <div className="flex shrink-0 items-center gap-1">
+                  <div className="flex items-center" aria-label="그룹 순서 변경">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      disabled={!selectedGroup || !canMoveSelectedUp}
+                      onClick={() =>
+                        selectedGroup && handleMove(selectedGroup.id, "up")
+                      }
+                      aria-label="그룹 순서 위로"
+                    >
+                      <ChevronUp />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      disabled={!selectedGroup || !canMoveSelectedDown}
+                      onClick={() =>
+                        selectedGroup && handleMove(selectedGroup.id, "down")
+                      }
+                      aria-label="그룹 순서 아래로"
+                    >
+                      <ChevronDown />
+                    </Button>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={!selectedGroup}
+                    onClick={() =>
+                      selectedGroup && setRenamingId(selectedGroup.id)
+                    }
+                    aria-label="그룹 이름 변경"
+                  >
+                    <Pencil />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={!selectedGroup}
+                    onClick={() =>
+                      selectedGroup && handleDeleteRequest(selectedGroup)
+                    }
+                    aria-label="그룹 삭제"
+                  >
+                    <Trash2 />
+                  </Button>
+                </div>
+              </div>
+
               {!selectedGroup ? (
-                <p className="text-sm text-muted-foreground">
+                <p className="mt-3 text-sm text-muted-foreground">
                   왼쪽에서 그룹을 선택하거나 새로 만드세요.
                 </p>
               ) : (
                 <>
-                  <div ref={searchWrapperRef} className="relative shrink-0">
+                  <div ref={searchWrapperRef} className="relative mt-3 shrink-0">
                     <Input
                       type="text"
                       placeholder="종목명 또는 종목코드 검색"
@@ -565,9 +592,9 @@ export const GroupManagementModal = ({
                   </div>
 
                   <div className="mt-3 shrink-0 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                    이 그룹의 종목
+                    목록
                   </div>
-                  <div className="mt-2 min-h-0 flex-1 overflow-y-auto">
+                  <div className="mt-2 min-h-0 flex-1 md:overflow-y-auto">
                     {selectedTickers.length === 0 ? (
                       <p className="text-sm text-muted-foreground">
                         이 그룹에 종목이 없습니다.
@@ -593,7 +620,7 @@ export const GroupManagementModal = ({
                               </div>
                               <div className="flex items-center gap-1">
                                 <div
-                                  className="flex flex-col"
+                                  className="flex items-center"
                                   aria-label="종목 순서 변경"
                                 >
                                   <button
