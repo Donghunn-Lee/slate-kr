@@ -41,7 +41,7 @@ const HomePage = () => {
               <button
                 onClick={() => removeRecent(s.ticker)}
                 aria-label={`${s.name} 최근 조회 삭제`}
-                className="transition-colors hover:text-foreground"
+                className="-my-1 -mr-1 p-1 transition-colors hover:text-foreground"
               >
                 <X className="h-3 w-3" />
               </button>

@@ -52,7 +52,7 @@ export const WatchlistRow = ({ item, price, disclosure, onRemove }: WatchlistRow
               type="button"
               onClick={handleRemove}
               aria-label={`${item.name} 관심종목 해제`}
-              className="relative z-10 -mr-2 shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="relative z-10 -mr-2.5 shrink-0 rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <Trash2 className="h-4 w-4" />
             </button>

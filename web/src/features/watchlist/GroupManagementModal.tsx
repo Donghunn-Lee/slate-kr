@@ -413,7 +413,7 @@ export const GroupManagementModal = ({
                             disabled={!canMoveUp}
                             onClick={() => handleMove(g.id, "up")}
                             aria-label="그룹 순서 위로"
-                            className="flex h-3.5 w-5 items-center justify-center text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30 disabled:hover:text-muted-foreground"
+                            className="flex h-6 w-7 items-center justify-center text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30 disabled:hover:text-muted-foreground"
                           >
                             <ChevronUp className="size-3" />
                           </button>
@@ -422,7 +422,7 @@ export const GroupManagementModal = ({
                             disabled={!canMoveDown}
                             onClick={() => handleMove(g.id, "down")}
                             aria-label="그룹 순서 아래로"
-                            className="flex h-3.5 w-5 items-center justify-center text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30 disabled:hover:text-muted-foreground"
+                            className="flex h-6 w-7 items-center justify-center text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30 disabled:hover:text-muted-foreground"
                           >
                             <ChevronDown className="size-3" />
                           </button>
@@ -601,7 +601,7 @@ export const GroupManagementModal = ({
                                     disabled={!canMoveUp}
                                     onClick={() => handleMoveTicker(t.ticker, "up")}
                                     aria-label="종목 순서 위로"
-                                    className="flex h-3.5 w-5 items-center justify-center text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30 disabled:hover:text-muted-foreground"
+                                    className="flex h-6 w-7 items-center justify-center text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30 disabled:hover:text-muted-foreground"
                                   >
                                     <ChevronUp className="size-3" />
                                   </button>
@@ -610,7 +610,7 @@ export const GroupManagementModal = ({
                                     disabled={!canMoveDown}
                                     onClick={() => handleMoveTicker(t.ticker, "down")}
                                     aria-label="종목 순서 아래로"
-                                    className="flex h-3.5 w-5 items-center justify-center text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30 disabled:hover:text-muted-foreground"
+                                    className="flex h-6 w-7 items-center justify-center text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30 disabled:hover:text-muted-foreground"
                                   >
                                     <ChevronDown className="size-3" />
                                   </button>
