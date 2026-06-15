@@ -91,13 +91,13 @@ export function WatchlistPreview() {
                     i === 0 ? "pb-3" : i === preview.length - 1 ? "pt-3" : "py-3"
                   }`}
                 >
-                  <div>
-                    <p className="text-sm font-medium">{item.name}</p>
-                    <p className="mt-0.5 font-mono text-xs text-muted-foreground">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{item.name}</p>
+                    <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
                       {item.ticker} · {item.market}
                     </p>
                   </div>
-                  <div className="text-right">
+                  <div className="shrink-0 text-right">
                     {p ? (
                       <>
                         <p className="text-sm font-semibold tabular-nums">

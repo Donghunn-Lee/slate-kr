@@ -542,10 +542,10 @@ export const GroupManagementModal = ({
                                       <span className="truncate font-medium">
                                         {r.name}
                                       </span>
-                                      <span className="font-mono text-xs text-muted-foreground">
+                                      <span className="shrink-0 font-mono text-xs text-muted-foreground">
                                         {r.ticker}
                                       </span>
-                                      <span className="text-[10px] text-muted-foreground">
+                                      <span className="shrink-0 text-[10px] text-muted-foreground">
                                         {r.market}
                                       </span>
                                     </div>
@@ -584,10 +584,10 @@ export const GroupManagementModal = ({
                             >
                               <div className="flex min-w-0 items-center gap-2">
                                 <span className="truncate text-sm">{t.name}</span>
-                                <span className="font-mono text-xs text-muted-foreground">
+                                <span className="shrink-0 font-mono text-xs text-muted-foreground">
                                   {t.ticker}
                                 </span>
-                                <span className="text-[10px] text-muted-foreground">
+                                <span className="shrink-0 text-[10px] text-muted-foreground">
                                   {t.market}
                                 </span>
                               </div>
