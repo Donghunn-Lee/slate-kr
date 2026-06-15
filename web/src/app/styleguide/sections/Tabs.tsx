@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-type TabAccent = "neutral" | "lavender" | "sage" | "amber";
+type TabAccent = "neutral" | "lavender" | "amber" | "sky";
 
 type TabItem = {
   label: string;
@@ -10,15 +10,15 @@ type TabItem = {
 const TABS: TabItem[] = [
   { label: "종합정보", accent: "neutral" },
   { label: "차트", accent: "lavender" },
-  { label: "재무", accent: "sage" },
-  { label: "공시", accent: "amber" },
+  { label: "재무", accent: "amber" },
+  { label: "공시", accent: "sky" },
 ];
 
 const ACCENT_CLASSES: Record<TabAccent, string> = {
   neutral: "bg-elevated border-subtle",
   lavender: "bg-lavender-bg border-lavender-border",
-  sage: "bg-sage-bg border-sage-border",
   amber: "bg-amber-bg border-amber-border",
+  sky: "bg-sky-bg border-sky-border",
 };
 
 type FolderTabsProps = {
@@ -70,7 +70,7 @@ export const Tabs = () => (
     <h2 className="mb-6 border-b border-subtle pb-3 text-lg font-semibold text-foreground">Tabs</h2>
     <p className="mb-6 text-[13px] text-muted-foreground">
       종목 상세 페이지의 폴더 탭 패턴. 활성 탭이 콘텐츠 패널과 연결되어 하나의 폴더로 읽힌다.
-      차트=lavender, 재무=sage, 공시=amber, 종합정보=무채색.
+      차트=lavender, 재무=amber, 공시=sky, 종합정보=무채색.
     </p>
 
     <FolderTabs tabs={TABS} activeIndex={0} />

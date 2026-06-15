@@ -94,8 +94,8 @@ const StockHeaderPanel = () => (
 const MetricsPanel = () => (
   <div
     style={{
-      backgroundColor: "var(--sky-bg)",
-      border: "1px solid var(--sky-border)",
+      backgroundColor: "var(--peach-bg)",
+      border: "1px solid var(--peach-border)",
       borderRadius: "var(--radius-lg, 0.625rem)",
       boxShadow: "var(--shadow-slate)",
       padding: "24px",
@@ -114,7 +114,7 @@ const MetricsPanel = () => (
           width: "7px",
           height: "7px",
           borderRadius: "50%",
-          backgroundColor: "var(--sky-accent)",
+          backgroundColor: "var(--peach-accent)",
         }}
       />
       <h3
@@ -190,7 +190,7 @@ const DisclosureRow = ({ badge, badgeBg, badgeColor, title, date, filer }: Discl
       justifyContent: "space-between",
       gap: "12px",
       padding: "12px 0",
-      borderBottom: "1px solid var(--amber-border)",
+      borderBottom: "1px solid var(--sky-border)",
     }}
   >
     <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
@@ -237,9 +237,9 @@ const DisclosureRow = ({ badge, badgeBg, badgeColor, title, date, filer }: Discl
         style={{
           fontSize: "11px",
           fontWeight: 500,
-          color: "var(--amber-accent)",
-          backgroundColor: "var(--amber-bg)",
-          border: "1px solid var(--amber-border)",
+          color: "var(--sky-accent)",
+          backgroundColor: "var(--sky-bg)",
+          border: "1px solid var(--sky-border)",
           padding: "2px 8px",
           borderRadius: "4px",
           cursor: "default",
@@ -254,8 +254,8 @@ const DisclosureRow = ({ badge, badgeBg, badgeColor, title, date, filer }: Discl
 const DisclosuresPanel = () => (
   <div
     style={{
-      backgroundColor: "var(--amber-bg)",
-      border: "1px solid var(--amber-border)",
+      backgroundColor: "var(--sky-bg)",
+      border: "1px solid var(--sky-border)",
       borderRadius: "var(--radius-lg, 0.625rem)",
       boxShadow: "var(--shadow-slate)",
       padding: "24px",
@@ -274,7 +274,7 @@ const DisclosuresPanel = () => (
           width: "7px",
           height: "7px",
           borderRadius: "50%",
-          backgroundColor: "var(--amber-accent)",
+          backgroundColor: "var(--sky-accent)",
         }}
       />
       <h3

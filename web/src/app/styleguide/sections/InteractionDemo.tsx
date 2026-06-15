@@ -119,8 +119,8 @@ const PanelExpandDemo = () => {
     >
       <div
         style={{
-          backgroundColor: "var(--sage-bg)",
-          border: "1px solid var(--sage-border)",
+          backgroundColor: "var(--amber-bg)",
+          border: "1px solid var(--amber-border)",
           borderRadius: "var(--radius-lg, 0.625rem)",
           boxShadow: "var(--shadow-slate)",
           overflow: "hidden",
@@ -148,7 +148,7 @@ const PanelExpandDemo = () => {
                 width: "7px",
                 height: "7px",
                 borderRadius: "50%",
-                backgroundColor: "var(--sage-accent)",
+                backgroundColor: "var(--amber-accent)",
                 flexShrink: 0,
               }}
             />
@@ -183,7 +183,7 @@ const PanelExpandDemo = () => {
         <div
           style={{
             padding: "0 20px 16px",
-            borderTop: "1px solid var(--sage-border)",
+            borderTop: "1px solid var(--amber-border)",
           }}
         >
           <div
@@ -221,7 +221,7 @@ const PanelExpandDemo = () => {
               transition: `max-height var(--duration-base, 250ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1)), opacity var(--duration-base, 250ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1))`,
             }}
           >
-            <div style={{ borderTop: "1px solid var(--sage-border)", paddingTop: "4px" }}>
+            <div style={{ borderTop: "1px solid var(--amber-border)", paddingTop: "4px" }}>
               <div
                 style={{
                   display: "grid",
@@ -248,7 +248,7 @@ const PanelExpandDemo = () => {
                     gap: "8px",
                     padding: "8px 0",
                     fontSize: "12px",
-                    borderTop: "1px solid var(--sage-border)",
+                    borderTop: "1px solid var(--amber-border)",
                   }}
                 >
                   <span
@@ -312,8 +312,8 @@ const DisclosureRowItem = ({
         justifyContent: "space-between",
         gap: "12px",
         padding: "12px 16px",
-        borderBottom: "1px solid var(--amber-border)",
-        backgroundColor: hovered ? "var(--amber-border)" : "transparent",
+        borderBottom: "1px solid var(--sky-border)",
+        backgroundColor: hovered ? "var(--sky-border)" : "transparent",
         transition: `background-color var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1))`,
         cursor: "default",
       }}
@@ -372,9 +372,9 @@ const DisclosureRowItem = ({
           style={{
             fontSize: "11px",
             fontWeight: 500,
-            color: "var(--amber-accent)",
+            color: "var(--sky-accent)",
             backgroundColor: "var(--bg-elevated)",
-            border: "1px solid var(--amber-border)",
+            border: "1px solid var(--sky-border)",
             padding: "2px 8px",
             borderRadius: "4px",
             opacity: hovered ? 1 : 0,
@@ -400,8 +400,8 @@ const DisclosureRowDemo = () => (
   >
     <div
       style={{
-        backgroundColor: "var(--amber-bg)",
-        border: "1px solid var(--amber-border)",
+        backgroundColor: "var(--sky-bg)",
+        border: "1px solid var(--sky-border)",
         borderRadius: "var(--radius-lg, 0.625rem)",
         boxShadow: "var(--shadow-slate)",
         overflow: "hidden",
@@ -411,7 +411,7 @@ const DisclosureRowDemo = () => (
       <div
         style={{
           padding: "14px 16px",
-          borderBottom: "1px solid var(--amber-border)",
+          borderBottom: "1px solid var(--sky-border)",
           display: "flex",
           alignItems: "center",
           gap: "8px",
@@ -422,7 +422,7 @@ const DisclosureRowDemo = () => (
             width: "7px",
             height: "7px",
             borderRadius: "50%",
-            backgroundColor: "var(--amber-accent)",
+            backgroundColor: "var(--sky-accent)",
           }}
         />
         <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>
