@@ -6,7 +6,7 @@ type TypeRowProps = {
 };
 
 const TypeRow = ({ label, spec, children, style }: TypeRowProps) => (
-  <div className="grid grid-cols-[160px_1fr] items-baseline gap-6 border-b border-subtle py-5">
+  <div className="grid grid-cols-1 items-baseline gap-2 border-b border-subtle py-5 md:grid-cols-[160px_1fr] md:gap-6">
     <div>
       <p className="mb-0.5 font-mono text-[11px] font-semibold text-foreground">{label}</p>
       <p className="font-mono text-[10px] text-muted-foreground">{spec}</p>

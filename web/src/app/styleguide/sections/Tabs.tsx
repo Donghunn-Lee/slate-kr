@@ -31,7 +31,7 @@ const FolderTabs = ({ tabs, activeIndex }: FolderTabsProps) => {
 
   return (
     <div className="w-full">
-      <div className="flex items-end gap-2 pt-2">
+      <div className="flex items-end gap-2 overflow-x-auto pt-2">
         {tabs.map((tab, i) => {
           const isActive = i === activeIndex;
 
@@ -39,7 +39,7 @@ const FolderTabs = ({ tabs, activeIndex }: FolderTabsProps) => {
             <div
               key={tab.label}
               className={cn(
-                "relative flex items-center justify-center rounded-t-md border px-6 py-2 text-sm transition-colors",
+                "relative flex shrink-0 items-center justify-center rounded-t-md border px-6 py-2 text-sm transition-colors",
                 ACCENT_CLASSES[tab.accent],
                 isActive
                   ? "z-20 -mb-px border-b-transparent font-medium text-foreground"
