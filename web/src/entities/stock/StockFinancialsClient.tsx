@@ -164,16 +164,16 @@ export const StockFinancialsClient = ({
         )}
       </div>
       <div className="mb-3 flex justify-end">
-        <TabsList variant="line" className={compact ? "h-5 p-0" : "h-6 p-0"}>
+        <TabsList variant="line" className="h-8 p-0">
           <TabsTrigger
             value="annual"
-            className={compact ? "h-5 px-2 py-0 text-xs" : "h-6 px-3 py-0 text-xs"}
+            className={compact ? "h-8 px-2 py-0 text-xs" : "h-8 px-3 py-0 text-xs"}
           >
             연간
           </TabsTrigger>
           <TabsTrigger
             value="quarterly"
-            className={compact ? "h-5 px-2 py-0 text-xs" : "h-6 px-3 py-0 text-xs"}
+            className={compact ? "h-8 px-2 py-0 text-xs" : "h-8 px-3 py-0 text-xs"}
           >
             분기
           </TabsTrigger>
