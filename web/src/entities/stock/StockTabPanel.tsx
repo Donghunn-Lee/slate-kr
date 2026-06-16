@@ -45,7 +45,7 @@ export const StockTabPanel = ({ ticker, children }: StockTabPanelProps) => {
 
   return (
     <div className="w-full">
-      <div className="flex items-end gap-2 pt-2">
+      <div className="flex items-end gap-2 overflow-x-auto pt-2">
         {TABS.map((tab, i) => {
           const href = `${base}${tab.hrefSuffix}`;
           const isActive = i === activeIndex;
@@ -56,7 +56,7 @@ export const StockTabPanel = ({ ticker, children }: StockTabPanelProps) => {
               href={href}
               scroll={false}
               className={cn(
-                "relative flex items-center justify-center rounded-t-md border px-6 py-2 text-sm transition-colors",
+                "relative flex shrink-0 items-center justify-center rounded-t-md border px-3 py-2 text-sm transition-colors sm:px-6",
                 ACCENT_CLASSES[tab.accent],
                 isActive
                   ? "z-20 -mb-px border-b-transparent font-medium text-foreground"
@@ -71,7 +71,7 @@ export const StockTabPanel = ({ ticker, children }: StockTabPanelProps) => {
 
       <div
         className={cn(
-          "relative z-10 rounded-md border p-6",
+          "relative z-10 rounded-md border p-4 sm:p-6",
           ACCENT_CLASSES[activeAccent],
           activeIndex === 0 ? "rounded-tl-none" : ""
         )}
