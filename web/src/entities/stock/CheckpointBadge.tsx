@@ -23,7 +23,7 @@ type CheckpointBadgeProps = {
 
 export const CheckpointBadge = ({ type }: CheckpointBadgeProps) => (
   <span
-    className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-md px-1.5 py-0.5 text-xs font-medium ${TYPE_CLASSES[type]}`}
+    className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-md px-1 py-0.5 text-[10px] font-medium md:px-1.5 md:text-xs ${TYPE_CLASSES[type]}`}
   >
     {TYPE_LABELS[type]}
   </span>

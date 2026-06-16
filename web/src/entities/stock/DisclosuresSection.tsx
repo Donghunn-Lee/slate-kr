@@ -22,7 +22,8 @@ type ApiResponse = { ok: true; summary: string } | { ok: false; error: { kind: s
 
 const RETRYABLE = new Set(["rate_limit", "timeout", "api_error", "empty_response"]);
 
-const GRID_COLS = "grid grid-cols-[72px_88px_minmax(0,1fr)_88px_72px_32px_60px] items-center gap-2";
+const GRID_COLS =
+  "grid-cols-[minmax(0,1fr)_96px_32px_60px] gap-1.5 md:grid-cols-[72px_88px_minmax(0,1fr)_88px_72px_32px_60px] md:gap-2 items-center";
 
 type DisclosureItemProps = {
   disclosure: DartDisclosure;
@@ -108,23 +109,36 @@ const DisclosureItem = ({
           : "opacity var(--duration-base, 250ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1)), background-color var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1))",
       }}
     >
-      <div className={cn(GRID_COLS, "border-b border-sky-border/30 py-3 group-last:border-b-0")}>
-        <div className="text-center">{type && <CheckpointBadge type={type} />}</div>
-        <div className="truncate text-xs text-muted-foreground">{disclosure.corpName}</div>
-        <a
-          href={dartUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="truncate text-sm font-medium hover:underline"
-          title={disclosure.disclosureNm}
-        >
-          {disclosure.disclosureNm}
-        </a>
-        <div className="truncate text-xs text-muted-foreground" title={disclosure.flrNm}>
-          {disclosure.flrNm}
+      <div className={cn("grid", GRID_COLS, "border-b border-sky-border/30 py-3 group-last:border-b-0")}>
+        <div className="hidden text-center md:block">
+          {type && <CheckpointBadge type={type} />}
         </div>
-        <div className="text-center text-xs text-muted-foreground">
-          {formatDartDate(disclosure.rcptDt)}
+        <div className="flex min-w-0 flex-col gap-0.5 md:contents">
+          <div className="flex items-baseline gap-1.5 overflow-hidden">
+            <div className="min-w-0 truncate text-xs text-muted-foreground">
+              {disclosure.corpName}
+            </div>
+            <div className="shrink-0 md:hidden">
+              {type && <CheckpointBadge type={type} />}
+            </div>
+          </div>
+          <a
+            href={dartUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="truncate text-sm font-medium hover:underline"
+            title={disclosure.disclosureNm}
+          >
+            {disclosure.disclosureNm}
+          </a>
+        </div>
+        <div className="flex min-w-0 flex-col gap-0.5 md:contents">
+          <div className="truncate text-xs text-muted-foreground" title={disclosure.flrNm}>
+            {disclosure.flrNm}
+          </div>
+          <div className="text-xs text-muted-foreground md:text-center">
+            {formatDartDate(disclosure.rcptDt)}
+          </div>
         </div>
         <div className="text-center text-xs text-muted-foreground">
           {disclosure.rmk && (
@@ -283,6 +297,7 @@ export const DisclosuresSection = ({
         <>
           <div
             className={cn(
+              "hidden md:grid",
               GRID_COLS,
               "border-b border-sky-border/50 pt-1 pb-2 text-center text-[11px] font-medium text-muted-foreground"
             )}
