@@ -100,18 +100,19 @@ export const WatchlistRow = ({ item, price, disclosure, onRemove }: WatchlistRow
 
 export const WatchlistRowSkeleton = () => (
   <li className="group -mx-6 animate-pulse px-6">
-    <div className="border-b border-subtle py-3 group-last:border-b-0">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-baseline gap-2">
-          <div className="h-5 w-24 rounded bg-muted" />
-          <div className="h-3 w-28 rounded bg-muted" />
+    <div className="border-b border-subtle pb-1.5 pt-0.5 group-last:border-b-0 md:pb-3 md:pt-1">
+      <div className="flex flex-col">
+        <div className="flex min-h-7 items-center gap-2">
+          <div className="h-3 w-24 rounded bg-muted" />
+          <div className="ml-auto h-7 w-7 shrink-0 rounded-md bg-muted" />
         </div>
-        <div className="h-7 w-7 shrink-0 rounded-md bg-muted" />
-      </div>
-      <div className="mt-1.5 flex items-baseline gap-4">
-        <div className="h-5 w-20 rounded bg-muted" />
-        <div className="h-3 w-16 rounded bg-muted" />
-        <div className="h-3 w-20 rounded bg-muted" />
+        <div className="flex flex-row items-baseline justify-between gap-2 md:flex-col md:items-start md:justify-start md:gap-1">
+          <div className="h-4 w-32 rounded bg-muted md:h-5" />
+          <div className="flex shrink-0 items-end gap-2">
+            <div className="h-4 w-20 rounded bg-muted md:h-5" />
+            <div className="h-3 w-16 rounded bg-muted" />
+          </div>
+        </div>
       </div>
     </div>
   </li>
