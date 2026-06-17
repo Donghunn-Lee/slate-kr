@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { ScrollToTopButton } from "./ScrollToTopButton";
 
 type TabAccent = "neutral" | "lavender" | "amber" | "sky";
 
@@ -68,6 +69,8 @@ export const StockTabPanel = ({ ticker, children }: StockTabPanelProps) => {
           );
         })}
       </div>
+
+      <ScrollToTopButton />
 
       <div
         className={cn(
