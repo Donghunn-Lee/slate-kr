@@ -39,55 +39,53 @@ export const WatchlistRow = ({ item, price, disclosure, onRemove }: WatchlistRow
 
   return (
     <li className="group relative -mx-6 bg-transparent px-6 transition-colors hover:bg-muted/40">
-      <div className="border-b border-subtle py-3 group-last:border-b-0">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-baseline gap-2">
-            <span className="truncate text-base font-semibold text-foreground">{item.name}</span>
-            <span className="shrink-0 font-mono text-xs text-muted-foreground">
+      <div className="border-b border-subtle md:pb-3 md:pt-1 pb-1.5 pt-0.5 group-last:border-b-0">
+        <div className="flex flex-col">
+          <div className="flex min-h-7 items-center gap-2">
+            <span className="shrink-0 font-mono text-[11px] leading-none text-muted-foreground md:text-xs">
               {item.ticker} · {item.market}
             </span>
+            <div className="ml-auto flex shrink-0 items-center gap-2">
+              {disclosure?.count != null && disclosure.count > 0 && (
+                <div className="flex items-center gap-1.5 text-[11px] leading-none md:text-xs">
+                  <span className="text-muted-foreground">신규 공시</span>
+                  <span className="font-medium tabular-nums text-amber-accent">
+                    {disclosure.count}건
+                  </span>
+                </div>
+              )}
+              {onRemove && (
+                <button
+                  type="button"
+                  onClick={handleRemove}
+                  aria-label={`${item.name} 관심종목 해제`}
+                  className="relative z-10 -mr-2 shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           </div>
-          {onRemove && (
-            <button
-              type="button"
-              onClick={handleRemove}
-              aria-label={`${item.name} 관심종목 해제`}
-              className="relative z-10 -mr-2.5 shrink-0 rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          )}
-        </div>
-
-        <div className="mt-1.5 flex flex-wrap items-baseline gap-x-4 gap-y-1">
-          <div className="flex items-baseline gap-2">
-            <span className="text-base font-bold tabular-nums text-foreground">
-              {price ? `${price.close.toLocaleString("ko-KR")}원` : "—"}
+          <div className="flex flex-row items-baseline justify-between gap-2 md:flex-col md:items-start md:justify-start md:gap-1">
+            <span className="min-w-0 truncate text-sm font-semibold text-foreground md:text-base">
+              {item.name}
             </span>
-            {price && price.change != null && price.changePct != null && (
-              <span className={cn("text-xs font-medium tabular-nums", changeColor(price.change))}>
-                {formatSigned(price.change)}원 ({formatSigned(price.changePct, 2)}%)
+            <div className="flex shrink-0 items-end gap-2">
+              <span className="text-sm font-bold tabular-nums leading-none text-foreground md:text-base">
+                {price ? `${price.close.toLocaleString("ko-KR")}원` : "—"}
               </span>
-            )}
+              {price && price.change != null && price.changePct != null && (
+                <span
+                  className={cn(
+                    "text-xs font-medium tabular-nums leading-none",
+                    changeColor(price.change)
+                  )}
+                >
+                  {formatSigned(price.change)}원 ({formatSigned(price.changePct, 2)}%)
+                </span>
+              )}
+            </div>
           </div>
-
-          {price?.change7dPct != null && (
-            <div className="flex items-baseline gap-1.5 text-xs">
-              <span className="text-muted-foreground">7일</span>
-              <span className={cn("font-medium tabular-nums", changeColor(price.change7dPct))}>
-                {formatSigned(price.change7dPct, 2)}%
-              </span>
-            </div>
-          )}
-
-          {disclosure?.count != null && disclosure.count > 0 && (
-            <div className="flex items-baseline gap-1.5 text-xs">
-              <span className="text-muted-foreground">신규 공시</span>
-              <span className="font-medium tabular-nums text-amber-accent">
-                {disclosure.count}건
-              </span>
-            </div>
-          )}
         </div>
       </div>
 

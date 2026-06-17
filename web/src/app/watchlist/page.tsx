@@ -44,9 +44,7 @@ const WatchlistPage = () => {
   );
 
   const groupMemberships = useWatchlistStore(
-    useShallow((s) =>
-      isRecentTab ? [] : selectTickersByGroup(s, effectiveTab)
-    )
+    useShallow((s) => (isRecentTab ? [] : selectTickersByGroup(s, effectiveTab)))
   );
 
   const displayItems = useMemo<WatchlistItem[]>(() => {
@@ -156,9 +154,7 @@ const WatchlistPage = () => {
             {isRecentTab ? (
               <h2 className="text-sm font-medium text-foreground">최근 조회</h2>
             ) : currentGroup ? (
-              <h2 className="truncate text-sm font-medium text-foreground">
-                {currentGroup.name}
-              </h2>
+              <h2 className="truncate text-sm font-medium text-foreground">{currentGroup.name}</h2>
             ) : null}
             <Button
               type="button"
@@ -179,7 +175,7 @@ const WatchlistPage = () => {
               관심종목 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
             </p>
           ) : (
-            <StockPanel variant="plain">
+            <StockPanel variant="plain" className="py-2">
               <ul>
                 {pricesQuery.isLoading
                   ? displayItems.map((item) => <WatchlistRowSkeleton key={item.ticker} />)
