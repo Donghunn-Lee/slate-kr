@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { pool } from "./db";
 import type { PriceStats, StockPriceSnapshot } from "@/shared/types/stock";
-import { format, parseISO, subMonths } from "date-fns";
+import { format, parseISO, subMonths, subYears } from "date-fns";
 
 type DailyPriceRow = {
   id: number;
@@ -60,7 +60,7 @@ export const getLatestPrice = cache(async (ticker: string): Promise<StockPriceSn
 export const getPricesForStats = async (ticker: string): Promise<StockPriceSnapshot[]> => {
   try {
     const [rows] = await pool.query<DailyPriceRow[]>(
-      "SELECT * FROM daily_prices WHERE ticker = $1 AND date >= CURRENT_DATE - INTERVAL '1 year' ORDER BY date ASC",
+      "SELECT * FROM daily_prices WHERE ticker = $1 AND date >= CURRENT_DATE - INTERVAL '13 months' ORDER BY date ASC",
       [ticker]
     );
     return rows.map((row) => ({
@@ -98,14 +98,15 @@ export const getPriceStats = (prices: StockPriceSnapshot[]): PriceStats => {
   const low52 = Math.min(...prices.map((p) => p.low));
   const position = high52 === low52 ? 0 : (current - low52) / (high52 - low52);
 
+  const oldestDate = prices[0].date;
   const cutoff1M = format(subMonths(lastDate, 1), "yyyy-MM-dd");
   const cutoff3M = format(subMonths(lastDate, 3), "yyyy-MM-dd");
+  const cutoff1Y = format(subYears(lastDate, 1), "yyyy-MM-dd");
 
-  const basis1M = prices.find((p) => p.date >= cutoff1M);
-  const basis3M = prices.find((p) => p.date >= cutoff3M);
-  const basis1Y = prices[0];
-
-  const calcReturn = (basis: StockPriceSnapshot | undefined): number | null => {
+  // 기간 시작일 이전 데이터가 없으면 폴백하지 않고 null 반환 (상장 1년 미만 종목 대응)
+  const calcReturn = (cutoff: string): number | null => {
+    if (oldestDate > cutoff) return null;
+    const basis = prices.find((p) => p.date >= cutoff);
     if (basis === undefined) return null;
     return ((current - basis.close) / basis.close) * 100;
   };
@@ -113,9 +114,9 @@ export const getPriceStats = (prices: StockPriceSnapshot[]): PriceStats => {
   return {
     range52w: { high: high52, low: low52, current, position },
     returns: [
-      { period: "1M", value: calcReturn(basis1M) },
-      { period: "3M", value: calcReturn(basis3M) },
-      { period: "1Y", value: calcReturn(basis1Y) },
+      { period: "1M", value: calcReturn(cutoff1M) },
+      { period: "3M", value: calcReturn(cutoff3M) },
+      { period: "1Y", value: calcReturn(cutoff1Y) },
     ],
   };
 };
