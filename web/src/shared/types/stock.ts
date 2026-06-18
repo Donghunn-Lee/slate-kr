@@ -17,6 +17,11 @@ export type StockSummary = {
   marketCap: number | null;
 };
 
+export type CompanyProfile = {
+  sectorName: string | null;
+  homepageUrl: string | null;
+};
+
 export type StockPriceSnapshot = {
   ticker: string;
   date: string; // 'YYYY-MM-DD'

@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { z } from "zod";
-import type { DartDisclosure } from "@/shared/types/stock";
+import type { CompanyProfile, DartDisclosure } from "@/shared/types/stock";
+import { getSectorName } from "@/shared/utils/ksic";
 
 const DartItemSchema = z.object({
   corp_name: z.string(),
@@ -86,5 +87,44 @@ export const getDisclosures = cache(
       totalPage: parsed.data.total_page ?? (items.length > 0 ? 1 : 0),
       currentPage: pageNo,
     };
+  },
+);
+
+const CompanyResponseSchema = z.object({
+  status: z.string(),
+  induty_code: z.string().optional(),
+  hm_url: z.string().optional(),
+});
+
+export const getCompanyProfile = cache(
+  async (corpCode: string): Promise<CompanyProfile | null> => {
+    const apiKey = process.env.DART_API_KEY;
+    if (!apiKey || !corpCode) return null;
+
+    const url = new URL("https://opendart.fss.or.kr/api/company.json");
+    url.searchParams.set("crtfc_key", apiKey);
+    url.searchParams.set("corp_code", corpCode);
+
+    try {
+      const res = await fetch(url.toString(), { next: { revalidate: 86400 } });
+      if (!res.ok) return null;
+
+      const json: unknown = await res.json();
+      const parsed = CompanyResponseSchema.safeParse(json);
+      if (!parsed.success) return null;
+      if (parsed.data.status !== "000") return null;
+
+      const sectorName = getSectorName(parsed.data.induty_code);
+      const rawUrl = parsed.data.hm_url?.trim();
+      const homepageUrl = rawUrl
+        ? rawUrl.startsWith("http")
+          ? rawUrl
+          : `https://${rawUrl}`
+        : null;
+
+      return { sectorName, homepageUrl };
+    } catch {
+      return null;
+    }
   },
 );

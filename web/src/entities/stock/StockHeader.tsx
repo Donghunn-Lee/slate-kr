@@ -1,5 +1,12 @@
-import type { StockSummary, StockPriceSnapshot } from "@/shared/types/stock";
+import { ExternalLink } from "lucide-react";
+import type {
+  CompanyProfile,
+  StockSummary,
+  StockPriceSnapshot,
+} from "@/shared/types/stock";
 import { getDailyPrices } from "@/lib/prices";
+import { getCorpCode } from "@/lib/stocks";
+import { getCompanyProfile } from "@/lib/dart";
 import { formatVolume, formatMarketCap } from "@/shared/format";
 import { WatchlistButton } from "@/features/watchlist/WatchlistButton";
 import { StockPanel } from "./StockPanel";
@@ -13,11 +20,19 @@ type StockHeaderProps = {
 export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
   let prices: StockPriceSnapshot[] = [];
   let hasError = false;
+  let profile: CompanyProfile | null = null;
 
   try {
     prices = await getDailyPrices(ticker, 2);
   } catch {
     hasError = true;
+  }
+
+  try {
+    const corpCode = await getCorpCode(ticker);
+    if (corpCode) profile = await getCompanyProfile(corpCode);
+  } catch {
+    profile = null;
   }
 
   const latest = prices[0] ?? null;
@@ -35,6 +50,22 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
             <span className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
               {stock.market}
             </span>
+            {profile?.sectorName && (
+              <span className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                {profile.sectorName}
+              </span>
+            )}
+            {profile?.homepageUrl && (
+              <a
+                href={profile.homepageUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="홈페이지 새 창에서 열기"
+                className="inline-flex items-center text-muted-foreground hover:text-foreground"
+              >
+                <ExternalLink className="size-3.5" />
+              </a>
+            )}
           </div>
           <WatchlistButton ticker={ticker} name={stock.name} market={stock.market} />
         </div>
@@ -66,10 +97,21 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
           <span className="rounded bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
             {stock.market}
           </span>
-          {stock.sector && (
+          {profile?.sectorName && (
             <span className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-              {stock.sector}
+              {profile.sectorName}
             </span>
+          )}
+          {profile?.homepageUrl && (
+            <a
+              href={profile.homepageUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="홈페이지 새 창에서 열기"
+              className="inline-flex items-center text-muted-foreground hover:text-foreground"
+            >
+              <ExternalLink className="size-3.5" />
+            </a>
           )}
         </div>
         <WatchlistButton ticker={ticker} name={stock.name} market={stock.market} />
