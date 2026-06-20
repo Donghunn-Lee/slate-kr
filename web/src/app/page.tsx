@@ -16,15 +16,15 @@ const HomePage = () => {
   const removeRecent = useRecentVisitedStore((s) => s.remove);
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-4">
+    <main className="mx-auto w-full max-w-4xl px-4">
       {/* Hero */}
-      <section className="flex flex-col items-center pb-14 pt-20 text-center">
-        <h1 className="mb-2 text-3xl font-bold tracking-tight">SlateKR</h1>
-        <p className="mb-8 text-sm text-muted-foreground">
+      <section className="flex flex-col items-center pb-14 pt-16 text-center">
+        <h1 className="mb-1 text-3xl font-bold tracking-tight">SlateKR</h1>
+        <p className="mb-10 text-sm text-muted-foreground">
           국내 상장 종목의 가격·재무·공시 정보를 빠르게 조회하세요
         </p>
-        <div className="w-full">
-          <SearchInput value={ticker} onChange={setTicker} />
+        <div className="mx-auto w-full max-w-xl">
+          <SearchInput value={ticker} onChange={setTicker} size="lg" />
         </div>
         <div className="mt-3 flex min-h-[60px] flex-wrap content-start justify-center gap-2">
           {recentVisited.map((s) => (

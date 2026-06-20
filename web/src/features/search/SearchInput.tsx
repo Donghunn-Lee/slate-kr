@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { useStockSearch } from "./useStockSearch";
 
 type SearchInputProps = {
@@ -12,9 +13,16 @@ type SearchInputProps = {
   onChange: (value: string) => void;
   onSelect?: (ticker: string, name: string) => void;
   disabled?: boolean;
+  size?: "default" | "lg";
 };
 
-export const SearchInput = ({ value, onChange, onSelect, disabled }: SearchInputProps) => {
+export const SearchInput = ({
+  value,
+  onChange,
+  onSelect,
+  disabled,
+  size = "default",
+}: SearchInputProps) => {
   const router = useRouter();
   const { results, isLoading, error } = useStockSearch(value);
   const [closedByUser, setClosedByUser] = useState(false);
@@ -98,7 +106,7 @@ export const SearchInput = ({ value, onChange, onSelect, disabled }: SearchInput
           onChange={(e) => handleChange(e.target.value)}
           onKeyDown={handleKeyDown}
           disabled={disabled}
-          className="w-full"
+          className={cn("w-full", size === "lg" && "h-12 text-base md:text-base")}
           autoComplete="off"
         />
         {isOpen && (
@@ -139,7 +147,11 @@ export const SearchInput = ({ value, onChange, onSelect, disabled }: SearchInput
           </div>
         )}
       </div>
-      <Button onClick={handleSearchNavigate} disabled={disabled}>
+      <Button
+        onClick={handleSearchNavigate}
+        disabled={disabled}
+        className={cn(size === "lg" && "h-12 px-6 text-base")}
+      >
         검색
       </Button>
     </div>
