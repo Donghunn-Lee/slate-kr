@@ -26,28 +26,32 @@ const HomePage = () => {
         <div className="mx-auto w-full max-w-xl">
           <SearchInput value={ticker} onChange={setTicker} size="lg" />
         </div>
-        <div className="mt-3 flex min-h-[60px] flex-wrap content-start justify-center gap-2">
-          {recentVisited.map((s) => (
-            <span
-              key={s.ticker}
-              className="flex items-center gap-1 rounded-full border border-border/60 bg-muted/40 px-3 py-1 text-xs text-muted-foreground"
-            >
-              <button
-                onClick={() => router.push(`/stocks/${s.ticker}`)}
-                className="transition-colors hover:text-foreground"
-              >
-                {s.name}
-              </button>
-              <button
-                onClick={() => removeRecent(s.ticker)}
-                aria-label={`${s.name} 최근 조회 삭제`}
-                className="-my-1 -mr-1 p-1 transition-colors hover:text-foreground"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </span>
-          ))}
-        </div>
+        {recentVisited.length > 0 && (
+          <div className="mx-auto mt-6 w-full max-w-xl rounded-lg bg-muted/60 p-4 text-left">
+            <p className="mb-2 text-[11px] font-medium tracking-wide text-muted-foreground/70">
+              최근 조회
+            </p>
+            <div className="flex flex-wrap content-start gap-x-3 gap-y-1 text-xs">
+              {recentVisited.map((s) => (
+                <span key={s.ticker} className="flex items-center">
+                  <button
+                    onClick={() => router.push(`/stocks/${s.ticker}`)}
+                    className="text-muted-foreground transition-colors hover:text-foreground hover:underline"
+                  >
+                    {s.name}
+                  </button>
+                  <button
+                    onClick={() => removeRecent(s.ticker)}
+                    aria-label={`${s.name} 최근 조회 삭제`}
+                    className="p-1 text-muted-foreground/40 transition-colors hover:text-foreground"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
 
       <WatchlistPreview />
