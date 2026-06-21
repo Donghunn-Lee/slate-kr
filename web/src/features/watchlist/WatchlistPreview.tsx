@@ -63,7 +63,25 @@ export function WatchlistPreview() {
       });
   }, [tickersKey]);
 
-  if (!mounted || preview.length === 0) return null;
+  if (!mounted) return null;
+
+  if (preview.length === 0) {
+    return (
+      <section className="mb-8">
+        <StockPanel>
+          <p className="text-sm text-muted-foreground">
+            저장한 관심종목을 여기서 모아 볼 수 있어요
+          </p>
+          <Link
+            href="/watchlist"
+            className="mt-3 inline-flex items-center gap-1 text-sm font-medium transition-opacity hover:opacity-70"
+          >
+            관심종목 둘러보기 <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </StockPanel>
+      </section>
+    );
+  }
 
   return (
     <section className="mb-8">
