@@ -36,14 +36,14 @@ const HomePage = () => {
                 <span key={s.ticker} className="flex items-center">
                   <button
                     onClick={() => router.push(`/stocks/${s.ticker}`)}
-                    className="text-muted-foreground transition-colors hover:text-foreground hover:underline"
+                    className="cursor-pointer text-muted-foreground transition-colors hover:text-foreground hover:underline"
                   >
                     {s.name}
                   </button>
                   <button
                     onClick={() => removeRecent(s.ticker)}
                     aria-label={`${s.name} 최근 조회 삭제`}
-                    className="p-1 text-muted-foreground/40 transition-colors hover:text-foreground"
+                    className="cursor-pointer p-1 text-muted-foreground/40 transition-colors hover:text-foreground"
                   >
                     <X className="h-3 w-3" />
                   </button>
