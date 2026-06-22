@@ -7,6 +7,7 @@ import { X } from "lucide-react";
 import { SearchInput } from "@/features/search/SearchInput";
 import { useRecentVisitedStore } from "@/features/search/useRecentVisitedStore";
 import { WatchlistPreview } from "@/features/watchlist/WatchlistPreview";
+import { IndexSlate } from "@/features/index-quotes/IndexSlate";
 import { ServiceValue } from "@/entities/home/ServiceValue";
 
 const HomePage = () => {
@@ -54,6 +55,7 @@ const HomePage = () => {
         )}
       </section>
 
+      <IndexSlate />
       <WatchlistPreview />
       <ServiceValue />
     </main>
