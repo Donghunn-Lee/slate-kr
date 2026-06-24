@@ -10,7 +10,7 @@ import { getCompanyProfile } from "@/lib/dart";
 import { formatVolume, formatMarketCap } from "@/shared/format";
 import { WatchlistButton } from "@/features/watchlist/WatchlistButton";
 import { StockPanel } from "./StockPanel";
-import { PriceCountUp } from "./PriceCountUp";
+import { StockHeaderLivePrice } from "./StockHeaderLivePrice";
 
 type StockHeaderProps = {
   ticker: string;
@@ -76,16 +76,6 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
     );
   }
 
-  const change = prev ? latest.close - prev.close : null;
-  const changeRate = prev && prev.close !== 0 ? (change! / prev.close) * 100 : null;
-
-  const isRise = change !== null && change > 0;
-  const isFall = change !== null && change < 0;
-
-  const changeColor = isRise ? "text-price-up" : isFall ? "text-price-down" : "text-muted-foreground";
-
-  const changeSign = isRise ? "+" : "";
-
   return (
     <StockPanel noBorder>
       <div className="flex items-start justify-between gap-2">
@@ -117,18 +107,11 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
         <WatchlistButton ticker={ticker} name={stock.name} market={stock.market} />
       </div>
 
-      <div className="mt-4 flex flex-wrap items-end gap-3">
-        <span className="text-4xl font-bold tracking-tight">
-          <PriceCountUp from={prev?.close ?? latest.close} to={latest.close} />원
-        </span>
-        {change !== null && changeRate !== null && (
-          <span className={`mb-1 text-lg font-medium ${changeColor}`}>
-            {changeSign}
-            {change.toLocaleString("ko-KR")}원 ({changeSign}
-            {changeRate.toFixed(2)}%)
-          </span>
-        )}
-      </div>
+      <StockHeaderLivePrice
+        ticker={ticker}
+        initialPrice={latest.close}
+        initialPrev={prev?.close ?? null}
+      />
 
       <div className="mt-3 flex flex-wrap gap-4 text-sm text-muted-foreground">
         <span>거래량 {formatVolume(latest.volume)}</span>
