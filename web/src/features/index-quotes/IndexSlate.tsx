@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import type { IndexQuote, PriceSign } from "@/shared/types/quote";
 import { StockPanel } from "@/entities/stock/StockPanel";
 import { PriceCountUp } from "@/entities/stock/PriceCountUp";
 import { cn } from "@/lib/utils";
-import { useIndexQuotes, type IndexQuotesResponse } from "./useIndexQuotes";
+import { useIndexQuotes } from "./useIndexQuotes";
 
 const signClass = (sign: PriceSign): string =>
   sign === "up"
@@ -20,16 +19,15 @@ const signSymbol = (sign: PriceSign): string =>
 type IndexCellProps = {
   label: string;
   quote: IndexQuote | null;
-  prev: IndexQuote | null;
 };
 
-const IndexCell = ({ label, quote, prev }: IndexCellProps) => (
+const IndexCell = ({ label, quote }: IndexCellProps) => (
   <div className="px-6 py-4">
     <div className="text-[13px] text-muted-foreground">{label}</div>
     {quote ? (
       <>
         <div className="mt-1 text-2xl font-medium tabular-nums">
-          <PriceCountUp from={prev?.price ?? quote.price} to={quote.price} />
+          <PriceCountUp from={quote.price} to={quote.price} />
         </div>
         <div className={cn("mt-1 text-[13px] tabular-nums", signClass(quote.sign))}>
           {signSymbol(quote.sign)} {Math.abs(quote.change).toLocaleString("ko-KR")}
@@ -70,13 +68,6 @@ const GRID_CLASS =
 
 export const IndexSlate = () => {
   const { data, isLoading, isError } = useIndexQuotes();
-  const prevRef = useRef<IndexQuotesResponse | undefined>(undefined);
-
-  useEffect(() => {
-    prevRef.current = data;
-  }, [data]);
-
-  const prev = prevRef.current;
 
   return (
     <section className="mb-8">
@@ -98,21 +89,9 @@ export const IndexSlate = () => {
           </div>
         ) : (
           <div className={GRID_CLASS}>
-            <IndexCell
-              label="코스피"
-              quote={data.quotes.kospi}
-              prev={prev?.quotes.kospi ?? null}
-            />
-            <IndexCell
-              label="코스닥"
-              quote={data.quotes.kosdaq}
-              prev={prev?.quotes.kosdaq ?? null}
-            />
-            <IndexCell
-              label="코스피200"
-              quote={data.quotes.kospi200}
-              prev={prev?.quotes.kospi200 ?? null}
-            />
+            <IndexCell label="코스피" quote={data.quotes.kospi} />
+            <IndexCell label="코스닥" quote={data.quotes.kosdaq} />
+            <IndexCell label="코스피200" quote={data.quotes.kospi200} />
           </div>
         )}
       </StockPanel>
