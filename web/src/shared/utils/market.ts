@@ -1,3 +1,5 @@
+import { isKrxHoliday } from "./krxHolidays";
+
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 const DAWN_END_MINUTES = 6 * 60; // 06:00 KST — 새벽 리셋 시작
@@ -15,22 +17,26 @@ export type KrxSession =
   | "preopen"
   | "closed";
 
-type KstParts = { day: number; minutes: number };
+const pad = (n: number): string => String(n).padStart(2, "0");
+
+type KstParts = { day: number; minutes: number; date: string };
 
 const toKstParts = (now: Date): KstParts => {
   const kst = new Date(now.getTime() + KST_OFFSET_MS);
   return {
     day: kst.getUTCDay(),
     minutes: kst.getUTCHours() * 60 + kst.getUTCMinutes(),
+    date: `${kst.getUTCFullYear()}-${pad(kst.getUTCMonth() + 1)}-${pad(kst.getUTCDate())}`,
   };
 };
 
-// KST 기준 평일만. 공휴일 미고려(v1).
+// KST 기준. 주말 + 2026 평일 공휴일 휴장. (after_close 자정 경계는 F14)
 // regular 09:00~15:30 / after 15:30~20:00 / after_close 20:00~06:00(자정 넘김) /
 // preopen 06:00~08:00 + 08:50~09:00 / pre 08:00~08:50
 export const getKrxSessionState = (now: Date = new Date()): KrxSession => {
-  const { day, minutes } = toKstParts(now);
+  const { day, minutes, date } = toKstParts(now);
   if (day === 0 || day === 6) return "closed";
+  if (isKrxHoliday(date)) return "closed";
   if (minutes >= REGULAR_START_MINUTES && minutes < REGULAR_END_MINUTES) return "regular";
   if (minutes >= REGULAR_END_MINUTES && minutes < AFTER_END_MINUTES) return "after";
   if (minutes >= AFTER_END_MINUTES || minutes < DAWN_END_MINUTES) return "after_close";
