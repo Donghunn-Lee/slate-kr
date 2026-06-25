@@ -6,36 +6,37 @@ import { Trash2 } from "lucide-react";
 import type { TickerPriceSummary } from "@/app/api/prices/route";
 import type { TickerDisclosureCount } from "@/app/api/disclosures/recent-count/route";
 import type { WatchlistItem } from "@/features/watchlist/store/useWatchlistStore";
-import { cn } from "@/lib/utils";
+import type { StockQuote } from "@/shared/types/quote";
+import { PriceChange } from "@/shared/components/PriceChange";
 
 type WatchlistRowProps = {
   item: WatchlistItem;
   price?: TickerPriceSummary;
+  liveQuote?: StockQuote | null;
   disclosure?: TickerDisclosureCount;
   onRemove?: () => void;
 };
 
-const changeColor = (n: number | null | undefined): string => {
-  if (n == null) return "text-muted-foreground";
-  if (n > 0) return "text-price-up";
-  if (n < 0) return "text-price-down";
-  return "text-muted-foreground";
-};
-
-const formatSigned = (n: number, fractionDigits = 0): string => {
-  const sign = n > 0 ? "+" : "";
-  return `${sign}${n.toLocaleString("ko-KR", {
-    minimumFractionDigits: fractionDigits,
-    maximumFractionDigits: fractionDigits,
-  })}`;
-};
-
-export const WatchlistRow = ({ item, price, disclosure, onRemove }: WatchlistRowProps) => {
+export const WatchlistRow = ({
+  item,
+  price,
+  liveQuote,
+  disclosure,
+  onRemove,
+}: WatchlistRowProps) => {
   const handleRemove = (e: MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     onRemove?.();
   };
+
+  // 라이브 우선, 없으면 EOD 폴백.
+  const live = liveQuote ?? null;
+  const displayPrice = live !== null ? live.price : (price?.close ?? null);
+  const displayChange = live !== null ? live.change : (price?.change ?? null);
+  const displayChangeRate =
+    live !== null ? live.changeRate : (price?.changePct ?? null);
+  const displaySign = live !== null ? live.sign : undefined;
 
   return (
     <li className="group relative -mx-6 bg-transparent px-6 transition-colors hover:bg-muted/40">
@@ -72,17 +73,18 @@ export const WatchlistRow = ({ item, price, disclosure, onRemove }: WatchlistRow
             </span>
             <div className="flex shrink-0 items-end gap-2">
               <span className="text-sm font-bold tabular-nums leading-none text-foreground md:text-base">
-                {price ? `${price.close.toLocaleString("ko-KR")}원` : "—"}
+                {displayPrice !== null ? `${displayPrice.toLocaleString("ko-KR")}원` : "—"}
               </span>
-              {price && price.change != null && price.changePct != null && (
-                <span
-                  className={cn(
-                    "text-xs font-medium tabular-nums leading-none",
-                    changeColor(price.change)
-                  )}
-                >
-                  {formatSigned(price.change)}원 ({formatSigned(price.changePct, 2)}%)
-                </span>
+              {displayChange !== null && displayChangeRate !== null && (
+                <PriceChange
+                  change={displayChange}
+                  changeRate={displayChangeRate}
+                  sign={displaySign}
+                  symbol="sign"
+                  unit="원"
+                  size="xs"
+                  className="leading-none"
+                />
               )}
             </div>
           </div>

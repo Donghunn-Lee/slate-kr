@@ -12,6 +12,7 @@ import {
   type WatchlistItem,
 } from "@/features/watchlist/store/useWatchlistStore";
 import { useRecentVisitedStore } from "@/features/search/useRecentVisitedStore";
+import { useMultiQuote } from "@/features/multi-quote/useMultiQuote";
 import { WatchlistRow, WatchlistRowSkeleton } from "@/entities/watchlist/WatchlistRow";
 import { StockPanel } from "@/entities/stock/StockPanel";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ import { GroupManagementModal } from "@/features/watchlist/GroupManagementModal"
 import { cn } from "@/lib/utils";
 
 const RECENT_TAB = "recent" as const;
+const LIVE_TICKER_LIMIT = 30; // KIS 멀티 호출 상한 — 초과분은 EOD만 표시
 
 const WatchlistPage = () => {
   const groups = useWatchlistStore((s) => s.groups);
@@ -98,6 +100,12 @@ const WatchlistPage = () => {
     () => Object.fromEntries((countsQuery.data ?? []).map((d) => [d.ticker, d])),
     [countsQuery.data]
   );
+
+  const liveTickers = useMemo(
+    () => displayItems.slice(0, LIVE_TICKER_LIMIT).map((i) => i.ticker),
+    [displayItems]
+  );
+  const { quotes: liveQuotes } = useMultiQuote(liveTickers);
 
   const tabs: Array<{ key: string; label: string }> = [
     { key: RECENT_TAB, label: "최근 조회" },
@@ -184,6 +192,7 @@ const WatchlistPage = () => {
                         key={item.ticker}
                         item={item}
                         price={pricesMap[item.ticker]}
+                        liveQuote={liveQuotes[item.ticker]}
                         disclosure={countsMap[item.ticker]}
                         onRemove={
                           isRecentTab || !currentGroup
