@@ -1,20 +1,10 @@
 "use client";
 
-import type { IndexQuote, PriceSign } from "@/shared/types/quote";
+import type { IndexQuote } from "@/shared/types/quote";
 import { StockPanel } from "@/entities/stock/StockPanel";
 import { PriceCountUp } from "@/entities/stock/PriceCountUp";
-import { cn } from "@/lib/utils";
+import { PriceChange } from "@/shared/components/PriceChange";
 import { useIndexQuotes } from "./useIndexQuotes";
-
-const signClass = (sign: PriceSign): string =>
-  sign === "up"
-    ? "text-price-up"
-    : sign === "down"
-      ? "text-price-down"
-      : "text-muted-foreground";
-
-const signSymbol = (sign: PriceSign): string =>
-  sign === "up" ? "▲" : sign === "down" ? "▼" : "·";
 
 type IndexCellProps = {
   label: string;
@@ -29,11 +19,14 @@ const IndexCell = ({ label, quote }: IndexCellProps) => (
         <div className="mt-1 text-2xl font-medium tabular-nums">
           <PriceCountUp from={quote.price} to={quote.price} />
         </div>
-        <div className={cn("mt-1 text-[13px] tabular-nums", signClass(quote.sign))}>
-          {signSymbol(quote.sign)} {Math.abs(quote.change).toLocaleString("ko-KR")}
-          {" ("}
-          {quote.changeRate >= 0 ? "+" : ""}
-          {quote.changeRate.toFixed(2)}%{")"}
+        <div className="mt-1">
+          <PriceChange
+            change={quote.change}
+            changeRate={quote.changeRate}
+            sign={quote.sign}
+            symbol="arrow"
+            size="sm"
+          />
         </div>
       </>
     ) : (

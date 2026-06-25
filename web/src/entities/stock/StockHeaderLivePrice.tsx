@@ -2,6 +2,7 @@
 
 import { format } from "date-fns";
 import { useStockQuote } from "@/features/stock-quote/useStockQuote";
+import { PriceChange } from "@/shared/components/PriceChange";
 import { PriceCountUp } from "./PriceCountUp";
 
 type StockHeaderLivePriceProps = {
@@ -44,15 +45,6 @@ export const StockHeaderLivePrice = ({
         ? ((initialPrice - initialPrev) / initialPrev) * 100
         : null;
 
-  const isRise = displayChange !== null && displayChange > 0;
-  const isFall = displayChange !== null && displayChange < 0;
-  const changeColor = isRise
-    ? "text-price-up"
-    : isFall
-      ? "text-price-down"
-      : "text-muted-foreground";
-  const changeSign = isRise ? "+" : "";
-
   const labelText = isNxtMiss
     ? "장 마감"
     : session === "regular"
@@ -87,11 +79,14 @@ export const StockHeaderLivePrice = ({
         <PriceCountUp from={initialPrice} to={displayPrice} />원
       </span>
       {displayChange !== null && displayChangeRate !== null && (
-        <span className={`mb-1 text-lg font-medium ${changeColor}`}>
-          {changeSign}
-          {displayChange.toLocaleString("ko-KR")}원 ({changeSign}
-          {displayChangeRate.toFixed(2)}%)
-        </span>
+        <PriceChange
+          change={displayChange}
+          changeRate={displayChangeRate}
+          symbol="sign"
+          unit="원"
+          size="lg"
+          className="mb-1"
+        />
       )}
       {session && (
         <span className="mb-1.5 inline-flex items-center gap-1.5 text-[13px] text-muted-foreground">
