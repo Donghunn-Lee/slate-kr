@@ -8,13 +8,15 @@ import { PriceCountUp } from "./PriceCountUp";
 type StockHeaderLivePriceProps = {
   ticker: string;
   initialPrice: number;
-  initialPrev: number | null;
+  initialChange: number | null;
+  initialChangeRate: number | null;
 };
 
 export const StockHeaderLivePrice = ({
   ticker,
   initialPrice,
-  initialPrev,
+  initialChange,
+  initialChangeRate,
 }: StockHeaderLivePriceProps) => {
   const { data, dataUpdatedAt } = useStockQuote(ticker);
 
@@ -26,24 +28,25 @@ export const StockHeaderLivePrice = ({
   const isNxtMiss =
     (session === "after" || session === "after_close" || session === "pre") && live === null;
 
-  // preopen/closed + NXT 미지원: 새 거래일 기준가(전일 종가) + 변동 0% 강제. quote 무시.
-  const forceFlat = session === "preopen" || session === "closed" || isNxtMiss;
+  // preopen: 새 거래일 개장 전 → 전일종가 + 0%
+  // closed / NXT miss: 장 없음 → 직전 거래일 종가 + 직전 거래일 등락 유지
+  const isPreopen = session === "preopen";
+  const isClosedLike = session === "closed" || isNxtMiss;
 
-  const displayPrice = forceFlat ? initialPrice : (live?.price ?? initialPrice);
-  const displayChange = forceFlat
+  const displayPrice =
+    isPreopen || isClosedLike ? initialPrice : (live?.price ?? initialPrice);
+
+  const displayChange = isPreopen
     ? 0
-    : live !== null
-      ? live.change
-      : initialPrev !== null
-        ? initialPrice - initialPrev
-        : null;
-  const displayChangeRate = forceFlat
+    : isClosedLike
+      ? initialChange
+      : (live?.change ?? initialChange);
+
+  const displayChangeRate = isPreopen
     ? 0
-    : live !== null
-      ? live.changeRate
-      : initialPrev !== null && initialPrev !== 0
-        ? ((initialPrice - initialPrev) / initialPrev) * 100
-        : null;
+    : isClosedLike
+      ? initialChangeRate
+      : (live?.changeRate ?? initialChangeRate);
 
   const labelText = isNxtMiss
     ? "장 마감"

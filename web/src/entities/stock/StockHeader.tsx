@@ -38,6 +38,12 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
   const latest = prices[0] ?? null;
   const prev = prices[1] ?? null;
 
+  const initialChange = latest && prev ? latest.close - prev.close : null;
+  const initialChangeRate =
+    latest && prev && prev.close !== 0
+      ? ((latest.close - prev.close) / prev.close) * 100
+      : null;
+
   if (hasError || !latest) {
     return (
       <StockPanel noBorder>
@@ -110,7 +116,8 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
       <StockHeaderLivePrice
         ticker={ticker}
         initialPrice={latest.close}
-        initialPrev={prev?.close ?? null}
+        initialChange={initialChange}
+        initialChangeRate={initialChangeRate}
       />
 
       <div className="mt-3 flex flex-wrap gap-4 text-sm text-muted-foreground">
