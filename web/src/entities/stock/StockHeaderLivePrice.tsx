@@ -76,6 +76,15 @@ export const StockHeaderLivePrice = ({
     return "";
   })();
 
+  if (session === undefined) {
+    return (
+      <div className="mt-4 flex flex-wrap items-end gap-3">
+        <div className="h-10 w-36 animate-pulse rounded bg-muted" />
+        <div className="mb-1 h-5 w-28 animate-pulse rounded bg-muted" />
+      </div>
+    );
+  }
+
   return (
     <div className="mt-4 flex flex-wrap items-end gap-3">
       <span className="text-4xl font-bold tracking-tight">
