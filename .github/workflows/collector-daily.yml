@@ -12,6 +12,7 @@ jobs:
     env:
       DATABASE_URL: ${{ secrets.NEON_DIRECT_URL }}
       DART_API_KEY: ${{ secrets.DART_API_KEY }}
+      KRX_OPEN_API_KEY: ${{ secrets.KRX_OPEN_API_KEY }}
 
     steps:
       - uses: actions/checkout@v5
@@ -27,3 +28,8 @@ jobs:
       - name: Run fetch_prices
         working-directory: collector
         run: python fetch_prices.py
+        continue-on-error: true
+
+      - name: Run fetch_index_prices
+        working-directory: collector
+        run: python fetch_index_prices.py
