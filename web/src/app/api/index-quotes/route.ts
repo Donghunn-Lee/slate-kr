@@ -1,31 +1,47 @@
 import { NextResponse } from "next/server";
 import { fetchIndexQuote } from "@/lib/kis-quote-fetch";
+import { getLatestIndexPrice } from "@/lib/indices";
 import { isKrxMarketOpen } from "@/shared/utils/market";
-import type { IndexQuote } from "@/shared/types/quote";
+import type { IndexDailySnapshot, IndexQuote } from "@/shared/types/quote";
 
 export const dynamic = "force-dynamic";
 
-type IndexQuotes = {
-  kospi: IndexQuote | null;
-  kosdaq: IndexQuote | null;
-  kospi200: IndexQuote | null;
+type IndexCellData = {
+  live: IndexQuote | null;
+  fallback: IndexDailySnapshot | null;
 };
 
-const pick = (r: PromiseSettledResult<IndexQuote | null>): IndexQuote | null =>
+type IndexQuotes = {
+  kospi: IndexCellData;
+  kosdaq: IndexCellData;
+  kospi200: IndexCellData;
+};
+
+const pick = <T>(r: PromiseSettledResult<T | null>): T | null =>
   r.status === "fulfilled" ? r.value : null;
 
 export const GET = async () => {
   try {
-    const [kospi, kosdaq, kospi200] = await Promise.allSettled([
+    const [
+      kospiLive,
+      kosdaqLive,
+      kospi200Live,
+      kospiFb,
+      kosdaqFb,
+      kospi200Fb,
+    ] = await Promise.allSettled([
       fetchIndexQuote("0001"),
       fetchIndexQuote("1001"),
       fetchIndexQuote("2001"),
+      getLatestIndexPrice("KOSPI"),
+      getLatestIndexPrice("KOSDAQ"),
+      getLatestIndexPrice("KOSPI200"),
     ]);
 
     const quotes: IndexQuotes = {
-      kospi: pick(kospi),
-      kosdaq: pick(kosdaq),
-      kospi200: pick(kospi200),
+      kospi: { live: pick(kospiLive), fallback: pick(kospiFb) },
+      kosdaq: { live: pick(kosdaqLive), fallback: pick(kosdaqFb) },
+      kospi200: { live: pick(kospi200Live), fallback: pick(kospi200Fb) },
     };
 
     return NextResponse.json({ quotes, marketOpen: isKrxMarketOpen() });

@@ -1,11 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
-import type { IndexQuote } from "@/shared/types/quote";
+import type { IndexDailySnapshot, IndexQuote } from "@/shared/types/quote";
+
+export type IndexCellData = {
+  live: IndexQuote | null;
+  fallback: IndexDailySnapshot | null;
+};
 
 export type IndexQuotesResponse = {
   quotes: {
-    kospi: IndexQuote | null;
-    kosdaq: IndexQuote | null;
-    kospi200: IndexQuote | null;
+    kospi: IndexCellData;
+    kosdaq: IndexCellData;
+    kospi200: IndexCellData;
   };
   marketOpen: boolean;
 };

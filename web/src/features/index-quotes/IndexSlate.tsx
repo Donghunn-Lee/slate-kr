@@ -1,29 +1,43 @@
 "use client";
 
-import type { IndexQuote } from "@/shared/types/quote";
 import { StockPanel } from "@/entities/stock/StockPanel";
 import { PriceCountUp } from "@/entities/stock/PriceCountUp";
 import { PriceChange } from "@/shared/components/PriceChange";
-import { useIndexQuotes } from "./useIndexQuotes";
+import { useIndexQuotes, type IndexCellData } from "./useIndexQuotes";
 
 type IndexCellProps = {
   label: string;
-  quote: IndexQuote | null;
+  cell: IndexCellData;
 };
 
-const IndexCell = ({ label, quote }: IndexCellProps) => (
+const IndexCell = ({ label, cell }: IndexCellProps) => (
   <div className="px-6 py-4">
     <div className="text-[13px] text-muted-foreground">{label}</div>
-    {quote ? (
+    {cell.live ? (
       <>
         <div className="mt-1 text-2xl font-medium tabular-nums">
-          <PriceCountUp from={quote.price} to={quote.price} />
+          <PriceCountUp from={cell.live.price} to={cell.live.price} />
         </div>
         <div className="mt-1">
           <PriceChange
-            change={quote.change}
-            changeRate={quote.changeRate}
-            sign={quote.sign}
+            change={cell.live.change}
+            changeRate={cell.live.changeRate}
+            sign={cell.live.sign}
+            symbol="arrow"
+            size="sm"
+          />
+        </div>
+      </>
+    ) : cell.fallback ? (
+      <>
+        <div className="mt-1 text-2xl font-medium tabular-nums">
+          {cell.fallback.close.toLocaleString("ko-KR")}
+        </div>
+        <div className="mt-1 flex items-center gap-1.5">
+          <span className="text-[11px] text-muted-foreground">직전 거래일</span>
+          <PriceChange
+            change={cell.fallback.change}
+            changeRate={cell.fallback.changeRate}
             symbol="arrow"
             size="sm"
           />
@@ -82,9 +96,9 @@ export const IndexSlate = () => {
           </div>
         ) : (
           <div className={GRID_CLASS}>
-            <IndexCell label="코스피" quote={data.quotes.kospi} />
-            <IndexCell label="코스닥" quote={data.quotes.kosdaq} />
-            <IndexCell label="코스피200" quote={data.quotes.kospi200} />
+            <IndexCell label="코스피" cell={data.quotes.kospi} />
+            <IndexCell label="코스닥" cell={data.quotes.kosdaq} />
+            <IndexCell label="코스피200" cell={data.quotes.kospi200} />
           </div>
         )}
       </StockPanel>

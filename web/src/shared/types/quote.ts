@@ -20,3 +20,14 @@ export type IndexQuote = LiveQuoteCore & {
   advCount: number; // 상승 종목수
   declCount: number; // 하락 종목수
 };
+
+export type IndexDailySnapshot = {
+  indexCode: string; // "KOSPI" | "KOSDAQ" | "KOSPI200"
+  date: string; // 'YYYY-MM-DD'
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  change: number;
+  changeRate: number;
+};
