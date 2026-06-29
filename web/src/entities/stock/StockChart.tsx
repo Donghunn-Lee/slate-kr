@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
-import { createChart, AreaSeries } from "lightweight-charts";
+import { createChart, CandlestickSeries } from "lightweight-charts";
 import type { StockPriceSnapshot } from "@/shared/types/stock";
 
 type StockChartProps = {
@@ -14,22 +14,21 @@ type StockChartProps = {
   interactive?: boolean;
 };
 
+// KR 관행: 상승=레드, 하락=블루. Tailwind red-600/blue-600 톤으로 globals.css의 oklch와 매칭.
 const LIGHT = {
   bg: "#ffffff",
   text: "#1a1a1a",
   border: "#e5e5e5",
-  line: "#525252",
-  topFill: "rgba(82,82,82,0.15)",
-  bottomFill: "rgba(82,82,82,0)",
+  up: "#dc2626",
+  down: "#2563eb",
 } as const;
 
 const DARK = {
   bg: "#1a1a1a",
   text: "#f0f0f0",
   border: "rgba(255,255,255,0.1)",
-  line: "#a3a3a3",
-  topFill: "rgba(163,163,163,0.15)",
-  bottomFill: "rgba(163,163,163,0)",
+  up: "#ef4444",
+  down: "#3b82f6",
 } as const;
 
 export const StockChart = ({ prices, label, viewAllHref, interactive = true }: StockChartProps) => {
@@ -63,18 +62,22 @@ export const StockChart = ({ prices, label, viewAllHref, interactive = true }: S
       handleScale: interactive,
     });
 
-    const areaSeries = chart.addSeries(AreaSeries, {
-      lineColor: c.line,
-      topColor: c.topFill,
-      bottomColor: c.bottomFill,
-      lineWidth: 2,
+    const candleSeries = chart.addSeries(CandlestickSeries, {
+      upColor: c.up,
+      downColor: c.down,
+      borderVisible: false,
+      wickUpColor: c.up,
+      wickDownColor: c.down,
       priceFormat: { type: "price", precision: 0, minMove: 1 },
     });
 
-    areaSeries.setData(
+    candleSeries.setData(
       sorted.map((p) => ({
         time: p.date as `${number}-${number}-${number}`,
-        value: p.close,
+        open: p.open,
+        high: p.high,
+        low: p.low,
+        close: p.close,
       }))
     );
 
