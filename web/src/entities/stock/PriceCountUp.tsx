@@ -12,12 +12,14 @@ type PriceCountUpProps = {
 
 export const PriceCountUp = ({ from, to, duration = 800, className }: PriceCountUpProps) => {
   const [displayed, setDisplayed] = useState(from);
-  const prevToRef = useRef(from);
+  // 직전 to가 아니라 "실제 화면에 반영된 값"을 추적한다. Strict Mode의 effect 이중 실행으로
+  // 첫 RAF가 취소되더라도, 그동안 setDisplayed가 발화되지 않았으면 ref도 그대로라 두 번째
+  // 라운드에서 애니메이션이 정상 시작된다.
+  const displayedRef = useRef(from);
   const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
-    const source = prevToRef.current;
-    prevToRef.current = to;
+    const source = displayedRef.current;
     if (source === to) return;
 
     const tickSize = getTickSize(to);
@@ -30,11 +32,13 @@ export const PriceCountUp = ({ from, to, duration = 800, className }: PriceCount
       const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
       const snapped = source + Math.round((eased * diff) / tickSize) * tickSize;
       const clamped = diff > 0 ? Math.min(snapped, to) : Math.max(snapped, to);
+      displayedRef.current = clamped;
       setDisplayed(clamped);
 
       if (t < 1) {
         rafRef.current = requestAnimationFrame(tick);
       } else {
+        displayedRef.current = to;
         setDisplayed(to);
       }
     };
