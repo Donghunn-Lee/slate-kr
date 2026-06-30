@@ -85,7 +85,7 @@ export function WatchlistPreview() {
 
   return (
     <section>
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-semibold text-foreground">내 관심종목</h2>
         <Link
           href="/watchlist"
