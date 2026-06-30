@@ -24,9 +24,13 @@ export const StockHeaderLivePrice = ({
   const session = data?.session;
   const updatedAtText = dataUpdatedAt ? format(new Date(dataUpdatedAt), "HH:mm:ss") : "";
 
-  // NXT 미지원 종목: after/after_close/pre인데 NX 응답이 null. regular는 제외(폴링 일시실패는 "실시간" 유지).
+  // NXT 미지원 종목: after/after_close/pre인데 NX 응답이 null.
   const isNxtMiss =
     (session === "after" || session === "after_close" || session === "pre") && live === null;
+
+  // 정규장 중 KIS 응답이 null → 일시적 시세 갱신 실패. 직전 거래일 종가로 fallback,
+  // 라벨은 "일시 지연"으로 표시해 사용자가 실시간 시세가 아님을 인지할 수 있게.
+  const isStaleQuote = session === "regular" && live === null;
 
   // preopen: 새 거래일 개장 전 → 전일종가 + 0%
   // closed / NXT miss: 장 없음 → 직전 거래일 종가 + 직전 거래일 등락 유지
@@ -48,19 +52,21 @@ export const StockHeaderLivePrice = ({
       ? initialChangeRate
       : (live?.changeRate ?? initialChangeRate);
 
-  const labelText = isNxtMiss
-    ? "장 마감"
-    : session === "regular"
-      ? "실시간"
-      : session === "after"
-        ? "애프터마켓"
-        : session === "after_close"
-          ? "애프터마켓 종가"
-          : session === "pre"
-            ? "프리마켓"
-            : session === "preopen"
-              ? "장 시작 전"
-              : "장 마감"; // closed
+  const labelText = isStaleQuote
+    ? "일시 지연"
+    : isNxtMiss
+      ? "장 마감"
+      : session === "regular"
+        ? "실시간"
+        : session === "after"
+          ? "애프터마켓"
+          : session === "after_close"
+            ? "애프터마켓 종가"
+            : session === "pre"
+              ? "프리마켓"
+              : session === "preopen"
+                ? "장 시작 전"
+                : "장 마감"; // closed
 
   // 시각 표시: 활성 세션은 갱신 시각, after_close는 20:00 고정,
   // 장 마감(=isNxtMiss after/after_close + closed)은 정규장 마감 15:30 고정.
@@ -102,7 +108,7 @@ export const StockHeaderLivePrice = ({
       )}
       {session && (
         <span className="mb-1.5 inline-flex items-center gap-1.5 text-[13px] text-muted-foreground">
-          {session === "regular" && (
+          {session === "regular" && !isStaleQuote && (
             <span className="inline-block size-1.5 rounded-full bg-emerald-500" aria-hidden />
           )}
           {labelText}
