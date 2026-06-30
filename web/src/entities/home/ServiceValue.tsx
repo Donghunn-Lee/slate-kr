@@ -7,21 +7,21 @@ const CARDS = [
     title: "공시 분류",
     description: "최근 공시를 주요사항·재무·자본 등으로 분류해 태그 표시",
     variant: "sky" as const,
-    iconTint: "bg-sky-border text-sky-accent",
+    iconTint: "bg-elevated text-sky-accent",
   },
   {
     icon: TrendingUp,
     title: "가격 흐름",
     description: "1년 OHLCV 차트와 현재가·등락·거래량·시가총액",
     variant: "lavender" as const,
-    iconTint: "bg-lavender-border text-lavender-accent",
+    iconTint: "bg-elevated text-lavender-accent",
   },
   {
     icon: BarChart2,
     title: "핵심 지표",
     description: "PER·PBR·EPS를 현재가 기준으로 실시간 계산",
     variant: "peach" as const,
-    iconTint: "bg-peach-border text-peach-accent",
+    iconTint: "bg-elevated text-peach-accent",
   },
 ];
 
