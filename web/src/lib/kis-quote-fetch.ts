@@ -244,7 +244,10 @@ export const fetchStockQuote = async (
     });
 
     if (!res.ok) {
-      console.error(`[kis] stock quote HTTP ${res.status}`);
+      const body = await res.text();
+      console.error(
+        `[kis] stock quote HTTP ${res.status} ticker=${ticker} div=${marketDiv} body=${body.slice(0, 300)}`,
+      );
       return null;
     }
 
