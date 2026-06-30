@@ -87,7 +87,7 @@ export const IndexSlate = () => {
   const { data: intraday } = useIndexIntraday();
 
   return (
-    <section className="mb-8">
+    <section>
       <StockPanel className="p-0">
         <div className="flex items-center justify-between px-6 py-4">
           <h2 className="text-[13px] font-medium text-muted-foreground">주요 지수</h2>

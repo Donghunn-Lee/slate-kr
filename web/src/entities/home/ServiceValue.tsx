@@ -27,7 +27,7 @@ const CARDS = [
 
 export function ServiceValue() {
   return (
-    <section className="mb-12">
+    <section>
       <h2 className="mb-3 text-sm font-semibold">무엇을 확인할 수 있나요</h2>
       <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-3">
         {CARDS.map(({ icon: Icon, title, description, variant, iconTint }) => (

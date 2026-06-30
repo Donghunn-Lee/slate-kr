@@ -67,7 +67,7 @@ export function WatchlistPreview() {
 
   if (preview.length === 0) {
     return (
-      <section className="mb-8">
+      <section>
         <StockPanel>
           <p className="text-sm text-muted-foreground">
             저장한 관심종목을 여기서 모아 볼 수 있어요
@@ -84,7 +84,7 @@ export function WatchlistPreview() {
   }
 
   return (
-    <section className="mb-8">
+    <section>
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-semibold">내 관심종목</h2>
         <Link

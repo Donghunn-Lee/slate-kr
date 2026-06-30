@@ -4,7 +4,7 @@ import { IndexSlate } from "@/features/index-quotes/IndexSlate";
 import { WatchlistPreview } from "@/features/watchlist/WatchlistPreview";
 
 const HomePage = () => (
-  <main className="mx-auto w-full max-w-4xl px-4">
+  <main className="mx-auto w-full max-w-4xl space-y-8 px-4 pb-12">
     <HomeHero />
     <IndexSlate />
     <WatchlistPreview />

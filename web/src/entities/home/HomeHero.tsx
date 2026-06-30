@@ -14,7 +14,7 @@ export const HomeHero = () => {
   const removeRecent = useRecentVisitedStore((s) => s.remove);
 
   return (
-    <section className="flex flex-col items-center pb-14 pt-16 text-center">
+    <section className="flex flex-col items-center pt-16 text-center">
       <h1 className="mb-1 text-3xl font-bold tracking-tight">SlateKR</h1>
       <p className="mb-10 text-sm text-muted-foreground">
         국내 상장 종목의 가격·재무·공시 정보를 빠르게 조회하세요
