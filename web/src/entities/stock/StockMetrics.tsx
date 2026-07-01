@@ -1,6 +1,7 @@
 import type { StockPriceSnapshot, FinancialPeriod } from "@/shared/types/stock";
 import { getLatestPrice } from "@/lib/prices";
-import { getLatestFinancial } from "@/lib/financials";
+import { getFinancials, computeTtmEps } from "@/lib/financials";
+import { getListedAt } from "@/lib/stocks";
 import { formatRatio, formatEps } from "@/shared/format";
 import { StockPanel } from "./StockPanel";
 
@@ -21,37 +22,51 @@ type StockMetricsProps = {
 };
 
 export const StockMetrics = async ({ ticker }: StockMetricsProps) => {
-  const [priceResult, financialResult] = await Promise.allSettled([
+  const [priceResult, financialsResult, listedAtResult] = await Promise.allSettled([
     getLatestPrice(ticker),
-    getLatestFinancial(ticker),
+    getFinancials(ticker),
+    getListedAt(ticker),
   ]);
 
   const price: StockPriceSnapshot | null =
     priceResult.status === "fulfilled" ? priceResult.value : null;
-  const financial: FinancialPeriod | null =
-    financialResult.status === "fulfilled" ? financialResult.value : null;
+  const financials = financialsResult.status === "fulfilled" ? financialsResult.value : null;
+  const listedAt: Date | null =
+    listedAtResult.status === "fulfilled" ? listedAtResult.value : null;
+  const latestAnnual: FinancialPeriod | null = financials?.annual[0] ?? null;
+  const ttm = computeTtmEps(financials?.quarterly ?? [], latestAnnual, listedAt);
 
   const hasError =
-    priceResult.status === "rejected" && financialResult.status === "rejected";
-  const hasData = price !== null || financial !== null;
+    priceResult.status === "rejected" && financialsResult.status === "rejected";
+  const hasData = price !== null || latestAnnual !== null;
 
   const currentPrice = price?.close ?? null;
+  const displayEps = ttm.value;
+  const displayBps = latestAnnual?.bps ?? null;
 
   const per =
-    currentPrice !== null && financial?.eps && financial.eps > 0
-      ? currentPrice / financial.eps
+    currentPrice !== null && displayEps !== null && displayEps > 0
+      ? currentPrice / displayEps
       : null;
 
   const pbr =
-    currentPrice !== null && financial?.bps && financial.bps > 0
-      ? currentPrice / financial.bps
+    currentPrice !== null && displayBps !== null && displayBps > 0
+      ? currentPrice / displayBps
       : null;
+
+  const sourceLabel = (() => {
+    if (ttm.source === "ttm") return "최근 4분기 기준";
+    if (ttm.source === "annualized") return "연환산 기준";
+    if (ttm.source === "annual_fallback" && latestAnnual !== null)
+      return `${latestAnnual.year}년 연간 기준`;
+    return null;
+  })();
 
   return (
     <StockPanel variant="peach">
       <h2 className="mb-4 text-sm font-semibold text-muted-foreground">
         핵심 지표
-        {financial && <span className="ml-2 font-normal">({financial.year}년 연간 기준)</span>}
+        {sourceLabel && <span className="ml-2 font-normal">({sourceLabel})</span>}
       </h2>
       {hasError ? (
         <p className="text-sm text-muted-foreground">지표 데이터를 불러오지 못했습니다</p>
@@ -61,8 +76,8 @@ export const StockMetrics = async ({ ticker }: StockMetricsProps) => {
         <div className="grid grid-cols-2 gap-x-8 gap-y-5">
           <MetricItem label="PER" value={formatRatio(per)} />
           <MetricItem label="PBR" value={formatRatio(pbr)} />
-          <MetricItem label="EPS" value={formatEps(financial?.eps ?? null)} />
-          <MetricItem label="BPS" value={formatEps(financial?.bps ?? null)} />
+          <MetricItem label="EPS" value={formatEps(displayEps)} />
+          <MetricItem label="BPS" value={formatEps(displayBps)} />
         </div>
       )}
     </StockPanel>

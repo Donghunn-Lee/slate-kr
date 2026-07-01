@@ -37,6 +37,14 @@ export const getStockByTicker = cache(async (ticker: string): Promise<StockSumma
   };
 });
 
+export const getListedAt = cache(async (ticker: string): Promise<Date | null> => {
+  const [rows] = await pool.query<Pick<StockRow, "listed_at">[]>(
+    "SELECT listed_at FROM stocks WHERE ticker = $1 AND is_active = true",
+    [ticker]
+  );
+  return rows.length > 0 ? (rows[0].listed_at ?? null) : null;
+});
+
 export const getCorpCode = cache(async (ticker: string): Promise<string | null> => {
   const [rows] = await pool.query<StockRow[]>(
     "SELECT corp_code FROM stocks WHERE ticker = $1 AND is_active = true",

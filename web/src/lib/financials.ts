@@ -124,17 +124,18 @@ const rowToFinancialPeriod = (
   };
 };
 
-const sumFlow = (
-  rows: (FinancialRow | undefined)[],
-  field: "revenue" | "operating_profit" | "net_income" | "eps"
-): number | null => {
+const sumFlow = (values: (number | null)[]): number | null => {
   let total = 0;
-  for (const row of rows) {
-    const v = row?.[field] ?? null;
+  for (const v of values) {
     if (v === null) return null;
     total += v;
   }
   return total;
+};
+
+const subFlow = (annual: number | null, sum: number | null): number | null => {
+  if (annual === null || sum === null) return null;
+  return annual - sum;
 };
 
 const buildQuarterlyPeriods = (
@@ -167,20 +168,19 @@ const buildQuarterlyPeriods = (
     const q1 = byQuarter.get(1);
     const q2 = byQuarter.get(2);
     const q3 = byQuarter.get(3);
-    const qRows = [q1, q2, q3];
+    const pick = (field: "revenue" | "operating_profit" | "net_income" | "eps") => [
+      q1?.[field] ?? null,
+      q2?.[field] ?? null,
+      q3?.[field] ?? null,
+    ];
 
-    const subFlow = (annual: number | null, sum: number | null): number | null => {
-      if (annual === null || sum === null) return null;
-      return annual - sum;
-    };
-
-    const q4Revenue = subFlow(annualRow.revenue, sumFlow(qRows, "revenue"));
+    const q4Revenue = subFlow(annualRow.revenue, sumFlow(pick("revenue")));
     const q4OperatingProfit = subFlow(
       annualRow.operating_profit,
-      sumFlow(qRows, "operating_profit")
+      sumFlow(pick("operating_profit"))
     );
-    const q4NetIncome = subFlow(annualRow.net_income, sumFlow(qRows, "net_income"));
-    const q4Eps = subFlow(annualRow.eps, sumFlow(qRows, "eps"));
+    const q4NetIncome = subFlow(annualRow.net_income, sumFlow(pick("net_income")));
+    const q4Eps = subFlow(annualRow.eps, sumFlow(pick("eps")));
 
     // Q4 전기 = Q3 (기말 자산/자본)
     const q3PrevTotals = q3
@@ -263,4 +263,83 @@ export const getLatestFinancial = async (ticker: string): Promise<FinancialPerio
 
   if (rows.length === 0) return null;
   return rowToFinancialPeriod(rows[0]);
+};
+
+export type TtmEpsSource =
+  | "ttm"
+  | "ttm_negative"
+  | "annualized"
+  | "annual_fallback"
+  | "none";
+
+export type TtmEps = {
+  value: number | null;
+  source: TtmEpsSource;
+};
+
+// 상장일 기준 4분기 도래 여부 판정 임계 (12개월 + 공시 시차 여유)
+const RECENTLY_LISTED_MAX_MONTHS = 14;
+const MS_PER_MONTH = 1000 * 60 * 60 * 24 * 30.44;
+
+// 최근순 quarterly 배열에서 최상단 몇 개가 (year, quarter) 기준
+// 연속·EPS non-null 인지 세어 반환한다.
+const countTopConsecutive = (quarterly: FinancialPeriod[]): number => {
+  let count = 0;
+  let prevYear: number | null = null;
+  let prevQuarter: number | null = null;
+  for (const q of quarterly) {
+    if (q.eps === null || q.quarter === null) break;
+    if (prevYear !== null && prevQuarter !== null) {
+      const expectedNextYear = q.quarter === 4 ? q.year + 1 : q.year;
+      const expectedNextQuarter = q.quarter === 4 ? 1 : q.quarter + 1;
+      if (prevYear !== expectedNextYear || prevQuarter !== expectedNextQuarter) break;
+    }
+    count += 1;
+    prevYear = q.year;
+    prevQuarter = q.quarter;
+    if (count === 4) break;
+  }
+  return count;
+};
+
+export const computeTtmEps = (
+  quarterly: FinancialPeriod[],
+  latestAnnual: FinancialPeriod | null,
+  listedAt: Date | null = null
+): TtmEps => {
+  const annualEps = latestAnnual?.eps ?? null;
+  const annualFallback: TtmEps =
+    annualEps === null
+      ? { value: null, source: "none" }
+      : { value: annualEps, source: "annual_fallback" };
+
+  const consecutive = countTopConsecutive(quarterly);
+
+  // #1 / #2: 최근 4분기 완결
+  if (consecutive === 4) {
+    const sum = sumFlow(quarterly.slice(0, 4).map((q) => q.eps));
+    if (sum === null) return annualFallback;
+    return sum > 0
+      ? { value: sum, source: "ttm" }
+      : { value: null, source: "ttm_negative" };
+  }
+
+  // #3: 상장 1년 미만 & 최근부터 2~3분기 연속 → 연환산
+  if (consecutive === 2 || consecutive === 3) {
+    const monthsSinceListing =
+      listedAt !== null ? (Date.now() - listedAt.getTime()) / MS_PER_MONTH : null;
+    const notYetFourQuarters =
+      monthsSinceListing !== null && monthsSinceListing < RECENTLY_LISTED_MAX_MONTHS;
+    if (notYetFourQuarters) {
+      const sum = sumFlow(quarterly.slice(0, consecutive).map((q) => q.eps));
+      if (sum === null) return annualFallback;
+      const annualized = sum * (4 / consecutive);
+      return annualized > 0
+        ? { value: annualized, source: "annualized" }
+        : { value: null, source: "annualized" };
+    }
+  }
+
+  // #4 / #5
+  return annualFallback;
 };
