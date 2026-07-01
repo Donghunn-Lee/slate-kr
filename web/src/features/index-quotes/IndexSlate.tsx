@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { StockPanel } from "@/entities/stock/StockPanel";
 import { PriceCountUp } from "@/entities/stock/PriceCountUp";
 import { PriceChange } from "@/shared/components/PriceChange";
@@ -68,18 +69,20 @@ const CellSkeleton = ({ label }: { label: string }) => (
   </div>
 );
 
-const MarketStatus = ({ marketOpen }: { marketOpen: boolean }) =>
+const MarketStatus = ({ marketOpen, date }: { marketOpen: boolean; date?: string }) =>
   marketOpen ? (
     <div className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
       <span className="inline-block size-1.5 rounded-full bg-emerald-500" aria-hidden />
       실시간
     </div>
   ) : (
-    <div className="text-[13px] text-muted-foreground">장 마감 · 종가 기준</div>
+    <div className="text-[13px] text-muted-foreground">
+      15:30 장 마감{date ? ` · 기준일 ${date}` : ""}
+    </div>
   );
 
 const GRID_CLASS =
-  "grid grid-cols-1 divide-y divide-border/60 border-t border-border/60 sm:grid-cols-3 sm:divide-x sm:divide-y-0";
+  "grid grid-cols-1 divide-y divide-border/60 sm:grid-cols-3 sm:divide-x sm:divide-y-0";
 
 const EMPTY_BARS: IndexIntradaySnapshot[] = [];
 
@@ -89,22 +92,26 @@ export const IndexSlate = () => {
 
   return (
     <section>
-      <StockPanel className="p-0">
-        <div className="flex items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-3">
-            <h2 className="text-[13px] font-medium text-muted-foreground">주요 지수</h2>
-            <Link
-              href="/stocks/indices"
-              className="text-[11px] text-muted-foreground hover:underline"
-            >
-              전체 보기 →
-            </Link>
-          </div>
-          {data ? <MarketStatus marketOpen={data.marketOpen} /> : null}
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-end gap-3">
+          <h2 className="text-lg font-semibold text-foreground">주요 지수</h2>
+          {data ? (
+            <MarketStatus
+              marketOpen={data.marketOpen}
+              date={data.quotes.kospi.fallback?.date}
+            />
+          ) : null}
         </div>
-
+        <Link
+          href="/stocks/indices"
+          className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+        >
+          전체 보기 <ArrowRight className="h-3 w-3" />
+        </Link>
+      </div>
+      <StockPanel className="p-0">
         {isError && !data ? (
-          <div className="border-t border-border/60 px-6 py-6 text-sm text-muted-foreground">
+          <div className="px-6 py-6 text-sm text-muted-foreground">
             지수 시세를 불러오지 못했습니다
           </div>
         ) : isLoading || !data ? (
