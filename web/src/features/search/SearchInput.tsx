@@ -14,6 +14,7 @@ type SearchInputProps = {
   onSelect?: (ticker: string, name: string) => void;
   disabled?: boolean;
   size?: "default" | "lg";
+  showPreview?: boolean;
 };
 
 export const SearchInput = ({
@@ -22,13 +23,14 @@ export const SearchInput = ({
   onSelect,
   disabled,
   size = "default",
+  showPreview = true,
 }: SearchInputProps) => {
   const router = useRouter();
   const { results, isLoading, error } = useStockSearch(value);
   const [closedByUser, setClosedByUser] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
 
-  const isOpen = !closedByUser && !error && (isLoading || results.length > 0);
+  const isOpen = showPreview && !closedByUser && !error && (isLoading || results.length > 0);
 
   const containerRef = useRef<HTMLDivElement>(null);
 

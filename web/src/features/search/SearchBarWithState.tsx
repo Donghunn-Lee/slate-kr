@@ -10,5 +10,5 @@ type SearchBarWithStateProps = {
 export const SearchBarWithState = ({ initialQuery = "" }: SearchBarWithStateProps) => {
   const [value, setValue] = useState(initialQuery);
 
-  return <SearchInput value={value} onChange={setValue} />;
+  return <SearchInput value={value} onChange={setValue} showPreview={false} />;
 };
