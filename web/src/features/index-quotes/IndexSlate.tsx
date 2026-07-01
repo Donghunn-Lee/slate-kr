@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { StockPanel } from "@/entities/stock/StockPanel";
 import { PriceCountUp } from "@/entities/stock/PriceCountUp";
 import { PriceChange } from "@/shared/components/PriceChange";
@@ -90,7 +91,15 @@ export const IndexSlate = () => {
     <section>
       <StockPanel className="p-0">
         <div className="flex items-center justify-between px-6 py-4">
-          <h2 className="text-[13px] font-medium text-muted-foreground">주요 지수</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-[13px] font-medium text-muted-foreground">주요 지수</h2>
+            <Link
+              href="/stocks/indices"
+              className="text-[11px] text-muted-foreground hover:underline"
+            >
+              전체 보기 →
+            </Link>
+          </div>
           {data ? <MarketStatus marketOpen={data.marketOpen} /> : null}
         </div>
 
