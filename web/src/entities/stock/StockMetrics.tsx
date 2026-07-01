@@ -4,6 +4,7 @@ import { getFinancials, computeTtmEps } from "@/lib/financials";
 import { getListedAt } from "@/lib/stocks";
 import { formatRatio, formatEps } from "@/shared/format";
 import { StockPanel } from "./StockPanel";
+import { StockMetricsFormulaTooltip } from "./StockMetricsFormulaTooltip";
 
 type MetricItemProps = {
   label: string;
@@ -64,10 +65,13 @@ export const StockMetrics = async ({ ticker }: StockMetricsProps) => {
 
   return (
     <StockPanel variant="peach">
-      <h2 className="mb-4 text-sm font-semibold text-muted-foreground">
-        핵심 지표
-        {sourceLabel && <span className="ml-2 font-normal">({sourceLabel})</span>}
-      </h2>
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-muted-foreground">
+          핵심 지표
+          {sourceLabel && <span className="ml-2 font-normal">({sourceLabel})</span>}
+        </h2>
+        <StockMetricsFormulaTooltip source={ttm.source} />
+      </div>
       {hasError ? (
         <p className="text-sm text-muted-foreground">지표 데이터를 불러오지 못했습니다</p>
       ) : !hasData ? (
