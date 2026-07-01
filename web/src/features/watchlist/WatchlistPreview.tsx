@@ -1,19 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { StockPanel } from "@/entities/stock/StockPanel";
+import { PriceChange } from "@/shared/components/PriceChange";
+import { useMultiQuote } from "@/features/multi-quote/useMultiQuote";
 import { useWatchlistStore, type WatchlistItem } from "./store/useWatchlistStore";
 import type { TickerPriceSummary } from "@/app/api/prices/route";
 
 function formatClose(close: number) {
   return close.toLocaleString("ko-KR") + "원";
-}
-
-function formatChange(change: number, changePct: number) {
-  const sign = change >= 0 ? "+" : "";
-  return `${sign}${change.toLocaleString("ko-KR")} (${sign}${changePct.toFixed(2)}%)`;
 }
 
 export function WatchlistPreview() {
@@ -44,24 +42,22 @@ export function WatchlistPreview() {
 
   const tickersKey = preview.map((p) => p.ticker).join(",");
 
-  const [prices, setPrices] = useState<Record<string, TickerPriceSummary>>({});
-  const [fetchError, setFetchError] = useState(false);
+  const pricesQuery = useQuery<TickerPriceSummary[]>({
+    queryKey: ["home-prices", tickersKey],
+    queryFn: async () => {
+      const r = await fetch(`/api/prices?tickers=${tickersKey}`);
+      if (!r.ok) throw new Error("prices fetch failed");
+      return r.json();
+    },
+    enabled: tickersKey.length > 0,
+  });
 
-  useEffect(() => {
-    if (tickersKey.length === 0) return;
-    fetch(`/api/prices?tickers=${tickersKey}`)
-      .then((r) => {
-        if (!r.ok) throw new Error("fetch failed");
-        return r.json();
-      })
-      .then((data: TickerPriceSummary[]) => {
-        setPrices(Object.fromEntries(data.map((d) => [d.ticker, d])));
-        setFetchError(false);
-      })
-      .catch(() => {
-        setFetchError(true);
-      });
-  }, [tickersKey]);
+  const pricesMap = useMemo(
+    () => Object.fromEntries((pricesQuery.data ?? []).map((p) => [p.ticker, p])),
+    [pricesQuery.data]
+  );
+
+  const { quotes: liveQuotes } = useMultiQuote(preview.map((p) => p.ticker));
 
   if (!mounted) return null;
 
@@ -95,12 +91,17 @@ export function WatchlistPreview() {
         </Link>
       </div>
       <StockPanel>
-        {fetchError ? (
+        {pricesQuery.isError ? (
           <p className="text-sm text-muted-foreground">관심종목 데이터를 불러오지 못했습니다</p>
         ) : null}
         <ul className="divide-y divide-border/60">
           {preview.map((item, i) => {
-            const p = prices[item.ticker];
+            const p = pricesMap[item.ticker];
+            const live = liveQuotes[item.ticker] ?? null;
+            const displayPrice = live ? live.price : (p?.close ?? null);
+            const displayChange = live ? live.change : (p?.change ?? null);
+            const displayChangeRate = live ? live.changeRate : (p?.changePct ?? null);
+            const displaySign = live ? live.sign : undefined;
             return (
               <li key={item.ticker}>
                 <Link
@@ -116,23 +117,20 @@ export function WatchlistPreview() {
                     </p>
                   </div>
                   <div className="shrink-0 text-right">
-                    {p ? (
+                    {displayPrice !== null ? (
                       <>
                         <p className="text-sm font-semibold tabular-nums">
-                          {formatClose(p.close)}
+                          {formatClose(displayPrice)}
                         </p>
-                        {p.change !== null && p.changePct !== null && (
-                          <p
-                            className={`text-xs tabular-nums ${
-                              p.change > 0
-                                ? "text-price-up"
-                                : p.change < 0
-                                  ? "text-price-down"
-                                  : "text-muted-foreground"
-                            }`}
-                          >
-                            {formatChange(p.change, p.changePct)}
-                          </p>
+                        {displayChange !== null && displayChangeRate !== null && (
+                          <PriceChange
+                            change={displayChange}
+                            changeRate={displayChangeRate}
+                            sign={displaySign}
+                            symbol="sign"
+                            unit="원"
+                            size="xs"
+                          />
                         )}
                       </>
                     ) : (
