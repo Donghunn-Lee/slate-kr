@@ -46,3 +46,13 @@ export type IndexIntradaySnapshot = {
   change: number; // 전일 종가 대비
   changeRate: number; // %
 };
+
+// 캔들 차트 렌더링 최소 필드. lightweight-charts의 time은 'YYYY-MM-DD'(BusinessDay)
+// 또는 epoch 초(UTCTimestamp) 둘 다 받으므로 유니온으로 둔다.
+export type ChartBar = {
+  time: string | number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+};

@@ -1,13 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useTheme } from "next-themes";
-import {
-  createChart,
-  CandlestickSeries,
-  type UTCTimestamp,
-} from "lightweight-charts";
+import { useEffect, useMemo, useState } from "react";
+import { PriceChart } from "@/entities/chart/PriceChart";
 import type {
+  ChartBar,
   IndexDailySnapshot,
   IndexIntradaySnapshot,
 } from "@/shared/types/quote";
@@ -24,22 +20,6 @@ type IndexChartProps = {
 };
 
 const POLL_INTERVAL_MS = 60_000;
-
-const LIGHT = {
-  bg: "#ffffff",
-  text: "#1a1a1a",
-  border: "#e5e5e5",
-  up: "#dc2626",
-  down: "#2563eb",
-} as const;
-
-const DARK = {
-  bg: "#1a1a1a",
-  text: "#f0f0f0",
-  border: "rgba(255,255,255,0.1)",
-  up: "#ef4444",
-  down: "#3b82f6",
-} as const;
 
 const INDEX_LABEL: Record<IndexCode, string> = {
   KOSPI: "코스피",
@@ -58,9 +38,25 @@ type IntradayResponse = {
   marketOpen: boolean;
 };
 
+const dailyToBars = (prices: IndexDailySnapshot[]): ChartBar[] =>
+  prices.map((p) => ({
+    time: p.date,
+    open: p.open,
+    high: p.high,
+    low: p.low,
+    close: p.close,
+  }));
+
+const intradayToBars = (bars: IndexIntradaySnapshot[]): ChartBar[] =>
+  bars.map((b) => ({
+    time: b.timestamp,
+    open: b.open,
+    high: b.high,
+    low: b.low,
+    close: b.close,
+  }));
+
 export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChartProps) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const { resolvedTheme } = useTheme();
   const [tab, setTab] = useState<Tab>("intraday");
   const [intraday, setIntraday] = useState<IndexIntradaySnapshot[] | null>(null);
 
@@ -101,76 +97,11 @@ export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChart
   const renderMode: "intraday" | "day" | "month" =
     tab === "intraday" ? (intradayHasData ? "intraday" : "day") : tab;
 
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const isIntraday = renderMode === "intraday";
-
-    if (isIntraday && (!intraday || intraday.length === 0)) return;
-    if (!isIntraday && prices.length === 0) return;
-
-    const c = resolvedTheme === "dark" ? DARK : LIGHT;
-
-    const chart = createChart(containerRef.current, {
-      autoSize: true,
-      layout: {
-        background: { color: c.bg },
-        textColor: c.text,
-        fontFamily: "SUIT Variable, sans-serif",
-        attributionLogo: false,
-      },
-      grid: {
-        vertLines: { color: c.border },
-        horzLines: { color: c.border },
-      },
-      crosshair: { mode: 1 },
-      timeScale: {
-        borderColor: c.border,
-        timeVisible: isIntraday,
-        secondsVisible: false,
-      },
-      rightPriceScale: { borderColor: c.border },
-      handleScroll: interactive,
-      handleScale: interactive,
-    });
-
-    const series = chart.addSeries(CandlestickSeries, {
-      upColor: c.up,
-      downColor: c.down,
-      borderVisible: false,
-      wickUpColor: c.up,
-      wickDownColor: c.down,
-      priceFormat: { type: "price", precision: 2, minMove: 0.01 },
-    });
-
-    if (isIntraday) {
-      series.setData(
-        intraday!.map((p) => ({
-          time: p.timestamp as UTCTimestamp,
-          open: p.open,
-          high: p.high,
-          low: p.low,
-          close: p.close,
-        })),
-      );
-    } else {
-      const source = renderMode === "month" ? monthlyPrices : prices;
-      series.setData(
-        source.map((p) => ({
-          time: p.date as `${number}-${number}-${number}`,
-          open: p.open,
-          high: p.high,
-          low: p.low,
-          close: p.close,
-        })),
-      );
-    }
-
-    chart.timeScale().fitContent();
-
-    return () => {
-      chart.remove();
-    };
-  }, [renderMode, intraday, monthlyPrices, prices, resolvedTheme, interactive]);
+  const bars = useMemo<ChartBar[]>(() => {
+    if (renderMode === "intraday") return intradayToBars(intraday ?? []);
+    if (renderMode === "month") return dailyToBars(monthlyPrices);
+    return dailyToBars(prices);
+  }, [renderMode, intraday, monthlyPrices, prices]);
 
   if (prices.length === 0 && !intradayHasData) {
     return (
@@ -213,7 +144,12 @@ export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChart
           ))}
         </div>
       </div>
-      <div ref={containerRef} className="h-[300px] w-full overflow-hidden rounded-md" />
+      <PriceChart
+        bars={bars}
+        precision={2}
+        timeVisible={renderMode === "intraday"}
+        interactive={interactive}
+      />
     </>
   );
 };
