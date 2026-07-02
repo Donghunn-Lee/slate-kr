@@ -8,6 +8,11 @@ export type StockQuoteResponse = {
   quote: StockQuote | null;
   marketOpen: boolean;
   session: KrxSession;
+  date: string; // KST 거래일 'YYYY-MM-DD' (당일 봉 병합용)
+};
+
+type UseStockQuoteOptions = {
+  subscribeOnly?: boolean;
 };
 
 const POLL_INTERVAL_MS = 60_000;
@@ -19,7 +24,13 @@ const isActiveSession = () => {
 
 // 클라이언트 시계 기준 60초 폴링. 서버 응답의 marketOpen 에 의존하지 않으므로
 // preopen → regular 같은 세션 전환 시에도 페이지 새로고침 없이 자동 재개된다.
-export const useStockQuote = (ticker: string) => {
+// subscribeOnly=true 면 폴링 없이 기존 queryKey 캐시만 구독한다 (동일 티커의 헤더 폴링을 재사용).
+export const useStockQuote = (
+  ticker: string,
+  options: UseStockQuoteOptions = {},
+) => {
+  const { subscribeOnly = false } = options;
+
   const query = useQuery<StockQuoteResponse>({
     queryKey: ["stock-quote", ticker],
     queryFn: async () => {
@@ -30,11 +41,12 @@ export const useStockQuote = (ticker: string) => {
   });
 
   useEffect(() => {
+    if (subscribeOnly) return;
     const id = setInterval(() => {
       if (isActiveSession()) void query.refetch();
     }, POLL_INTERVAL_MS);
     return () => clearInterval(id);
-  }, [ticker]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [ticker, subscribeOnly]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return query;
 };

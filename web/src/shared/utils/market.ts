@@ -48,3 +48,39 @@ export const getKrxSessionState = (now: Date = new Date()): KrxSession => {
 
 export const isKrxMarketOpen = (now: Date = new Date()): boolean =>
   getKrxSessionState(now) === "regular";
+
+const shiftKstDate = (yyyyMmDd: string, deltaDays: number): string => {
+  const [y, m, d] = yyyyMmDd.split("-").map(Number);
+  const d0 = new Date(Date.UTC(y, m - 1, d));
+  d0.setUTCDate(d0.getUTCDate() + deltaDays);
+  return `${d0.getUTCFullYear()}-${pad(d0.getUTCMonth() + 1)}-${pad(d0.getUTCDate())}`;
+};
+
+const isKrxTradingDay = (yyyyMmDd: string): boolean => {
+  const [y, m, d] = yyyyMmDd.split("-").map(Number);
+  const day = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  if (day === 0 || day === 6) return false;
+  return !isKrxHoliday(yyyyMmDd);
+};
+
+// fromDate 부터 역방향으로 첫 트레이딩 데이. 연휴 최대 14일 백투백까지 안전.
+const findRecentTradingDay = (fromDate: string): string => {
+  let d = fromDate;
+  for (let i = 0; i < 15; i++) {
+    if (isKrxTradingDay(d)) return d;
+    d = shiftKstDate(d, -1);
+  }
+  return d;
+};
+
+// 실시간 시세가 반영되는 KRX 거래일(KST).
+// regular/after/pre = 오늘 (pre는 NXT 프리마켓 트레이드가 오늘 세션에 귀속).
+// after_close 20:00~24:00 = 오늘, 00:00~06:00 = 이전 완결 거래일(자정 넘김 세션).
+// preopen/closed = 이전 완결 거래일 (활성 시세 없음, 최근 완결일 스냅샷).
+export const getKrxTradingDate = (now: Date = new Date()): string => {
+  const session = getKrxSessionState(now);
+  const { minutes, date } = toKstParts(now);
+  if (session === "regular" || session === "after" || session === "pre") return date;
+  if (session === "after_close" && minutes >= AFTER_END_MINUTES) return date;
+  return findRecentTradingDay(shiftKstDate(date, -1));
+};

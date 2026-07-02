@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { fetchStockQuote } from "@/lib/kis-quote-fetch";
-import { getKrxSessionState } from "@/shared/utils/market";
+import { getKrxSessionState, getKrxTradingDate } from "@/shared/utils/market";
 import type { StockQuote } from "@/shared/types/quote";
 
 export const dynamic = "force-dynamic";
@@ -16,6 +16,7 @@ export const GET = async (req: NextRequest) => {
     // 폴링 게이트: 활성 세션(regular/after/pre)만 true. after_close는 1회 호출 후 정지.
     const marketOpen =
       session === "regular" || session === "after" || session === "pre";
+    const date = getKrxTradingDate();
 
     let quote: StockQuote | null = null;
     if (session === "regular") {
@@ -28,7 +29,7 @@ export const GET = async (req: NextRequest) => {
       quote = await fetchStockQuote(ticker, "NX");
     }
 
-    return NextResponse.json({ quote, marketOpen, session });
+    return NextResponse.json({ quote, marketOpen, session, date });
   } catch {
     return NextResponse.json(
       { error: "종목 시세를 불러오지 못했습니다" },
