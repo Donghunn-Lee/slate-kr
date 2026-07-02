@@ -13,11 +13,7 @@ export type TickerPriceSummary = {
   prevClose: number | null;
   change: number | null;
   changePct: number | null;
-  change7d: number | null;
-  change7dPct: number | null;
 };
-
-const CHANGE_WINDOW_DAYS = 7;
 
 // GET /api/prices?tickers=005930,000660,035420
 export async function GET(req: NextRequest) {
@@ -48,25 +44,16 @@ export async function GET(req: NextRequest) {
       tickers
     );
 
-    // 이전 종가 + 7일 전 종가: 종목별 lookback 2건, 개별 실패는 null 처리
+    // 이전 종가: 종목별 lookback, 개별 실패는 null 처리
     const lookbackResults = await Promise.allSettled(
       rows.map(async (row) => {
-        const cutoff = new Date(row.date);
-        cutoff.setDate(cutoff.getDate() - CHANGE_WINDOW_DAYS);
-        const cutoffStr = cutoff.toISOString().slice(0, 10);
-
         const [prev] = await pool.query<PriceRow[]>(
           "SELECT close FROM daily_prices WHERE ticker = $1 AND date < $2 ORDER BY date DESC LIMIT 1",
           [row.ticker, row.date]
         );
-        const [weekAgo] = await pool.query<PriceRow[]>(
-          "SELECT close FROM daily_prices WHERE ticker = $1 AND date <= $2 ORDER BY date DESC LIMIT 1",
-          [row.ticker, cutoffStr]
-        );
         return {
           ticker: row.ticker,
           prevClose: prev[0]?.close ?? null,
-          weekAgoClose: weekAgo[0]?.close ?? null,
         };
       })
     );
@@ -75,8 +62,8 @@ export async function GET(req: NextRequest) {
       lookbackResults.map((result, i) => [
         rows[i].ticker,
         result.status === "fulfilled"
-          ? { prevClose: result.value.prevClose, weekAgoClose: result.value.weekAgoClose }
-          : { prevClose: null, weekAgoClose: null },
+          ? { prevClose: result.value.prevClose }
+          : { prevClose: null },
       ])
     );
 
@@ -91,17 +78,14 @@ export async function GET(req: NextRequest) {
     };
 
     const response: TickerPriceSummary[] = rows.map((row) => {
-      const { prevClose, weekAgoClose } = lookbackMap[row.ticker];
+      const { prevClose } = lookbackMap[row.ticker];
       const { change, changePct } = computeChange(row.close, prevClose);
-      const { change: change7d, changePct: change7dPct } = computeChange(row.close, weekAgoClose);
       return {
         ticker: row.ticker,
         close: row.close,
         prevClose,
         change,
         changePct,
-        change7d,
-        change7dPct,
       };
     });
 
