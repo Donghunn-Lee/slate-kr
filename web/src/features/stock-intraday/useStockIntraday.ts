@@ -9,13 +9,22 @@ export type StockIntradayResponse = {
   date: string; // KST 거래일 'YYYY-MM-DD'
 };
 
+type UseStockIntradayOptions = {
+  enabled?: boolean;
+};
+
 const POLL_INTERVAL_MS = 60_000;
 
 // 직전 응답 marketOpen=true (정규장 중) 일 때만 60초 폴링. 그 외 정지.
-// useIndexIntraday 와 동일 패턴.
-export const useStockIntraday = (ticker: string) =>
+// enabled=false 로 탭 미활성 상태의 백그라운드 폴링을 차단.
+// useIndexIntraday 와 동일 패턴에 옵션만 추가.
+export const useStockIntraday = (
+  ticker: string,
+  options: UseStockIntradayOptions = {},
+) =>
   useQuery<StockIntradayResponse>({
     queryKey: ["stock-intraday", ticker],
+    enabled: options.enabled ?? true,
     queryFn: async () => {
       const res = await fetch(
         `/api/stock-intraday?ticker=${encodeURIComponent(ticker)}`,
