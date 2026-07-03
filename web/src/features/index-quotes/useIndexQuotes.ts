@@ -13,6 +13,7 @@ export type IndexQuotesResponse = {
     kospi200: IndexCellData;
   };
   marketOpen: boolean;
+  date: string; // KST 거래일 'YYYY-MM-DD' (당일 봉 병합용)
 };
 
 const POLL_INTERVAL_MS = 60_000;

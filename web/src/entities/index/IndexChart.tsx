@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { PriceChart } from "@/entities/chart/PriceChart";
+import { useIndexIntraday } from "@/features/index-quotes/useIndexIntraday";
+import { useIndexQuotes } from "@/features/index-quotes/useIndexQuotes";
 import type {
   ChartBar,
   IndexDailySnapshot,
@@ -19,8 +21,6 @@ type IndexChartProps = {
   interactive?: boolean;
 };
 
-const POLL_INTERVAL_MS = 60_000;
-
 const INDEX_LABEL: Record<IndexCode, string> = {
   KOSPI: "코스피",
   KOSDAQ: "코스닥",
@@ -33,9 +33,10 @@ const TAB_LABEL: Record<Tab, string> = {
   month: "월봉",
 };
 
-type IntradayResponse = {
-  quotes: Record<"kospi" | "kosdaq" | "kospi200", IndexIntradaySnapshot[]>;
-  marketOpen: boolean;
+const CELL_KEY: Record<IndexCode, "kospi" | "kosdaq" | "kospi200"> = {
+  KOSPI: "kospi",
+  KOSDAQ: "kosdaq",
+  KOSPI200: "kospi200",
 };
 
 const dailyToBars = (prices: IndexDailySnapshot[]): ChartBar[] =>
@@ -56,41 +57,47 @@ const intradayToBars = (bars: IndexIntradaySnapshot[]): ChartBar[] =>
     close: b.close,
   }));
 
+// 실시간 quote + date 로 오늘 봉 병합. mode='day' 는 그대로, mode='month' 는 이번 달 봉에 재반영.
+const mergeLiveBar = (
+  eod: IndexDailySnapshot[],
+  live: { price: number; open: number; high: number; low: number } | null,
+  liveDate: string | undefined,
+  mode: "day" | "month",
+): ChartBar[] => {
+  if (!live || !liveDate) {
+    return mode === "month" ? dailyToBars(resampleToMonthly(eod)) : dailyToBars(eod);
+  }
+  const liveDaily: IndexDailySnapshot = {
+    indexCode: eod[0]?.indexCode ?? "",
+    date: liveDate,
+    open: live.open,
+    high: live.high,
+    low: live.low,
+    close: live.price,
+    change: 0,
+    changeRate: 0,
+  };
+  const last = eod[eod.length - 1];
+  const mergedDaily: IndexDailySnapshot[] =
+    last && last.date === liveDate
+      ? [...eod.slice(0, -1), liveDaily]
+      : [...eod, liveDaily];
+  return mode === "month"
+    ? dailyToBars(resampleToMonthly(mergedDaily))
+    : dailyToBars(mergedDaily);
+};
+
 export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChartProps) => {
   const [tab, setTab] = useState<Tab>("intraday");
-  const [intraday, setIntraday] = useState<IndexIntradaySnapshot[] | null>(null);
 
-  const monthlyPrices = useMemo(() => resampleToMonthly(prices), [prices]);
+  // 홈 IndexSlate 와 캐시 공유 (동시 열림 시 네트워크 중복 제거).
+  const { data: intradayData } = useIndexIntraday();
+  const { data: quotesData } = useIndexQuotes();
 
-  // intraday 탭일 때만 60초 폴링. data.marketOpen=false 면 다음 호출을 스케줄하지 않아 자체 정지.
-  useEffect(() => {
-    if (tab !== "intraday") return;
-    let cancelled = false;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-
-    const load = async () => {
-      try {
-        const res = await fetch("/api/index-intraday");
-        if (!res.ok) return;
-        const data = (await res.json()) as IntradayResponse;
-        if (cancelled) return;
-        const key = indexCode.toLowerCase() as keyof IntradayResponse["quotes"];
-        setIntraday(data.quotes[key] ?? []);
-        if (data.marketOpen) {
-          timer = setTimeout(load, POLL_INTERVAL_MS);
-        }
-      } catch {
-        // 네트워크 실패는 조용히 무시 — 탭 재진입/마운트 시 재시도.
-      }
-    };
-
-    load();
-
-    return () => {
-      cancelled = true;
-      if (timer) clearTimeout(timer);
-    };
-  }, [tab, indexCode]);
+  const cellKey = CELL_KEY[indexCode];
+  const intraday = intradayData?.quotes[cellKey] ?? null;
+  const liveQuote = quotesData?.quotes[cellKey].live ?? null;
+  const liveDate = quotesData?.date;
 
   // intraday 데이터 없으면 day 로 silent fallback (preopen/장 마감 시간대).
   const intradayHasData = intraday !== null && intraday.length > 0;
@@ -99,9 +106,8 @@ export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChart
 
   const bars = useMemo<ChartBar[]>(() => {
     if (renderMode === "intraday") return intradayToBars(intraday ?? []);
-    if (renderMode === "month") return dailyToBars(monthlyPrices);
-    return dailyToBars(prices);
-  }, [renderMode, intraday, monthlyPrices, prices]);
+    return mergeLiveBar(prices, liveQuote, liveDate, renderMode);
+  }, [renderMode, intraday, prices, liveQuote, liveDate]);
 
   if (prices.length === 0 && !intradayHasData) {
     return (

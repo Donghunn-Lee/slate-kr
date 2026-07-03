@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { fetchIndexQuote } from "@/lib/kis-quote-fetch";
 import { getLatestIndexPrice } from "@/lib/indices";
-import { isKrxMarketOpen } from "@/shared/utils/market";
+import { getKrxTradingDate, isKrxMarketOpen } from "@/shared/utils/market";
 import type { IndexDailySnapshot, IndexQuote } from "@/shared/types/quote";
 
 export const dynamic = "force-dynamic";
@@ -44,7 +44,11 @@ export const GET = async () => {
       kospi200: { live: pick(kospi200Live), fallback: pick(kospi200Fb) },
     };
 
-    return NextResponse.json({ quotes, marketOpen: isKrxMarketOpen() });
+    return NextResponse.json({
+      quotes,
+      marketOpen: isKrxMarketOpen(),
+      date: getKrxTradingDate(),
+    });
   } catch {
     return NextResponse.json(
       { error: "지수 시세를 불러오지 못했습니다" },
