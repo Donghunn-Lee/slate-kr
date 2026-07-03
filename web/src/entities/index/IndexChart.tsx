@@ -9,6 +9,7 @@ import type {
   IndexDailySnapshot,
   IndexIntradaySnapshot,
 } from "@/shared/types/quote";
+import { getPreviousKrxTradingDate } from "@/shared/utils/market";
 import { resampleToMonthly } from "@/shared/utils/resampleToMonthly";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +38,13 @@ const CELL_KEY: Record<IndexCode, "kospi" | "kosdaq" | "kospi200"> = {
   KOSPI: "kospi",
   KOSDAQ: "kosdaq",
   KOSPI200: "kospi200",
+};
+
+// intraday bar time 은 kis-quote-fetch 의 kstToFakeUtcSec 로 인코딩된 fake-UTC epoch 초.
+// KST 00:00 을 같은 규칙으로 인코딩하면 세션 경계 epoch 를 얻는다.
+const dateToKstStartSec = (yyyyMmDd: string): number => {
+  const [y, m, d] = yyyyMmDd.split("-").map(Number);
+  return Math.floor(Date.UTC(y, m - 1, d) / 1000);
 };
 
 const dailyToBars = (prices: IndexDailySnapshot[]): ChartBar[] =>
@@ -95,9 +103,23 @@ export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChart
   const { data: quotesData } = useIndexQuotes();
 
   const cellKey = CELL_KEY[indexCode];
-  const intraday = intradayData?.quotes[cellKey] ?? null;
+  const rawIntraday = intradayData?.quotes[cellKey] ?? null;
   const liveQuote = quotesData?.quotes[cellKey].live ?? null;
   const liveDate = quotesData?.date;
+
+  // 오늘/전일 세션 경계 (fake-UTC epoch). liveDate 미도착 전에는 undefined.
+  const todayStartSec = liveDate ? dateToKstStartSec(liveDate) : undefined;
+  const prevStartSec = liveDate
+    ? dateToKstStartSec(getPreviousKrxTradingDate(liveDate))
+    : undefined;
+
+  // intraday 필터: 당일 + 전일만. 전전일 이전은 데이터에서 제외.
+  // liveDate 미도착 시 원본 그대로 (필터 대신 fallback 은 아래 renderMode 로).
+  const intraday = useMemo<IndexIntradaySnapshot[] | null>(() => {
+    if (!rawIntraday) return null;
+    if (prevStartSec === undefined) return rawIntraday;
+    return rawIntraday.filter((b) => b.timestamp >= prevStartSec);
+  }, [rawIntraday, prevStartSec]);
 
   // intraday 데이터 없으면 day 로 silent fallback (preopen/장 마감 시간대).
   const intradayHasData = intraday !== null && intraday.length > 0;
@@ -155,6 +177,8 @@ export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChart
         precision={2}
         timeVisible={renderMode === "intraday"}
         interactive={interactive}
+        locked={renderMode === "intraday"}
+        dimBefore={renderMode === "intraday" ? todayStartSec : undefined}
       />
     </>
   );

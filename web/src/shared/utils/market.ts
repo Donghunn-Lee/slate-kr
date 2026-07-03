@@ -84,3 +84,7 @@ export const getKrxTradingDate = (now: Date = new Date()): string => {
   if (session === "after_close" && minutes >= AFTER_END_MINUTES) return date;
   return findRecentTradingDay(shiftKstDate(date, -1));
 };
+
+// fromDate 직전 거래일. intraday 이전 세션 경계 계산용.
+export const getPreviousKrxTradingDate = (fromDate: string): string =>
+  findRecentTradingDay(shiftKstDate(fromDate, -1));
