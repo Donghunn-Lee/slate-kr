@@ -49,6 +49,14 @@ export const getKrxSessionState = (now: Date = new Date()): KrxSession => {
 export const isKrxMarketOpen = (now: Date = new Date()): boolean =>
   getKrxSessionState(now) === "regular";
 
+// KST 캘린더 일자와 분(0~1439) — 세션 무관, 순수 KST 파싱만.
+export const getKstDateAndMinutes = (
+  now: Date = new Date(),
+): { date: string; minutes: number } => {
+  const { date, minutes } = toKstParts(now);
+  return { date, minutes };
+};
+
 const shiftKstDate = (yyyyMmDd: string, deltaDays: number): string => {
   const [y, m, d] = yyyyMmDd.split("-").map(Number);
   const d0 = new Date(Date.UTC(y, m - 1, d));
