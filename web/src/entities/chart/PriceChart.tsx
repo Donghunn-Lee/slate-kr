@@ -7,8 +7,11 @@ import {
   CandlestickSeries,
   HistogramSeries,
   LineSeries,
+  type BarData,
+  type HistogramData,
   type IChartApi,
   type ISeriesApi,
+  type MouseEventParams,
   type Time,
   type UTCTimestamp,
 } from "lightweight-charts";
@@ -34,6 +37,9 @@ type PriceChartProps = {
   // SMA 오버레이 period 목록. 컨테이너에서 module-level 상수 등 안정 참조로 주입.
   // bars.length < period 인 항목은 자동 스킵. 팔레트는 index 로 매핑(4색 modulo 순환).
   maPeriods?: number[];
+  // 좌상단 OHLC(+Vol) legend. crosshair 이동 시 해당 봉 값, 미호버 시 최신 봉 값으로 갱신.
+  // ref 로 DOM 직접 갱신 → crosshair 콜백에서 setState 리렌더 없음.
+  showLegend?: boolean;
 };
 
 const DEFAULT_HEIGHT = 300;
@@ -110,6 +116,49 @@ const computeSmaLast = (bars: ChartBar[], period: number): LinePoint | null => {
   return { time: toTime(bars[bars.length - 1].time), value: sum / period };
 };
 
+// legend 값 포맷. precision 은 종목 0 / 지수 2 를 그대로 사용해 축약 없이 로케일 표기.
+const formatOhlc = (v: number, precision: number): string =>
+  v.toLocaleString("ko-KR", {
+    minimumFractionDigits: precision,
+    maximumFractionDigits: precision,
+  });
+
+// legend 거래량 축약 (formatVolume 은 "주" 접미 → legend 에는 부적합).
+const formatLegendVolume = (v: number): string => {
+  if (v >= 1e8) return `${(v / 1e8).toFixed(1)}억`;
+  if (v >= 1e4) return `${Math.round(v / 1e4)}만`;
+  return v.toLocaleString("ko-KR");
+};
+
+// legend DOM 갱신. bar=null → 텍스트 비움. 등락색은 CHART_THEME up/down 재사용.
+// 숫자 값만 삽입 → XSS 위험 없음.
+const paintLegend = (
+  el: HTMLDivElement | null,
+  bar: ChartBar | null,
+  palette: ChartPalette,
+  precision: number,
+) => {
+  if (!el) return;
+  if (!bar) {
+    el.innerHTML = "";
+    return;
+  }
+  const upDown = bar.close >= bar.open ? palette.up : palette.down;
+  const labelCls = "text-muted-foreground";
+  const parts = [
+    `<span class="${labelCls}">O</span> ${formatOhlc(bar.open, precision)}`,
+    `<span class="${labelCls}">H</span> ${formatOhlc(bar.high, precision)}`,
+    `<span class="${labelCls}">L</span> ${formatOhlc(bar.low, precision)}`,
+    `<span class="${labelCls}">C</span> <span style="color:${upDown}">${formatOhlc(bar.close, precision)}</span>`,
+  ];
+  if (bar.volume !== undefined) {
+    parts.push(
+      `<span class="${labelCls}">Vol</span> ${formatLegendVolume(bar.volume)}`,
+    );
+  }
+  el.innerHTML = parts.join('<span class="mx-2 opacity-30">·</span>');
+};
+
 // locked 뷰의 가시 범위. from = (마지막 dim 봉 time) − LOOKBACK 로 고정, to = 최신 봉 + 소폭 추적.
 // dim 봉이 없으면 첫 봉을 anchor 로.
 const applyLockedRange = (
@@ -157,6 +206,7 @@ export const PriceChart = ({
   dimBefore,
   showVolume = false,
   maPeriods,
+  showLegend = false,
 }: PriceChartProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -168,6 +218,9 @@ export const PriceChart = ({
   );
   const prevBarsRef = useRef<ChartBar[] | null>(null);
   const barsRef = useRef<ChartBar[]>(bars);
+  // legend DOM ref + hover 여부 (bars 갱신 시 미호버면 최신봉으로 refresh).
+  const legendRef = useRef<HTMLDivElement>(null);
+  const isHoveringRef = useRef<boolean>(false);
 
   // period 배열 참조 안정화 (부모가 새 배열을 만들어도 값 동일하면 재실행 방지).
   const maPeriodsKey = maPeriods?.join(",") ?? "";
@@ -285,17 +338,67 @@ export const PriceChart = ({
     }
     prevBarsRef.current = initial;
 
+    // Legend: 초기 상태는 미호버(최신 봉). crosshair 콜백에서 hover 상태에 따라 갱신.
+    // ref 로 innerHTML 직접 갱신 → setState 리렌더 없음.
+    let crosshairHandler: ((param: MouseEventParams) => void) | null = null;
+    if (showLegend) {
+      const latest = initial.length > 0 ? initial[initial.length - 1] : null;
+      paintLegend(legendRef.current, latest, c, precision);
+
+      crosshairHandler = (param) => {
+        const hovering = !!(param.point && param.time);
+        isHoveringRef.current = hovering;
+        if (!hovering) {
+          const cur = barsRef.current;
+          paintLegend(
+            legendRef.current,
+            cur.length > 0 ? cur[cur.length - 1] : null,
+            c,
+            precision,
+          );
+          return;
+        }
+        // seriesData.get(candleSeries) → BarData(OHLC). volume series 있으면 값 join.
+        const candleData = param.seriesData.get(series) as BarData | undefined;
+        if (!candleData) {
+          const cur = barsRef.current;
+          paintLegend(
+            legendRef.current,
+            cur.length > 0 ? cur[cur.length - 1] : null,
+            c,
+            precision,
+          );
+          return;
+        }
+        const volData = volumeSeries
+          ? (param.seriesData.get(volumeSeries) as HistogramData | undefined)
+          : undefined;
+        const bar: ChartBar = {
+          time: candleData.time as string | number,
+          open: candleData.open,
+          high: candleData.high,
+          low: candleData.low,
+          close: candleData.close,
+          volume: volData?.value,
+        };
+        paintLegend(legendRef.current, bar, c, precision);
+      };
+      chart.subscribeCrosshairMove(crosshairHandler);
+    }
+
     return () => {
+      if (crosshairHandler) chart.unsubscribeCrosshairMove(crosshairHandler);
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;
       volumeSeriesRef.current = null;
       maSeriesRef.current = [];
       prevBarsRef.current = null;
+      isHoveringRef.current = false;
     };
     // maPeriodsKey 로 배열 값 변화를 감지 (참조 대신 값 비교).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [precision, timeVisible, interactive, resolvedTheme, locked, dimBefore, showVolume, maPeriodsKey]);
+  }, [precision, timeVisible, interactive, resolvedTheme, locked, dimBefore, showVolume, maPeriodsKey, showLegend]);
 
   // bars-only 갱신. 첫 봉 time 동일 + length 동일/+1 → series.update 로 줌 유지.
   // 그 외(탭 전환 등 데이터셋 자체 변경) → setData + (locked: applyLockedRange, else: fitContent).
@@ -357,13 +460,31 @@ export const PriceChart = ({
       applyLockedRange(chartRef.current, bars, dimBefore);
     }
     prevBarsRef.current = bars;
-  }, [bars, locked, dimBefore, resolvedTheme]);
+
+    // Legend: 사용자가 crosshair 로 특정 봉을 보고 있을 땐 그대로 두고,
+    // 미호버 상태에서만 최신 봉으로 갱신 (라이브 tick 반영).
+    if (showLegend && !isHoveringRef.current) {
+      paintLegend(
+        legendRef.current,
+        bars.length > 0 ? bars[bars.length - 1] : null,
+        c,
+        precision,
+      );
+    }
+  }, [bars, locked, dimBefore, resolvedTheme, showLegend, precision]);
 
   return (
     <div
-      ref={containerRef}
-      className="w-full overflow-hidden rounded-md"
+      className="relative w-full overflow-hidden rounded-md"
       style={{ height }}
-    />
+    >
+      <div ref={containerRef} className="absolute inset-0" />
+      {showLegend && (
+        <div
+          ref={legendRef}
+          className="pointer-events-none absolute left-3 top-2 z-10 text-xs tabular-nums"
+        />
+      )}
+    </div>
   );
 };

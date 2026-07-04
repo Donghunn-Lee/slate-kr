@@ -198,6 +198,7 @@ export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) =
           timeVisible={isIntradayTab}
           locked={isIntradayTab}
           showVolume={!isIntradayTab}
+          showLegend={!isIntradayTab}
           maPeriods={
             tab === "day"
               ? DAY_MA_PERIODS
