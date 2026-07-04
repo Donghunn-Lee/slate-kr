@@ -5,6 +5,7 @@ import { useTheme } from "next-themes";
 import {
   createChart,
   CandlestickSeries,
+  HistogramSeries,
   type IChartApi,
   type ISeriesApi,
   type Time,
@@ -27,6 +28,8 @@ type PriceChartProps = {
   locked?: boolean;
   // 이 값 미만 time 을 가진 봉을 흐린 색으로 렌더 (전일 세션 dim).
   dimBefore?: number;
+  // 하단 20% overlay 로 거래량 histogram 을 함께 렌더. bars[i].volume 이 없는 봉은 스킵.
+  showVolume?: boolean;
 };
 
 const DEFAULT_HEIGHT = 300;
@@ -63,6 +66,17 @@ const mapBar = (
     color: dimColor,
     wickColor: dimColor,
     borderColor: dimColor,
+  };
+};
+
+// volume 히스토그램 포인트. volume 없는 봉은 null → 필터.
+type VolumePoint = { time: Time; value: number; color: string };
+const mapVolume = (b: ChartBar, palette: ChartPalette): VolumePoint | null => {
+  if (b.volume === undefined) return null;
+  return {
+    time: toTime(b.time),
+    value: b.volume,
+    color: b.close >= b.open ? palette.volume.up : palette.volume.down,
   };
 };
 
@@ -111,10 +125,12 @@ export const PriceChart = ({
   interactive = true,
   locked = false,
   dimBefore,
+  showVolume = false,
 }: PriceChartProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const prevBarsRef = useRef<ChartBar[] | null>(null);
   const barsRef = useRef<ChartBar[]>(bars);
 
@@ -170,12 +186,38 @@ export const PriceChart = ({
       },
     });
 
+    // 캔들 상단 여백은 유지, showVolume 이면 하단 여백을 확보해 histogram 이 겹치지 않게.
+    chart.priceScale("right").applyOptions({
+      scaleMargins: showVolume ? { top: 0.1, bottom: 0.25 } : { top: 0.1, bottom: 0.1 },
+    });
+
+    let volumeSeries: ISeriesApi<"Histogram"> | null = null;
+    if (showVolume) {
+      // priceScaleId: "" → 독립 invisible overlay scale. 캔들과 축을 공유하지 않음.
+      volumeSeries = chart.addSeries(HistogramSeries, {
+        priceScaleId: "",
+        priceFormat: { type: "volume" },
+        lastValueVisible: false,
+        priceLineVisible: false,
+      });
+      chart.priceScale("").applyOptions({
+        scaleMargins: { top: 0.8, bottom: 0 },
+      });
+    }
+
     chartRef.current = chart;
     seriesRef.current = series;
+    volumeSeriesRef.current = volumeSeries;
 
     const initial = barsRef.current;
     if (initial.length > 0) {
       series.setData(initial.map((b) => mapBar(b, c, dimBefore)));
+      if (volumeSeries) {
+        const volData = initial
+          .map((b) => mapVolume(b, c))
+          .filter((p): p is VolumePoint => p !== null);
+        volumeSeries.setData(volData);
+      }
       if (locked) {
         applyLockedRange(chart, initial, dimBefore);
       } else {
@@ -188,12 +230,14 @@ export const PriceChart = ({
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;
+      volumeSeriesRef.current = null;
       prevBarsRef.current = null;
     };
-  }, [precision, timeVisible, interactive, resolvedTheme, locked, dimBefore]);
+  }, [precision, timeVisible, interactive, resolvedTheme, locked, dimBefore, showVolume]);
 
   // bars-only 갱신. 첫 봉 time 동일 + length 동일/+1 → series.update 로 줌 유지.
   // 그 외(탭 전환 등 데이터셋 자체 변경) → setData + (locked: applyLockedRange, else: fitContent).
+  // volume series 는 candle 과 동일 setData/update 경로에 편입 (인덱스 정합 유지).
   useEffect(() => {
     const series = seriesRef.current;
     if (!series) return;
@@ -201,9 +245,11 @@ export const PriceChart = ({
     if (prev === bars) return;
 
     const c = resolvedTheme === "dark" ? CHART_THEME.dark : CHART_THEME.light;
+    const volumeSeries = volumeSeriesRef.current;
 
     if (bars.length === 0) {
       series.setData([]);
+      if (volumeSeries) volumeSeries.setData([]);
       prevBarsRef.current = bars;
       return;
     }
@@ -215,9 +261,21 @@ export const PriceChart = ({
       (bars.length === prev.length || bars.length === prev.length + 1);
 
     if (canIncremental) {
-      series.update(mapBar(bars[bars.length - 1], c, dimBefore));
+      const lastBar = bars[bars.length - 1];
+      series.update(mapBar(lastBar, c, dimBefore));
+      if (volumeSeries) {
+        const volPoint = mapVolume(lastBar, c);
+        if (volPoint) volumeSeries.update(volPoint);
+        // volume 없는 봉(라이브 병합 append 등) 은 histogram 미갱신 — 이전 상태 유지.
+      }
     } else {
       series.setData(bars.map((b) => mapBar(b, c, dimBefore)));
+      if (volumeSeries) {
+        const volData = bars
+          .map((b) => mapVolume(b, c))
+          .filter((p): p is VolumePoint => p !== null);
+        volumeSeries.setData(volData);
+      }
       if (!locked) {
         chartRef.current?.timeScale().fitContent();
       }

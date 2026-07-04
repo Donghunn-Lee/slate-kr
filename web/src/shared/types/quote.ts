@@ -49,10 +49,12 @@ export type IndexIntradaySnapshot = {
 
 // 캔들 차트 렌더링 최소 필드. lightweight-charts의 time은 'YYYY-MM-DD'(BusinessDay)
 // 또는 epoch 초(UTCTimestamp) 둘 다 받으므로 유니온으로 둔다.
+// volume 은 histogram 오버레이 전용. 값이 있는 봉만 그린다(지수 bars 는 미보유 → 스킵).
 export type ChartBar = {
   time: string | number;
   open: number;
   high: number;
   low: number;
   close: number;
+  volume?: number;
 };

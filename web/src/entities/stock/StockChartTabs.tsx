@@ -26,7 +26,7 @@ const TAB_LABEL: Record<Tab, string> = {
   month: "월봉",
 };
 
-// DESC → ASC ChartBar[].
+// DESC → ASC ChartBar[]. volume 은 histogram 오버레이용 (StockPriceSnapshot.volume 그대로).
 const stockPricesToBars = (prices: StockPriceSnapshot[]): ChartBar[] =>
   [...prices]
     .sort((a, b) => (a.date < b.date ? -1 : 1))
@@ -36,25 +36,43 @@ const stockPricesToBars = (prices: StockPriceSnapshot[]): ChartBar[] =>
       high: p.high,
       low: p.low,
       close: p.close,
+      volume: p.volume,
     }));
 
 // P2 종목 병합 로직: 마지막 EOD 봉 time === 당일 date → replace, 아니면 append.
+// 라이브 quote 에는 volume 이 없어 histogram 이 오늘 봉을 스킵하는 걸 방지하기 위해,
+// replace 경로에서만 EOD 오늘 volume 을 보존한다 (append 경로는 EOD 에 오늘 봉 없음).
 const mergeLiveDayBar = (
   eod: ChartBar[],
   quote: { open: number; high: number; low: number; price: number } | null,
   date: string | undefined,
 ): ChartBar[] => {
   if (!quote || !date) return eod;
+  const last = eod[eod.length - 1];
+  const preservedVolume = last && last.time === date ? last.volume : undefined;
   const live: ChartBar = {
     time: date,
     open: quote.open,
     high: quote.high,
     low: quote.low,
     close: quote.price,
+    volume: preservedVolume,
   };
-  const last = eod[eod.length - 1];
   if (last && last.time === date) return [...eod.slice(0, -1), live];
   return [...eod, live];
+};
+
+// dayBars → 월별 volume 합. resampleToMonthly 결과 date("YYYY-MM-01") 와 "YYYY-MM" 로 조인.
+// resampleToMonthly 시그니처가 IndexDailySnapshot(volume 없음) 이라 shim 을 안 뜯고 여기서 얹는다.
+const sumVolumeByMonth = (bars: ChartBar[]): Map<string, number> => {
+  const acc = new Map<string, number>();
+  for (const b of bars) {
+    if (b.volume === undefined) continue;
+    if (typeof b.time !== "string") continue;
+    const ym = b.time.slice(0, 7);
+    acc.set(ym, (acc.get(ym) ?? 0) + b.volume);
+  }
+  return acc;
 };
 
 // resampleToMonthly 는 현재 IndexDailySnapshot 시그니처 → ChartBar 로 shim (change/changeRate 는
@@ -100,10 +118,15 @@ export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) =
     return mergeLiveDayBar(eod, quoteData?.quote ?? null, quoteData?.date);
   }, [prices, quoteData]);
 
-  const monthBars = useMemo<ChartBar[]>(
-    () => snapshotsToBars(resampleToMonthly(barsToSnapshots(dayBars))),
-    [dayBars],
-  );
+  const monthBars = useMemo<ChartBar[]>(() => {
+    const base = snapshotsToBars(resampleToMonthly(barsToSnapshots(dayBars)));
+    const monthVolume = sumVolumeByMonth(dayBars);
+    return base.map((b) => {
+      if (typeof b.time !== "string") return b;
+      const v = monthVolume.get(b.time.slice(0, 7));
+      return v !== undefined ? { ...b, volume: v } : b;
+    });
+  }, [dayBars]);
 
   const intradayBars = intradayQuery.data?.bars ?? [];
   const hasIntraday = intradayBars.length > 0;
@@ -169,6 +192,7 @@ export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) =
           precision={0}
           timeVisible={isIntradayTab}
           locked={isIntradayTab}
+          showVolume={!isIntradayTab}
         />
       )}
     </>
