@@ -6,6 +6,7 @@ import {
   createChart,
   CandlestickSeries,
   HistogramSeries,
+  LineSeries,
   type IChartApi,
   type ISeriesApi,
   type Time,
@@ -30,6 +31,9 @@ type PriceChartProps = {
   dimBefore?: number;
   // 하단 20% overlay 로 거래량 histogram 을 함께 렌더. bars[i].volume 이 없는 봉은 스킵.
   showVolume?: boolean;
+  // SMA 오버레이 period 목록. 컨테이너에서 module-level 상수 등 안정 참조로 주입.
+  // bars.length < period 인 항목은 자동 스킵. 팔레트는 index 로 매핑(4색 modulo 순환).
+  maPeriods?: number[];
 };
 
 const DEFAULT_HEIGHT = 300;
@@ -80,6 +84,32 @@ const mapVolume = (b: ChartBar, palette: ChartPalette): VolumePoint | null => {
   };
 };
 
+// close 기반 SMA. index i 에서 [i-p+1, i] 평균. i < p-1 자리는 점 없음.
+// bars.length < period 면 빈 배열 반환 (호출 측에서 series 자체 생성 스킵).
+type LinePoint = { time: Time; value: number };
+const computeSma = (bars: ChartBar[], period: number): LinePoint[] => {
+  if (bars.length < period) return [];
+  const out: LinePoint[] = [];
+  let sum = 0;
+  for (let i = 0; i < bars.length; i++) {
+    sum += bars[i].close;
+    if (i >= period) sum -= bars[i - period].close;
+    if (i >= period - 1) {
+      out.push({ time: toTime(bars[i].time), value: sum / period });
+    }
+  }
+  return out;
+};
+
+// 마지막 봉만 갱신된 경우, 마지막 SMA 포인트 1개만 재계산 → series.update() 대상.
+// bars.length < period 면 null (아직 유효한 SMA 점이 없음).
+const computeSmaLast = (bars: ChartBar[], period: number): LinePoint | null => {
+  if (bars.length < period) return null;
+  let sum = 0;
+  for (let i = bars.length - period; i < bars.length; i++) sum += bars[i].close;
+  return { time: toTime(bars[bars.length - 1].time), value: sum / period };
+};
+
 // locked 뷰의 가시 범위. from = (마지막 dim 봉 time) − LOOKBACK 로 고정, to = 최신 봉 + 소폭 추적.
 // dim 봉이 없으면 첫 봉을 anchor 로.
 const applyLockedRange = (
@@ -126,13 +156,21 @@ export const PriceChart = ({
   locked = false,
   dimBefore,
   showVolume = false,
+  maPeriods,
 }: PriceChartProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
+  // period 별 라인 시리즈. bars.length < period 로 생성 스킵된 항목은 배열에 없음.
+  const maSeriesRef = useRef<{ period: number; series: ISeriesApi<"Line"> }[]>(
+    [],
+  );
   const prevBarsRef = useRef<ChartBar[] | null>(null);
   const barsRef = useRef<ChartBar[]>(bars);
+
+  // period 배열 참조 안정화 (부모가 새 배열을 만들어도 값 동일하면 재실행 방지).
+  const maPeriodsKey = maPeriods?.join(",") ?? "";
 
   const { resolvedTheme } = useTheme();
 
@@ -205,11 +243,29 @@ export const PriceChart = ({
       });
     }
 
+    // MA line series: period 별로 생성. bars 부족한 period 는 series 자체 스킵.
+    // 팔레트 색은 period index 로 매핑, 초과 시 modulo 순환.
+    const initial = barsRef.current;
+    const maSeriesList: { period: number; series: ISeriesApi<"Line"> }[] = [];
+    if (maPeriods && maPeriods.length > 0) {
+      maPeriods.forEach((period, idx) => {
+        if (initial.length < period) return;
+        const lineSeries = chart.addSeries(LineSeries, {
+          color: c.ma[idx % c.ma.length],
+          lineWidth: 1,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          crosshairMarkerVisible: false,
+        });
+        maSeriesList.push({ period, series: lineSeries });
+      });
+    }
+
     chartRef.current = chart;
     seriesRef.current = series;
     volumeSeriesRef.current = volumeSeries;
+    maSeriesRef.current = maSeriesList;
 
-    const initial = barsRef.current;
     if (initial.length > 0) {
       series.setData(initial.map((b) => mapBar(b, c, dimBefore)));
       if (volumeSeries) {
@@ -217,6 +273,9 @@ export const PriceChart = ({
           .map((b) => mapVolume(b, c))
           .filter((p): p is VolumePoint => p !== null);
         volumeSeries.setData(volData);
+      }
+      for (const { period, series: lineSeries } of maSeriesList) {
+        lineSeries.setData(computeSma(initial, period));
       }
       if (locked) {
         applyLockedRange(chart, initial, dimBefore);
@@ -231,9 +290,12 @@ export const PriceChart = ({
       chartRef.current = null;
       seriesRef.current = null;
       volumeSeriesRef.current = null;
+      maSeriesRef.current = [];
       prevBarsRef.current = null;
     };
-  }, [precision, timeVisible, interactive, resolvedTheme, locked, dimBefore, showVolume]);
+    // maPeriodsKey 로 배열 값 변화를 감지 (참조 대신 값 비교).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [precision, timeVisible, interactive, resolvedTheme, locked, dimBefore, showVolume, maPeriodsKey]);
 
   // bars-only 갱신. 첫 봉 time 동일 + length 동일/+1 → series.update 로 줌 유지.
   // 그 외(탭 전환 등 데이터셋 자체 변경) → setData + (locked: applyLockedRange, else: fitContent).
@@ -246,10 +308,12 @@ export const PriceChart = ({
 
     const c = resolvedTheme === "dark" ? CHART_THEME.dark : CHART_THEME.light;
     const volumeSeries = volumeSeriesRef.current;
+    const maSeriesList = maSeriesRef.current;
 
     if (bars.length === 0) {
       series.setData([]);
       if (volumeSeries) volumeSeries.setData([]);
+      for (const { series: lineSeries } of maSeriesList) lineSeries.setData([]);
       prevBarsRef.current = bars;
       return;
     }
@@ -268,6 +332,12 @@ export const PriceChart = ({
         if (volPoint) volumeSeries.update(volPoint);
         // volume 없는 봉(라이브 병합 append 등) 은 histogram 미갱신 — 이전 상태 유지.
       }
+      // MA 는 마지막 SMA 포인트 1개만 재계산. bars 가 append 되어 방금 유효창에 진입했으면
+      // 첫 유효 포인트 하나가 그려짐 (line series 시작).
+      for (const { period, series: lineSeries } of maSeriesList) {
+        const point = computeSmaLast(bars, period);
+        if (point) lineSeries.update(point);
+      }
     } else {
       series.setData(bars.map((b) => mapBar(b, c, dimBefore)));
       if (volumeSeries) {
@@ -275,6 +345,9 @@ export const PriceChart = ({
           .map((b) => mapVolume(b, c))
           .filter((p): p is VolumePoint => p !== null);
         volumeSeries.setData(volData);
+      }
+      for (const { period, series: lineSeries } of maSeriesList) {
+        lineSeries.setData(computeSma(bars, period));
       }
       if (!locked) {
         chartRef.current?.timeScale().fitContent();

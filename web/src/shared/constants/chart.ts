@@ -2,6 +2,8 @@
 // dim.{up,down} — 전일 봉 등 흐림 처리용 저채도 저대비 버전. 무채색 계열과 톤 충돌 없도록
 // 원색의 알파를 낮춰 배경에 자연스레 녹아들게 한다.
 // volume.{up,down} — 하단 histogram 오버레이용. 반투명이 관례이므로 원색 alpha 를 더 낮춘다.
+// ma[] — 이동평균선 팔레트. period index 로 매핑, 초과 시 modulo 순환. 캔들 red/blue 와
+// 톤 충돌 없이 서로 구분되도록 노랑·보라·청록·주황 계열 (KR 일봉 차트 관행에 근접).
 export const CHART_THEME = {
   light: {
     bg: "#ffffff",
@@ -17,6 +19,7 @@ export const CHART_THEME = {
       up: "rgba(220,38,38,0.35)",
       down: "rgba(37,99,235,0.35)",
     },
+    ma: ["#eab308", "#a855f7", "#14b8a6", "#f97316"],
   },
   dark: {
     bg: "#1a1a1a",
@@ -32,6 +35,7 @@ export const CHART_THEME = {
       up: "rgba(239,68,68,0.45)",
       down: "rgba(59,130,246,0.45)",
     },
+    ma: ["#facc15", "#c084fc", "#2dd4bf", "#fb923c"],
   },
 } as const;
 

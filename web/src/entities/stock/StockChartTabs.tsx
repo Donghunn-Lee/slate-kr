@@ -26,6 +26,11 @@ const TAB_LABEL: Record<Tab, string> = {
   month: "월봉",
 };
 
+// MA period 상수 (module-level → 리렌더 간 참조 안정, PriceChart config effect 불필요 재실행 방지).
+// bars.length < period 는 PriceChart 내부에서 가드 → 짧은 히스토리는 자연 스킵.
+const DAY_MA_PERIODS: number[] = [5, 20, 60, 120];
+const MONTH_MA_PERIODS: number[] = [6, 12];
+
 // DESC → ASC ChartBar[]. volume 은 histogram 오버레이용 (StockPriceSnapshot.volume 그대로).
 const stockPricesToBars = (prices: StockPriceSnapshot[]): ChartBar[] =>
   [...prices]
@@ -193,6 +198,13 @@ export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) =
           timeVisible={isIntradayTab}
           locked={isIntradayTab}
           showVolume={!isIntradayTab}
+          maPeriods={
+            tab === "day"
+              ? DAY_MA_PERIODS
+              : tab === "month"
+                ? MONTH_MA_PERIODS
+                : undefined
+          }
         />
       )}
     </>
