@@ -7,6 +7,7 @@ import {
   CandlestickSeries,
   HistogramSeries,
   LineSeries,
+  TickMarkType,
   type BarData,
   type HistogramData,
   type IChartApi,
@@ -123,18 +124,23 @@ const formatOhlc = (v: number, precision: number): string =>
     maximumFractionDigits: precision,
   });
 
-// legend 거래량 축약 (formatVolume 은 "주" 접미 → legend 에는 부적합).
-const formatLegendVolume = (v: number): string => {
-  if (v >= 1e8) return `${(v / 1e8).toFixed(1)}억`;
-  if (v >= 1e4) return `${Math.round(v / 1e4)}만`;
-  return v.toLocaleString("ko-KR");
+// legend 거래량 — 단위 없이 천단위 콤마 풀 표기.
+const formatLegendVolume = (v: number): string => v.toLocaleString("ko-KR");
+
+// 등락률 %. 부호 포함 소수 2자리. prevClose 없거나 0이면 null.
+const formatChangePct = (close: number, prevClose: number | null): string | null => {
+  if (prevClose === null || prevClose === 0) return null;
+  const pct = ((close - prevClose) / prevClose) * 100;
+  const sign = pct > 0 ? "+" : pct < 0 ? "" : "";
+  return `${sign}${pct.toFixed(2)}%`;
 };
 
 // legend DOM 갱신. bar=null → 텍스트 비움. 등락색은 CHART_THEME up/down 재사용.
-// 숫자 값만 삽입 → XSS 위험 없음.
+// 숫자 값만 삽입 → XSS 위험 없음. 순서: 시 고 저 종 [등락률] [거].
 const paintLegend = (
   el: HTMLDivElement | null,
   bar: ChartBar | null,
+  prevClose: number | null,
   palette: ChartPalette,
   precision: number,
 ) => {
@@ -146,17 +152,92 @@ const paintLegend = (
   const upDown = bar.close >= bar.open ? palette.up : palette.down;
   const labelCls = "text-muted-foreground";
   const parts = [
-    `<span class="${labelCls}">O</span> ${formatOhlc(bar.open, precision)}`,
-    `<span class="${labelCls}">H</span> ${formatOhlc(bar.high, precision)}`,
-    `<span class="${labelCls}">L</span> ${formatOhlc(bar.low, precision)}`,
-    `<span class="${labelCls}">C</span> <span style="color:${upDown}">${formatOhlc(bar.close, precision)}</span>`,
+    `<span class="${labelCls}">시</span> ${formatOhlc(bar.open, precision)}`,
+    `<span class="${labelCls}">고</span> ${formatOhlc(bar.high, precision)}`,
+    `<span class="${labelCls}">저</span> ${formatOhlc(bar.low, precision)}`,
+    `<span class="${labelCls}">종</span> <span style="color:${upDown}">${formatOhlc(bar.close, precision)}</span>`,
   ];
+  const pct = formatChangePct(bar.close, prevClose);
+  if (pct !== null) {
+    // 등락률 색은 부호 기준 (봉 방향과 다를 수 있음: 갭업 후 종가 하락 등).
+    const pctColor = pct.startsWith("+")
+      ? palette.up
+      : pct.startsWith("-")
+        ? palette.down
+        : undefined;
+    parts.push(
+      pctColor
+        ? `<span style="color:${pctColor}">${pct}</span>`
+        : `<span class="${labelCls}">${pct}</span>`,
+    );
+  }
   if (bar.volume !== undefined) {
     parts.push(
-      `<span class="${labelCls}">Vol</span> ${formatLegendVolume(bar.volume)}`,
+      `<span class="${labelCls}">거</span> ${formatLegendVolume(bar.volume)}`,
     );
   }
   el.innerHTML = parts.join('<span class="mx-2 opacity-30">·</span>');
+};
+
+// MA 범례 — 좌측 "이동평균" 라벨(muted) 뒤에 period 숫자만 표시(라인색).
+// 실제로 그려진 period 만 표시(가드로 스킵된 period 는 범례에도 없음).
+const paintMaLegend = (
+  el: HTMLDivElement | null,
+  drawn: { period: number; colorIdx: number }[],
+  palette: ChartPalette,
+) => {
+  if (!el) return;
+  if (drawn.length === 0) {
+    el.innerHTML = "";
+    return;
+  }
+  const nums = drawn
+    .map(
+      ({ period, colorIdx }) =>
+        `<span style="color:${palette.ma[colorIdx % palette.ma.length]}">${period}</span>`,
+    )
+    .join('<span class="mx-1.5 opacity-30">·</span>');
+  el.innerHTML = `<span class="text-muted-foreground mr-1.5">이동평균</span>${nums}`;
+};
+
+// Time → 비교/포맷용 문자열 키.
+const timeToKey = (t: string | number | { year: number; month: number; day: number }): string => {
+  if (typeof t === "string") return t;
+  if (typeof t === "number") return String(t);
+  return `${t.year}-${String(t.month).padStart(2, "0")}-${String(t.day).padStart(2, "0")}`;
+};
+
+// TickMarkType 별 한국식 연-월-일 순 라벨. day/month 전용 (timeVisible 시 미적용).
+const chartTickFormatter = (time: Time, tickMarkType: TickMarkType): string => {
+  let y: number, m: number, d: number;
+  if (typeof time === "string") {
+    const [ys, ms, ds] = time.split("-").map(Number);
+    y = ys;
+    m = ms;
+    d = ds;
+  } else if (typeof time === "number") {
+    const dt = new Date(time * 1000);
+    y = dt.getUTCFullYear();
+    m = dt.getUTCMonth() + 1;
+    d = dt.getUTCDate();
+  } else {
+    y = time.year;
+    m = time.month;
+    d = time.day;
+  }
+  const mm = String(m).padStart(2, "0");
+  const dd = String(d).padStart(2, "0");
+  switch (tickMarkType) {
+    case TickMarkType.Year:
+      // 2자리(예: 2026 → 26). 축 밀도 절감. crosshair 툴팁은 localization.dateFormat 그대로.
+      return String(y % 100).padStart(2, "0");
+    case TickMarkType.Month:
+      return mm;
+    case TickMarkType.DayOfMonth:
+      return `${mm}-${dd}`;
+    default:
+      return `${y}-${mm}-${dd}`;
+  }
 };
 
 // locked 뷰의 가시 범위. from = (마지막 dim 봉 time) − LOOKBACK 로 고정, to = 최신 봉 + 소폭 추적.
@@ -213,13 +294,15 @@ export const PriceChart = ({
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   // period 별 라인 시리즈. bars.length < period 로 생성 스킵된 항목은 배열에 없음.
-  const maSeriesRef = useRef<{ period: number; series: ISeriesApi<"Line"> }[]>(
-    [],
-  );
+  // colorIdx = 원본 maPeriods 인덱스 → 라인과 MA 범례 색을 동일 팔레트 인덱스로 매칭.
+  const maSeriesRef = useRef<
+    { period: number; colorIdx: number; series: ISeriesApi<"Line"> }[]
+  >([]);
   const prevBarsRef = useRef<ChartBar[] | null>(null);
   const barsRef = useRef<ChartBar[]>(bars);
-  // legend DOM ref + hover 여부 (bars 갱신 시 미호버면 최신봉으로 refresh).
+  // legend DOM refs + hover 여부 (bars 갱신 시 미호버면 최신봉으로 refresh).
   const legendRef = useRef<HTMLDivElement>(null);
+  const maLegendRef = useRef<HTMLDivElement>(null);
   const isHoveringRef = useRef<boolean>(false);
 
   // period 배열 참조 안정화 (부모가 새 배열을 만들어도 값 동일하면 재실행 방지).
@@ -254,10 +337,14 @@ export const PriceChart = ({
         horzLines: { color: c.border },
       },
       crosshair: { mode: 1 },
+      // 크로스헤어 툴팁 날짜: 연-월-일. 인트라데이는 시간 표기가 별도로 붙어 그대로 유지.
+      localization: { locale: "ko-KR", dateFormat: "yyyy-MM-dd" },
       timeScale: {
         borderColor: c.border,
         timeVisible,
         secondsVisible: false,
+        // 축 tick 도 한국식 연-월-일 순. intraday(timeVisible) 는 기본 시간 포맷 유지.
+        ...(!timeVisible ? { tickMarkFormatter: chartTickFormatter } : {}),
       },
       rightPriceScale: { borderColor: c.border },
       handleScroll: scrollScale,
@@ -297,9 +384,13 @@ export const PriceChart = ({
     }
 
     // MA line series: period 별로 생성. bars 부족한 period 는 series 자체 스킵.
-    // 팔레트 색은 period index 로 매핑, 초과 시 modulo 순환.
+    // 팔레트 색은 원본 maPeriods 인덱스로 매핑 (범례 색과 일치).
     const initial = barsRef.current;
-    const maSeriesList: { period: number; series: ISeriesApi<"Line"> }[] = [];
+    const maSeriesList: {
+      period: number;
+      colorIdx: number;
+      series: ISeriesApi<"Line">;
+    }[] = [];
     if (maPeriods && maPeriods.length > 0) {
       maPeriods.forEach((period, idx) => {
         if (initial.length < period) return;
@@ -310,7 +401,7 @@ export const PriceChart = ({
           lastValueVisible: false,
           crosshairMarkerVisible: false,
         });
-        maSeriesList.push({ period, series: lineSeries });
+        maSeriesList.push({ period, colorIdx: idx, series: lineSeries });
       });
     }
 
@@ -342,37 +433,46 @@ export const PriceChart = ({
     // ref 로 innerHTML 직접 갱신 → setState 리렌더 없음.
     let crosshairHandler: ((param: MouseEventParams) => void) | null = null;
     if (showLegend) {
+      const latestPrev = initial.length >= 2 ? initial[initial.length - 2].close : null;
       const latest = initial.length > 0 ? initial[initial.length - 1] : null;
-      paintLegend(legendRef.current, latest, c, precision);
+      paintLegend(legendRef.current, latest, latestPrev, c, precision);
+      // MA 범례는 실제 그려진 series 목록에서 도출 → config effect 안에서 1회 렌더.
+      paintMaLegend(maLegendRef.current, maSeriesList, c);
+
+      // 미호버 fallback (최신봉 + 그 직전봉 close) — 콜백 3곳에서 재사용.
+      const paintLatest = () => {
+        const cur = barsRef.current;
+        const last = cur.length > 0 ? cur[cur.length - 1] : null;
+        const prev = cur.length >= 2 ? cur[cur.length - 2].close : null;
+        paintLegend(legendRef.current, last, prev, c, precision);
+      };
 
       crosshairHandler = (param) => {
         const hovering = !!(param.point && param.time);
         isHoveringRef.current = hovering;
         if (!hovering) {
-          const cur = barsRef.current;
-          paintLegend(
-            legendRef.current,
-            cur.length > 0 ? cur[cur.length - 1] : null,
-            c,
-            precision,
-          );
+          paintLatest();
           return;
         }
         // seriesData.get(candleSeries) → BarData(OHLC). volume series 있으면 값 join.
         const candleData = param.seriesData.get(series) as BarData | undefined;
         if (!candleData) {
-          const cur = barsRef.current;
-          paintLegend(
-            legendRef.current,
-            cur.length > 0 ? cur[cur.length - 1] : null,
-            c,
-            precision,
-          );
+          paintLatest();
           return;
         }
         const volData = volumeSeries
           ? (param.seriesData.get(volumeSeries) as HistogramData | undefined)
           : undefined;
+        // barsRef 에서 time 일치 봉의 인덱스 → 직전봉 close.
+        const key = timeToKey(candleData.time);
+        const cur = barsRef.current;
+        let prevClose: number | null = null;
+        for (let i = 0; i < cur.length; i++) {
+          if (timeToKey(cur[i].time) === key) {
+            prevClose = i > 0 ? cur[i - 1].close : null;
+            break;
+          }
+        }
         const bar: ChartBar = {
           time: candleData.time as string | number,
           open: candleData.open,
@@ -381,7 +481,7 @@ export const PriceChart = ({
           close: candleData.close,
           volume: volData?.value,
         };
-        paintLegend(legendRef.current, bar, c, precision);
+        paintLegend(legendRef.current, bar, prevClose, c, precision);
       };
       chart.subscribeCrosshairMove(crosshairHandler);
     }
@@ -464,12 +564,9 @@ export const PriceChart = ({
     // Legend: 사용자가 crosshair 로 특정 봉을 보고 있을 땐 그대로 두고,
     // 미호버 상태에서만 최신 봉으로 갱신 (라이브 tick 반영).
     if (showLegend && !isHoveringRef.current) {
-      paintLegend(
-        legendRef.current,
-        bars.length > 0 ? bars[bars.length - 1] : null,
-        c,
-        precision,
-      );
+      const last = bars.length > 0 ? bars[bars.length - 1] : null;
+      const prev = bars.length >= 2 ? bars[bars.length - 2].close : null;
+      paintLegend(legendRef.current, last, prev, c, precision);
     }
   }, [bars, locked, dimBefore, resolvedTheme, showLegend, precision]);
 
@@ -480,10 +577,10 @@ export const PriceChart = ({
     >
       <div ref={containerRef} className="absolute inset-0" />
       {showLegend && (
-        <div
-          ref={legendRef}
-          className="pointer-events-none absolute left-3 top-2 z-10 text-xs tabular-nums"
-        />
+        <div className="pointer-events-none absolute left-3 top-2 z-10 flex flex-col gap-0.5">
+          <div ref={legendRef} className="text-xs tabular-nums" />
+          <div ref={maLegendRef} className="text-[11px] font-medium" />
+        </div>
       )}
     </div>
   );
