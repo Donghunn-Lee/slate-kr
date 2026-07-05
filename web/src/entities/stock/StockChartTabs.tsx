@@ -11,7 +11,9 @@ import { resampleToWeekly } from "@/shared/utils/resampleToWeekly";
 import { parseISO, startOfWeek, format } from "date-fns";
 import { cn } from "@/lib/utils";
 
-type Tab = "intraday" | "day" | "month";
+type ViewMode = "intraday" | "full";
+type Granularity = "day" | "week" | "month";
+type SeriesKind = "candle" | "line";
 
 type StockChartTabsProps = {
   ticker: string;
@@ -19,15 +21,27 @@ type StockChartTabsProps = {
   label?: string;
 };
 
-const TAB_LABEL: Record<Tab, string> = {
-  intraday: "당일",
-  day: "일봉",
-  month: "월봉",
-};
+const VIEW_MODE_BUTTONS: { value: ViewMode; label: string }[] = [
+  { value: "intraday", label: "당일" },
+  { value: "full", label: "전체" },
+];
+
+const GRANULARITY_BUTTONS: { value: Granularity; label: string }[] = [
+  { value: "day", label: "일" },
+  { value: "week", label: "주" },
+  { value: "month", label: "월" },
+];
+
+const SERIES_KIND_BUTTONS: { value: SeriesKind; label: string }[] = [
+  { value: "candle", label: "캔들" },
+  { value: "line", label: "선" },
+];
 
 // MA period 상수 (module-level → 리렌더 간 참조 안정, PriceChart config effect 불필요 재실행 방지).
 // bars.length < period 는 PriceChart 내부에서 가드 → 짧은 히스토리는 자연 스킵.
+// week: 13(≈분기)/26(≈반기). 52(≈1년)는 250영업일≈50주 내 렌더 여유가 부족해 제외.
 const DAY_MA_PERIODS: number[] = [5, 20, 60, 120];
+const WEEK_MA_PERIODS: number[] = [13, 26];
 const MONTH_MA_PERIODS: number[] = [6, 12];
 
 // DESC → ASC ChartBar[]. volume 은 histogram 오버레이용 (StockPriceSnapshot.volume 그대로).
@@ -118,22 +132,36 @@ const snapshotsToBars = (snaps: IndexDailySnapshot[]): ChartBar[] =>
 const EMPTY_STATE_HEIGHT = 300;
 
 export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) => {
-  // 기본 day: 폐장/장전엔 종목 intraday 응답이 완전히 비어 첫인상에 빈 상태를 보게 되므로,
+  // 기본 full/day: 폐장/장전엔 종목 intraday 응답이 완전히 비어 첫인상에 빈 상태를 보게 되므로,
   // 사용자가 명시적으로 "당일" 선택했을 때만 intraday 로드/폴링. IndexChart(intraday 기본
   // + silent fallback) 와 정책이 다르지만, 종목 intraday 는 전일 데이터 없이 오늘만 반환하는
-  // endpoint 특성 때문에 fallback 이 무의미 — 예측 가능한 day 를 진입 기본으로.
-  const [tab, setTab] = useState<Tab>("day");
-  const isIntradayTab = tab === "intraday";
+  // endpoint 특성 때문에 fallback 이 무의미 — 예측 가능한 full/day 를 진입 기본으로.
+  // seriesKind 는 granularity 전환에도 유지 (사용자 선호 지속).
+  const [viewMode, setViewMode] = useState<ViewMode>("full");
+  const [granularity, setGranularity] = useState<Granularity>("day");
+  const [seriesKind, setSeriesKind] = useState<SeriesKind>("candle");
+  const isIntradayView = viewMode === "intraday";
 
   // 헤더 폴링과 동일 queryKey — subscribeOnly 로 캐시만 구독, 네트워크 추가 0.
   const { data: quoteData } = useStockQuote(ticker, { subscribeOnly: true });
-  // intraday 탭 활성 시에만 fetch/polling. 미활성 탭에서는 백그라운드 트래픽 0.
-  const intradayQuery = useStockIntraday(ticker, { enabled: isIntradayTab });
+  // intraday 뷰 활성 시에만 fetch/polling. 미활성 뷰에서는 백그라운드 트래픽 0.
+  const intradayQuery = useStockIntraday(ticker, { enabled: isIntradayView });
 
   const dayBars = useMemo<ChartBar[]>(() => {
     const eod = stockPricesToBars(prices);
     return mergeLiveDayBar(eod, quoteData?.quote ?? null, quoteData?.date);
   }, [prices, quoteData]);
+
+  const weekBars = useMemo<ChartBar[]>(() => {
+    const base = snapshotsToBars(resampleToWeekly(barsToSnapshots(dayBars)));
+    const weekVolume = sumVolumeByWeek(dayBars);
+    // resampleToWeekly 결과 date 는 월요일 "yyyy-MM-dd" — full date 일치로 조인.
+    return base.map((b) => {
+      if (typeof b.time !== "string") return b;
+      const v = weekVolume.get(b.time);
+      return v !== undefined ? { ...b, volume: v } : b;
+    });
+  }, [dayBars]);
 
   const monthBars = useMemo<ChartBar[]>(() => {
     const base = snapshotsToBars(resampleToMonthly(barsToSnapshots(dayBars)));
@@ -148,9 +176,27 @@ export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) =
   const intradayBars = intradayQuery.data?.bars ?? [];
   const hasIntraday = intradayBars.length > 0;
 
-  const bars = tab === "intraday" ? intradayBars : tab === "month" ? monthBars : dayBars;
+  const bars = isIntradayView
+    ? intradayBars
+    : granularity === "week"
+      ? weekBars
+      : granularity === "month"
+        ? monthBars
+        : dayBars;
 
-  const showEmptyIntraday = isIntradayTab && !intradayQuery.isLoading && !hasIntraday;
+  const showEmptyIntraday = isIntradayView && !intradayQuery.isLoading && !hasIntraday;
+
+  // maPeriods: intraday 는 미표시. full 은 granularity 별 상수.
+  const maPeriods = isIntradayView
+    ? undefined
+    : granularity === "week"
+      ? WEEK_MA_PERIODS
+      : granularity === "month"
+        ? MONTH_MA_PERIODS
+        : DAY_MA_PERIODS;
+
+  // "최근 1년" 라벨은 250 fetch limit 와 짝인 문구 → full/day 에서만 정확. 다른 주기는 생략.
+  const showLabel = label && !isIntradayView && granularity === "day";
 
   if (prices.length === 0 && !hasIntraday) {
     return (
@@ -161,33 +207,69 @@ export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) =
     );
   }
 
+  const toolbarButtonCls = (active: boolean) =>
+    cn(
+      "rounded-md px-2 py-1 text-xs transition-colors",
+      active
+        ? "bg-muted font-medium text-foreground"
+        : "text-muted-foreground hover:text-foreground",
+    );
+
   return (
     <>
       <div className="mb-3 flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold text-muted-foreground">
           가격 차트
-          {label && (
+          {showLabel && (
             <span className="ml-1.5 text-xs font-normal text-muted-foreground/70">· {label}</span>
           )}
         </h2>
-        <div className="flex gap-1" role="tablist" aria-label="가격 차트 주기">
-          {(["intraday", "day", "month"] as Tab[]).map((t) => (
-            <button
-              key={t}
-              type="button"
-              role="tab"
-              aria-selected={tab === t}
-              onClick={() => setTab(t)}
-              className={cn(
-                "rounded-md px-2 py-1 text-xs transition-colors",
-                tab === t
-                  ? "bg-muted font-medium text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {TAB_LABEL[t]}
-            </button>
-          ))}
+        <div className="flex items-center gap-1">
+          <div className="flex gap-1" role="group" aria-label="차트 뷰">
+            {VIEW_MODE_BUTTONS.map(({ value, label: btnLabel }) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={viewMode === value}
+                onClick={() => setViewMode(value)}
+                className={toolbarButtonCls(viewMode === value)}
+              >
+                {btnLabel}
+              </button>
+            ))}
+          </div>
+          {viewMode === "full" && (
+            <>
+              <div className="mx-1 h-4 w-px bg-border" aria-hidden="true" />
+              <div className="flex gap-1" role="group" aria-label="차트 주기">
+                {GRANULARITY_BUTTONS.map(({ value, label: btnLabel }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={granularity === value}
+                    onClick={() => setGranularity(value)}
+                    className={toolbarButtonCls(granularity === value)}
+                  >
+                    {btnLabel}
+                  </button>
+                ))}
+              </div>
+              <div className="mx-1 h-4 w-px bg-border" aria-hidden="true" />
+              <div className="flex gap-1" role="group" aria-label="차트 종류">
+                {SERIES_KIND_BUTTONS.map(({ value, label: btnLabel }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={seriesKind === value}
+                    onClick={() => setSeriesKind(value)}
+                    className={toolbarButtonCls(seriesKind === value)}
+                  >
+                    {btnLabel}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
       {showEmptyIntraday ? (
@@ -201,13 +283,12 @@ export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) =
         <PriceChart
           bars={bars}
           precision={0}
-          timeVisible={isIntradayTab}
-          locked={isIntradayTab}
-          showVolume={!isIntradayTab}
-          showLegend={!isIntradayTab}
-          maPeriods={
-            tab === "day" ? DAY_MA_PERIODS : tab === "month" ? MONTH_MA_PERIODS : undefined
-          }
+          timeVisible={isIntradayView}
+          locked={isIntradayView}
+          showVolume={!isIntradayView}
+          showLegend={!isIntradayView}
+          maPeriods={maPeriods}
+          seriesKind={isIntradayView ? "candle" : seriesKind}
         />
       )}
     </>
