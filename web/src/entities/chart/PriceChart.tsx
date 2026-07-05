@@ -12,6 +12,7 @@ import {
   type HistogramData,
   type IChartApi,
   type ISeriesApi,
+  type LineData,
   type MouseEventParams,
   type Time,
   type UTCTimestamp,
@@ -41,6 +42,9 @@ type PriceChartProps = {
   // 좌상단 OHLC(+Vol) legend. crosshair 이동 시 해당 봉 값, 미호버 시 최신 봉 값으로 갱신.
   // ref 로 DOM 직접 갱신 → crosshair 콜백에서 setState 리렌더 없음.
   showLegend?: boolean;
+  // 메인 시리즈 종류. "candle" — CandlestickSeries(OHLC). "line" — close 기반 LineSeries.
+  // 기본 "candle" — 기존 호출부(지수·미니차트) 변경 없이 캔들 유지.
+  seriesKind?: "candle" | "line";
 };
 
 const DEFAULT_HEIGHT = 300;
@@ -79,6 +83,12 @@ const mapBar = (
     borderColor: dimColor,
   };
 };
+
+// close 기반 line 포인트. seriesKind === "line" 전용. dim/색 오버라이드는 사용하지 않음.
+const mapLine = (b: ChartBar): LineData => ({
+  time: toTime(b.time),
+  value: b.close,
+});
 
 // volume 히스토그램 포인트. volume 없는 봉은 null → 필터.
 type VolumePoint = { time: Time; value: number; color: string };
@@ -136,27 +146,46 @@ const formatChangePct = (close: number, prevClose: number | null): string | null
 };
 
 // legend DOM 갱신. bar=null → 텍스트 비움. 등락색은 CHART_THEME up/down 재사용.
-// 숫자 값만 삽입 → XSS 위험 없음. 순서: 시 고 저 종 [등락률] [거].
+// 숫자 값만 삽입 → XSS 위험 없음.
+// candle: 시 고 저 종 [등락률] [거]. 종가색 = 봉 방향(close ≥ open).
+// line: 종 [등락률] [거]. 종가색 = 전일 대비(prevClose 기준).
 const paintLegend = (
   el: HTMLDivElement | null,
   bar: ChartBar | null,
   prevClose: number | null,
   palette: ChartPalette,
   precision: number,
+  kind: "candle" | "line",
 ) => {
   if (!el) return;
   if (!bar) {
     el.innerHTML = "";
     return;
   }
-  const upDown = bar.close >= bar.open ? palette.up : palette.down;
   const labelCls = "text-muted-foreground";
-  const parts = [
-    `<span class="${labelCls}">시</span> ${formatOhlc(bar.open, precision)}`,
-    `<span class="${labelCls}">고</span> ${formatOhlc(bar.high, precision)}`,
-    `<span class="${labelCls}">저</span> ${formatOhlc(bar.low, precision)}`,
-    `<span class="${labelCls}">종</span> <span style="color:${upDown}">${formatOhlc(bar.close, precision)}</span>`,
-  ];
+  let closeColor: string | undefined;
+  if (kind === "candle") {
+    closeColor = bar.close >= bar.open ? palette.up : palette.down;
+  } else if (prevClose !== null) {
+    closeColor =
+      bar.close > prevClose
+        ? palette.up
+        : bar.close < prevClose
+          ? palette.down
+          : undefined;
+  }
+  const parts: string[] = [];
+  if (kind === "candle") {
+    parts.push(
+      `<span class="${labelCls}">시</span> ${formatOhlc(bar.open, precision)}`,
+      `<span class="${labelCls}">고</span> ${formatOhlc(bar.high, precision)}`,
+      `<span class="${labelCls}">저</span> ${formatOhlc(bar.low, precision)}`,
+    );
+  }
+  const closeSpan = closeColor
+    ? `<span style="color:${closeColor}">${formatOhlc(bar.close, precision)}</span>`
+    : formatOhlc(bar.close, precision);
+  parts.push(`<span class="${labelCls}">종</span> ${closeSpan}`);
   const pct = formatChangePct(bar.close, prevClose);
   if (pct !== null) {
     // 등락률 색은 부호 기준 (봉 방향과 다를 수 있음: 갭업 후 종가 하락 등).
@@ -288,10 +317,12 @@ export const PriceChart = ({
   showVolume = false,
   maPeriods,
   showLegend = false,
+  seriesKind = "candle",
 }: PriceChartProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  // seriesKind 변경 시 config effect 가 재실행되어 재생성하므로 union 참조로 유지.
+  const seriesRef = useRef<ISeriesApi<"Candlestick" | "Line"> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   // period 별 라인 시리즈. bars.length < period 로 생성 스킵된 항목은 배열에 없음.
   // colorIdx = 원본 maPeriods 인덱스 → 라인과 MA 범례 색을 동일 팔레트 인덱스로 매칭.
@@ -351,18 +382,32 @@ export const PriceChart = ({
       handleScale: scrollScale,
     });
 
-    const series = chart.addSeries(CandlestickSeries, {
-      upColor: c.up,
-      downColor: c.down,
-      borderVisible: false,
-      wickUpColor: c.up,
-      wickDownColor: c.down,
-      priceFormat: {
-        type: "price",
-        precision,
-        minMove: 10 ** -precision,
-      },
-    });
+    // seriesKind 분기: candle=OHLC, line=close 기반. 라인색은 상승색(up) 재사용.
+    const series: ISeriesApi<"Candlestick" | "Line"> =
+      seriesKind === "line"
+        ? chart.addSeries(LineSeries, {
+            color: c.up,
+            lineWidth: 2,
+            priceLineVisible: false,
+            lastValueVisible: true,
+            priceFormat: {
+              type: "price",
+              precision,
+              minMove: 10 ** -precision,
+            },
+          })
+        : chart.addSeries(CandlestickSeries, {
+            upColor: c.up,
+            downColor: c.down,
+            borderVisible: false,
+            wickUpColor: c.up,
+            wickDownColor: c.down,
+            priceFormat: {
+              type: "price",
+              precision,
+              minMove: 10 ** -precision,
+            },
+          });
 
     // 캔들 상단 여백은 유지, showVolume 이면 하단 여백을 확보해 histogram 이 겹치지 않게.
     chart.priceScale("right").applyOptions({
@@ -411,7 +456,13 @@ export const PriceChart = ({
     maSeriesRef.current = maSeriesList;
 
     if (initial.length > 0) {
-      series.setData(initial.map((b) => mapBar(b, c, dimBefore)));
+      if (seriesKind === "line") {
+        (series as ISeriesApi<"Line">).setData(initial.map(mapLine));
+      } else {
+        (series as ISeriesApi<"Candlestick">).setData(
+          initial.map((b) => mapBar(b, c, dimBefore)),
+        );
+      }
       if (volumeSeries) {
         const volData = initial
           .map((b) => mapVolume(b, c))
@@ -435,7 +486,7 @@ export const PriceChart = ({
     if (showLegend) {
       const latestPrev = initial.length >= 2 ? initial[initial.length - 2].close : null;
       const latest = initial.length > 0 ? initial[initial.length - 1] : null;
-      paintLegend(legendRef.current, latest, latestPrev, c, precision);
+      paintLegend(legendRef.current, latest, latestPrev, c, precision, seriesKind);
       // MA 범례는 실제 그려진 series 목록에서 도출 → config effect 안에서 1회 렌더.
       paintMaLegend(maLegendRef.current, maSeriesList, c);
 
@@ -444,7 +495,7 @@ export const PriceChart = ({
         const cur = barsRef.current;
         const last = cur.length > 0 ? cur[cur.length - 1] : null;
         const prev = cur.length >= 2 ? cur[cur.length - 2].close : null;
-        paintLegend(legendRef.current, last, prev, c, precision);
+        paintLegend(legendRef.current, last, prev, c, precision, seriesKind);
       };
 
       crosshairHandler = (param) => {
@@ -452,6 +503,31 @@ export const PriceChart = ({
         isHoveringRef.current = hovering;
         if (!hovering) {
           paintLatest();
+          return;
+        }
+        if (seriesKind === "line") {
+          // line: seriesData.get → LineData({time,value}). OHLC/volume 은 barsRef 매칭으로 보완.
+          const lineData = param.seriesData.get(series) as LineData | undefined;
+          if (!lineData) {
+            paintLatest();
+            return;
+          }
+          const key = timeToKey(lineData.time);
+          const cur = barsRef.current;
+          let matched: ChartBar | null = null;
+          let prevClose: number | null = null;
+          for (let i = 0; i < cur.length; i++) {
+            if (timeToKey(cur[i].time) === key) {
+              matched = cur[i];
+              prevClose = i > 0 ? cur[i - 1].close : null;
+              break;
+            }
+          }
+          if (!matched) {
+            paintLatest();
+            return;
+          }
+          paintLegend(legendRef.current, matched, prevClose, c, precision, "line");
           return;
         }
         // seriesData.get(candleSeries) → BarData(OHLC). volume series 있으면 값 join.
@@ -481,7 +557,7 @@ export const PriceChart = ({
           close: candleData.close,
           volume: volData?.value,
         };
-        paintLegend(legendRef.current, bar, prevClose, c, precision);
+        paintLegend(legendRef.current, bar, prevClose, c, precision, "candle");
       };
       chart.subscribeCrosshairMove(crosshairHandler);
     }
@@ -498,7 +574,7 @@ export const PriceChart = ({
     };
     // maPeriodsKey 로 배열 값 변화를 감지 (참조 대신 값 비교).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [precision, timeVisible, interactive, resolvedTheme, locked, dimBefore, showVolume, maPeriodsKey, showLegend]);
+  }, [precision, timeVisible, interactive, resolvedTheme, locked, dimBefore, showVolume, maPeriodsKey, showLegend, seriesKind]);
 
   // bars-only 갱신. 첫 봉 time 동일 + length 동일/+1 → series.update 로 줌 유지.
   // 그 외(탭 전환 등 데이터셋 자체 변경) → setData + (locked: applyLockedRange, else: fitContent).
@@ -514,7 +590,11 @@ export const PriceChart = ({
     const maSeriesList = maSeriesRef.current;
 
     if (bars.length === 0) {
-      series.setData([]);
+      if (seriesKind === "line") {
+        (series as ISeriesApi<"Line">).setData([]);
+      } else {
+        (series as ISeriesApi<"Candlestick">).setData([]);
+      }
       if (volumeSeries) volumeSeries.setData([]);
       for (const { series: lineSeries } of maSeriesList) lineSeries.setData([]);
       prevBarsRef.current = bars;
@@ -529,7 +609,11 @@ export const PriceChart = ({
 
     if (canIncremental) {
       const lastBar = bars[bars.length - 1];
-      series.update(mapBar(lastBar, c, dimBefore));
+      if (seriesKind === "line") {
+        (series as ISeriesApi<"Line">).update(mapLine(lastBar));
+      } else {
+        (series as ISeriesApi<"Candlestick">).update(mapBar(lastBar, c, dimBefore));
+      }
       if (volumeSeries) {
         const volPoint = mapVolume(lastBar, c);
         if (volPoint) volumeSeries.update(volPoint);
@@ -542,7 +626,13 @@ export const PriceChart = ({
         if (point) lineSeries.update(point);
       }
     } else {
-      series.setData(bars.map((b) => mapBar(b, c, dimBefore)));
+      if (seriesKind === "line") {
+        (series as ISeriesApi<"Line">).setData(bars.map(mapLine));
+      } else {
+        (series as ISeriesApi<"Candlestick">).setData(
+          bars.map((b) => mapBar(b, c, dimBefore)),
+        );
+      }
       if (volumeSeries) {
         const volData = bars
           .map((b) => mapVolume(b, c))
@@ -566,9 +656,9 @@ export const PriceChart = ({
     if (showLegend && !isHoveringRef.current) {
       const last = bars.length > 0 ? bars[bars.length - 1] : null;
       const prev = bars.length >= 2 ? bars[bars.length - 2].close : null;
-      paintLegend(legendRef.current, last, prev, c, precision);
+      paintLegend(legendRef.current, last, prev, c, precision, seriesKind);
     }
-  }, [bars, locked, dimBefore, resolvedTheme, showLegend, precision]);
+  }, [bars, locked, dimBefore, resolvedTheme, showLegend, precision, seriesKind]);
 
   return (
     <div
