@@ -4,12 +4,11 @@ import { useMemo, useState } from "react";
 import { PriceChart } from "@/entities/chart/PriceChart";
 import { useStockIntraday } from "@/features/stock-intraday/useStockIntraday";
 import { useStockQuote } from "@/features/stock-quote/useStockQuote";
-import type {
-  ChartBar,
-  IndexDailySnapshot,
-} from "@/shared/types/quote";
+import type { ChartBar, IndexDailySnapshot } from "@/shared/types/quote";
 import type { StockPriceSnapshot } from "@/shared/types/stock";
 import { resampleToMonthly } from "@/shared/utils/resampleToMonthly";
+import { resampleToWeekly } from "@/shared/utils/resampleToWeekly";
+import { parseISO, startOfWeek, format } from "date-fns";
 import { cn } from "@/lib/utils";
 
 type Tab = "intraday" | "day" | "month";
@@ -50,7 +49,7 @@ const stockPricesToBars = (prices: StockPriceSnapshot[]): ChartBar[] =>
 const mergeLiveDayBar = (
   eod: ChartBar[],
   quote: { open: number; high: number; low: number; price: number } | null,
-  date: string | undefined,
+  date: string | undefined
 ): ChartBar[] => {
   if (!quote || !date) return eod;
   const last = eod[eod.length - 1];
@@ -76,6 +75,19 @@ const sumVolumeByMonth = (bars: ChartBar[]): Map<string, number> => {
     if (typeof b.time !== "string") continue;
     const ym = b.time.slice(0, 7);
     acc.set(ym, (acc.get(ym) ?? 0) + b.volume);
+  }
+  return acc;
+};
+
+// dayBars → 주별 volume 합. resampleToWeekly 결과 date(월요일 "yyyy-MM-dd") 와 full date 로 조인.
+// sumVolumeByMonth 미러 — 키 계산만 다름.
+const sumVolumeByWeek = (bars: ChartBar[]): Map<string, number> => {
+  const acc = new Map<string, number>();
+  for (const b of bars) {
+    if (b.volume === undefined) continue;
+    if (typeof b.time !== "string") continue;
+    const monday = format(startOfWeek(parseISO(b.time), { weekStartsOn: 1 }), "yyyy-MM-dd");
+    acc.set(monday, (acc.get(monday) ?? 0) + b.volume);
   }
   return acc;
 };
@@ -136,11 +148,9 @@ export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) =
   const intradayBars = intradayQuery.data?.bars ?? [];
   const hasIntraday = intradayBars.length > 0;
 
-  const bars =
-    tab === "intraday" ? intradayBars : tab === "month" ? monthBars : dayBars;
+  const bars = tab === "intraday" ? intradayBars : tab === "month" ? monthBars : dayBars;
 
-  const showEmptyIntraday =
-    isIntradayTab && !intradayQuery.isLoading && !hasIntraday;
+  const showEmptyIntraday = isIntradayTab && !intradayQuery.isLoading && !hasIntraday;
 
   if (prices.length === 0 && !hasIntraday) {
     return (
@@ -160,11 +170,7 @@ export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) =
             <span className="ml-1.5 text-xs font-normal text-muted-foreground/70">· {label}</span>
           )}
         </h2>
-        <div
-          className="flex gap-1"
-          role="tablist"
-          aria-label="가격 차트 주기"
-        >
+        <div className="flex gap-1" role="tablist" aria-label="가격 차트 주기">
           {(["intraday", "day", "month"] as Tab[]).map((t) => (
             <button
               key={t}
@@ -176,7 +182,7 @@ export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) =
                 "rounded-md px-2 py-1 text-xs transition-colors",
                 tab === t
                   ? "bg-muted font-medium text-foreground"
-                  : "text-muted-foreground hover:text-foreground",
+                  : "text-muted-foreground hover:text-foreground"
               )}
             >
               {TAB_LABEL[t]}
@@ -200,11 +206,7 @@ export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) =
           showVolume={!isIntradayTab}
           showLegend={!isIntradayTab}
           maPeriods={
-            tab === "day"
-              ? DAY_MA_PERIODS
-              : tab === "month"
-                ? MONTH_MA_PERIODS
-                : undefined
+            tab === "day" ? DAY_MA_PERIODS : tab === "month" ? MONTH_MA_PERIODS : undefined
           }
         />
       )}
