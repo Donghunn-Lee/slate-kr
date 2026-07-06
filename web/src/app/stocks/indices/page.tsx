@@ -4,6 +4,8 @@ import type { Metadata } from "next";
 import { INDEX_CODES, INDEX_LABEL, type IndexCode } from "@/shared/constants/indices";
 import { IndexChartSection } from "@/entities/index/IndexChartSection";
 import { ChartSkeleton } from "@/entities/stock/Skeletons";
+import { getIndexDailyPrices } from "@/lib/indices";
+import type { IndexDailySnapshot } from "@/shared/types/quote";
 import { cn } from "@/lib/utils";
 
 export const revalidate = 3600;
@@ -28,6 +30,22 @@ export const generateMetadata = async ({ searchParams }: PageProps): Promise<Met
 export default async function IndicesPage({ searchParams }: PageProps) {
   const { index } = await searchParams;
   const selected = resolveIndex(index);
+
+  // 3지수 일봉을 병렬 fetch — 이후 client 전환 시 재요청 없이 즉시 스왑 가능.
+  // per-code try/catch: 한 지수 실패가 나머지 렌더를 막지 않게.
+  const dailyEntries = await Promise.all(
+    INDEX_CODES.map(async (code) => {
+      try {
+        return [code, await getIndexDailyPrices(code, 1000)] as const;
+      } catch {
+        return [code, null] as const;
+      }
+    }),
+  );
+  const dailyByIndex = Object.fromEntries(dailyEntries) as Record<
+    IndexCode,
+    IndexDailySnapshot[] | null
+  >;
 
   return (
     <main className="container mx-auto max-w-4xl space-y-4 px-4 py-8">
@@ -56,8 +74,7 @@ export default async function IndicesPage({ searchParams }: PageProps) {
         </div>
       </div>
       <Suspense key={selected} fallback={<ChartSkeleton />}>
-        {/* 전체 지수 일봉 커버 (백필 max ≈ 735봉). 표시 창은 IndexChart 툴바가 조정. */}
-        <IndexChartSection indexCode={selected} limit={1000} />
+        <IndexChartSection indexCode={selected} prices={dailyByIndex[selected]} />
       </Suspense>
     </main>
   );

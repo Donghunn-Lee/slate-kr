@@ -1,32 +1,16 @@
 import type { IndexDailySnapshot } from "@/shared/types/quote";
-import { getIndexDailyPrices } from "@/lib/indices";
+import { INDEX_LABEL, type IndexCode } from "@/shared/constants/indices";
 import { StockPanel } from "@/entities/stock/StockPanel";
 import { IndexChartDynamic } from "./IndexChartDynamic";
 
-type IndexCode = "KOSPI" | "KOSDAQ" | "KOSPI200";
-
 type IndexChartSectionProps = {
   indexCode: IndexCode;
-  limit?: number;
+  // 상위에서 3지수 병렬 fetch 후 주입. null = 해당 지수 fetch 실패.
+  prices: IndexDailySnapshot[] | null;
 };
 
-const INDEX_LABEL: Record<IndexCode, string> = {
-  KOSPI: "코스피",
-  KOSDAQ: "코스닥",
-  KOSPI200: "코스피200",
-};
-
-export const IndexChartSection = async ({ indexCode, limit }: IndexChartSectionProps) => {
-  let prices: IndexDailySnapshot[] = [];
-  let hasError = false;
-
-  try {
-    prices = await getIndexDailyPrices(indexCode, limit ?? 365);
-  } catch {
-    hasError = true;
-  }
-
-  if (hasError) {
+export const IndexChartSection = ({ indexCode, prices }: IndexChartSectionProps) => {
+  if (prices === null) {
     return (
       <StockPanel>
         <h2 className="mb-3 text-sm font-semibold text-muted-foreground">
