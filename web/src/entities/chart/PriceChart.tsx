@@ -374,6 +374,10 @@ export const PriceChart = ({
         borderColor: c.border,
         timeVisible,
         secondsVisible: false,
+        // locked(intraday) 는 applyLockedRange 가 명시적으로 last + INTRADAY_BAR_BUFFER_SEC
+        // 만큼 우측 여유를 이미 잡으므로 rightOffset 0. EOD 뷰는 최신 봉이 우측에 딱 붙지
+        // 않도록 6봉 여백.
+        rightOffset: locked ? 0 : 6,
         // 축 tick 도 한국식 연-월-일 순. intraday(timeVisible) 는 기본 시간 포맷 유지.
         ...(!timeVisible ? { tickMarkFormatter: chartTickFormatter } : {}),
       },
