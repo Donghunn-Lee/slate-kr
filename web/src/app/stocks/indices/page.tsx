@@ -1,12 +1,8 @@
-import { Suspense } from "react";
-import Link from "next/link";
 import type { Metadata } from "next";
 import { INDEX_CODES, INDEX_LABEL, type IndexCode } from "@/shared/constants/indices";
-import { IndexChartSection } from "@/entities/index/IndexChartSection";
-import { ChartSkeleton } from "@/entities/stock/Skeletons";
+import { IndicesView } from "@/entities/index/IndicesView";
 import { getIndexDailyPrices } from "@/lib/indices";
 import type { IndexDailySnapshot } from "@/shared/types/quote";
-import { cn } from "@/lib/utils";
 
 export const revalidate = 3600;
 
@@ -49,33 +45,7 @@ export default async function IndicesPage({ searchParams }: PageProps) {
 
   return (
     <main className="container mx-auto max-w-4xl space-y-4 px-4 py-8">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-lg font-semibold tracking-tight text-foreground">지수</h1>
-        <div className="flex gap-1" role="tablist" aria-label="지수 선택">
-          {INDEX_CODES.map((code) => {
-            const active = code === selected;
-            return (
-              <Link
-                key={code}
-                href={`/stocks/indices?index=${code}`}
-                role="tab"
-                aria-selected={active}
-                className={cn(
-                  "rounded-md px-3 py-1.5 text-sm transition-colors",
-                  active
-                    ? "bg-muted font-medium text-foreground"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {INDEX_LABEL[code]}
-              </Link>
-            );
-          })}
-        </div>
-      </div>
-      <Suspense key={selected} fallback={<ChartSkeleton />}>
-        <IndexChartSection indexCode={selected} prices={dailyByIndex[selected]} />
-      </Suspense>
+      <IndicesView dailyByIndex={dailyByIndex} initialSelected={selected} />
     </main>
   );
 }
