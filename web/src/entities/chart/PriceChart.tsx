@@ -205,7 +205,7 @@ const paintLegend = (
       `<span class="${labelCls}">거</span> ${formatLegendVolume(bar.volume)}`,
     );
   }
-  el.innerHTML = parts.join('<span class="mx-2 opacity-30">·</span>');
+  el.innerHTML = parts.join('<span class="inline-block w-3"></span>');
 };
 
 // MA 범례 — 좌측 "이동평균" 라벨(muted) 뒤에 period 숫자만 표시(라인색).
