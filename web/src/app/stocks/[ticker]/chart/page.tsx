@@ -26,7 +26,8 @@ const ChartTabsSection = async ({ ticker }: { ticker: string }) => {
   let prices: StockPriceSnapshot[] = [];
   let hasError = false;
   try {
-    prices = await getDailyPrices(ticker, 250);
+    // 전체 일봉 커버 (실측 max ≈ 3046봉). 사용자는 툴바로 표시 창을 조정.
+    prices = await getDailyPrices(ticker, 4000);
   } catch {
     hasError = true;
   }
@@ -40,9 +41,7 @@ const ChartTabsSection = async ({ ticker }: { ticker: string }) => {
     );
   }
 
-  return (
-    <StockChartTabsDynamic ticker={ticker} prices={prices} label="최근 1년" />
-  );
+  return <StockChartTabsDynamic ticker={ticker} prices={prices} />;
 };
 
 export default async function ChartPage({ params }: PageProps) {

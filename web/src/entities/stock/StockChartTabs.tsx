@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PriceChart } from "@/entities/chart/PriceChart";
 import { useStockIntraday } from "@/features/stock-intraday/useStockIntraday";
 import { useStockQuote } from "@/features/stock-quote/useStockQuote";
@@ -19,7 +19,6 @@ type SeriesKind = "candle" | "line";
 type StockChartTabsProps = {
   ticker: string;
   prices: StockPriceSnapshot[]; // DESC from getDailyPrices
-  label?: string;
 };
 
 const VIEW_MODE_BUTTONS: { value: ViewMode; label: string }[] = [
@@ -47,9 +46,16 @@ const MONTH_MA_PERIODS: number[] = [6, 12];
 
 // 봉개수 프리셋 (granularity 별). "전체" = null 은 UI 에서 별도 처리.
 const BAR_COUNT_PRESETS: Record<Granularity, number[]> = {
-  day: [60, 120],
+  day: [60, 120, 250],
   week: [26, 52],
   month: [12, 24],
+};
+
+// granularity 진입 시 초기 표시 창 — 대략 최근 1년 기준.
+const GRANULARITY_DEFAULT_BARS: Record<Granularity, number> = {
+  day: 250,
+  week: 52,
+  month: 12,
 };
 
 // DESC → ASC ChartBar[]. volume 은 histogram 오버레이용 (StockPriceSnapshot.volume 그대로).
@@ -140,7 +146,7 @@ const snapshotsToBars = (snaps: IndexDailySnapshot[]): ChartBar[] =>
 
 const EMPTY_STATE_HEIGHT = 300;
 
-export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) => {
+export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
   // 기본 full/day: 폐장/장전엔 종목 intraday 응답이 완전히 비어 첫인상에 빈 상태를 보게 되므로,
   // 사용자가 명시적으로 "당일" 선택했을 때만 intraday 로드/폴링. IndexChart(intraday 기본
   // + silent fallback) 와 정책이 다르지만, 종목 intraday 는 전일 데이터 없이 오늘만 반환하는
@@ -149,12 +155,20 @@ export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) =
   const [viewMode, setViewMode] = useState<ViewMode>("full");
   const [granularity, setGranularity] = useState<Granularity>("day");
   const [seriesKind, setSeriesKind] = useState<SeriesKind>("candle");
-  // 표시 봉 개수. null = 전체. 입력·프리셋 공용. slice(-n) 은 n>length 시 자동 클램프.
-  const [barCount, setBarCount] = useState<number | null>(null);
+  // 표시 봉 개수. null = 전체. 입력·프리셋 공용. PriceChart 가 visibleBars 로 소비 (데이터 slice 없음).
+  const [barCount, setBarCount] = useState<number | null>(
+    GRANULARITY_DEFAULT_BARS.day,
+  );
   // input remount 카운터 — 무효 입력 후 defaultValue 로 원복시키기 위한 key nonce.
   // 프리셋 클릭 등 barCount 자체 변경은 barCount 값이 key 에 이미 들어 있어 자동 remount.
   const [inputRevertNonce, setInputRevertNonce] = useState(0);
   const isIntradayView = viewMode === "intraday";
+
+  // granularity 전환 시 표시 창을 해당 기본값으로 재설정 — 주기별로 "봉 개수"의 감각이 다르므로
+  // (일 250 ≈ 1년, 주 52 ≈ 1년, 월 12 ≈ 1년) 이전 값 유지가 오히려 혼란.
+  useEffect(() => {
+    setBarCount(GRANULARITY_DEFAULT_BARS[granularity]);
+  }, [granularity]);
 
   // 헤더 폴링과 동일 queryKey — subscribeOnly 로 캐시만 구독, 네트워크 추가 0.
   const { data: quoteData } = useStockQuote(ticker, { subscribeOnly: true });
@@ -198,13 +212,6 @@ export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) =
         ? monthBars
         : dayBars;
 
-  // full 뷰만 봉개수 적용. intraday 는 세션 데이터라 slice 무의미.
-  // slice(-n) 은 n > length 자동 클램프 → PriceChart 에 그대로 전달.
-  const visibleBars = useMemo<ChartBar[]>(
-    () => (!isIntradayView && barCount ? bars.slice(-barCount) : bars),
-    [bars, barCount, isIntradayView],
-  );
-
   const showEmptyIntraday = isIntradayView && !intradayQuery.isLoading && !hasIntraday;
 
   // maPeriods: intraday·선차트 는 미표시. full 캔들 뷰만 granularity 별 상수.
@@ -217,19 +224,13 @@ export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) =
           ? MONTH_MA_PERIODS
           : DAY_MA_PERIODS;
 
-  // 표시 봉 수가 period 미만인 MA 는 legend·라인 모두 제외 (봉개수 축소 시 자동 반영).
-  // PriceChart 는 자체 가드로 series 생성만 스킵하지만 config effect 재실행은 maPeriodsKey 변화가
-  // 있어야 하므로 상위에서 필터해 전달한다.
+  // 데이터 길이 기준 MA 필터 — 표시 창(barCount) 이 아니라 실제 로드된 bars 기준.
+  // 창이 좁아도 창 밖 데이터로 SMA 계산이 가능하므로 창 크기와 분리.
   const effectiveMaPeriods = useMemo(() => {
     if (!maPeriods) return undefined;
-    const filtered = maPeriods.filter((p) => p <= visibleBars.length);
+    const filtered = maPeriods.filter((p) => p <= bars.length);
     return filtered.length > 0 ? filtered : undefined;
-  }, [maPeriods, visibleBars.length]);
-
-  // "최근 1년" 라벨은 250 fetch limit 와 짝인 문구 → full/day 에서만 정확. 다른 주기는 생략.
-  // 봉개수를 사용자가 좁힌 경우에도 라벨은 부정확해지므로 생략.
-  const showLabel =
-    label && !isIntradayView && granularity === "day" && barCount === null;
+  }, [maPeriods, bars.length]);
 
   const applyBarCountFromInput = (raw: string) => {
     const trimmed = raw.trim();
@@ -279,12 +280,7 @@ export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) =
     <>
       <div className="mb-3 flex flex-col gap-1.5">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-muted-foreground">
-            가격 차트
-            {showLabel && (
-              <span className="ml-1.5 text-xs font-normal text-muted-foreground/70">· {label}</span>
-            )}
-          </h2>
+          <h2 className="text-sm font-semibold text-muted-foreground">가격 차트</h2>
           <div className={groupWrapperCls} role="group" aria-label="차트 뷰">
             {VIEW_MODE_BUTTONS.map(({ value, label: btnLabel }) => (
               <button
@@ -402,7 +398,7 @@ export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) =
         </div>
       ) : (
         <PriceChart
-          bars={visibleBars}
+          bars={bars}
           precision={0}
           timeVisible={isIntradayView}
           locked={isIntradayView}
@@ -410,6 +406,7 @@ export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) =
           showLegend={!isIntradayView}
           maPeriods={effectiveMaPeriods}
           seriesKind={seriesKind}
+          visibleBars={isIntradayView ? undefined : barCount}
         />
       )}
     </>

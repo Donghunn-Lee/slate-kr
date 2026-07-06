@@ -45,6 +45,10 @@ type PriceChartProps = {
   // 메인 시리즈 종류. "candle" — CandlestickSeries(OHLC). "line" — close 기반 LineSeries.
   // 기본 "candle" — 기존 호출부(지수·미니차트) 변경 없이 캔들 유지.
   seriesKind?: "candle" | "line";
+  // 최근 N봉만 보이도록 시계축 논리 범위를 제어. null/undefined = 전체 표시.
+  // 데이터를 자르지 않고 표시 창만 조정 → 툴바 조작 시 계산/네트워크 비용 없이 즉시 반영.
+  // locked=true(intraday) 뷰에서는 무시 (applyLockedRange 가 우선).
+  visibleBars?: number | null;
 };
 
 const DEFAULT_HEIGHT = 300;
@@ -318,6 +322,7 @@ export const PriceChart = ({
   maPeriods,
   showLegend = false,
   seriesKind = "candle",
+  visibleBars,
 }: PriceChartProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -331,6 +336,13 @@ export const PriceChart = ({
   >([]);
   const prevBarsRef = useRef<ChartBar[] | null>(null);
   const barsRef = useRef<ChartBar[]>(bars);
+  // visibleBars 최신값 — 데이터 effect 등 다른 effect 에서 참조하되 자기 deps 에 넣기 싫을 때.
+  const visibleBarsRef = useRef<number | null | undefined>(visibleBars);
+  // 현재 살아있는 차트에 대한 visible-range 적용 함수. config effect 가 chart 재생성마다 새로 셋업.
+  // 다른 effect 에서 호출할 수 있도록 ref 로 노출.
+  const applyRangeRef = useRef<((n: number | null | undefined) => void) | null>(
+    null,
+  );
   // legend DOM refs + hover 여부 (bars 갱신 시 미호버면 최신봉으로 refresh).
   const legendRef = useRef<HTMLDivElement>(null);
   const maLegendRef = useRef<HTMLDivElement>(null);
@@ -350,6 +362,11 @@ export const PriceChart = ({
   useEffect(() => {
     barsRef.current = bars;
   }, [bars]);
+
+  // visibleBars 는 데이터 effect / 비-incremental 재설정 경로에서도 최신값을 참조해야 하므로 ref 로.
+  useEffect(() => {
+    visibleBarsRef.current = visibleBars;
+  }, [visibleBars]);
 
   // 차트/시리즈는 config(테마·precision·timeVisible·interactive·locked·dimBefore) 변경 시에만
   // 재생성. bars-only 갱신은 아래 데이터 effect가 처리해 사용자 줌 상태를 유지한다.
@@ -463,6 +480,18 @@ export const PriceChart = ({
     volumeSeriesRef.current = volumeSeries;
     maSeriesRef.current = maSeriesList;
 
+    // 표시 창 적용 — 데이터 slice 대신 시계축 논리 범위로 최근 N봉만 보이게.
+    // n=null/undefined → 전체 표시 (rightOffset 은 timeScale 옵션과 동일 규칙 재사용).
+    const applyVisibleRange = (n: number | null | undefined) => {
+      const len = barsRef.current.length;
+      if (len === 0) return;
+      const rightOff = locked ? 0 : compactRightOffset ? 3 : 6;
+      const to = len - 1 + rightOff;
+      const from = n == null ? 0 : Math.max(0, len - n);
+      chart.timeScale().setVisibleLogicalRange({ from, to });
+    };
+    applyRangeRef.current = applyVisibleRange;
+
     if (initial.length > 0) {
       if (seriesKind === "line") {
         (series as ISeriesApi<"Line">).setData(initial.map(mapLine));
@@ -483,7 +512,7 @@ export const PriceChart = ({
       if (locked) {
         applyLockedRange(chart, initial, dimBefore);
       } else {
-        chart.timeScale().fitContent();
+        applyVisibleRange(visibleBarsRef.current);
       }
     }
     prevBarsRef.current = initial;
@@ -579,6 +608,7 @@ export const PriceChart = ({
       maSeriesRef.current = [];
       prevBarsRef.current = null;
       isHoveringRef.current = false;
+      applyRangeRef.current = null;
     };
     // maPeriodsKey 로 배열 값 변화를 감지 (참조 대신 값 비교).
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -667,6 +697,12 @@ export const PriceChart = ({
       paintLegend(legendRef.current, last, prev, c, precision, seriesKind);
     }
   }, [bars, locked, dimBefore, resolvedTheme, showLegend, precision, seriesKind]);
+
+  // visibleBars prop 변경 → 표시 창 재적용. 데이터 배열은 그대로, 시계축 논리 범위만 이동.
+  // config effect 재실행/데이터 effect 와 별개로 툴바 조작(프리셋·입력) 반영 경로.
+  useEffect(() => {
+    applyRangeRef.current?.(visibleBars);
+  }, [visibleBars]);
 
   return (
     <div
