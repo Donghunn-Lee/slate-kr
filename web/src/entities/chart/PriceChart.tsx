@@ -339,6 +339,10 @@ export const PriceChart = ({
   // period 배열 참조 안정화 (부모가 새 배열을 만들어도 값 동일하면 재실행 방지).
   const maPeriodsKey = maPeriods?.join(",") ?? "";
 
+  // 60봉 이하일 때 봉 폭이 넓어져 6봉 여백이 과해 보임 → 3봉으로 축소.
+  // boolean 으로 축약해 60 경계에서만 config effect 재실행 (매 length 변화에 재생성 방지).
+  const compactRightOffset = bars.length > 0 && bars.length <= 60;
+
   const { resolvedTheme } = useTheme();
 
   // config effect 가 재실행될 때 최신 bars 로 초기화할 수 있도록 렌더 후 동기화.
@@ -376,8 +380,8 @@ export const PriceChart = ({
         secondsVisible: false,
         // locked(intraday) 는 applyLockedRange 가 명시적으로 last + INTRADAY_BAR_BUFFER_SEC
         // 만큼 우측 여유를 이미 잡으므로 rightOffset 0. EOD 뷰는 최신 봉이 우측에 딱 붙지
-        // 않도록 6봉 여백.
-        rightOffset: locked ? 0 : 6,
+        // 않도록 6봉 여백. 60봉 이하 저밀도 화면은 3봉으로 축소.
+        rightOffset: locked ? 0 : compactRightOffset ? 3 : 6,
         // 축 tick 도 한국식 연-월-일 순. intraday(timeVisible) 는 기본 시간 포맷 유지.
         ...(!timeVisible ? { tickMarkFormatter: chartTickFormatter } : {}),
       },
@@ -578,7 +582,7 @@ export const PriceChart = ({
     };
     // maPeriodsKey 로 배열 값 변화를 감지 (참조 대신 값 비교).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [precision, timeVisible, interactive, resolvedTheme, locked, dimBefore, showVolume, maPeriodsKey, showLegend, seriesKind]);
+  }, [precision, timeVisible, interactive, resolvedTheme, locked, dimBefore, showVolume, maPeriodsKey, showLegend, seriesKind, compactRightOffset]);
 
   // bars-only 갱신. 첫 봉 time 동일 + length 동일/+1 → series.update 로 줌 유지.
   // 그 외(탭 전환 등 데이터셋 자체 변경) → setData + (locked: applyLockedRange, else: fitContent).

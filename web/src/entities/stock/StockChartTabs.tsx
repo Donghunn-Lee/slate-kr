@@ -45,6 +45,13 @@ const DAY_MA_PERIODS: number[] = [5, 20, 60, 120];
 const WEEK_MA_PERIODS: number[] = [13, 26];
 const MONTH_MA_PERIODS: number[] = [6, 12];
 
+// 봉개수 프리셋 (granularity 별). "전체" = null 은 UI 에서 별도 처리.
+const BAR_COUNT_PRESETS: Record<Granularity, number[]> = {
+  day: [60, 120],
+  week: [26, 52],
+  month: [12, 24],
+};
+
 // DESC → ASC ChartBar[]. volume 은 histogram 오버레이용 (StockPriceSnapshot.volume 그대로).
 const stockPricesToBars = (prices: StockPriceSnapshot[]): ChartBar[] =>
   [...prices]
@@ -142,6 +149,11 @@ export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) =
   const [viewMode, setViewMode] = useState<ViewMode>("full");
   const [granularity, setGranularity] = useState<Granularity>("day");
   const [seriesKind, setSeriesKind] = useState<SeriesKind>("candle");
+  // 표시 봉 개수. null = 전체. 입력·프리셋 공용. slice(-n) 은 n>length 시 자동 클램프.
+  const [barCount, setBarCount] = useState<number | null>(null);
+  // input remount 카운터 — 무효 입력 후 defaultValue 로 원복시키기 위한 key nonce.
+  // 프리셋 클릭 등 barCount 자체 변경은 barCount 값이 key 에 이미 들어 있어 자동 remount.
+  const [inputRevertNonce, setInputRevertNonce] = useState(0);
   const isIntradayView = viewMode === "intraday";
 
   // 헤더 폴링과 동일 queryKey — subscribeOnly 로 캐시만 구독, 네트워크 추가 0.
@@ -186,6 +198,13 @@ export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) =
         ? monthBars
         : dayBars;
 
+  // full 뷰만 봉개수 적용. intraday 는 세션 데이터라 slice 무의미.
+  // slice(-n) 은 n > length 자동 클램프 → PriceChart 에 그대로 전달.
+  const visibleBars = useMemo<ChartBar[]>(
+    () => (!isIntradayView && barCount ? bars.slice(-barCount) : bars),
+    [bars, barCount, isIntradayView],
+  );
+
   const showEmptyIntraday = isIntradayView && !intradayQuery.isLoading && !hasIntraday;
 
   // maPeriods: intraday 는 미표시. full 은 granularity 별 상수.
@@ -197,8 +216,36 @@ export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) =
         ? MONTH_MA_PERIODS
         : DAY_MA_PERIODS;
 
+  // 표시 봉 수가 period 미만인 MA 는 legend·라인 모두 제외 (봉개수 축소 시 자동 반영).
+  // PriceChart 는 자체 가드로 series 생성만 스킵하지만 config effect 재실행은 maPeriodsKey 변화가
+  // 있어야 하므로 상위에서 필터해 전달한다.
+  const effectiveMaPeriods = useMemo(() => {
+    if (!maPeriods) return undefined;
+    const filtered = maPeriods.filter((p) => p <= visibleBars.length);
+    return filtered.length > 0 ? filtered : undefined;
+  }, [maPeriods, visibleBars.length]);
+
   // "최근 1년" 라벨은 250 fetch limit 와 짝인 문구 → full/day 에서만 정확. 다른 주기는 생략.
-  const showLabel = label && !isIntradayView && granularity === "day";
+  // 봉개수를 사용자가 좁힌 경우에도 라벨은 부정확해지므로 생략.
+  const showLabel =
+    label && !isIntradayView && granularity === "day" && barCount === null;
+
+  const applyBarCountFromInput = (raw: string) => {
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      setBarCount(null);
+      return;
+    }
+    const n = Number(trimmed);
+    if (!Number.isFinite(n) || n < 1) {
+      // 무효 입력 → nonce 증가로 remount 하여 defaultValue(=현 barCount) 로 원복.
+      setInputRevertNonce((v) => v + 1);
+      return;
+    }
+    setBarCount(Math.min(Math.round(n), bars.length));
+  };
+
+  const currentPresets = BAR_COUNT_PRESETS[granularity];
 
   if (prices.length === 0 && !hasIntraday) {
     return (
@@ -285,6 +332,56 @@ export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) =
               );
             })}
           </div>
+          <div className={groupWrapperCls} role="group" aria-label="표시 봉 개수 프리셋">
+            {currentPresets.map((preset) => {
+              const active = barCount === preset;
+              return (
+                <button
+                  key={preset}
+                  type="button"
+                  aria-pressed={active}
+                  aria-disabled={isIntradayView}
+                  disabled={isIntradayView}
+                  onClick={() => setBarCount(preset)}
+                  className={toolbarButtonCls(active, isIntradayView)}
+                >
+                  {preset}
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              aria-pressed={barCount === null}
+              aria-disabled={isIntradayView}
+              disabled={isIntradayView}
+              onClick={() => setBarCount(null)}
+              className={toolbarButtonCls(barCount === null, isIntradayView)}
+            >
+              전체
+            </button>
+          </div>
+          <input
+            key={`bc-${barCount ?? "all"}-${inputRevertNonce}`}
+            type="number"
+            inputMode="numeric"
+            min={1}
+            aria-label="표시 봉 개수"
+            aria-disabled={isIntradayView}
+            disabled={isIntradayView}
+            defaultValue={barCount === null ? "" : String(barCount)}
+            onBlur={(e) => applyBarCountFromInput(e.currentTarget.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.currentTarget.blur();
+              }
+            }}
+            className={cn(
+              "h-[26px] w-14 rounded-md border border-subtle bg-elevated px-2 text-xs text-foreground",
+              "focus:border-lavender-border focus:outline-none",
+              "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+              isIntradayView && "opacity-40",
+            )}
+          />
         </div>
       </div>
       {showEmptyIntraday ? (
@@ -296,13 +393,13 @@ export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) =
         </div>
       ) : (
         <PriceChart
-          bars={bars}
+          bars={visibleBars}
           precision={0}
           timeVisible={isIntradayView}
           locked={isIntradayView}
           showVolume
           showLegend={!isIntradayView}
-          maPeriods={maPeriods}
+          maPeriods={effectiveMaPeriods}
           seriesKind={isIntradayView ? "candle" : seriesKind}
         />
       )}
