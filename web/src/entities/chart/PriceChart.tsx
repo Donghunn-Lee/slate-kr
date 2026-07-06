@@ -670,7 +670,7 @@ export const PriceChart = ({
 
   return (
     <div
-      className="relative w-full overflow-hidden rounded-md"
+      className="relative w-full overflow-hidden rounded-md border border-default"
       style={{ height }}
     >
       <div ref={containerRef} className="absolute inset-0" />
