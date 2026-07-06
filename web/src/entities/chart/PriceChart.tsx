@@ -58,6 +58,9 @@ type PriceChartProps = {
 
 const DEFAULT_HEIGHT = 300;
 const INTRADAY_BAR_BUFFER_SEC = 600; // 오른쪽 여유 = 10분봉 1개 폭
+// EOD 뷰 우측 여백 = 보이는 봉수 × 비율. 픽셀 여백을 봉수와 무관하게 일정 비율로 유지.
+// (rightOffset 고정 방식은 60/120/월 등 봉 폭이 크게 바뀔 때 여백 폭이 시각적으로 흔들려 폐기.)
+const RIGHT_MARGIN_RATIO = 0.04;
 
 const toTime = (t: string | number): Time =>
   typeof t === "number"
@@ -366,10 +369,6 @@ export const PriceChart = ({
   // period 배열 참조 안정화 (부모가 새 배열을 만들어도 값 동일하면 재실행 방지).
   const maPeriodsKey = maPeriods?.join(",") ?? "";
 
-  // 60봉 이하일 때 봉 폭이 넓어져 6봉 여백이 과해 보임 → 3봉으로 축소.
-  // boolean 으로 축약해 60 경계에서만 config effect 재실행 (매 length 변화에 재생성 방지).
-  const compactRightOffset = bars.length > 0 && bars.length <= 60;
-
   const { resolvedTheme } = useTheme();
 
   // config effect 가 재실행될 때 최신 bars 로 초기화할 수 있도록 렌더 후 동기화.
@@ -414,10 +413,9 @@ export const PriceChart = ({
         borderColor: c.border,
         timeVisible,
         secondsVisible: false,
-        // locked(intraday) 는 applyLockedRange 가 명시적으로 last + INTRADAY_BAR_BUFFER_SEC
-        // 만큼 우측 여유를 이미 잡으므로 rightOffset 0. EOD 뷰는 최신 봉이 우측에 딱 붙지
-        // 않도록 6봉 여백. 60봉 이하 저밀도 화면은 3봉으로 축소.
-        rightOffset: locked ? 0 : compactRightOffset ? 3 : 6,
+        // 여백은 setVisibleLogicalRange 의 to 값이 전담 (locked=applyLockedRange,
+        // EOD=applyVisibleRange). rightOffset 은 auto-fit/shift 경로만 관여하므로 0.
+        rightOffset: 0,
         // 축 tick 도 한국식 연-월-일 순. intraday(timeVisible) 는 기본 시간 포맷 유지.
         ...(!timeVisible ? { tickMarkFormatter: chartTickFormatter } : {}),
       },
@@ -500,14 +498,16 @@ export const PriceChart = ({
     maSeriesRef.current = maSeriesList;
 
     // 표시 창 적용 — 데이터 slice 대신 시계축 논리 범위로 최근 N봉만 보이게.
-    // n=null/undefined → 전체 표시 (rightOffset 은 timeScale 옵션과 동일 규칙 재사용).
+    // n=null/undefined → 전체 표시. 우측 여백은 보이는 봉수 × RIGHT_MARGIN_RATIO 로 비례해
+    // day 250봉/week 52봉/month 12봉 어디서든 화면폭 대비 같은 비율의 빈 공간이 남는다.
     // applyingRangeRef 로 감싸 subscribe 콜백이 programmatic 변경을 되받지 않게 한다.
     const applyVisibleRange = (n: number | null | undefined) => {
       const len = barsRef.current.length;
       if (len === 0) return;
-      const rightOff = locked ? 0 : compactRightOffset ? 3 : 6;
-      const to = len - 1 + rightOff;
+      const visibleCount = n == null ? len : Math.min(n, len);
+      const margin = visibleCount * RIGHT_MARGIN_RATIO;
       const from = n == null ? 0 : Math.max(0, len - n);
+      const to = len - 1 + margin;
       applyingRangeRef.current = true;
       chart.timeScale().setVisibleLogicalRange({ from, to });
       requestAnimationFrame(() => {
@@ -673,7 +673,7 @@ export const PriceChart = ({
     };
     // maPeriodsKey 로 배열 값 변화를 감지 (참조 대신 값 비교).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [precision, timeVisible, interactive, resolvedTheme, locked, dimBefore, showVolume, maPeriodsKey, showLegend, seriesKind, compactRightOffset]);
+  }, [precision, timeVisible, interactive, resolvedTheme, locked, dimBefore, showVolume, maPeriodsKey, showLegend, seriesKind]);
 
   // bars-only 갱신. 첫 봉 time 동일 + length 동일/+1 → series.update 로 줌 유지.
   // 그 외(탭 전환 등 데이터셋 자체 변경) → setData + (locked: applyLockedRange, else: fitContent).
