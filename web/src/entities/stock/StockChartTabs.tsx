@@ -9,6 +9,7 @@ import type { StockPriceSnapshot } from "@/shared/types/stock";
 import { resampleToMonthly } from "@/shared/utils/resampleToMonthly";
 import { resampleToWeekly } from "@/shared/utils/resampleToWeekly";
 import { parseISO, startOfWeek, format } from "date-fns";
+import { CandlestickChart, LineChart, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type ViewMode = "intraday" | "full";
@@ -32,9 +33,9 @@ const GRANULARITY_BUTTONS: { value: Granularity; label: string }[] = [
   { value: "month", label: "월" },
 ];
 
-const SERIES_KIND_BUTTONS: { value: SeriesKind; label: string }[] = [
-  { value: "candle", label: "캔들" },
-  { value: "line", label: "선" },
+const SERIES_KIND_BUTTONS: { value: SeriesKind; label: string; Icon: LucideIcon }[] = [
+  { value: "candle", label: "캔들", Icon: CandlestickChart },
+  { value: "line", label: "선", Icon: LineChart },
 ];
 
 // MA period 상수 (module-level → 리렌더 간 참조 안정, PriceChart config effect 불필요 재실행 방지).
@@ -208,13 +209,19 @@ export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) =
     );
   }
 
-  const toolbarButtonCls = (active: boolean) =>
+  // 선택 상태 색은 차트 섹션(무채색 원칙) 의 예외 — 툴바 강조에 한해 lavender 사용
+  // (styleguide 상 차트=lavender 계열). 비선택은 muted, disabled 는 opacity 로 흐림.
+  const toolbarButtonCls = (active: boolean, disabled = false) =>
     cn(
-      "rounded-md px-2 py-1 text-xs transition-colors",
+      "rounded-sm px-2 py-1 text-xs transition-colors",
       active
-        ? "bg-muted font-medium text-foreground"
-        : "text-muted-foreground hover:text-foreground",
+        ? "bg-lavender-bg text-lavender-accent font-medium"
+        : "text-muted-foreground",
+      !disabled && !active && "hover:text-foreground",
+      disabled && "opacity-40",
     );
+
+  const groupWrapperCls = "flex gap-0.5 rounded-md border border-subtle bg-elevated p-0.5";
 
   return (
     <>
@@ -225,8 +232,8 @@ export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) =
             <span className="ml-1.5 text-xs font-normal text-muted-foreground/70">· {label}</span>
           )}
         </h2>
-        <div className="flex items-center gap-1">
-          <div className="flex gap-1" role="group" aria-label="차트 뷰">
+        <div className="flex items-center gap-1.5">
+          <div className={groupWrapperCls} role="group" aria-label="차트 뷰">
             {VIEW_MODE_BUTTONS.map(({ value, label: btnLabel }) => (
               <button
                 key={value}
@@ -239,38 +246,43 @@ export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) =
               </button>
             ))}
           </div>
-          {viewMode === "full" && (
-            <>
-              <div className="mx-1 h-4 w-px bg-border" aria-hidden="true" />
-              <div className="flex gap-1" role="group" aria-label="차트 주기">
-                {GRANULARITY_BUTTONS.map(({ value, label: btnLabel }) => (
-                  <button
-                    key={value}
-                    type="button"
-                    aria-pressed={granularity === value}
-                    onClick={() => setGranularity(value)}
-                    className={toolbarButtonCls(granularity === value)}
-                  >
-                    {btnLabel}
-                  </button>
-                ))}
-              </div>
-              <div className="mx-1 h-4 w-px bg-border" aria-hidden="true" />
-              <div className="flex gap-1" role="group" aria-label="차트 종류">
-                {SERIES_KIND_BUTTONS.map(({ value, label: btnLabel }) => (
-                  <button
-                    key={value}
-                    type="button"
-                    aria-pressed={seriesKind === value}
-                    onClick={() => setSeriesKind(value)}
-                    className={toolbarButtonCls(seriesKind === value)}
-                  >
-                    {btnLabel}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
+          <div className={groupWrapperCls} role="group" aria-label="차트 주기">
+            {GRANULARITY_BUTTONS.map(({ value, label: btnLabel }) => {
+              const active = granularity === value;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={active}
+                  aria-disabled={isIntradayView}
+                  disabled={isIntradayView}
+                  onClick={() => setGranularity(value)}
+                  className={toolbarButtonCls(active, isIntradayView)}
+                >
+                  {btnLabel}
+                </button>
+              );
+            })}
+          </div>
+          <div className={groupWrapperCls} role="group" aria-label="차트 종류">
+            {SERIES_KIND_BUTTONS.map(({ value, label: btnLabel, Icon }) => {
+              const active = seriesKind === value;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  aria-label={btnLabel}
+                  aria-pressed={active}
+                  aria-disabled={isIntradayView}
+                  disabled={isIntradayView}
+                  onClick={() => setSeriesKind(value)}
+                  className={toolbarButtonCls(active, isIntradayView)}
+                >
+                  <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
       {showEmptyIntraday ? (
