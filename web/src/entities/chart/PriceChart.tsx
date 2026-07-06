@@ -739,10 +739,18 @@ export const PriceChart = ({
       return;
     }
 
+    // 첫 봉 time 만으로 dataset 동일성을 판정하면 지수 전환(KOSPI↔KOSDAQ↔KOSPI200)
+    // 처럼 시작일·길이가 우연히 겹치는 dataset 스왑에서 마지막 봉만 갱신되는 버그가 난다.
+    // 첫 봉은 가장 오래된 확정 이력이라 라이브 tick/intraday append 어느 경로에서도
+    // OHLC 가 바뀌지 않으므로 tiebreak 로 사용해도 안전.
     const canIncremental =
       prev !== null &&
       prev.length > 0 &&
       prev[0].time === bars[0].time &&
+      prev[0].open === bars[0].open &&
+      prev[0].high === bars[0].high &&
+      prev[0].low === bars[0].low &&
+      prev[0].close === bars[0].close &&
       (bars.length === prev.length || bars.length === prev.length + 1);
 
     if (canIncremental) {
