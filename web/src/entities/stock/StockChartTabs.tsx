@@ -58,11 +58,12 @@ const stockPricesToBars = (prices: StockPriceSnapshot[]): ChartBar[] =>
     }));
 
 // P2 종목 병합 로직: 마지막 EOD 봉 time === 당일 date → replace, 아니면 append.
-// 라이브 quote 에는 volume 이 없어 histogram 이 오늘 봉을 스킵하는 걸 방지하기 위해,
-// replace 경로에서만 EOD 오늘 volume 을 보존한다 (append 경로는 EOD 에 오늘 봉 없음).
+// 오늘 봉 volume 은 라이브 quote 의 acml_vol(누적 거래량) 을 우선 사용.
+// EOD 에 오늘 봉이 이미 있는 경우(replace 경로) preservedVolume 을 fallback 으로 유지 —
+// 라이브 quote 가 아직 도착하지 않았거나 파싱 실패로 volume 이 결측일 때 안전망.
 const mergeLiveDayBar = (
   eod: ChartBar[],
-  quote: { open: number; high: number; low: number; price: number } | null,
+  quote: { open: number; high: number; low: number; price: number; volume: number } | null,
   date: string | undefined
 ): ChartBar[] => {
   if (!quote || !date) return eod;
@@ -74,7 +75,7 @@ const mergeLiveDayBar = (
     high: quote.high,
     low: quote.low,
     close: quote.price,
-    volume: preservedVolume,
+    volume: quote.volume ?? preservedVolume,
   };
   if (last && last.time === date) return [...eod.slice(0, -1), live];
   return [...eod, live];
@@ -285,7 +286,7 @@ export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) =
           precision={0}
           timeVisible={isIntradayView}
           locked={isIntradayView}
-          showVolume={!isIntradayView}
+          showVolume
           showLegend={!isIntradayView}
           maPeriods={maPeriods}
           seriesKind={isIntradayView ? "candle" : seriesKind}

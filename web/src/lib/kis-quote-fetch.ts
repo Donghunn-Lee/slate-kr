@@ -78,6 +78,7 @@ const KisIntradayResponseSchema = z.object({
 });
 
 // 종목 분봉 응답. 지수와 필드명이 다르다 (stck_* 접두, prpr=현재/종가).
+// cntg_vol: 해당 분봉의 체결량. histogram 오버레이용.
 const KisStockMinuteResponseSchema = z.object({
   rt_cd: z.string(),
   msg1: z.string().optional(),
@@ -90,6 +91,7 @@ const KisStockMinuteResponseSchema = z.object({
         stck_oprc: z.coerce.number(),
         stck_hgpr: z.coerce.number(),
         stck_lwpr: z.coerce.number(),
+        cntg_vol: z.coerce.number(),
       }),
     )
     .optional()
@@ -477,6 +479,7 @@ const callStockMinuteAnchor = async (
         high: r.stck_hgpr,
         low: r.stck_lwpr,
         close: r.stck_prpr,
+        volume: r.cntg_vol,
       }));
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
