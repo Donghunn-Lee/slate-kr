@@ -59,6 +59,7 @@ const KisResponseSchema = z.object({
 });
 
 // 인트라데이 차트는 output2 배열로 응답. output1(요약)은 사용하지 않음.
+// cntg_vol: 해당 분봉의 거래량(지수 편입 종목의 합산). histogram 오버레이용.
 const KisIntradayResponseSchema = z.object({
   rt_cd: z.string(),
   msg1: z.string().optional(),
@@ -71,6 +72,7 @@ const KisIntradayResponseSchema = z.object({
         bstp_nmix_oprc: z.coerce.number(),
         bstp_nmix_hgpr: z.coerce.number(),
         bstp_nmix_lwpr: z.coerce.number(),
+        cntg_vol: z.coerce.number(),
       }),
     )
     .optional()
@@ -104,6 +106,7 @@ export type IndexIntradayBar = {
   high: number;
   low: number;
   close: number;
+  volume: number;
 };
 
 const INTRADAY_MARKERS = new Set(["999999", "888888"]);
@@ -188,6 +191,7 @@ export const fetchIndexIntradayChart = async (
         high: row.bstp_nmix_hgpr,
         low: row.bstp_nmix_lwpr,
         close: row.bstp_nmix_prpr,
+        volume: row.cntg_vol,
       }))
       .sort((a, b) => a.timestamp - b.timestamp);
 

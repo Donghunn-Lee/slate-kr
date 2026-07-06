@@ -69,6 +69,7 @@ const intradayToBars = (bars: IndexIntradaySnapshot[]): ChartBar[] =>
     high: b.high,
     low: b.low,
     close: b.close,
+    volume: b.volume,
   }));
 
 // dayBars → 월별 volume 합. resampleToMonthly 결과 date("YYYY-MM-01") 와 "YYYY-MM" 로 조인.
@@ -216,7 +217,7 @@ export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChart
         locked={renderMode === "intraday"}
         dimBefore={renderMode === "intraday" ? todayStartSec : undefined}
         showLegend={renderMode !== "intraday"}
-        showVolume={renderMode !== "intraday"}
+        showVolume
         maPeriods={
           renderMode === "day"
             ? DAY_MA_PERIODS

@@ -73,6 +73,7 @@ export const getIndexIntradayPrices = async (
       close: bar.close,
       change,
       changeRate,
+      volume: bar.volume,
     };
   });
 };
