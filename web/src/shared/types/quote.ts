@@ -30,6 +30,9 @@ export type IndexDailySnapshot = {
   close: number;
   change: number;
   changeRate: number;
+  // KRX ACC_TRDVOL(누적 거래량). 월봉 재샘플 시 resampleToMonthly 는 volume 을 출력에 담지 않으므로
+  // 월봉 스냅샷에서는 결측 — 소비자가 별도 재주입한다 (IndexChart 참조).
+  volume?: number;
 };
 
 // 10분봉(인트라데이) 1행. lightweight-charts가 분 단위 데이터를 UTCTimestamp(=epoch 초)로만

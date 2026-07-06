@@ -54,6 +54,7 @@ const dailyToBars = (prices: IndexDailySnapshot[]): ChartBar[] =>
     high: p.high,
     low: p.low,
     close: p.close,
+    volume: p.volume,
   }));
 
 const intradayToBars = (bars: IndexIntradaySnapshot[]): ChartBar[] =>
@@ -65,7 +66,34 @@ const intradayToBars = (bars: IndexIntradaySnapshot[]): ChartBar[] =>
     close: b.close,
   }));
 
+// dayBars → 월별 volume 합. resampleToMonthly 결과 date("YYYY-MM-01") 와 "YYYY-MM" 로 조인.
+// StockChartTabs.sumVolumeByMonth 미러 — 지수도 동일 패턴.
+const sumVolumeByMonth = (bars: ChartBar[]): Map<string, number> => {
+  const acc = new Map<string, number>();
+  for (const b of bars) {
+    if (b.volume === undefined) continue;
+    if (typeof b.time !== "string") continue;
+    const ym = b.time.slice(0, 7);
+    acc.set(ym, (acc.get(ym) ?? 0) + b.volume);
+  }
+  return acc;
+};
+
+// 월봉 ChartBar 에 월별 합계 volume 재주입. resampleToMonthly 출력은 volume 을 담지 않으므로
+// 일봉에서 뽑은 sumVolumeByMonth 를 time.slice(0,7) 로 매칭해 얹는다.
+const injectMonthlyVolume = (
+  monthBars: ChartBar[],
+  monthVolume: Map<string, number>,
+): ChartBar[] =>
+  monthBars.map((b) => {
+    if (typeof b.time !== "string") return b;
+    const v = monthVolume.get(b.time.slice(0, 7));
+    return v !== undefined ? { ...b, volume: v } : b;
+  });
+
 // 실시간 quote + date 로 오늘 봉 병합. mode='day' 는 그대로, mode='month' 는 이번 달 봉에 재반영.
+// 지수 quote(IndexQuote) 에는 volume 이 없어 오늘 봉 volume=undefined. day/month 모두 histogram 은
+// EOD 가 담긴 이전 봉까지만 그려지고 오늘 봉은 스킵된다 (PriceChart 의 volume undefined 스킵 규칙).
 const mergeLiveBar = (
   eod: IndexDailySnapshot[],
   live: { price: number; open: number; high: number; low: number } | null,
@@ -73,7 +101,9 @@ const mergeLiveBar = (
   mode: "day" | "month",
 ): ChartBar[] => {
   if (!live || !liveDate) {
-    return mode === "month" ? dailyToBars(resampleToMonthly(eod)) : dailyToBars(eod);
+    if (mode !== "month") return dailyToBars(eod);
+    const monthBars = dailyToBars(resampleToMonthly(eod));
+    return injectMonthlyVolume(monthBars, sumVolumeByMonth(dailyToBars(eod)));
   }
   const liveDaily: IndexDailySnapshot = {
     indexCode: eod[0]?.indexCode ?? "",
@@ -90,9 +120,10 @@ const mergeLiveBar = (
     last && last.date === liveDate
       ? [...eod.slice(0, -1), liveDaily]
       : [...eod, liveDaily];
-  return mode === "month"
-    ? dailyToBars(resampleToMonthly(mergedDaily))
-    : dailyToBars(mergedDaily);
+  if (mode !== "month") return dailyToBars(mergedDaily);
+  const dayBars = dailyToBars(mergedDaily);
+  const monthBars = dailyToBars(resampleToMonthly(mergedDaily));
+  return injectMonthlyVolume(monthBars, sumVolumeByMonth(dayBars));
 };
 
 export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChartProps) => {

@@ -23,6 +23,7 @@ type DailyIndexRow = {
   close: number;
   change: number;
   change_rate: number;
+  volume: number;
 };
 
 const toSnapshot = (indexCode: string, row: DailyIndexRow): IndexDailySnapshot => ({
@@ -34,12 +35,13 @@ const toSnapshot = (indexCode: string, row: DailyIndexRow): IndexDailySnapshot =
   close: row.close,
   change: row.change,
   changeRate: row.change_rate,
+  volume: row.volume,
 });
 
 export const getLatestIndexPrice = cache(
   async (indexCode: string): Promise<IndexDailySnapshot | null> => {
     const [rows] = await pool.query<DailyIndexRow[]>(
-      "SELECT base_date, open, high, low, close, change, change_rate FROM index_daily_prices WHERE index_code = $1 ORDER BY base_date DESC LIMIT 1",
+      "SELECT base_date, open, high, low, close, change, change_rate, volume FROM index_daily_prices WHERE index_code = $1 ORDER BY base_date DESC LIMIT 1",
       [indexCode]
     );
     if (rows.length === 0) return null;
@@ -81,7 +83,7 @@ export const getIndexDailyPrices = async (
 ): Promise<IndexDailySnapshot[]> => {
   // 최신 N건을 가져온 뒤 차트가 소비하기 좋게 ASC로 뒤집는다.
   const [rows] = await pool.query<DailyIndexRow[]>(
-    "SELECT base_date, open, high, low, close, change, change_rate FROM index_daily_prices WHERE index_code = $1 ORDER BY base_date DESC LIMIT $2",
+    "SELECT base_date, open, high, low, close, change, change_rate, volume FROM index_daily_prices WHERE index_code = $1 ORDER BY base_date DESC LIMIT $2",
     [indexCode, limit]
   );
   return rows.reverse().map((row) => toSnapshot(indexCode, row));
