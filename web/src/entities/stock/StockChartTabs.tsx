@@ -296,6 +296,23 @@ export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) =
           </div>
         </div>
         <div className="flex items-center justify-end gap-1.5">
+          <div className={groupWrapperCls} role="group" aria-label="차트 종류">
+            {SERIES_KIND_BUTTONS.map(({ value, label: btnLabel, Icon }) => {
+              const active = seriesKind === value;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  aria-label={btnLabel}
+                  aria-pressed={active}
+                  onClick={() => setSeriesKind(value)}
+                  className={toolbarButtonCls(active)}
+                >
+                  <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              );
+            })}
+          </div>
           <div className={groupWrapperCls} role="group" aria-label="차트 주기">
             {GRANULARITY_BUTTONS.map(({ value, label: btnLabel }) => {
               const active = granularity === value;
@@ -310,25 +327,6 @@ export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) =
                   className={toolbarButtonCls(active, isIntradayView)}
                 >
                   {btnLabel}
-                </button>
-              );
-            })}
-          </div>
-          <div className={groupWrapperCls} role="group" aria-label="차트 종류">
-            {SERIES_KIND_BUTTONS.map(({ value, label: btnLabel, Icon }) => {
-              const active = seriesKind === value;
-              return (
-                <button
-                  key={value}
-                  type="button"
-                  aria-label={btnLabel}
-                  aria-pressed={active}
-                  aria-disabled={isIntradayView}
-                  disabled={isIntradayView}
-                  onClick={() => setSeriesKind(value)}
-                  className={toolbarButtonCls(active, isIntradayView)}
-                >
-                  <Icon className="h-3.5 w-3.5" aria-hidden="true" />
                 </button>
               );
             })}
@@ -401,7 +399,7 @@ export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) =
           showVolume
           showLegend={!isIntradayView}
           maPeriods={effectiveMaPeriods}
-          seriesKind={isIntradayView ? "candle" : seriesKind}
+          seriesKind={seriesKind}
         />
       )}
     </>
