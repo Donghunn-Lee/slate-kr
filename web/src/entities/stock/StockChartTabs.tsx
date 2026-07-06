@@ -207,14 +207,15 @@ export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) =
 
   const showEmptyIntraday = isIntradayView && !intradayQuery.isLoading && !hasIntraday;
 
-  // maPeriods: intraday 는 미표시. full 은 granularity 별 상수.
-  const maPeriods = isIntradayView
-    ? undefined
-    : granularity === "week"
-      ? WEEK_MA_PERIODS
-      : granularity === "month"
-        ? MONTH_MA_PERIODS
-        : DAY_MA_PERIODS;
+  // maPeriods: intraday·선차트 는 미표시. full 캔들 뷰만 granularity 별 상수.
+  const maPeriods =
+    isIntradayView || seriesKind === "line"
+      ? undefined
+      : granularity === "week"
+        ? WEEK_MA_PERIODS
+        : granularity === "month"
+          ? MONTH_MA_PERIODS
+          : DAY_MA_PERIODS;
 
   // 표시 봉 수가 period 미만인 MA 는 legend·라인 모두 제외 (봉개수 축소 시 자동 반영).
   // PriceChart 는 자체 가드로 series 생성만 스킵하지만 config effect 재실행은 maPeriodsKey 변화가
