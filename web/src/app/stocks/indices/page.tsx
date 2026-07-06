@@ -56,7 +56,8 @@ export default async function IndicesPage({ searchParams }: PageProps) {
         </div>
       </div>
       <Suspense key={selected} fallback={<ChartSkeleton />}>
-        <IndexChartSection indexCode={selected} />
+        {/* 전체 지수 일봉 커버 (백필 max ≈ 735봉). 표시 창은 IndexChart 툴바가 조정. */}
+        <IndexChartSection indexCode={selected} limit={1000} />
       </Suspense>
     </main>
   );

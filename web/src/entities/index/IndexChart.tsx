@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CandlestickChart, LineChart, type LucideIcon } from "lucide-react";
 import { parseISO, startOfWeek, format } from "date-fns";
 import { PriceChart } from "@/entities/chart/PriceChart";
@@ -62,9 +62,16 @@ const MONTH_MA_PERIODS: number[] = [6, 12];
 
 // 봉개수 프리셋 (granularity 별). "전체" = null 은 UI 에서 별도 처리.
 const BAR_COUNT_PRESETS: Record<Granularity, number[]> = {
-  day: [60, 120],
+  day: [60, 120, 250],
   week: [26, 52],
   month: [12, 24],
+};
+
+// granularity 진입 시 초기 표시 창 — StockChartTabs 와 동일 기준.
+const GRANULARITY_DEFAULT_BARS: Record<Granularity, number> = {
+  day: 250,
+  week: 52,
+  month: 12,
 };
 
 // intraday bar time 은 kis-quote-fetch 의 kstToFakeUtcSec 로 인코딩된 fake-UTC epoch 초.
@@ -168,9 +175,16 @@ export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChart
   const [viewMode, setViewMode] = useState<ViewMode>("full");
   const [granularity, setGranularity] = useState<Granularity>("day");
   const [seriesKind, setSeriesKind] = useState<SeriesKind>("candle");
-  const [barCount, setBarCount] = useState<number | null>(null);
+  const [barCount, setBarCount] = useState<number | null>(
+    GRANULARITY_DEFAULT_BARS.day,
+  );
   const [inputRevertNonce, setInputRevertNonce] = useState(0);
   const isIntradayView = viewMode === "intraday";
+
+  // granularity 전환 시 표시 창을 해당 기본값으로 재설정 — StockChartTabs 와 대칭.
+  useEffect(() => {
+    setBarCount(GRANULARITY_DEFAULT_BARS[granularity]);
+  }, [granularity]);
 
   // 홈 IndexSlate 와 캐시 공유 (동시 열림 시 네트워크 중복 제거).
   const { data: intradayData } = useIndexIntraday();
@@ -233,12 +247,6 @@ export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChart
         ? monthBars
         : dayBars;
 
-  // full 뷰만 봉개수 slice.
-  const visibleBars = useMemo<ChartBar[]>(
-    () => (!renderIntraday && barCount ? bars.slice(-barCount) : bars),
-    [bars, barCount, renderIntraday],
-  );
-
   // maPeriods: intraday·선차트 는 미표시. full 캔들 뷰만 granularity 별 상수.
   const maPeriods =
     renderIntraday || seriesKind === "line"
@@ -249,11 +257,12 @@ export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChart
           ? MONTH_MA_PERIODS
           : DAY_MA_PERIODS;
 
+  // 데이터 길이 기준 MA 필터 — 창 밖 데이터로 SMA 계산 가능하므로 창 크기와 분리.
   const effectiveMaPeriods = useMemo(() => {
     if (!maPeriods) return undefined;
-    const filtered = maPeriods.filter((p) => p <= visibleBars.length);
+    const filtered = maPeriods.filter((p) => p <= bars.length);
     return filtered.length > 0 ? filtered : undefined;
-  }, [maPeriods, visibleBars.length]);
+  }, [maPeriods, bars.length]);
 
   const applyBarCountFromInput = (raw: string) => {
     const trimmed = raw.trim();
@@ -414,7 +423,7 @@ export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChart
         </div>
       </div>
       <PriceChart
-        bars={visibleBars}
+        bars={bars}
         precision={2}
         timeVisible={renderIntraday}
         interactive={interactive}
@@ -424,6 +433,8 @@ export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChart
         showLegend={!renderIntraday}
         maPeriods={effectiveMaPeriods}
         seriesKind={seriesKind}
+        visibleBars={renderIntraday ? undefined : barCount}
+        onVisibleBarsChange={renderIntraday ? undefined : setBarCount}
       />
     </>
   );
