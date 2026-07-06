@@ -225,14 +225,14 @@ export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) =
 
   return (
     <>
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-muted-foreground">
-          가격 차트
-          {showLabel && (
-            <span className="ml-1.5 text-xs font-normal text-muted-foreground/70">· {label}</span>
-          )}
-        </h2>
-        <div className="flex items-center gap-1.5">
+      <div className="mb-3 flex flex-col gap-1.5">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-muted-foreground">
+            가격 차트
+            {showLabel && (
+              <span className="ml-1.5 text-xs font-normal text-muted-foreground/70">· {label}</span>
+            )}
+          </h2>
           <div className={groupWrapperCls} role="group" aria-label="차트 뷰">
             {VIEW_MODE_BUTTONS.map(({ value, label: btnLabel }) => (
               <button
@@ -246,6 +246,8 @@ export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) =
               </button>
             ))}
           </div>
+        </div>
+        <div className="flex items-center justify-end gap-1.5">
           <div className={groupWrapperCls} role="group" aria-label="차트 주기">
             {GRANULARITY_BUTTONS.map(({ value, label: btnLabel }) => {
               const active = granularity === value;
