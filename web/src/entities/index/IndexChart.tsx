@@ -40,6 +40,11 @@ const CELL_KEY: Record<IndexCode, "kospi" | "kosdaq" | "kospi200"> = {
   KOSPI200: "kospi200",
 };
 
+// MA period 상수 — StockChartTabs 컨벤션 동일 (일봉 4개, 월봉 2개).
+// intraday 는 미표시.
+const DAY_MA_PERIODS: number[] = [5, 20, 60, 120];
+const MONTH_MA_PERIODS: number[] = [6, 12];
+
 // intraday bar time 은 kis-quote-fetch 의 kstToFakeUtcSec 로 인코딩된 fake-UTC epoch 초.
 // KST 00:00 을 같은 규칙으로 인코딩하면 세션 경계 epoch 를 얻는다.
 const dateToKstStartSec = (yyyyMmDd: string): number => {
@@ -210,6 +215,15 @@ export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChart
         interactive={interactive}
         locked={renderMode === "intraday"}
         dimBefore={renderMode === "intraday" ? todayStartSec : undefined}
+        showLegend={renderMode !== "intraday"}
+        showVolume={renderMode !== "intraday"}
+        maPeriods={
+          renderMode === "day"
+            ? DAY_MA_PERIODS
+            : renderMode === "month"
+              ? MONTH_MA_PERIODS
+              : undefined
+        }
       />
     </>
   );
