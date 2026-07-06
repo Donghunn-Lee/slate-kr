@@ -742,7 +742,9 @@ export const PriceChart = ({
         lineSeries.setData(computeSma(bars, period));
       }
       if (!locked) {
-        chartRef.current?.timeScale().fitContent();
+        // 툴바 조작(granularity/tab 등) 으로 데이터셋이 통째 갈릴 때 사용자가 지정한 표시 창을
+        // 그대로 재적용. fitContent 로 매번 fit 하면 barCount 프리셋/휠 조작이 무시된다.
+        applyRangeRef.current?.(visibleBarsRef.current);
       }
     }
     if (locked && chartRef.current) {
