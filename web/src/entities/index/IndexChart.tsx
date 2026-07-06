@@ -295,6 +295,9 @@ export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChart
   const groupWrapperCls =
     "flex gap-0.5 rounded-md border border-subtle bg-elevated p-0.5";
 
+  // 프리셋(60/120/전체) 폭 고정 — StockChartTabs 대칭. 자릿수/폰트굵기 변화로 인한 reflow 방지.
+  const presetButtonWidthCls = "min-w-[42px] text-center tabular-nums";
+
   return (
     <>
       <div className="mb-3 flex flex-col gap-1.5">
@@ -363,7 +366,10 @@ export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChart
                   aria-disabled={isIntradayView}
                   disabled={isIntradayView}
                   onClick={() => setBarCount(preset)}
-                  className={toolbarButtonCls(active, isIntradayView)}
+                  className={cn(
+                    toolbarButtonCls(active, isIntradayView),
+                    presetButtonWidthCls,
+                  )}
                 >
                   {preset}
                 </button>
@@ -375,7 +381,10 @@ export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChart
               aria-disabled={isIntradayView}
               disabled={isIntradayView}
               onClick={() => setBarCount(null)}
-              className={toolbarButtonCls(barCount === null, isIntradayView)}
+              className={cn(
+                toolbarButtonCls(barCount === null, isIntradayView),
+                presetButtonWidthCls,
+              )}
             >
               전체
             </button>

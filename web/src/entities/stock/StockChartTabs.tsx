@@ -271,6 +271,10 @@ export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) =
 
   const groupWrapperCls = "flex gap-0.5 rounded-md border border-subtle bg-elevated p-0.5";
 
+  // 프리셋(60/120/전체) 폭 고정 — "120" 활성(font-medium) 기준 여유 있게 잡아 자릿수·굵기 변화로
+  // 툴바 행 reflow 방지. tabular-nums 로 자릿수 폭까지 일정하게.
+  const presetButtonWidthCls = "min-w-[42px] text-center tabular-nums";
+
   return (
     <>
       <div className="mb-3 flex flex-col gap-1.5">
@@ -342,7 +346,10 @@ export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) =
                   aria-disabled={isIntradayView}
                   disabled={isIntradayView}
                   onClick={() => setBarCount(preset)}
-                  className={toolbarButtonCls(active, isIntradayView)}
+                  className={cn(
+                    toolbarButtonCls(active, isIntradayView),
+                    presetButtonWidthCls,
+                  )}
                 >
                   {preset}
                 </button>
@@ -354,7 +361,10 @@ export const StockChartTabs = ({ ticker, prices, label }: StockChartTabsProps) =
               aria-disabled={isIntradayView}
               disabled={isIntradayView}
               onClick={() => setBarCount(null)}
-              className={toolbarButtonCls(barCount === null, isIntradayView)}
+              className={cn(
+                toolbarButtonCls(barCount === null, isIntradayView),
+                presetButtonWidthCls,
+              )}
             >
               전체
             </button>
