@@ -25,6 +25,7 @@ const toBars = (prices: StockPriceSnapshot[]): ChartBar[] =>
       high: p.high,
       low: p.low,
       close: p.close,
+      volume: p.volume,
     }));
 
 export const StockChart = ({
@@ -43,14 +44,18 @@ export const StockChart = ({
     const date = data?.date;
     if (!quote || !date) return eod;
 
+    const last = eod[eod.length - 1];
+    // 오늘 봉 volume: 라이브 quote 의 acml_vol(누적 거래량) 우선.
+    // EOD 오늘 봉이 있으면 그 volume 을 fallback 으로 유지 (quote 결측 시 안전망).
+    const preservedVolume = last && last.time === date ? last.volume : undefined;
     const liveBar: ChartBar = {
       time: date,
       open: quote.open,
       high: quote.high,
       low: quote.low,
       close: quote.price,
+      volume: quote.volume ?? preservedVolume,
     };
-    const last = eod[eod.length - 1];
     // EOD 적재분에 오늘이 이미 있으면 실시간 값으로 교체(장 마감 후 재적재 중복 방지).
     if (last && last.time === date) return [...eod.slice(0, -1), liveBar];
     return [...eod, liveBar];
@@ -80,7 +85,7 @@ export const StockChart = ({
           </Link>
         )}
       </div>
-      <PriceChart bars={bars} precision={0} interactive={interactive} />
+      <PriceChart bars={bars} precision={0} interactive={interactive} showVolume />
     </>
   );
 };
