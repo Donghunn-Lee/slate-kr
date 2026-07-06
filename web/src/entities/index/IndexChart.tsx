@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { CandlestickChart, LineChart, type LucideIcon } from "lucide-react";
+import { parseISO, startOfWeek, format } from "date-fns";
 import { PriceChart } from "@/entities/chart/PriceChart";
 import { useIndexIntraday } from "@/features/index-quotes/useIndexIntraday";
 import { useIndexQuotes } from "@/features/index-quotes/useIndexQuotes";
@@ -11,10 +13,13 @@ import type {
 } from "@/shared/types/quote";
 import { getPreviousKrxTradingDate } from "@/shared/utils/market";
 import { resampleToMonthly } from "@/shared/utils/resampleToMonthly";
+import { resampleToWeekly } from "@/shared/utils/resampleToWeekly";
 import { cn } from "@/lib/utils";
 
 type IndexCode = "KOSPI" | "KOSDAQ" | "KOSPI200";
-type Tab = "intraday" | "day" | "month";
+type ViewMode = "intraday" | "full";
+type Granularity = "day" | "week" | "month";
+type SeriesKind = "candle" | "line";
 
 type IndexChartProps = {
   indexCode: IndexCode;
@@ -28,22 +33,39 @@ const INDEX_LABEL: Record<IndexCode, string> = {
   KOSPI200: "코스피200",
 };
 
-const TAB_LABEL: Record<Tab, string> = {
-  intraday: "당일",
-  day: "일봉",
-  month: "월봉",
-};
-
 const CELL_KEY: Record<IndexCode, "kospi" | "kosdaq" | "kospi200"> = {
   KOSPI: "kospi",
   KOSDAQ: "kosdaq",
   KOSPI200: "kospi200",
 };
 
-// MA period 상수 — StockChartTabs 컨벤션 동일 (일봉 4개, 월봉 2개).
-// intraday 는 미표시.
+const VIEW_MODE_BUTTONS: { value: ViewMode; label: string }[] = [
+  { value: "intraday", label: "당일" },
+  { value: "full", label: "전체" },
+];
+
+const GRANULARITY_BUTTONS: { value: Granularity; label: string }[] = [
+  { value: "day", label: "일" },
+  { value: "week", label: "주" },
+  { value: "month", label: "월" },
+];
+
+const SERIES_KIND_BUTTONS: { value: SeriesKind; label: string; Icon: LucideIcon }[] = [
+  { value: "candle", label: "캔들", Icon: CandlestickChart },
+  { value: "line", label: "선", Icon: LineChart },
+];
+
+// MA period 상수 — StockChartTabs 컨벤션 동일.
 const DAY_MA_PERIODS: number[] = [5, 20, 60, 120];
+const WEEK_MA_PERIODS: number[] = [13, 26];
 const MONTH_MA_PERIODS: number[] = [6, 12];
+
+// 봉개수 프리셋 (granularity 별). "전체" = null 은 UI 에서 별도 처리.
+const BAR_COUNT_PRESETS: Record<Granularity, number[]> = {
+  day: [60, 120],
+  week: [26, 52],
+  month: [12, 24],
+};
 
 // intraday bar time 은 kis-quote-fetch 의 kstToFakeUtcSec 로 인코딩된 fake-UTC epoch 초.
 // KST 00:00 을 같은 규칙으로 인코딩하면 세션 경계 epoch 를 얻는다.
@@ -73,7 +95,6 @@ const intradayToBars = (bars: IndexIntradaySnapshot[]): ChartBar[] =>
   }));
 
 // dayBars → 월별 volume 합. resampleToMonthly 결과 date("YYYY-MM-01") 와 "YYYY-MM" 로 조인.
-// StockChartTabs.sumVolumeByMonth 미러 — 지수도 동일 패턴.
 const sumVolumeByMonth = (bars: ChartBar[]): Map<string, number> => {
   const acc = new Map<string, number>();
   for (const b of bars) {
@@ -85,55 +106,71 @@ const sumVolumeByMonth = (bars: ChartBar[]): Map<string, number> => {
   return acc;
 };
 
-// 월봉 ChartBar 에 월별 합계 volume 재주입. resampleToMonthly 출력은 volume 을 담지 않으므로
-// 일봉에서 뽑은 sumVolumeByMonth 를 time.slice(0,7) 로 매칭해 얹는다.
-const injectMonthlyVolume = (
-  monthBars: ChartBar[],
-  monthVolume: Map<string, number>,
-): ChartBar[] =>
-  monthBars.map((b) => {
-    if (typeof b.time !== "string") return b;
-    const v = monthVolume.get(b.time.slice(0, 7));
-    return v !== undefined ? { ...b, volume: v } : b;
-  });
+// dayBars → 주별 volume 합. resampleToWeekly 결과 date(월요일 "yyyy-MM-dd") 와 full date 로 조인.
+const sumVolumeByWeek = (bars: ChartBar[]): Map<string, number> => {
+  const acc = new Map<string, number>();
+  for (const b of bars) {
+    if (b.volume === undefined) continue;
+    if (typeof b.time !== "string") continue;
+    const monday = format(startOfWeek(parseISO(b.time), { weekStartsOn: 1 }), "yyyy-MM-dd");
+    acc.set(monday, (acc.get(monday) ?? 0) + b.volume);
+  }
+  return acc;
+};
 
-// 실시간 quote + date 로 오늘 봉 병합. mode='day' 는 그대로, mode='month' 는 이번 달 봉에 재반영.
-// 지수 quote(IndexQuote) 에는 volume 이 없어 오늘 봉 volume=undefined. day/month 모두 histogram 은
-// EOD 가 담긴 이전 봉까지만 그려지고 오늘 봉은 스킵된다 (PriceChart 의 volume undefined 스킵 규칙).
-const mergeLiveBar = (
+// resample 시그니처가 IndexDailySnapshot in/out 이라 ChartBar <-> shim.
+const barsToSnapshots = (bars: ChartBar[]): IndexDailySnapshot[] =>
+  bars.map((b) => ({
+    indexCode: "",
+    date: String(b.time),
+    open: b.open,
+    high: b.high,
+    low: b.low,
+    close: b.close,
+    change: 0,
+    changeRate: 0,
+  }));
+
+const snapshotsToBars = (snaps: IndexDailySnapshot[]): ChartBar[] =>
+  snaps.map((s) => ({
+    time: s.date,
+    open: s.open,
+    high: s.high,
+    low: s.low,
+    close: s.close,
+  }));
+
+// EOD 일봉 + 실시간 quote 병합. 지수 quote(IndexQuote) 에는 volume 이 없어
+// 오늘 봉 volume 은 EOD 에 이미 있는 경우만 보존한다.
+const mergeLiveDayBar = (
   eod: IndexDailySnapshot[],
   live: { price: number; open: number; high: number; low: number } | null,
   liveDate: string | undefined,
-  mode: "day" | "month",
 ): ChartBar[] => {
-  if (!live || !liveDate) {
-    if (mode !== "month") return dailyToBars(eod);
-    const monthBars = dailyToBars(resampleToMonthly(eod));
-    return injectMonthlyVolume(monthBars, sumVolumeByMonth(dailyToBars(eod)));
-  }
-  const liveDaily: IndexDailySnapshot = {
-    indexCode: eod[0]?.indexCode ?? "",
-    date: liveDate,
+  const eodBars = dailyToBars(eod);
+  if (!live || !liveDate) return eodBars;
+  const last = eod[eod.length - 1];
+  const preservedVolume =
+    last && last.date === liveDate ? last.volume : undefined;
+  const liveBar: ChartBar = {
+    time: liveDate,
     open: live.open,
     high: live.high,
     low: live.low,
     close: live.price,
-    change: 0,
-    changeRate: 0,
+    volume: preservedVolume,
   };
-  const last = eod[eod.length - 1];
-  const mergedDaily: IndexDailySnapshot[] =
-    last && last.date === liveDate
-      ? [...eod.slice(0, -1), liveDaily]
-      : [...eod, liveDaily];
-  if (mode !== "month") return dailyToBars(mergedDaily);
-  const dayBars = dailyToBars(mergedDaily);
-  const monthBars = dailyToBars(resampleToMonthly(mergedDaily));
-  return injectMonthlyVolume(monthBars, sumVolumeByMonth(dayBars));
+  if (last && last.date === liveDate) return [...eodBars.slice(0, -1), liveBar];
+  return [...eodBars, liveBar];
 };
 
 export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChartProps) => {
-  const [tab, setTab] = useState<Tab>("intraday");
+  const [viewMode, setViewMode] = useState<ViewMode>("full");
+  const [granularity, setGranularity] = useState<Granularity>("day");
+  const [seriesKind, setSeriesKind] = useState<SeriesKind>("candle");
+  const [barCount, setBarCount] = useState<number | null>(null);
+  const [inputRevertNonce, setInputRevertNonce] = useState(0);
+  const isIntradayView = viewMode === "intraday";
 
   // 홈 IndexSlate 와 캐시 공유 (동시 열림 시 네트워크 중복 제거).
   const { data: intradayData } = useIndexIntraday();
@@ -151,22 +188,88 @@ export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChart
     : undefined;
 
   // intraday 필터: 당일 + 전일만. 전전일 이전은 데이터에서 제외.
-  // liveDate 미도착 시 원본 그대로 (필터 대신 fallback 은 아래 renderMode 로).
   const intraday = useMemo<IndexIntradaySnapshot[] | null>(() => {
     if (!rawIntraday) return null;
     if (prevStartSec === undefined) return rawIntraday;
     return rawIntraday.filter((b) => b.timestamp >= prevStartSec);
   }, [rawIntraday, prevStartSec]);
 
-  // intraday 데이터 없으면 day 로 silent fallback (preopen/장 마감 시간대).
   const intradayHasData = intraday !== null && intraday.length > 0;
-  const renderMode: "intraday" | "day" | "month" =
-    tab === "intraday" ? (intradayHasData ? "intraday" : "day") : tab;
+  // intraday 데이터 없으면 day 로 silent fallback (기존 IndexChart UX 유지).
+  // 종목과 달리 지수 intraday 는 전일 세션도 반환되어 폐장 후에도 표시 가능하지만,
+  // 초기 로드나 preopen 시점의 결측에 대비.
+  const renderIntraday = isIntradayView && intradayHasData;
 
-  const bars = useMemo<ChartBar[]>(() => {
-    if (renderMode === "intraday") return intradayToBars(intraday ?? []);
-    return mergeLiveBar(prices, liveQuote, liveDate, renderMode);
-  }, [renderMode, intraday, prices, liveQuote, liveDate]);
+  const dayBars = useMemo<ChartBar[]>(
+    () => mergeLiveDayBar(prices, liveQuote, liveDate),
+    [prices, liveQuote, liveDate],
+  );
+
+  const weekBars = useMemo<ChartBar[]>(() => {
+    const base = snapshotsToBars(resampleToWeekly(barsToSnapshots(dayBars)));
+    const weekVolume = sumVolumeByWeek(dayBars);
+    return base.map((b) => {
+      if (typeof b.time !== "string") return b;
+      const v = weekVolume.get(b.time);
+      return v !== undefined ? { ...b, volume: v } : b;
+    });
+  }, [dayBars]);
+
+  const monthBars = useMemo<ChartBar[]>(() => {
+    const base = snapshotsToBars(resampleToMonthly(barsToSnapshots(dayBars)));
+    const monthVolume = sumVolumeByMonth(dayBars);
+    return base.map((b) => {
+      if (typeof b.time !== "string") return b;
+      const v = monthVolume.get(b.time.slice(0, 7));
+      return v !== undefined ? { ...b, volume: v } : b;
+    });
+  }, [dayBars]);
+
+  const bars = renderIntraday
+    ? intradayToBars(intraday ?? [])
+    : granularity === "week"
+      ? weekBars
+      : granularity === "month"
+        ? monthBars
+        : dayBars;
+
+  // full 뷰만 봉개수 slice.
+  const visibleBars = useMemo<ChartBar[]>(
+    () => (!renderIntraday && barCount ? bars.slice(-barCount) : bars),
+    [bars, barCount, renderIntraday],
+  );
+
+  // maPeriods: intraday·선차트 는 미표시. full 캔들 뷰만 granularity 별 상수.
+  const maPeriods =
+    renderIntraday || seriesKind === "line"
+      ? undefined
+      : granularity === "week"
+        ? WEEK_MA_PERIODS
+        : granularity === "month"
+          ? MONTH_MA_PERIODS
+          : DAY_MA_PERIODS;
+
+  const effectiveMaPeriods = useMemo(() => {
+    if (!maPeriods) return undefined;
+    const filtered = maPeriods.filter((p) => p <= visibleBars.length);
+    return filtered.length > 0 ? filtered : undefined;
+  }, [maPeriods, visibleBars.length]);
+
+  const applyBarCountFromInput = (raw: string) => {
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      setBarCount(null);
+      return;
+    }
+    const n = Number(trimmed);
+    if (!Number.isFinite(n) || n < 1) {
+      setInputRevertNonce((v) => v + 1);
+      return;
+    }
+    setBarCount(Math.min(Math.round(n), bars.length));
+  };
+
+  const currentPresets = BAR_COUNT_PRESETS[granularity];
 
   if (prices.length === 0 && !intradayHasData) {
     return (
@@ -179,52 +282,139 @@ export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChart
     );
   }
 
+  const toolbarButtonCls = (active: boolean, disabled = false) =>
+    cn(
+      "rounded-sm px-2 py-1 text-xs transition-colors",
+      active
+        ? "bg-lavender-bg text-lavender-accent font-medium"
+        : "text-muted-foreground",
+      !disabled && !active && "hover:text-foreground",
+      disabled && "opacity-40",
+    );
+
+  const groupWrapperCls =
+    "flex gap-0.5 rounded-md border border-subtle bg-elevated p-0.5";
+
   return (
     <>
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-muted-foreground">
-          {INDEX_LABEL[indexCode]}
-        </h2>
-        <div
-          className="flex gap-1"
-          role="tablist"
-          aria-label={`${INDEX_LABEL[indexCode]} 차트 주기`}
-        >
-          {(["intraday", "day", "month"] as Tab[]).map((t) => (
+      <div className="mb-3 flex flex-col gap-1.5">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-muted-foreground">
+            {INDEX_LABEL[indexCode]}
+          </h2>
+          <div className={groupWrapperCls} role="group" aria-label="차트 뷰">
+            {VIEW_MODE_BUTTONS.map(({ value, label: btnLabel }) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={viewMode === value}
+                onClick={() => setViewMode(value)}
+                className={toolbarButtonCls(viewMode === value)}
+              >
+                {btnLabel}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-1.5">
+          <div className={groupWrapperCls} role="group" aria-label="차트 종류">
+            {SERIES_KIND_BUTTONS.map(({ value, label: btnLabel, Icon }) => {
+              const active = seriesKind === value;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  aria-label={btnLabel}
+                  aria-pressed={active}
+                  onClick={() => setSeriesKind(value)}
+                  className={toolbarButtonCls(active)}
+                >
+                  <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              );
+            })}
+          </div>
+          <div className={groupWrapperCls} role="group" aria-label="차트 주기">
+            {GRANULARITY_BUTTONS.map(({ value, label: btnLabel }) => {
+              const active = granularity === value;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={active}
+                  aria-disabled={isIntradayView}
+                  disabled={isIntradayView}
+                  onClick={() => setGranularity(value)}
+                  className={toolbarButtonCls(active, isIntradayView)}
+                >
+                  {btnLabel}
+                </button>
+              );
+            })}
+          </div>
+          <div className={groupWrapperCls} role="group" aria-label="표시 봉 개수 프리셋">
+            {currentPresets.map((preset) => {
+              const active = barCount === preset;
+              return (
+                <button
+                  key={preset}
+                  type="button"
+                  aria-pressed={active}
+                  aria-disabled={isIntradayView}
+                  disabled={isIntradayView}
+                  onClick={() => setBarCount(preset)}
+                  className={toolbarButtonCls(active, isIntradayView)}
+                >
+                  {preset}
+                </button>
+              );
+            })}
             <button
-              key={t}
               type="button"
-              role="tab"
-              aria-selected={tab === t}
-              onClick={() => setTab(t)}
-              className={cn(
-                "rounded-md px-2 py-1 text-xs transition-colors",
-                tab === t
-                  ? "bg-muted font-medium text-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
+              aria-pressed={barCount === null}
+              aria-disabled={isIntradayView}
+              disabled={isIntradayView}
+              onClick={() => setBarCount(null)}
+              className={toolbarButtonCls(barCount === null, isIntradayView)}
             >
-              {TAB_LABEL[t]}
+              전체
             </button>
-          ))}
+          </div>
+          <input
+            key={`bc-${barCount ?? "all"}-${inputRevertNonce}`}
+            type="number"
+            inputMode="numeric"
+            min={1}
+            aria-label="표시 봉 개수"
+            aria-disabled={isIntradayView}
+            disabled={isIntradayView}
+            defaultValue={barCount === null ? "" : String(barCount)}
+            onBlur={(e) => applyBarCountFromInput(e.currentTarget.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.currentTarget.blur();
+              }
+            }}
+            className={cn(
+              "h-[26px] w-14 rounded-md border border-subtle bg-elevated px-2 text-xs text-foreground",
+              "focus:border-lavender-border focus:outline-none",
+              "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+              isIntradayView && "opacity-40",
+            )}
+          />
         </div>
       </div>
       <PriceChart
-        bars={bars}
+        bars={visibleBars}
         precision={2}
-        timeVisible={renderMode === "intraday"}
+        timeVisible={renderIntraday}
         interactive={interactive}
-        locked={renderMode === "intraday"}
-        dimBefore={renderMode === "intraday" ? todayStartSec : undefined}
-        showLegend={renderMode !== "intraday"}
+        locked={renderIntraday}
+        dimBefore={renderIntraday ? todayStartSec : undefined}
         showVolume
-        maPeriods={
-          renderMode === "day"
-            ? DAY_MA_PERIODS
-            : renderMode === "month"
-              ? MONTH_MA_PERIODS
-              : undefined
-        }
+        showLegend={!renderIntraday}
+        maPeriods={effectiveMaPeriods}
+        seriesKind={seriesKind}
       />
     </>
   );
