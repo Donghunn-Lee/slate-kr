@@ -13,6 +13,7 @@ import {
   type IChartApi,
   type ISeriesApi,
   type LineData,
+  type LogicalRange,
   type MouseEventParams,
   type Time,
   type UTCTimestamp,
@@ -49,6 +50,10 @@ type PriceChartProps = {
   // 데이터를 자르지 않고 표시 창만 조정 → 툴바 조작 시 계산/네트워크 비용 없이 즉시 반영.
   // locked=true(intraday) 뷰에서는 무시 (applyLockedRange 가 우선).
   visibleBars?: number | null;
+  // 사용자 휠/팬으로 표시 창이 바뀌었을 때 새 봉 개수를 알려주는 콜백.
+  // 상위 상태(barCount input) 와 양방향 동기화용. locked 뷰에서는 구독 자체를 안 건다.
+  // 값이 전체 근사면 null 을 전달 (프리셋의 "전체" 와 대응).
+  onVisibleBarsChange?: (n: number | null) => void;
 };
 
 const DEFAULT_HEIGHT = 300;
@@ -323,6 +328,7 @@ export const PriceChart = ({
   showLegend = false,
   seriesKind = "candle",
   visibleBars,
+  onVisibleBarsChange,
 }: PriceChartProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -343,6 +349,15 @@ export const PriceChart = ({
   const applyRangeRef = useRef<((n: number | null | undefined) => void) | null>(
     null,
   );
+  // programmatic setVisibleLogicalRange 로 인한 subscribe 콜백을 무시하기 위한 재진입 가드.
+  // rAF 이후 해제 — 라이트웨이트차트가 range 변경을 큐잉하므로 동일 tick 내엔 유지.
+  const applyingRangeRef = useRef(false);
+  // 마지막으로 상위에 보고한 봉 개수(중복 콜백 억제 + wheel-originated 값 재적용 방지).
+  const lastReportedRef = useRef<number | null | undefined>(undefined);
+  // 콜백 최신 참조 — 구독 재설정 없이도 갈아끼울 수 있도록 ref 로.
+  const onVisibleBarsChangeRef = useRef(onVisibleBarsChange);
+  // 휠 연사 시 setState 폭주 방지용 debounce 타이머.
+  const reportTimerRef = useRef<number | null>(null);
   // legend DOM refs + hover 여부 (bars 갱신 시 미호버면 최신봉으로 refresh).
   const legendRef = useRef<HTMLDivElement>(null);
   const maLegendRef = useRef<HTMLDivElement>(null);
@@ -367,6 +382,10 @@ export const PriceChart = ({
   useEffect(() => {
     visibleBarsRef.current = visibleBars;
   }, [visibleBars]);
+
+  useEffect(() => {
+    onVisibleBarsChangeRef.current = onVisibleBarsChange;
+  }, [onVisibleBarsChange]);
 
   // 차트/시리즈는 config(테마·precision·timeVisible·interactive·locked·dimBefore) 변경 시에만
   // 재생성. bars-only 갱신은 아래 데이터 effect가 처리해 사용자 줌 상태를 유지한다.
@@ -482,15 +501,48 @@ export const PriceChart = ({
 
     // 표시 창 적용 — 데이터 slice 대신 시계축 논리 범위로 최근 N봉만 보이게.
     // n=null/undefined → 전체 표시 (rightOffset 은 timeScale 옵션과 동일 규칙 재사용).
+    // applyingRangeRef 로 감싸 subscribe 콜백이 programmatic 변경을 되받지 않게 한다.
     const applyVisibleRange = (n: number | null | undefined) => {
       const len = barsRef.current.length;
       if (len === 0) return;
       const rightOff = locked ? 0 : compactRightOffset ? 3 : 6;
       const to = len - 1 + rightOff;
       const from = n == null ? 0 : Math.max(0, len - n);
+      applyingRangeRef.current = true;
       chart.timeScale().setVisibleLogicalRange({ from, to });
+      requestAnimationFrame(() => {
+        applyingRangeRef.current = false;
+      });
     };
     applyRangeRef.current = applyVisibleRange;
+
+    // 휠/팬으로 표시 창이 바뀌면 봉 개수를 역산해 상위에 보고 (locked 뷰는 구독 안 함).
+    // 매 이벤트마다 setState 하면 폭주하므로 80ms debounce. 값이 이전 보고와 같으면 skip.
+    let logicalRangeHandler: ((range: LogicalRange | null) => void) | null =
+      null;
+    if (!locked) {
+      logicalRangeHandler = (range) => {
+        if (applyingRangeRef.current || !range) return;
+        const len = barsRef.current.length;
+        if (len === 0) return;
+        const right = Math.min(range.to, len - 1);
+        const left = Math.max(range.from, 0);
+        const visible = Math.round(right - left) + 1;
+        const clamped = Math.max(1, Math.min(visible, len));
+        const next = clamped >= len ? null : clamped;
+        if (reportTimerRef.current !== null) {
+          window.clearTimeout(reportTimerRef.current);
+        }
+        reportTimerRef.current = window.setTimeout(() => {
+          reportTimerRef.current = null;
+          if (next !== lastReportedRef.current) {
+            lastReportedRef.current = next;
+            onVisibleBarsChangeRef.current?.(next);
+          }
+        }, 80);
+      };
+      chart.timeScale().subscribeVisibleLogicalRangeChange(logicalRangeHandler);
+    }
 
     if (initial.length > 0) {
       if (seriesKind === "line") {
@@ -601,6 +653,15 @@ export const PriceChart = ({
 
     return () => {
       if (crosshairHandler) chart.unsubscribeCrosshairMove(crosshairHandler);
+      if (logicalRangeHandler) {
+        chart
+          .timeScale()
+          .unsubscribeVisibleLogicalRangeChange(logicalRangeHandler);
+      }
+      if (reportTimerRef.current !== null) {
+        window.clearTimeout(reportTimerRef.current);
+        reportTimerRef.current = null;
+      }
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;
@@ -700,7 +761,10 @@ export const PriceChart = ({
 
   // visibleBars prop 변경 → 표시 창 재적용. 데이터 배열은 그대로, 시계축 논리 범위만 이동.
   // config effect 재실행/데이터 effect 와 별개로 툴바 조작(프리셋·입력) 반영 경로.
+  // 휠에서 역산돼 올라간 값(prop === lastReportedRef.current) 은 이미 그 창을 보고 있으니
+  // 재적용하면 반올림 오차로 미세하게 튐 → skip.
   useEffect(() => {
+    if (visibleBars === lastReportedRef.current) return;
     applyRangeRef.current?.(visibleBars);
   }, [visibleBars]);
 

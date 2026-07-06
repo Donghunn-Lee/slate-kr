@@ -407,6 +407,7 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
           maPeriods={effectiveMaPeriods}
           seriesKind={seriesKind}
           visibleBars={isIntradayView ? undefined : barCount}
+          onVisibleBarsChange={isIntradayView ? undefined : setBarCount}
         />
       )}
     </>
