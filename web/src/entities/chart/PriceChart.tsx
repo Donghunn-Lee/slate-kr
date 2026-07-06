@@ -361,6 +361,10 @@ export const PriceChart = ({
   const onVisibleBarsChangeRef = useRef(onVisibleBarsChange);
   // 휠 연사 시 setState 폭주 방지용 debounce 타이머.
   const reportTimerRef = useRef<number | null>(null);
+  // 팬 clamp 에서 참조 — subscribe 콜백이 config effect 재구독 사이의 잔여 이벤트를 처리할 수도 있어
+  // 최신값이 필요. 구독 재설정 자체가 있지만 방어적으로 ref 로 안정화.
+  const lockedRef = useRef(locked);
+  const interactiveRef = useRef(interactive);
   // legend DOM refs + hover 여부 (bars 갱신 시 미호버면 최신봉으로 refresh).
   const legendRef = useRef<HTMLDivElement>(null);
   const maLegendRef = useRef<HTMLDivElement>(null);
@@ -385,6 +389,14 @@ export const PriceChart = ({
   useEffect(() => {
     onVisibleBarsChangeRef.current = onVisibleBarsChange;
   }, [onVisibleBarsChange]);
+
+  useEffect(() => {
+    lockedRef.current = locked;
+  }, [locked]);
+
+  useEffect(() => {
+    interactiveRef.current = interactive;
+  }, [interactive]);
 
   // 차트/시리즈는 config(테마·precision·timeVisible·interactive·locked·dimBefore) 변경 시에만
   // 재생성. bars-only 갱신은 아래 데이터 effect가 처리해 사용자 줌 상태를 유지한다.
@@ -416,6 +428,10 @@ export const PriceChart = ({
         // 여백은 setVisibleLogicalRange 의 to 값이 전담 (locked=applyLockedRange,
         // EOD=applyVisibleRange). rightOffset 은 auto-fit/shift 경로만 관여하므로 0.
         rightOffset: 0,
+        // 첫 봉보다 더 왼쪽으로 팬 금지 — 네이티브 옵션이 whitespace 를 그대로 처리해준다.
+        // 우측 경계는 setVisibleLogicalRange 의 여백(RIGHT_MARGIN_RATIO) 을 지켜야 하므로
+        // fixRightEdge 대신 subscribe 콜백에서 custom clamp (아래 참조).
+        fixLeftEdge: true,
         // 축 tick 도 한국식 연-월-일 순. intraday(timeVisible) 는 기본 시간 포맷 유지.
         ...(!timeVisible ? { tickMarkFormatter: chartTickFormatter } : {}),
       },
@@ -518,15 +534,38 @@ export const PriceChart = ({
 
     // 휠/팬으로 표시 창이 바뀌면 봉 개수를 역산해 상위에 보고 (locked 뷰는 구독 안 함).
     // 매 이벤트마다 setState 하면 폭주하므로 80ms debounce. 값이 이전 보고와 같으면 skip.
+    // 미래쪽 팬 clamp 는 여기서 즉시 실행 — barCount 역반영보다 먼저 뷰를 되돌린다.
     let logicalRangeHandler: ((range: LogicalRange | null) => void) | null =
       null;
     if (!locked) {
-      logicalRangeHandler = (range) => {
-        if (applyingRangeRef.current || !range) return;
+      logicalRangeHandler = (incoming) => {
+        if (applyingRangeRef.current || !incoming) return;
         const len = barsRef.current.length;
         if (len === 0) return;
-        const right = Math.min(range.to, len - 1);
-        const left = Math.max(range.from, 0);
+
+        // 미래쪽 clamp — RIGHT_MARGIN_RATIO 만큼의 우측 여백은 허용, 그 이상은 되돌린다.
+        // tolerance 0.5 (봉 절반) 로 rubber-band/부동소수 오차 흡수해 잦은 재설정 방지.
+        // LogicalRange 는 branded 라 raw number 로 풀어서 다룬다.
+        let from: number = incoming.from;
+        let to: number = incoming.to;
+        if (interactiveRef.current && !lockedRef.current) {
+          const width = to - from;
+          const maxTo = len - 1 + width * RIGHT_MARGIN_RATIO;
+          if (to > maxTo + 0.5) {
+            to = maxTo;
+            from = maxTo - width;
+            applyingRangeRef.current = true;
+            chartRef.current
+              ?.timeScale()
+              .setVisibleLogicalRange({ from, to });
+            requestAnimationFrame(() => {
+              applyingRangeRef.current = false;
+            });
+          }
+        }
+
+        const right = Math.min(to, len - 1);
+        const left = Math.max(from, 0);
         const visible = Math.round(right - left) + 1;
         const clamped = Math.max(1, Math.min(visible, len));
         const next = clamped >= len ? null : clamped;
