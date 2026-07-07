@@ -385,7 +385,7 @@ export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChart
         locked={renderIntraday}
         dimBefore={renderIntraday ? todayStartSec : undefined}
         showVolume
-        showLegend={!renderIntraday}
+        showLegend
         maPeriods={effectiveMaPeriods}
         seriesKind={seriesKind}
         visibleBars={renderIntraday ? undefined : barCount}

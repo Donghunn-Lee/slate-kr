@@ -393,7 +393,7 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
           timeVisible={isIntradayView}
           locked={isIntradayView}
           showVolume
-          showLegend={!isIntradayView}
+          showLegend
           maPeriods={effectiveMaPeriods}
           seriesKind={seriesKind}
           visibleBars={isIntradayView ? undefined : barCount}
