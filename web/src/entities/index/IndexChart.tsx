@@ -60,14 +60,8 @@ const DAY_MA_PERIODS: number[] = [5, 20, 60, 120];
 const WEEK_MA_PERIODS: number[] = [13, 26];
 const MONTH_MA_PERIODS: number[] = [6, 12];
 
-// 봉개수 프리셋 (granularity 별). "전체" = null 은 UI 에서 별도 처리.
-const BAR_COUNT_PRESETS: Record<Granularity, number[]> = {
-  day: [60, 120, 250],
-  week: [26, 52],
-  month: [12, 24],
-};
-
 // granularity 진입 시 초기 표시 창 — StockChartTabs 와 동일 기준.
+// 프리셋 버튼 없이 기본값 + 직접입력 + 휠 역반영으로 조절.
 const GRANULARITY_DEFAULT_BARS: Record<Granularity, number> = {
   day: 250,
   week: 52,
@@ -278,8 +272,6 @@ export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChart
     setBarCount(Math.min(Math.round(n), bars.length));
   };
 
-  const currentPresets = BAR_COUNT_PRESETS[granularity];
-
   if (prices.length === 0 && !intradayHasData) {
     return (
       <>
@@ -303,9 +295,6 @@ export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChart
 
   const groupWrapperCls =
     "flex gap-0.5 rounded-md border border-subtle bg-elevated p-0.5";
-
-  // 프리셋(60/120/전체) 폭 고정 — StockChartTabs 대칭. 자릿수/폰트굵기 변화로 인한 reflow 방지.
-  const presetButtonWidthCls = "min-w-[42px] text-center tabular-nums";
 
   return (
     <>
@@ -363,40 +352,6 @@ export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChart
                 </button>
               );
             })}
-          </div>
-          <div className={groupWrapperCls} role="group" aria-label="표시 봉 개수 프리셋">
-            {currentPresets.map((preset) => {
-              const active = barCount === preset;
-              return (
-                <button
-                  key={preset}
-                  type="button"
-                  aria-pressed={active}
-                  aria-disabled={isIntradayView}
-                  disabled={isIntradayView}
-                  onClick={() => setBarCount(preset)}
-                  className={cn(
-                    toolbarButtonCls(active, isIntradayView),
-                    presetButtonWidthCls,
-                  )}
-                >
-                  {preset}
-                </button>
-              );
-            })}
-            <button
-              type="button"
-              aria-pressed={barCount === null}
-              aria-disabled={isIntradayView}
-              disabled={isIntradayView}
-              onClick={() => setBarCount(null)}
-              className={cn(
-                toolbarButtonCls(barCount === null, isIntradayView),
-                presetButtonWidthCls,
-              )}
-            >
-              전체
-            </button>
           </div>
           <input
             key={`bc-${barCount ?? "all"}-${inputRevertNonce}`}
