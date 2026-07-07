@@ -54,9 +54,9 @@ const GRANULARITY_DEFAULT_BARS: Record<Granularity, number> = {
 };
 
 // intraday 분봉 세트. base = 1분(KIS output). N분 = resampleIntradayBars 로 버킷 집계.
-// 기본 3분: 1분은 390봉으로 dense, 3분(≈130봉) 이 첫 인상에 적당.
-const INTRADAY_INTERVAL_BUTTONS: number[] = [1, 3, 5, 15, 30];
-const INTRADAY_INTERVAL_DEFAULT = 3;
+// 기본 5분: 1분은 390봉으로 dense, 5분(≈78봉) 이 첫 인상에 적당.
+const INTRADAY_INTERVAL_BUTTONS: number[] = [1, 5, 15];
+const INTRADAY_INTERVAL_DEFAULT = 5;
 
 // intraday 응답이 아직 도착하지 않았을 때 fallback — module-level 로 참조 안정화해
 // intradayResampled useMemo 의 deps 가 매 렌더 바뀌지 않게 한다.
