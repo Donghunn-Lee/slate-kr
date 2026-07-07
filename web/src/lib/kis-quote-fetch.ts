@@ -495,7 +495,8 @@ const callStockMinuteAnchor = async (
 };
 
 // 종목 당일 1분봉. 13콜 fan-out → dedupe → ASC. 세션 상태에 따라 필요한 anchor 만 콜.
-// null = 자격/토큰 실패, [] = 세션상 데이터 없음(pre/preopen/휴장 등), ChartBar[] = 성공(부분 포함).
+// null = 자격/토큰 실패 또는 fan-out 전체 실패, [] = 세션상 데이터 없음(pre/preopen/휴장 등),
+// ChartBar[] = 성공(부분 포함). 실패/정상-빈값 구분은 route 의 캐시 evict 판정에 쓰인다.
 export const fetchStockIntradayChart = async (
   ticker: string,
 ): Promise<ChartBar[] | null> => {
@@ -529,11 +530,14 @@ export const fetchStockIntradayChart = async (
   if (anchors.length === 0) return [];
 
   // 병렬 fan-out. 실패 anchor 는 null → 성공분만 병합.
+  // 전체 anchor 가 실패 (모두 null) 인 경우 정상 empty([]) 와 구분하기 위해 null 반환.
+  // 부분 성공은 기존대로 merged 결과 반환 (성공분만 노출).
   const results = await Promise.all(
     anchors.map((a) =>
       callStockMinuteAnchor(ticker, a, tokenResult.token, appKey, appSecret),
     ),
   );
+  if (results.every((rows) => rows === null)) return null;
   const merged = new Map<number, ChartBar>();
   for (const rows of results) {
     if (!rows) continue;
