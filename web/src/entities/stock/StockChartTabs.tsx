@@ -6,6 +6,7 @@ import { useStockIntraday } from "@/features/stock-intraday/useStockIntraday";
 import { useStockQuote } from "@/features/stock-quote/useStockQuote";
 import type { ChartBar, IndexDailySnapshot } from "@/shared/types/quote";
 import type { StockPriceSnapshot } from "@/shared/types/stock";
+import { resampleIntradayBars } from "@/shared/utils/resampleIntradayBars";
 import { resampleToMonthly } from "@/shared/utils/resampleToMonthly";
 import { resampleToWeekly } from "@/shared/utils/resampleToWeekly";
 import { parseISO, startOfWeek, format } from "date-fns";
@@ -51,6 +52,15 @@ const GRANULARITY_DEFAULT_BARS: Record<Granularity, number> = {
   week: 52,
   month: 12,
 };
+
+// intraday 분봉 세트. base = 1분(KIS output). N분 = resampleIntradayBars 로 버킷 집계.
+// 기본 3분: 1분은 390봉으로 dense, 3분(≈130봉) 이 첫 인상에 적당.
+const INTRADAY_INTERVAL_BUTTONS: number[] = [1, 3, 5, 15, 30];
+const INTRADAY_INTERVAL_DEFAULT = 3;
+
+// intraday 응답이 아직 도착하지 않았을 때 fallback — module-level 로 참조 안정화해
+// intradayResampled useMemo 의 deps 가 매 렌더 바뀌지 않게 한다.
+const EMPTY_BARS: ChartBar[] = [];
 
 // DESC → ASC ChartBar[]. volume 은 histogram 오버레이용 (StockPriceSnapshot.volume 그대로).
 const stockPricesToBars = (prices: StockPriceSnapshot[]): ChartBar[] =>
@@ -148,6 +158,9 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
   // seriesKind 는 granularity 전환에도 유지 (사용자 선호 지속).
   const [viewMode, setViewMode] = useState<ViewMode>("full");
   const [granularity, setGranularity] = useState<Granularity>("day");
+  const [intradayInterval, setIntradayInterval] = useState<number>(
+    INTRADAY_INTERVAL_DEFAULT,
+  );
   const [seriesKind, setSeriesKind] = useState<SeriesKind>("candle");
   // 표시 봉 개수. null = 전체. 입력·프리셋 공용. PriceChart 가 visibleBars 로 소비 (데이터 slice 없음).
   const [barCount, setBarCount] = useState<number | null>(
@@ -195,11 +208,17 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
     });
   }, [dayBars]);
 
-  const intradayBars = intradayQuery.data?.bars ?? [];
+  const intradayBars = intradayQuery.data?.bars ?? EMPTY_BARS;
   const hasIntraday = intradayBars.length > 0;
 
+  // intraday base 는 1분봉 → 선택한 간격으로 N분 리샘플. 1분은 raw 통과.
+  const intradayResampled = useMemo<ChartBar[]>(
+    () => resampleIntradayBars(intradayBars, intradayInterval),
+    [intradayBars, intradayInterval],
+  );
+
   const bars = isIntradayView
-    ? intradayBars
+    ? intradayResampled
     : granularity === "week"
       ? weekBars
       : granularity === "month"
@@ -301,24 +320,41 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
               );
             })}
           </div>
-          <div className={groupWrapperCls} role="group" aria-label="차트 주기">
-            {GRANULARITY_BUTTONS.map(({ value, label: btnLabel }) => {
-              const active = granularity === value;
-              return (
-                <button
-                  key={value}
-                  type="button"
-                  aria-pressed={active}
-                  aria-disabled={isIntradayView}
-                  disabled={isIntradayView}
-                  onClick={() => setGranularity(value)}
-                  className={toolbarButtonCls(active, isIntradayView)}
-                >
-                  {btnLabel}
-                </button>
-              );
-            })}
-          </div>
+          {isIntradayView ? (
+            <div className={groupWrapperCls} role="group" aria-label="분봉 간격">
+              {INTRADAY_INTERVAL_BUTTONS.map((m) => {
+                const active = intradayInterval === m;
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => setIntradayInterval(m)}
+                    className={toolbarButtonCls(active)}
+                  >
+                    {m}분
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className={groupWrapperCls} role="group" aria-label="차트 주기">
+              {GRANULARITY_BUTTONS.map(({ value, label: btnLabel }) => {
+                const active = granularity === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => setGranularity(value)}
+                    className={toolbarButtonCls(active)}
+                  >
+                    {btnLabel}
+                  </button>
+                );
+              })}
+            </div>
+          )}
           <input
             key={`bc-${barCount ?? "all"}-${inputRevertNonce}`}
             type="number"
