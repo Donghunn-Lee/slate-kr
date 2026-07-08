@@ -210,6 +210,8 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
 
   const intradayBars = intradayQuery.data?.bars ?? EMPTY_BARS;
   const hasIntraday = intradayBars.length > 0;
+  // route 가 완전 fetch 실패 시 true. bars 는 항상 [] 이므로 실패는 empty 를 동반.
+  const intradayFailed = intradayQuery.data?.failed ?? false;
 
   // intraday base 는 1분봉 → 선택한 간격으로 N분 리샘플. 1분은 raw 통과.
   const intradayResampled = useMemo<ChartBar[]>(
@@ -225,7 +227,12 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
         ? monthBars
         : dayBars;
 
-  const showEmptyIntraday = isIntradayView && !intradayQuery.isLoading && !hasIntraday;
+  // 실패는 항상 empty(bars:[]) 를 동반하므로 failed 로 분기 우선순위 결정 —
+  // 두 분기는 상호 배타(동시 참 불가).
+  const showFailedIntraday =
+    isIntradayView && !intradayQuery.isLoading && !hasIntraday && intradayFailed;
+  const showEmptyIntraday =
+    isIntradayView && !intradayQuery.isLoading && !hasIntraday && !intradayFailed;
 
   // maPeriods: intraday·선차트 는 미표시. full 캔들 뷰만 granularity 별 상수.
   const maPeriods =
@@ -379,7 +386,21 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
           />
         </div>
       </div>
-      {showEmptyIntraday ? (
+      {showFailedIntraday ? (
+        <div
+          className="flex w-full flex-col items-center justify-center gap-2 rounded-md text-sm text-muted-foreground"
+          style={{ height: EMPTY_STATE_HEIGHT }}
+        >
+          <p>실시간 시세를 일시적으로 불러오지 못했어요</p>
+          <button
+            type="button"
+            onClick={() => intradayQuery.refetch()}
+            className="text-xs text-muted-foreground transition-colors hover:text-foreground hover:underline"
+          >
+            다시 시도
+          </button>
+        </div>
+      ) : showEmptyIntraday ? (
         <div
           className="flex w-full items-center justify-center rounded-md text-sm text-muted-foreground"
           style={{ height: EMPTY_STATE_HEIGHT }}

@@ -7,6 +7,9 @@ export type StockIntradayResponse = {
   marketOpen: boolean;
   session: KrxSession;
   date: string; // KST 거래일 'YYYY-MM-DD'
+  // route 가 완전 fetch 실패 시 true. bars 는 항상 [] 로 정규화되므로
+  // 실패↔정상 empty(pre/휴장/tradingDate 불일치) 를 client 에서 구분하는 유일한 신호.
+  failed: boolean;
 };
 
 type UseStockIntradayOptions = {
