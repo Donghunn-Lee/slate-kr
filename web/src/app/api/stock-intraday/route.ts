@@ -53,17 +53,23 @@ export const GET = async (req: NextRequest) => {
     const bars = await getCachedFetcher(ticker, marketOpen)();
     // null = fetch 실패 (자격/토큰/전체 fan-out 실패). 캐시에 null 이 그대로 저장됐으므로
     // 다음 요청이 stale null 을 받지 않도록 즉시 evict. 응답 body 는 [] 로 정규화해
-    // 클라 계약(bars: ChartBar[]) 유지.
+    // 클라 계약(bars: ChartBar[]) 유지. failed:true 로 정상 empty 와 구분.
     if (bars === null) {
       revalidateTag(cacheTag(ticker, marketOpen), { expire: 0 });
-      return NextResponse.json({ bars: [], marketOpen, session, date });
+      return NextResponse.json({
+        bars: [],
+        marketOpen,
+        session,
+        date,
+        failed: true,
+      });
     }
-    return NextResponse.json({ bars, marketOpen, session, date });
+    return NextResponse.json({ bars, marketOpen, session, date, failed: false });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[stock-intraday] ${message}`);
     return NextResponse.json(
-      { bars: [], marketOpen, session, date },
+      { bars: [], marketOpen, session, date, failed: true },
       { status: 200 },
     );
   }
