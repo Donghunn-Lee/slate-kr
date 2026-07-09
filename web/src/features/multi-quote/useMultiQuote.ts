@@ -4,6 +4,9 @@ import type { KrxSession } from "@/shared/utils/market";
 
 export type MultiQuoteResponse = {
   quotes: Record<string, StockQuote | null>;
+  // per-code KIS 실패 신호. route catch collapse 시엔 요청 전 티커 true.
+  // stock-quote(#077) single failed flag의 Record 확장 — 소비측이 종목별로 분기.
+  failed: Record<string, boolean>;
   marketOpen: boolean;
   session: KrxSession;
 };
@@ -16,6 +19,7 @@ const buildKey = (tickers: string[]): string =>
 
 type UseMultiQuoteResult = {
   quotes: Record<string, StockQuote | null>;
+  failed: Record<string, boolean>;
   marketOpen: boolean;
   session: KrxSession | undefined;
   isLoading: boolean;
@@ -38,6 +42,9 @@ export const useMultiQuote = (tickers: string[]): UseMultiQuoteResult => {
 
   return {
     quotes: query.data?.quotes ?? {},
+    // route가 200을 보장하므로 정상 경로에선 항상 채워짐. 초기/인프라 5xx(Vercel timeout 등)
+    // throw 경로에선 {} — 소비측은 미지("이 티커의 실패 여부 알 수 없음")로 취급.
+    failed: query.data?.failed ?? {},
     marketOpen: query.data?.marketOpen ?? false,
     session: query.data?.session,
     isLoading: query.isLoading,
