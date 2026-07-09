@@ -31,13 +31,11 @@ export const GET = async (req: NextRequest) => {
       quote = await fetchStockQuote(ticker, "NX");
     }
 
-    return NextResponse.json({
-      quote,
-      marketOpen,
-      session,
-      date,
-      failed: false,
-    });
+    // 정규장 중 KIS 가 throw 없이 null 만 돌려준 경우도 실패로 취급 — 09:00~15:30 에는
+    // KRX 상장 종목이면 응답이 있어야 정상. after/pre/after_close 는 NXT 미지원(=진짜 empty)
+    // 과 KIS 실패가 구분 불가라 여기서 실패 판정하지 않고 isNxtMiss("장 마감") 로 흘림.
+    const failed = session === "regular" && quote === null;
+    return NextResponse.json({ quote, marketOpen, session, date, failed });
   } catch (err: unknown) {
     // 200 + quote:null 로 collapse — 첫 로드 시 session=undefined 스켈레톤 홀 해소.
     // failed=true 로 정상 quote:null(NXT 미지원 등) 과 KIS 실패를 구분해 클라이언트가
