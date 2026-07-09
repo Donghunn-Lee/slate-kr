@@ -328,13 +328,22 @@ export const fetchStockQuote = async (
   }
 };
 
-// 입력 tickers 전체를 키로 갖는 Record 반환. 실패·미응답 ticker는 null.
+export type MultiQuoteResult = {
+  quotes: Record<string, StockQuote | null>;
+  // per-code 실패 신호. 응답 array에 없거나 normalizeMultiQuote 파싱 실패 → true.
+  // 전체 실패(토큰/자격/HTTP/rt_cd/output 비-array) → 요청 전 티커 true.
+  // F19 index failed map(#077 index-intraday) 이식 — N종목 중 일부 KIS 실패가
+  // 전체 blank 로 번지지 않도록 소비측이 종목별 배지로 분기할 수 있게 한다.
+  failed: Record<string, boolean>;
+};
+
+// 입력 tickers 전체를 키로 갖는 Record 반환. 실패·미응답 ticker는 quote=null, failed=true.
 // 입력 순서 비의존 — 응답 row의 inter_shrn_iscd로 매칭한다.
 export const fetchMultiQuote = async (
   tickers: string[],
   marketDiv: "J" | "NX",
-): Promise<Record<string, StockQuote | null>> => {
-  if (tickers.length === 0) return {};
+): Promise<MultiQuoteResult> => {
+  if (tickers.length === 0) return { quotes: {}, failed: {} };
 
   let effective = tickers;
   if (tickers.length > MULTI_QUOTE_LIMIT) {
@@ -344,20 +353,22 @@ export const fetchMultiQuote = async (
     effective = tickers.slice(0, MULTI_QUOTE_LIMIT);
   }
 
-  const allNull = (): Record<string, StockQuote | null> =>
-    Object.fromEntries(effective.map((t) => [t, null]));
+  const allFailed = (): MultiQuoteResult => ({
+    quotes: Object.fromEntries(effective.map((t) => [t, null])),
+    failed: Object.fromEntries(effective.map((t) => [t, true])),
+  });
 
   const tokenResult = await getKisToken();
   if (!tokenResult.ok) {
     console.error(`[kis] token failed: ${tokenResult.error.kind}`);
-    return allNull();
+    return allFailed();
   }
 
   const appKey = process.env.KIS_APP_KEY;
   const appSecret = process.env.KIS_APP_SECRET;
   if (!appKey || !appSecret) {
     console.error("[kis] missing credentials for multi quote");
-    return allNull();
+    return allFailed();
   }
 
   const url = new URL(BASE_URL + MULTI_PRICE_PATH);
@@ -383,26 +394,26 @@ export const fetchMultiQuote = async (
 
     if (!res.ok) {
       console.error(`[kis] multi quote HTTP ${res.status}`);
-      return allNull();
+      return allFailed();
     }
 
     const json: unknown = await res.json();
     const parsed = KisResponseSchema.safeParse(json);
     if (!parsed.success) {
       console.error("[kis] multi quote response parse failed");
-      return allNull();
+      return allFailed();
     }
 
     if (parsed.data.rt_cd !== "0") {
       console.error(
         `[kis] multi quote business error rt_cd=${parsed.data.rt_cd} msg=${parsed.data.msg1 ?? ""}`,
       );
-      return allNull();
+      return allFailed();
     }
 
     if (!Array.isArray(parsed.data.output)) {
       console.error("[kis] multi quote output is not an array");
-      return allNull();
+      return allFailed();
     }
 
     const rowByTicker = new Map<string, unknown>();
@@ -415,16 +426,21 @@ export const fetchMultiQuote = async (
       }
     }
 
-    const result: Record<string, StockQuote | null> = {};
+    const quotes: Record<string, StockQuote | null> = {};
+    const failed: Record<string, boolean> = {};
     for (const ticker of effective) {
       const row = rowByTicker.get(ticker);
-      result[ticker] = row !== undefined ? normalizeMultiQuote(row) : null;
+      // 응답 없음(row undefined) 또는 normalize 파싱 실패(null) → failed.
+      // 정상 파싱 → failed=false.
+      const quote = row !== undefined ? normalizeMultiQuote(row) : null;
+      quotes[ticker] = quote;
+      failed[ticker] = quote === null;
     }
-    return result;
+    return { quotes, failed };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[kis] multi quote fetch failed: ${message}`);
-    return allNull();
+    return allFailed();
   }
 };
 
