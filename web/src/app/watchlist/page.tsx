@@ -105,7 +105,7 @@ const WatchlistPage = () => {
     () => displayItems.slice(0, LIVE_TICKER_LIMIT).map((i) => i.ticker),
     [displayItems]
   );
-  const { quotes: liveQuotes } = useMultiQuote(liveTickers);
+  const { quotes: liveQuotes, failed: liveFailed } = useMultiQuote(liveTickers);
 
   const tabs: Array<{ key: string; label: string }> = [
     { key: RECENT_TAB, label: "최근 조회" },
@@ -193,6 +193,7 @@ const WatchlistPage = () => {
                         item={item}
                         price={pricesMap[item.ticker]}
                         liveQuote={liveQuotes[item.ticker]}
+                        isLiveFailed={liveFailed[item.ticker] ?? false}
                         disclosure={countsMap[item.ticker]}
                         onRemove={
                           isRecentTab || !currentGroup

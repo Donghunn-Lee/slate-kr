@@ -13,6 +13,9 @@ type WatchlistRowProps = {
   item: WatchlistItem;
   price?: TickerPriceSummary;
   liveQuote?: StockQuote | null;
+  // route catch/부분 실패 신호. true → EOD 값 유지 + "일시 지연" 배지.
+  // stock-quote(#077) StockHeaderLivePrice 배지 문자·색 동형.
+  isLiveFailed?: boolean;
   disclosure?: TickerDisclosureCount;
   onRemove?: () => void;
 };
@@ -21,6 +24,7 @@ export const WatchlistRow = ({
   item,
   price,
   liveQuote,
+  isLiveFailed = false,
   disclosure,
   onRemove,
 }: WatchlistRowProps) => {
@@ -47,6 +51,11 @@ export const WatchlistRow = ({
               {item.ticker} · {item.market}
             </span>
             <div className="ml-auto flex shrink-0 items-center gap-2">
+              {isLiveFailed && (
+                <span className="rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-[11px] leading-none text-muted-foreground">
+                  일시 지연
+                </span>
+              )}
               {disclosure?.count != null && disclosure.count > 0 && (
                 <div className="flex items-center gap-1.5 text-[11px] leading-none md:text-xs">
                   <span className="text-muted-foreground">신규 공시</span>
