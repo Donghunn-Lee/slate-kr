@@ -116,7 +116,7 @@ export const StockHeaderLivePrice = ({
           )}
           {labelText}
           {isFailedQuote && (
-            <span className="rounded-sm border border-destructive/30 bg-destructive/10 px-1.5 py-0.5 text-[11px] leading-none text-destructive">
+            <span className="rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-[11px] leading-none text-muted-foreground">
               일시 지연
             </span>
           )}
