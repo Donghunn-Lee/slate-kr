@@ -57,7 +57,9 @@ export function WatchlistPreview() {
     [pricesQuery.data]
   );
 
-  const { quotes: liveQuotes } = useMultiQuote(preview.map((p) => p.ticker));
+  const { quotes: liveQuotes, failed: liveFailed } = useMultiQuote(
+    preview.map((p) => p.ticker)
+  );
 
   if (!mounted) return null;
 
@@ -98,6 +100,7 @@ export function WatchlistPreview() {
           {preview.map((item, i) => {
             const p = pricesMap[item.ticker];
             const live = liveQuotes[item.ticker] ?? null;
+            const isLiveFailed = liveFailed[item.ticker] ?? false;
             const displayPrice = live ? live.price : (p?.close ?? null);
             const displayChange = live ? live.change : (p?.change ?? null);
             const displayChangeRate = live ? live.changeRate : (p?.changePct ?? null);
@@ -111,7 +114,14 @@ export function WatchlistPreview() {
                   }`}
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{item.name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="min-w-0 truncate text-sm font-medium">{item.name}</p>
+                      {isLiveFailed && (
+                        <span className="shrink-0 rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-[11px] leading-none text-muted-foreground">
+                          일시 지연
+                        </span>
+                      )}
+                    </div>
                     <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
                       {item.ticker} · {item.market}
                     </p>
