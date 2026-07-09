@@ -9,6 +9,9 @@ export type StockQuoteResponse = {
   marketOpen: boolean;
   session: KrxSession;
   date: string; // KST 거래일 'YYYY-MM-DD' (당일 봉 병합용)
+  // route catch 진입 시 true. quote:null 이 정상 empty(NXT 미지원 등) 인지 실패인지
+  // 구분하는 신호. StockHeaderLivePrice 가 세션 라벨 유지 + "일시 지연" 배지 판정에 사용.
+  failed: boolean;
 };
 
 type UseStockQuoteOptions = {

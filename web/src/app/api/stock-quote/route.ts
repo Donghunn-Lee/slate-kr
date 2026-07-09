@@ -31,13 +31,25 @@ export const GET = async (req: NextRequest) => {
       quote = await fetchStockQuote(ticker, "NX");
     }
 
-    return NextResponse.json({ quote, marketOpen, session, date });
+    return NextResponse.json({
+      quote,
+      marketOpen,
+      session,
+      date,
+      failed: false,
+    });
   } catch (err: unknown) {
-    // 200 + quote:null 로 collapse — session=regular 인데 KIS null 경로와 shape 일치.
-    // 클라이언트는 이미 이 shape 을 isStaleQuote("일시 지연") 로 소비하므로 UI 무변경으로 흡수.
-    // 500 을 유지하면 첫 로드 시 session=undefined 로 스켈레톤이 무한 지속되는 관측성 홀 발생.
+    // 200 + quote:null 로 collapse — 첫 로드 시 session=undefined 스켈레톤 홀 해소.
+    // failed=true 로 정상 quote:null(NXT 미지원 등) 과 KIS 실패를 구분해 클라이언트가
+    // 세션 라벨(애프터마켓 등) 을 유지한 채 "일시 지연" 배지만 얹을 수 있게 한다.
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[stock-quote] ${message}`);
-    return NextResponse.json({ quote: null, marketOpen, session, date });
+    return NextResponse.json({
+      quote: null,
+      marketOpen,
+      session,
+      date,
+      failed: true,
+    });
   }
 };

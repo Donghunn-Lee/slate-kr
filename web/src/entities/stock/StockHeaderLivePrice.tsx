@@ -24,13 +24,16 @@ export const StockHeaderLivePrice = ({
   const session = data?.session;
   const updatedAtText = dataUpdatedAt ? format(new Date(dataUpdatedAt), "HH:mm:ss") : "";
 
-  // NXT 미지원 종목: after/after_close/pre인데 NX 응답이 null.
-  const isNxtMiss =
-    (session === "after" || session === "after_close" || session === "pre") && live === null;
+  // route catch(=KIS 실패) 진입 신호. quote:null 이 정상 empty(NXT 미지원 등) 인지 실패인지
+  // 구분해 세션 라벨(애프터마켓 등) 은 유지한 채 "일시 지연" 배지만 얹기 위한 축.
+  const isFailedQuote = data?.failed ?? false;
 
-  // 정규장 중 KIS 응답이 null → 일시적 시세 갱신 실패. 직전 거래일 종가로 fallback,
-  // 라벨은 "일시 지연"으로 표시해 사용자가 실시간 시세가 아님을 인지할 수 있게.
-  const isStaleQuote = session === "regular" && live === null;
+  // NXT 미지원 종목: after/after_close/pre인데 NX 응답이 null. failed=true 인 경우는
+  // KIS 실패라 실제 NXT 미지원과 구분해야 하므로 !isFailedQuote 로 게이트.
+  const isNxtMiss =
+    !isFailedQuote &&
+    (session === "after" || session === "after_close" || session === "pre") &&
+    live === null;
 
   // preopen: 새 거래일 개장 전 → 전일종가 + 0%
   // closed / NXT miss: 장 없음 → 직전 거래일 종가 + 직전 거래일 등락 유지
@@ -52,21 +55,21 @@ export const StockHeaderLivePrice = ({
       ? initialChangeRate
       : (live?.changeRate ?? initialChangeRate);
 
-  const labelText = isStaleQuote
-    ? "일시 지연"
-    : isNxtMiss
-      ? "장 마감"
-      : session === "regular"
-        ? "실시간"
-        : session === "after"
-          ? "애프터마켓"
-          : session === "after_close"
-            ? "애프터마켓 종가"
-            : session === "pre"
-              ? "프리마켓"
-              : session === "preopen"
-                ? "장 시작 전"
-                : "장 마감"; // closed
+  // 세션 라벨은 실패 여부와 무관하게 유지 — 실패 시엔 "일시 지연" 배지가 별도로 붙는다.
+  // isNxtMiss 는 정상 NXT 미지원 경로에서만 true (실패 시 아래 배지 축과 충돌하지 않도록).
+  const labelText = isNxtMiss
+    ? "장 마감"
+    : session === "regular"
+      ? "실시간"
+      : session === "after"
+        ? "애프터마켓"
+        : session === "after_close"
+          ? "애프터마켓 종가"
+          : session === "pre"
+            ? "프리마켓"
+            : session === "preopen"
+              ? "장 시작 전"
+              : "장 마감"; // closed
 
   // 시각 표시: 활성 세션은 갱신 시각, after_close는 20:00 고정,
   // 장 마감(=isNxtMiss after/after_close + closed)은 정규장 마감 15:30 고정.
@@ -108,10 +111,15 @@ export const StockHeaderLivePrice = ({
       )}
       {session && (
         <span className="mb-1.5 inline-flex items-center gap-1.5 text-[13px] text-muted-foreground">
-          {session === "regular" && !isStaleQuote && (
+          {session === "regular" && !isFailedQuote && (
             <span className="inline-block size-1.5 rounded-full bg-emerald-500" aria-hidden />
           )}
           {labelText}
+          {isFailedQuote && (
+            <span className="rounded-sm border border-destructive/30 bg-destructive/10 px-1.5 py-0.5 text-[11px] leading-none text-destructive">
+              일시 지연
+            </span>
+          )}
           {timeText && ` · ${timeText}`}
         </span>
       )}
