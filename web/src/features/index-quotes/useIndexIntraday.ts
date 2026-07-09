@@ -8,6 +8,13 @@ export type IndexIntradayResponse = {
     kospi200: IndexIntradaySnapshot[];
   };
   marketOpen: boolean;
+  // route 가 완전 fetch 실패 시 해당 지수 true. bars 는 항상 [] 로 정규화되므로
+  // 실패↔정상 empty(preopen/휴장) 를 client 에서 구분하는 유일한 신호. stock-intraday 와 대칭.
+  failed: {
+    kospi: boolean;
+    kosdaq: boolean;
+    kospi200: boolean;
+  };
 };
 
 const POLL_INTERVAL_MS = 60_000;
