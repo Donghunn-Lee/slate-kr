@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CandlestickChart, LineChart, type LucideIcon } from "lucide-react";
+import {
+  CandlestickChart,
+  LineChart,
+  RefreshCw,
+  WifiOff,
+  type LucideIcon,
+} from "lucide-react";
 import { parseISO, startOfWeek, format } from "date-fns";
 import { PriceChart } from "@/entities/chart/PriceChart";
 import { useIndexIntraday } from "@/features/index-quotes/useIndexIntraday";
@@ -67,6 +73,8 @@ const GRANULARITY_DEFAULT_BARS: Record<Granularity, number> = {
   week: 52,
   month: 12,
 };
+
+const EMPTY_STATE_HEIGHT = 300;
 
 // intraday bar time 은 kis-quote-fetch 의 kstToFakeUtcSec 로 인코딩된 fake-UTC epoch 초.
 // KST 00:00 을 같은 규칙으로 인코딩하면 세션 경계 epoch 를 얻는다.
@@ -181,7 +189,8 @@ export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChart
   }, [granularity]);
 
   // 홈 IndexSlate 와 캐시 공유 (동시 열림 시 네트워크 중복 제거).
-  const { data: intradayData } = useIndexIntraday();
+  const intradayQuery = useIndexIntraday();
+  const intradayData = intradayQuery.data;
   const { data: quotesData } = useIndexQuotes();
 
   const cellKey = CELL_KEY[indexCode];
@@ -203,10 +212,21 @@ export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChart
   }, [rawIntraday, prevStartSec]);
 
   const intradayHasData = intraday !== null && intraday.length > 0;
-  // intraday 데이터 없으면 day 로 silent fallback (기존 IndexChart UX 유지).
-  // 종목과 달리 지수 intraday 는 전일 세션도 반환되어 폐장 후에도 표시 가능하지만,
-  // 초기 로드나 preopen 시점의 결측에 대비.
   const renderIntraday = isIntradayView && intradayHasData;
+  // route 가 완전 fetch 실패 시 해당 지수 true. bars 는 항상 [] 이므로 실패는 empty 를 동반.
+  // stock-intraday 와 동일 계약 — 실패↔정상 empty(preopen/휴장) 구분 신호.
+  const intradayFailed = intradayData?.failed?.[cellKey] ?? false;
+  // 실패는 항상 empty 를 동반하므로 failed 로 분기 우선순위 결정 — 두 분기는 상호 배타.
+  const showFailedIntraday =
+    isIntradayView &&
+    !intradayQuery.isLoading &&
+    !intradayHasData &&
+    intradayFailed;
+  const showEmptyIntraday =
+    isIntradayView &&
+    !intradayQuery.isLoading &&
+    !intradayHasData &&
+    !intradayFailed;
 
   const dayBars = useMemo<ChartBar[]>(
     () => mergeLiveDayBar(prices, liveQuote, liveDate),
@@ -233,13 +253,17 @@ export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChart
     });
   }, [dayBars]);
 
-  const bars = renderIntraday
+  // isIntradayView 인데 데이터가 없으면 아래 failure/empty 블록이 PriceChart 를 대체하므로
+  // 여기의 [] 는 실제로 렌더되지 않는다. day 로 silent fallback 하지 않는 것이 요점.
+  const bars: ChartBar[] = renderIntraday
     ? intradayToBars(intraday ?? [])
-    : granularity === "week"
-      ? weekBars
-      : granularity === "month"
-        ? monthBars
-        : dayBars;
+    : isIntradayView
+      ? []
+      : granularity === "week"
+        ? weekBars
+        : granularity === "month"
+          ? monthBars
+          : dayBars;
 
   // maPeriods: intraday·선차트 는 미표시. full 캔들 뷰만 granularity 별 상수.
   const maPeriods =
@@ -377,20 +401,62 @@ export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChart
           />
         </div>
       </div>
-      <PriceChart
-        bars={bars}
-        precision={2}
-        timeVisible={renderIntraday}
-        interactive={interactive}
-        locked={renderIntraday}
-        dimBefore={renderIntraday ? todayStartSec : undefined}
-        showVolume
-        showLegend
-        maPeriods={effectiveMaPeriods}
-        seriesKind={seriesKind}
-        visibleBars={renderIntraday ? undefined : barCount}
-        onVisibleBarsChange={renderIntraday ? undefined : setBarCount}
-      />
+      {showFailedIntraday ? (
+        <div
+          className="flex w-full flex-col items-center justify-center gap-4 rounded-md border border-subtle bg-elevated"
+          style={{ height: EMPTY_STATE_HEIGHT }}
+        >
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-background">
+            <WifiOff
+              className="h-5 w-5 text-muted-foreground"
+              strokeWidth={1.5}
+              aria-hidden="true"
+            />
+          </div>
+          <div className="flex flex-col items-center gap-1 text-center">
+            <p className="text-sm font-medium text-foreground">
+              실시간 시세를 일시적으로 불러오지 못했어요
+            </p>
+            <p className="text-xs text-muted-foreground">
+              잠시 후 다시 시도해 주세요
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => intradayQuery.refetch()}
+            disabled={intradayQuery.isFetching}
+            className="inline-flex items-center gap-1.5 rounded-md border border-subtle bg-background px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-border hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-subtle disabled:hover:text-muted-foreground"
+          >
+            <RefreshCw
+              className={cn("h-3 w-3", intradayQuery.isFetching && "animate-spin")}
+              aria-hidden="true"
+            />
+            다시 시도
+          </button>
+        </div>
+      ) : showEmptyIntraday ? (
+        <div
+          className="flex w-full items-center justify-center rounded-md text-sm text-muted-foreground"
+          style={{ height: EMPTY_STATE_HEIGHT }}
+        >
+          당일 인트라데이 데이터 없음
+        </div>
+      ) : (
+        <PriceChart
+          bars={bars}
+          precision={2}
+          timeVisible={renderIntraday}
+          interactive={interactive}
+          locked={renderIntraday}
+          dimBefore={renderIntraday ? todayStartSec : undefined}
+          showVolume
+          showLegend
+          maPeriods={effectiveMaPeriods}
+          seriesKind={seriesKind}
+          visibleBars={renderIntraday ? undefined : barCount}
+          onVisibleBarsChange={renderIntraday ? undefined : setBarCount}
+        />
+      )}
     </>
   );
 };
