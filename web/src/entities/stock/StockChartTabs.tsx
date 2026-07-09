@@ -406,7 +406,7 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
           </div>
           <div className="flex flex-col items-center gap-1 text-center">
             <p className="text-sm font-medium text-foreground">
-              실시간 시세를 일시적으로 불러오지 못했어요
+              당일 차트를 일시적으로 불러오지 못했어요
             </p>
             <p className="text-xs text-muted-foreground">
               잠시 후 다시 시도해 주세요

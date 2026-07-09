@@ -14,9 +14,10 @@ type IndexCellProps = {
   label: string;
   cell: IndexCellData;
   bars: IndexIntradaySnapshot[];
+  intradayFailed: boolean;
 };
 
-const IndexCell = ({ label, cell, bars }: IndexCellProps) => (
+const IndexCell = ({ label, cell, bars, intradayFailed }: IndexCellProps) => (
   <div className="flex flex-col gap-3 px-6 py-4">
     <div>
       <div className="text-[13px] text-muted-foreground">{label}</div>
@@ -57,7 +58,7 @@ const IndexCell = ({ label, cell, bars }: IndexCellProps) => (
         </>
       )}
     </div>
-    <IndexMiniChart bars={bars} />
+    <IndexMiniChart bars={bars} failed={intradayFailed} />
   </div>
 );
 
@@ -126,16 +127,19 @@ export const IndexSlate = () => {
               label="코스피"
               cell={data.quotes.kospi}
               bars={intraday?.quotes.kospi ?? EMPTY_BARS}
+              intradayFailed={intraday?.failed.kospi ?? false}
             />
             <IndexCell
               label="코스닥"
               cell={data.quotes.kosdaq}
               bars={intraday?.quotes.kosdaq ?? EMPTY_BARS}
+              intradayFailed={intraday?.failed.kosdaq ?? false}
             />
             <IndexCell
               label="코스피200"
               cell={data.quotes.kospi200}
               bars={intraday?.quotes.kospi200 ?? EMPTY_BARS}
+              intradayFailed={intraday?.failed.kospi200 ?? false}
             />
           </div>
         )}

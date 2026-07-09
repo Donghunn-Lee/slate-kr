@@ -7,6 +7,8 @@ import type { IndexIntradaySnapshot } from "@/shared/types/quote";
 
 type IndexMiniChartProps = {
   bars: IndexIntradaySnapshot[];
+  // useIndexIntraday failed[cellKey] 파생 — bars 는 실패/preopen 모두 [] 이므로 구분 신호 필수.
+  failed: boolean;
 };
 
 type Trend = "up" | "down" | "flat";
@@ -55,7 +57,7 @@ const kstDateKey = (ts: number): string => {
   return `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
 };
 
-export const IndexMiniChart = ({ bars }: IndexMiniChartProps) => {
+export const IndexMiniChart = ({ bars, failed }: IndexMiniChartProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { resolvedTheme } = useTheme();
 
@@ -126,7 +128,7 @@ export const IndexMiniChart = ({ bars }: IndexMiniChartProps) => {
         className="flex items-center justify-center text-[11px] text-muted-foreground"
         style={{ height: HEIGHT_PX }}
       >
-        장중 데이터 없음
+        {failed ? "차트를 불러오지 못했어요" : "장중 데이터 없음"}
       </div>
     );
   }
