@@ -93,91 +93,97 @@ const TabButton = ({ active, onClick, children }: TabButtonProps) => (
 type PillProps = {
   active: boolean;
   onClick: () => void;
-  variant?: "neutral" | "up" | "down";
   children: string;
 };
 
-// 세그먼트 pill. 등락률 서브(상승/하락)는 up/down muted 톤, 거래량 서브는 무채색.
-const Pill = ({ active, onClick, variant = "neutral", children }: PillProps) => {
-  const activeCls =
-    variant === "up"
-      ? "bg-price-up-muted text-price-up"
-      : variant === "down"
-        ? "bg-price-down-muted text-price-down"
-        : "bg-elevated text-foreground";
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "rounded-sm px-2.5 py-1 text-xs transition-colors",
-        active ? activeCls : "text-muted-foreground hover:text-foreground",
-      )}
-    >
-      {children}
-    </button>
-  );
-};
+// 세그먼트 pill. 시장 셀렉터·등락률 서브·거래량 서브 모두 무채색 통일.
+const Pill = ({ active, onClick, children }: PillProps) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={cn(
+      "rounded-sm px-2.5 py-1 text-xs transition-colors",
+      active
+        ? "bg-muted text-foreground"
+        : "text-muted-foreground hover:text-foreground",
+    )}
+  >
+    {children}
+  </button>
+);
 
 type RowProps = {
   item: MarketRankingItem;
   secondary: string | null; // "4,293만주" | "614억원" | null
-  isLast: boolean;
 };
 
-const Row = ({ item, secondary, isLast }: RowProps) => (
-  <li>
-    <Link
-      href={`/stocks/${item.ticker}`}
-      className={cn(
-        "flex items-center gap-3 transition-opacity hover:opacity-70",
-        isLast ? "pt-3" : "py-3 first:pt-0 first:pb-3",
-      )}
-    >
-      <span className="w-4 shrink-0 text-center font-mono text-xs tabular-nums text-muted-foreground">
+// 좌측 순위 전용 컬럼 + 우측 콘텐츠(코드-first). rank 는 숫자만, mono/muted, 세로 중앙 정렬.
+const Row = ({ item, secondary }: RowProps) => (
+  <li className="group relative -mx-6 bg-transparent px-6 transition-colors hover:bg-muted/40">
+    <div className="flex items-stretch gap-3 border-b border-subtle pb-2 pt-1.5 group-last:border-b-0">
+      <span className="flex w-7 shrink-0 items-center justify-center font-mono text-sm tabular-nums text-muted-foreground">
         {item.rank}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="min-w-0 truncate text-sm font-medium">{item.name}</p>
-        <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
-          {secondary ? `${item.ticker} · ${secondary}` : item.ticker}
-        </p>
+        <div className="flex min-h-5 items-center gap-2">
+          <span className="shrink-0 font-mono text-[11px] leading-none text-muted-foreground">
+            {item.ticker}
+          </span>
+          {secondary && (
+            <span className="ml-auto shrink-0 font-mono text-[11px] leading-none text-muted-foreground">
+              {secondary}
+            </span>
+          )}
+        </div>
+        <div className="mt-1 flex items-baseline justify-between gap-2">
+          <span className="min-w-0 truncate text-sm font-semibold text-foreground">
+            {item.name}
+          </span>
+          <div className="flex shrink-0 items-baseline gap-2">
+            <span className="text-sm font-bold leading-none tabular-nums text-foreground">
+              {item.price.toLocaleString("ko-KR")}원
+            </span>
+            <PriceChange
+              change={item.change}
+              changeRate={item.changePct}
+              sign={toPriceSign(item.changeSign)}
+              symbol="sign"
+              unit="원"
+              size="xs"
+              className="leading-none"
+            />
+          </div>
+        </div>
       </div>
-      <div className="shrink-0 text-right">
-        <p className="text-sm font-semibold tabular-nums">
-          {item.price.toLocaleString("ko-KR")}원
-        </p>
-        <PriceChange
-          change={item.change}
-          changeRate={item.changePct}
-          sign={toPriceSign(item.changeSign)}
-          symbol="arrow"
-          unit="원"
-          size="xs"
-        />
-      </div>
-    </Link>
+    </div>
+    <Link
+      href={`/stocks/${item.ticker}`}
+      aria-label={`${item.name} 상세 보기`}
+      className="absolute inset-0"
+    />
   </li>
 );
 
 const SkeletonRows = () => (
-  <ul className="divide-y divide-border/60">
+  <ul>
     {Array.from({ length: TOP_N }).map((_, i) => (
-      <li
-        key={i}
-        className={cn(
-          "flex items-center gap-3",
-          i === 0 ? "pb-3" : i === TOP_N - 1 ? "pt-3" : "py-3",
-        )}
-      >
-        <div className="h-3 w-3 shrink-0 animate-pulse rounded bg-muted" />
-        <div className="flex-1 space-y-2">
-          <div className="h-3.5 w-32 animate-pulse rounded bg-muted" />
-          <div className="h-3 w-20 animate-pulse rounded bg-muted" />
-        </div>
-        <div className="space-y-2 text-right">
-          <div className="ml-auto h-3.5 w-20 animate-pulse rounded bg-muted" />
-          <div className="ml-auto h-3 w-16 animate-pulse rounded bg-muted" />
+      <li key={i} className="group -mx-6 animate-pulse px-6">
+        <div className="flex items-stretch gap-3 border-b border-subtle pb-2 pt-1.5 group-last:border-b-0">
+          <div className="flex w-7 shrink-0 items-center justify-center">
+            <div className="h-3.5 w-3 rounded bg-muted" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex min-h-5 items-center gap-2">
+              <div className="h-3 w-16 rounded bg-muted" />
+            </div>
+            <div className="mt-1 flex items-baseline justify-between gap-2">
+              <div className="h-4 w-32 rounded bg-muted" />
+              <div className="flex shrink-0 items-end gap-2">
+                <div className="h-4 w-20 rounded bg-muted" />
+                <div className="h-3 w-16 rounded bg-muted" />
+              </div>
+            </div>
+          </div>
         </div>
       </li>
     ))}
@@ -202,7 +208,8 @@ export const MarketRankingSlate = () => {
       ? ({ kind: "fluctuation", direction, market } as const)
       : ({ kind: "volume", by, market } as const);
 
-  const { items, failed, session, isLoading, isError } = useMarketRanking(kind);
+  const { items, failed, session, isLoading, isError, isPlaceholderData } =
+    useMarketRanking(kind);
 
   const rows = items.slice(0, TOP_N);
   const showEmpty = !isLoading && !isError && rows.length === 0;
@@ -247,14 +254,12 @@ export const MarketRankingSlate = () => {
                 <Pill
                   active={direction === "up"}
                   onClick={() => setDirection("up")}
-                  variant="up"
                 >
                   상승
                 </Pill>
                 <Pill
                   active={direction === "down"}
                   onClick={() => setDirection("down")}
-                  variant="down"
                 >
                   하락
                 </Pill>
@@ -283,8 +288,13 @@ export const MarketRankingSlate = () => {
             표시할 순위가 없습니다
           </p>
         ) : (
-          <ul className="divide-y divide-border/60">
-            {rows.map((item, i) => {
+          <ul
+            className={cn(
+              "transition-opacity",
+              isPlaceholderData && "opacity-70",
+            )}
+          >
+            {rows.map((item) => {
               const secondary =
                 tab === "volume"
                   ? by === "volume"
@@ -295,14 +305,7 @@ export const MarketRankingSlate = () => {
                       ? formatMarketCap(item.tradeValue)
                       : null
                   : null;
-              return (
-                <Row
-                  key={item.ticker}
-                  item={item}
-                  secondary={secondary}
-                  isLast={i === rows.length - 1}
-                />
-              );
+              return <Row key={item.ticker} item={item} secondary={secondary} />;
             })}
           </ul>
         )}

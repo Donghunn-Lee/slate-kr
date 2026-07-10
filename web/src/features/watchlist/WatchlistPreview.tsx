@@ -96,8 +96,8 @@ export function WatchlistPreview() {
         {pricesQuery.isError ? (
           <p className="text-sm text-muted-foreground">관심종목 데이터를 불러오지 못했습니다</p>
         ) : null}
-        <ul className="divide-y divide-border/60">
-          {preview.map((item, i) => {
+        <ul>
+          {preview.map((item) => {
             const p = pricesMap[item.ticker];
             const live = liveQuotes[item.ticker] ?? null;
             const isLiveFailed = liveFailed[item.ticker] ?? false;
@@ -106,48 +106,54 @@ export function WatchlistPreview() {
             const displayChangeRate = live ? live.changeRate : (p?.changePct ?? null);
             const displaySign = live ? live.sign : undefined;
             return (
-              <li key={item.ticker}>
-                <Link
-                  href={`/stocks/${item.ticker}`}
-                  className={`flex items-center justify-between transition-opacity hover:opacity-70 ${
-                    i === 0 ? "pb-3" : i === preview.length - 1 ? "pt-3" : "py-3"
-                  }`}
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="min-w-0 truncate text-sm font-medium">{item.name}</p>
-                      {isLiveFailed && (
-                        <span className="shrink-0 rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-[11px] leading-none text-muted-foreground">
-                          일시 지연
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
+              <li
+                key={item.ticker}
+                className="group relative -mx-6 bg-transparent px-6 transition-colors hover:bg-muted/40"
+              >
+                <div className="border-b border-subtle pb-2 pt-1.5 group-last:border-b-0">
+                  <div className="flex min-h-5 items-center gap-2">
+                    <span className="shrink-0 font-mono text-[11px] leading-none text-muted-foreground">
                       {item.ticker} · {item.market}
-                    </p>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    {displayPrice !== null ? (
-                      <>
-                        <p className="text-sm font-semibold tabular-nums">
-                          {formatClose(displayPrice)}
-                        </p>
-                        {displayChange !== null && displayChangeRate !== null && (
-                          <PriceChange
-                            change={displayChange}
-                            changeRate={displayChangeRate}
-                            sign={displaySign}
-                            symbol="sign"
-                            unit="원"
-                            size="xs"
-                          />
-                        )}
-                      </>
-                    ) : (
-                      <p className="text-xs text-muted-foreground">—</p>
+                    </span>
+                    {isLiveFailed && (
+                      <span className="ml-auto shrink-0 rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-[11px] leading-none text-muted-foreground">
+                        일시 지연
+                      </span>
                     )}
                   </div>
-                </Link>
+                  <div className="mt-1 flex items-baseline justify-between gap-2">
+                    <span className="min-w-0 truncate text-sm font-semibold text-foreground">
+                      {item.name}
+                    </span>
+                    <div className="flex shrink-0 items-baseline gap-2">
+                      {displayPrice !== null ? (
+                        <>
+                          <span className="text-sm font-bold leading-none tabular-nums text-foreground">
+                            {formatClose(displayPrice)}
+                          </span>
+                          {displayChange !== null && displayChangeRate !== null && (
+                            <PriceChange
+                              change={displayChange}
+                              changeRate={displayChangeRate}
+                              sign={displaySign}
+                              symbol="sign"
+                              unit="원"
+                              size="xs"
+                              className="leading-none"
+                            />
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <Link
+                  href={`/stocks/${item.ticker}`}
+                  aria-label={`${item.name} 상세 보기`}
+                  className="absolute inset-0"
+                />
               </li>
             );
           })}
