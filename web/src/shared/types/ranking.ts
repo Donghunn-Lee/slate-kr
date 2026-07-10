@@ -1,6 +1,8 @@
+export type Market = "all" | "kospi" | "kosdaq";
+
 export type MarketRankingKind =
-  | { kind: "fluctuation"; direction: "up" | "down" }
-  | { kind: "volume"; by: "volume" | "value" };
+  | { kind: "fluctuation"; direction: "up" | "down"; market: Market }
+  | { kind: "volume"; by: "volume" | "value"; market: Market };
 
 // changeSign 은 KIS prdy_vrss_sign 원본 문자열 (1=상한, 2=상승, 3=보합, 4=하한, 5=하락).
 // PriceChange 로 넘길 때 up/down/flat 정규화가 필요하면 소비 계층에서 처리한다.

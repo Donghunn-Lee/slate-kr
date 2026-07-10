@@ -8,36 +8,41 @@ import {
   type KrxSession,
 } from "@/shared/utils/market";
 import type {
+  Market,
   MarketRankingItem,
   MarketRankingKind,
 } from "@/shared/types/ranking";
 
 export const dynamic = "force-dynamic";
 
-// 4종 유한 카테고리 — 조합 아닌 flat key. index-intraday(3지수) 와 동형 구조.
-type RankingKey = "fluc-up" | "fluc-down" | "vol-shares" | "vol-value";
-
-const KEY_TO_KIND: Record<RankingKey, MarketRankingKind> = {
-  "fluc-up": { kind: "fluctuation", direction: "up" },
-  "fluc-down": { kind: "fluctuation", direction: "down" },
-  "vol-shares": { kind: "volume", by: "volume" },
-  "vol-value": { kind: "volume", by: "value" },
+// kind × market 조합 = 4 × 3 = 12 유한 key. 모두 flat 문자열로 상수화 → 캐시 hit 율 유지.
+// URL 파라미터는 by=shares|value (kind="volume" 과의 명명 중복 해소), lib 은 by=volume|value 유지.
+const flatKey = (k: MarketRankingKind): string => {
+  const suffix = `-${k.market}`;
+  return k.kind === "fluctuation"
+    ? `fluc-${k.direction}${suffix}`
+    : `vol-${k.by === "volume" ? "shares" : "value"}${suffix}`;
 };
 
-// URL 파라미터는 by=shares|value 로 노출 — kind="volume" 과의 명명 중복을 URL 쪽에서 해소.
-// lib 는 by: "volume" | "value" (endpoint 문서 용어) 유지, route 에서만 매핑.
-const parseKey = (params: URLSearchParams): RankingKey | null => {
+const parseMarket = (raw: string | null): Market => {
+  if (raw === "kospi" || raw === "kosdaq") return raw;
+  return "all"; // default (raw === null || "all" 포함)
+};
+
+const parseKind = (params: URLSearchParams): MarketRankingKind | null => {
   const kind = params.get("kind");
+  const market = parseMarket(params.get("market"));
   if (kind === "fluctuation") {
     const dir = params.get("direction");
-    if (dir === "up") return "fluc-up";
-    if (dir === "down") return "fluc-down";
+    if (dir === "up" || dir === "down") {
+      return { kind, direction: dir, market };
+    }
     return null;
   }
   if (kind === "volume") {
     const by = params.get("by");
-    if (by === "shares") return "vol-shares";
-    if (by === "value") return "vol-value";
+    if (by === "shares") return { kind, by: "volume", market };
+    if (by === "value") return { kind, by: "value", market };
     return null;
   }
   return null;
@@ -52,29 +57,30 @@ const runFetch = async (
   return r.ok ? r.items : null;
 };
 
-const cacheTag = (key: RankingKey, marketOpen: boolean): string =>
+const cacheTag = (key: string, marketOpen: boolean): string =>
   `market-ranking-${key}-${marketOpen ? "open" : "closed"}`;
 
 // key × session 별 unstable_cache 래퍼 memoize. 장중 60s / 폐장 3600s — index-intraday 통일.
 type RankingFetcher = () => Promise<MarketRankingItem[] | null>;
-const openFetchers = new Map<RankingKey, RankingFetcher>();
-const closedFetchers = new Map<RankingKey, RankingFetcher>();
+const openFetchers = new Map<string, RankingFetcher>();
+const closedFetchers = new Map<string, RankingFetcher>();
 
 const getCachedFetcher = (
-  key: RankingKey,
+  kind: MarketRankingKind,
   marketOpen: boolean,
-): RankingFetcher => {
+): { fetcher: RankingFetcher; key: string } => {
+  const key = flatKey(kind);
   const map = marketOpen ? openFetchers : closedFetchers;
   const cached = map.get(key);
-  if (cached) return cached;
+  if (cached) return { fetcher: cached, key };
   const tag = cacheTag(key, marketOpen);
   const fresh = unstable_cache(
-    () => runFetch(KEY_TO_KIND[key]),
+    () => runFetch(kind),
     ["market-ranking", key, marketOpen ? "open" : "closed"],
     { revalidate: marketOpen ? 60 : 3600, tags: [tag] },
   );
   map.set(key, fresh);
-  return fresh;
+  return { fetcher: fresh, key };
 };
 
 type RankingResponse = {
@@ -85,12 +91,12 @@ type RankingResponse = {
 };
 
 export const GET = async (req: NextRequest) => {
-  const key = parseKey(req.nextUrl.searchParams);
-  if (!key) {
+  const kind = parseKind(req.nextUrl.searchParams);
+  if (!kind) {
     return NextResponse.json(
       {
         error:
-          "invalid ranking params (kind=fluctuation&direction=up|down or kind=volume&by=shares|value)",
+          "invalid ranking params (kind=fluctuation&direction=up|down or kind=volume&by=shares|value, optional market=all|kospi|kosdaq)",
       },
       { status: 400 },
     );
@@ -101,7 +107,8 @@ export const GET = async (req: NextRequest) => {
   const marketOpen = isKrxMarketOpen();
 
   try {
-    const items = await getCachedFetcher(key, marketOpen)();
+    const { fetcher, key } = getCachedFetcher(kind, marketOpen);
+    const items = await fetcher();
     if (items === null) {
       // 실패 캐시 오염 방지 (#075) — 세션별 tag 정밀 evict.
       revalidateTag(cacheTag(key, marketOpen), { expire: 0 });

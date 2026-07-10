@@ -6,7 +6,7 @@ import { StockPanel } from "@/entities/stock/StockPanel";
 import { PriceChange } from "@/shared/components/PriceChange";
 import { formatMarketCap } from "@/shared/format";
 import type { PriceSign } from "@/shared/types/quote";
-import type { MarketRankingItem } from "@/shared/types/ranking";
+import type { Market, MarketRankingItem } from "@/shared/types/ranking";
 import type { KrxSession } from "@/shared/utils/market";
 import { cn } from "@/lib/utils";
 import { useMarketRanking } from "./useMarketRanking";
@@ -184,15 +184,23 @@ const SkeletonRows = () => (
   </ul>
 );
 
+const MARKET_LABEL: Record<Market, string> = {
+  all: "전체",
+  kospi: "KOSPI",
+  kosdaq: "KOSDAQ",
+};
+const MARKETS: readonly Market[] = ["all", "kospi", "kosdaq"];
+
 export const MarketRankingSlate = () => {
   const [tab, setTab] = useState<TabId>("fluctuation");
   const [direction, setDirection] = useState<Direction>("up");
   const [by, setBy] = useState<VolumeBy>("volume");
+  const [market, setMarket] = useState<Market>("all");
 
   const kind =
     tab === "fluctuation"
-      ? ({ kind: "fluctuation", direction } as const)
-      : ({ kind: "volume", by } as const);
+      ? ({ kind: "fluctuation", direction, market } as const)
+      : ({ kind: "volume", by, market } as const);
 
   const { items, failed, session, isLoading, isError } = useMarketRanking(kind);
 
@@ -207,6 +215,17 @@ export const MarketRankingSlate = () => {
         <Status session={session} failed={failed && rows.length > 0} />
       </div>
       <StockPanel>
+        <div className="mb-3 flex flex-wrap items-center gap-1">
+          {MARKETS.map((m) => (
+            <Pill
+              key={m}
+              active={market === m}
+              onClick={() => setMarket(m)}
+            >
+              {MARKET_LABEL[m]}
+            </Pill>
+          ))}
+        </div>
         <div className="mb-4 flex items-end justify-between gap-3 border-b border-border/60">
           <div className="flex items-center gap-5">
             <TabButton

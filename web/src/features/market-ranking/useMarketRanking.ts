@@ -15,14 +15,16 @@ type MarketRankingResponse = {
 
 const POLL_INTERVAL_MS = 60_000;
 
-// 4개 유한 카테고리에 대해 queryKey 를 안정 문자열로 분리. 탭 전환 시 이전 query 는
-// gcTime 지나며 자연 정리 — 동시 4콜 폴링 방지.
-const toKeyString = (k: MarketRankingKind): string =>
-  k.kind === "fluctuation"
-    ? `fluc-${k.direction}`
-    : `vol-${k.by === "volume" ? "shares" : "value"}`;
+// kind × market = 12 유한 조합에 대해 queryKey 를 안정 문자열로 분리. 탭/시장 전환 시
+// 이전 query 는 gcTime 지나며 자연 정리 — 동시 콜 폴링 방지.
+const toKeyString = (k: MarketRankingKind): string => {
+  const suffix = `-${k.market}`;
+  return k.kind === "fluctuation"
+    ? `fluc-${k.direction}${suffix}`
+    : `vol-${k.by === "volume" ? "shares" : "value"}${suffix}`;
+};
 
-// URL 파라미터 명은 route 계약 그대로 (kind=fluctuation&direction=… / kind=volume&by=shares|value).
+// URL 파라미터 명은 route 계약 그대로 (kind=fluctuation&direction=… / kind=volume&by=shares|value / market=…).
 const toSearchParams = (k: MarketRankingKind): string => {
   const p = new URLSearchParams();
   if (k.kind === "fluctuation") {
@@ -32,6 +34,7 @@ const toSearchParams = (k: MarketRankingKind): string => {
     p.set("kind", "volume");
     p.set("by", k.by === "volume" ? "shares" : "value");
   }
+  p.set("market", k.market);
   return p.toString();
 };
 

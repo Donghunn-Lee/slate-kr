@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { getKisToken } from "@/lib/kis-token";
 import type {
+  Market,
   MarketRankingItem,
   MarketRankingKind,
 } from "@/shared/types/ranking";
@@ -14,6 +15,14 @@ const TR_ID_VOLUME = "FHPST01710000";
 // E16 probe 실측 확정: 우선주(5)/ETF(7)/ETN(8)/SPAC(10) 자리를 1로 켜 제외.
 // 관리종목·투자경고까지 강화 필요 시 앞 두 자리도 1로 (예: "1100101101").
 const TRGT_EXLS_CODE = "0000101101";
+
+// E16 probe 실측: 두 endpoint 동일 코드. 0001=KOSPI 전체, 1001=KOSDAQ 전체, 0000=혼재.
+// 노이즈 필터(EXLS)는 KOSPI/KOSDAQ 필터와 병존 유효.
+const MARKET_TO_ISCD: Record<Market, string> = {
+  all: "0000",
+  kospi: "0001",
+  kosdaq: "1001",
+};
 
 export type RankingFetchResult =
   | { ok: true; items: MarketRankingItem[] }
@@ -60,10 +69,11 @@ const VolumeRowSchema = z.object({
 // 오염되어 부호가 뒤섞이는 결과로 나온다. "0"으로 두는 것이 정상 상승/하락률순 정렬.
 const buildFluctuationParams = (
   direction: "up" | "down",
+  market: Market,
 ): Record<string, string> => ({
   FID_COND_MRKT_DIV_CODE: "J",
   FID_COND_SCR_DIV_CODE: "20170",
-  FID_INPUT_ISCD: "0000",
+  FID_INPUT_ISCD: MARKET_TO_ISCD[market],
   FID_RANK_SORT_CLS_CODE: direction === "up" ? "0" : "1",
   FID_INPUT_CNT_1: "0",
   FID_PRC_CLS_CODE: "1",
@@ -79,10 +89,11 @@ const buildFluctuationParams = (
 
 const buildVolumeParams = (
   by: "volume" | "value",
+  market: Market,
 ): Record<string, string> => ({
   FID_COND_MRKT_DIV_CODE: "J",
   FID_COND_SCR_DIV_CODE: "20171",
-  FID_INPUT_ISCD: "0000",
+  FID_INPUT_ISCD: MARKET_TO_ISCD[market],
   FID_DIV_CLS_CODE: "0",
   FID_BLNG_CLS_CODE: by === "volume" ? "0" : "3",
   FID_TRGT_CLS_CODE: "111111111",
@@ -100,12 +111,12 @@ const resolveRequest = (
     ? {
         path: FLUCTUATION_PATH,
         trId: TR_ID_FLUCTUATION,
-        params: buildFluctuationParams(kind.direction),
+        params: buildFluctuationParams(kind.direction, kind.market),
       }
     : {
         path: VOLUME_PATH,
         trId: TR_ID_VOLUME,
-        params: buildVolumeParams(kind.by),
+        params: buildVolumeParams(kind.by, kind.market),
       };
 
 // 종목코드 필드가 endpoint 별로 다르다: fluctuation=stck_shrn_iscd, volume=mksc_shrn_iscd.
