@@ -8,6 +8,7 @@ export type MarketRankingItem = {
   ticker: string;
   name: string;
   price: number;
+  change: number; // 전일 대비 (원, 부호 포함) — KIS prdy_vrss 원본.
   changePct: number;
   changeSign: string;
   rank: number;
