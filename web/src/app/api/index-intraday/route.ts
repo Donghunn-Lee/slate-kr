@@ -65,7 +65,7 @@ const resolve = (
     revalidateTag(cacheTag(indexCode, marketOpen), { expire: 0 });
     return { bars: [], failed: true };
   }
-  return { bars: r.value, failed: true };
+  return { bars: r.value, failed: false };
 };
 
 export const GET = async () => {
