@@ -47,6 +47,8 @@ type UseMarketRankingResult = {
   // 카테고리 전환 중 이전 데이터를 표시하고 있는가 (placeholderData 노출).
   // 소비측이 리스트를 opacity 로 살짝 어둡히는 등 전환 신호로 사용.
   isPlaceholderData: boolean;
+  // 페이지 레벨 실패 UI 의 재시도 버튼용. queryKey 는 그대로 유지.
+  refetch: () => void;
 };
 
 // 활성 카테고리 하나만 폴링. 이전 응답의 marketOpen=true 일 때만 60s 주기, 폐장 시 정지.
@@ -77,5 +79,8 @@ export const useMarketRanking = (
     isLoading: query.isLoading,
     isError: query.isError,
     isPlaceholderData: query.isPlaceholderData,
+    refetch: () => {
+      void query.refetch();
+    },
   };
 };
