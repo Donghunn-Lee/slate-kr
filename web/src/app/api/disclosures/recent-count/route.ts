@@ -7,7 +7,7 @@ export type TickerDisclosureCount = {
   count: number | null;
 };
 
-const MAX_TICKERS = 20;
+const MAX_TICKERS = 30;
 const DEFAULT_DAYS = 7;
 const MIN_DAYS = 1;
 const MAX_DAYS = 30;
