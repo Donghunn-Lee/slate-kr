@@ -9,6 +9,7 @@ import type { PriceSign } from "@/shared/types/quote";
 import type { Market, MarketRankingItem } from "@/shared/types/ranking";
 import type { KrxSession } from "@/shared/utils/market";
 import { cn } from "@/lib/utils";
+import { Pill, TabButton } from "./RankingControls";
 import { useMarketRanking } from "./useMarketRanking";
 
 const TOP_N = 5;
@@ -68,49 +69,6 @@ const Status = ({ session, failed }: StatusProps) => {
     </div>
   );
 };
-
-type TabButtonProps = {
-  active: boolean;
-  onClick: () => void;
-  children: string;
-};
-
-const TabButton = ({ active, onClick, children }: TabButtonProps) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className={cn(
-      "border-b-2 pb-2 text-sm transition-colors",
-      active
-        ? "border-foreground font-medium text-foreground"
-        : "border-transparent text-muted-foreground hover:text-foreground",
-    )}
-  >
-    {children}
-  </button>
-);
-
-type PillProps = {
-  active: boolean;
-  onClick: () => void;
-  children: string;
-};
-
-// 세그먼트 pill. 시장 셀렉터·등락률 서브·거래량 서브 모두 무채색 통일.
-const Pill = ({ active, onClick, children }: PillProps) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className={cn(
-      "rounded-sm px-2.5 py-1 text-xs transition-colors",
-      active
-        ? "bg-muted text-foreground"
-        : "text-muted-foreground hover:text-foreground",
-    )}
-  >
-    {children}
-  </button>
-);
 
 type RowProps = {
   item: MarketRankingItem;
