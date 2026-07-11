@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { StockPanel } from "@/entities/stock/StockPanel";
 import { PriceChange } from "@/shared/components/PriceChange";
 import { formatMarketCap } from "@/shared/format";
@@ -155,6 +156,25 @@ const MARKET_LABEL: Record<Market, string> = {
 };
 const MARKETS: readonly Market[] = ["all", "kospi", "kosdaq"];
 
+// "전체 보기" 링크가 현재 필터를 그대로 페이지에 전달. route 계약과 동일한 파라미터 명명.
+const toRankingHref = (
+  tab: TabId,
+  direction: Direction,
+  by: VolumeBy,
+  market: Market,
+): string => {
+  const p = new URLSearchParams();
+  if (tab === "fluctuation") {
+    p.set("kind", "fluctuation");
+    p.set("direction", direction);
+  } else {
+    p.set("kind", "volume");
+    p.set("by", by === "volume" ? "shares" : "value");
+  }
+  p.set("market", market);
+  return `/ranking?${p.toString()}`;
+};
+
 export const MarketRankingSlate = () => {
   const [tab, setTab] = useState<TabId>("fluctuation");
   const [direction, setDirection] = useState<Direction>("up");
@@ -175,9 +195,17 @@ export const MarketRankingSlate = () => {
 
   return (
     <section>
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="text-lg font-semibold text-foreground">시장 순위</h2>
-        <Status session={session} failed={failed && rows.length > 0} />
+        <div className="flex items-center gap-3">
+          <Status session={session} failed={failed && rows.length > 0} />
+          <Link
+            href={toRankingHref(tab, direction, by, market)}
+            className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          >
+            전체 보기 <ArrowRight className="h-3 w-3" />
+          </Link>
+        </div>
       </div>
       <StockPanel>
         <div className="mb-3 flex flex-wrap items-center gap-1">

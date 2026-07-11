@@ -8,6 +8,9 @@ export function Navbar() {
           SlateKR
         </Link>
         <nav className="flex items-center gap-5 text-sm text-muted-foreground">
+          <Link href="/ranking" className="transition-colors hover:text-foreground">
+            시장 순위
+          </Link>
           <Link href="/watchlist" className="transition-colors hover:text-foreground">
             관심종목
           </Link>
