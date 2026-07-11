@@ -2,6 +2,7 @@ import { revalidateTag, unstable_cache } from "next/cache";
 import { type NextRequest, NextResponse } from "next/server";
 
 import { fetchRanking } from "@/lib/kis-ranking-fetch";
+import { pool } from "@/lib/db";
 import {
   getKrxSessionState,
   isKrxMarketOpen,
@@ -12,6 +13,7 @@ import type {
   MarketRankingItem,
   MarketRankingKind,
 } from "@/shared/types/ranking";
+import type { StockSummary } from "@/shared/types/stock";
 
 export const dynamic = "force-dynamic";
 
@@ -48,13 +50,42 @@ const parseKind = (params: URLSearchParams): MarketRankingKind | null => {
   return null;
 };
 
+// DB 조회로 종목별 시장 구분을 매핑. KIS 순위 응답에는 per-row market 이 없다.
+// 실패는 items 그대로 반환 — 순위 응답 실패 계약(failed flag)에는 영향 없음.
+// unstable_cache 내부에서 호출되므로 캐시 hit 시 DB 재조회하지 않는다.
+type StockMarketRow = { ticker: string; market: StockSummary["market"] };
+
+const enrichWithMarket = async (
+  items: MarketRankingItem[],
+): Promise<MarketRankingItem[]> => {
+  if (items.length === 0) return items;
+  try {
+    const tickers = items.map((i) => i.ticker);
+    const placeholders = tickers.map((_, i) => `$${i + 1}`).join(",");
+    const [rows] = await pool.query<StockMarketRow[]>(
+      `SELECT ticker, market FROM stocks WHERE ticker IN (${placeholders}) AND is_active = true`,
+      tickers,
+    );
+    const marketByTicker = new Map(rows.map((r) => [r.ticker, r.market]));
+    return items.map((i) => {
+      const market = marketByTicker.get(i.ticker);
+      return market ? { ...i, market } : i;
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[market-ranking] market enrich failed: ${message}`);
+    return items;
+  }
+};
+
 // fetchRanking 은 discriminated union 반환 — 캐시에는 items | null 로 축소해 저장.
 // 실패 kind 세부(token/http/business/…) 는 lib 에서 이미 console.error, route/클라이언트는 failed 만 소비.
 const runFetch = async (
   kind: MarketRankingKind,
 ): Promise<MarketRankingItem[] | null> => {
   const r = await fetchRanking(kind);
-  return r.ok ? r.items : null;
+  if (!r.ok) return null;
+  return enrichWithMarket(r.items);
 };
 
 const cacheTag = (key: string, marketOpen: boolean): string =>
