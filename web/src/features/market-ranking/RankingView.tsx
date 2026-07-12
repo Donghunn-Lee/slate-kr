@@ -8,7 +8,7 @@ import { StockPanel } from "@/entities/stock/StockPanel";
 import { cn } from "@/lib/utils";
 import type { Market, MarketRankingKind } from "@/shared/types/ranking";
 import { Pill, TabButton } from "./RankingControls";
-import { RankingRow, RankingRowSkeleton } from "./RankingRow";
+import { RankingHeader, RankingRow, RankingRowSkeleton } from "./RankingRow";
 import { useMarketRanking } from "./useMarketRanking";
 
 type RankingViewProps = {
@@ -104,7 +104,7 @@ export const RankingView = ({ initialKind }: RankingViewProps) => {
   const showEmpty = !isLoading && !showFailure && items.length === 0;
 
   return (
-    <StockPanel>
+    <StockPanel className="p-4 md:p-6">
       <div className="mb-3 flex flex-wrap items-center gap-1">
         {MARKETS.map((m) => (
           <Pill
@@ -167,11 +167,14 @@ export const RankingView = ({ initialKind }: RankingViewProps) => {
       </div>
 
       {isLoading ? (
-        <ul>
-          {Array.from({ length: SKELETON_ROWS }).map((_, i) => (
-            <RankingRowSkeleton key={i} />
-          ))}
-        </ul>
+        <>
+          <RankingHeader kind={kind} />
+          <ul>
+            {Array.from({ length: SKELETON_ROWS }).map((_, i) => (
+              <RankingRowSkeleton key={i} />
+            ))}
+          </ul>
+        </>
       ) : showFailure ? (
         <div className="py-8 text-center">
           <p className="mb-3 text-sm text-muted-foreground">
@@ -190,20 +193,24 @@ export const RankingView = ({ initialKind }: RankingViewProps) => {
           표시할 순위가 없습니다
         </p>
       ) : (
-        <ul
-          className={cn(
-            "transition-opacity",
-            isPlaceholderData && "opacity-70",
-          )}
-        >
-          {items.map((item) => (
-            <RankingRow
-              key={item.ticker}
-              item={item}
-              disclosure={disclosureMap[item.ticker]}
-            />
-          ))}
-        </ul>
+        <>
+          <RankingHeader kind={kind} />
+          <ul
+            className={cn(
+              "transition-opacity",
+              isPlaceholderData && "opacity-70",
+            )}
+          >
+            {items.map((item) => (
+              <RankingRow
+                key={item.ticker}
+                item={item}
+                disclosure={disclosureMap[item.ticker]}
+                kind={kind}
+              />
+            ))}
+          </ul>
+        </>
       )}
     </StockPanel>
   );
