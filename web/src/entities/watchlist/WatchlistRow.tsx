@@ -58,7 +58,7 @@ export const WatchlistRow = ({
               )}
               {disclosure?.count != null && disclosure.count > 0 && (
                 <div className="flex items-center gap-1.5 text-[11px] leading-none md:text-xs">
-                  <span className="text-muted-foreground">신규 공시</span>
+                  <span className="text-muted-foreground">최근 공시</span>
                   <span className="font-medium tabular-nums text-amber-accent">
                     {disclosure.count}건
                   </span>
