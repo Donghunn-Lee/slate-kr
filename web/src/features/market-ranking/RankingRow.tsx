@@ -34,8 +34,10 @@ const compactShares = (n: number): string => {
     return Math.round(n / 10_000).toLocaleString("ko-KR") + "만주";
   return n.toLocaleString("ko-KR") + "주";
 };
-const shareInWan = (n: number): string =>
-  Math.round(n / 10_000).toLocaleString("ko-KR");
+const shareInWan = (n: number): string => {
+  if (n < 10_000) return (n / 10_000).toFixed(1);
+  return Math.round(n / 10_000).toLocaleString("ko-KR");
+};
 const valueInEok = (n: number): string =>
   Math.round(n / 100_000_000).toLocaleString("ko-KR");
 
