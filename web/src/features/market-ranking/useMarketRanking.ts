@@ -47,6 +47,8 @@ type UseMarketRankingResult = {
   // 카테고리 전환 중 이전 데이터를 표시하고 있는가 (placeholderData 노출).
   // 소비측이 리스트를 opacity 로 살짝 어둡히는 등 전환 신호로 사용.
   isPlaceholderData: boolean;
+  // 재시도 버튼 disable / 아이콘 회전용. index-intraday 폴백과 동형.
+  isFetching: boolean;
   // 페이지 레벨 실패 UI 의 재시도 버튼용. queryKey 는 그대로 유지.
   refetch: () => void;
 };
@@ -79,6 +81,7 @@ export const useMarketRanking = (
     isLoading: query.isLoading,
     isError: query.isError,
     isPlaceholderData: query.isPlaceholderData,
+    isFetching: query.isFetching,
     refetch: () => {
       void query.refetch();
     },

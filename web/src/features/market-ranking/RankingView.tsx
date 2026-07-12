@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { RefreshCw, WifiOff } from "lucide-react";
 import type { TickerDisclosureCount } from "@/app/api/disclosures/recent-count/route";
 import { StockPanel } from "@/entities/stock/StockPanel";
 import { cn } from "@/lib/utils";
@@ -48,8 +49,15 @@ export const RankingView = ({ initialKind }: RankingViewProps) => {
     router.replace(`/ranking?${toSearchParams(kind)}`, { scroll: false });
   }, [kind, router]);
 
-  const { items, failed, isLoading, isError, isPlaceholderData, refetch } =
-    useMarketRanking(kind);
+  const {
+    items,
+    failed,
+    isLoading,
+    isError,
+    isPlaceholderData,
+    isFetching,
+    refetch,
+  } = useMarketRanking(kind);
 
   const tickersKey = items.map((i) => i.ticker).join(",");
   const disclosureQuery = useQuery<TickerDisclosureCount[]>({
@@ -176,15 +184,32 @@ export const RankingView = ({ initialKind }: RankingViewProps) => {
           </ul>
         </>
       ) : showFailure ? (
-        <div className="py-8 text-center">
-          <p className="mb-3 text-sm text-muted-foreground">
-            순위 데이터를 일시적으로 불러오지 못했습니다
-          </p>
+        <div className="flex w-full flex-col items-center justify-center gap-4 py-8">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-background">
+            <WifiOff
+              className="h-5 w-5 text-muted-foreground"
+              strokeWidth={1.5}
+              aria-hidden="true"
+            />
+          </div>
+          <div className="flex flex-col items-center gap-1 text-center">
+            <p className="text-sm font-medium text-foreground">
+              순위 데이터를 일시적으로 불러오지 못했어요
+            </p>
+            <p className="text-xs text-muted-foreground">
+              잠시 후 다시 시도해 주세요
+            </p>
+          </div>
           <button
             type="button"
             onClick={() => refetch()}
-            className="text-sm text-sky-accent hover:underline"
+            disabled={isFetching}
+            className="inline-flex items-center gap-1.5 rounded-md border border-subtle bg-background px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-border hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-subtle disabled:hover:text-muted-foreground"
           >
+            <RefreshCw
+              className={cn("h-3 w-3", isFetching && "animate-spin")}
+              aria-hidden="true"
+            />
             다시 시도
           </button>
         </div>
