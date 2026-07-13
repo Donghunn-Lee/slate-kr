@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import type { DartDisclosure } from "@/shared/types/stock";
+import type { DisclosureSummaryContent } from "@/shared/types/disclosureSummary";
 import { formatDartDate } from "@/shared/format";
 import { classifyDisclosure } from "@/shared/utils/classifyDisclosure";
 import { cn } from "@/lib/utils";
@@ -9,18 +10,27 @@ import { DisclosureFilters } from "@/features/disclosure/DisclosureFilters";
 import { DisclosurePagination } from "@/features/disclosure/DisclosurePagination";
 import type { PeriodPreset } from "@/features/disclosure/types";
 import { CheckpointBadge } from "./CheckpointBadge";
+import { DisclosureSummaryBody } from "./DisclosureSummaryBody";
 import { Button } from "@/components/ui/button";
 
 type SettledState =
-  | { kind: "success"; summary: string }
+  | { kind: "success"; content: DisclosureSummaryContent }
   | { kind: "blocked"; reason: "file_not_found" | "not_summarizable" }
   | { kind: "error"; errorKind: string };
 
 type SummaryState = { kind: "idle" } | { kind: "loading" } | SettledState;
 
-type ApiResponse = { ok: true; summary: string } | { ok: false; error: { kind: string } };
+type ApiResponse =
+  | { ok: true; content: DisclosureSummaryContent }
+  | { ok: false; error: { kind: string } };
 
-const RETRYABLE = new Set(["rate_limit", "timeout", "api_error", "empty_response"]);
+const RETRYABLE = new Set([
+  "rate_limit",
+  "timeout",
+  "api_error",
+  "empty_response",
+  "parse_failed",
+]);
 
 const GRID_COLS =
   "grid-cols-[minmax(0,1fr)_60px] gap-1 md:grid-cols-[72px_88px_minmax(0,1fr)_88px_72px_32px_60px] md:gap-2 items-center";
@@ -64,7 +74,7 @@ const DisclosureItem = ({
       const data = (await res.json()) as ApiResponse;
 
       if (data.ok) {
-        setSettled({ kind: "success", summary: data.summary });
+        setSettled({ kind: "success", content: data.content });
       } else {
         const kind = data.error?.kind ?? "api_error";
         if (kind === "file_not_found" || kind === "not_summarizable") {
@@ -188,9 +198,7 @@ const DisclosureItem = ({
               )}
 
               {summaryState.kind === "success" && (
-                <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                  {summaryState.summary}
-                </p>
+                <DisclosureSummaryBody content={summaryState.content} />
               )}
 
               {summaryState.kind === "blocked" && (
@@ -210,7 +218,9 @@ const DisclosureItem = ({
                         ? "잘못된 요청입니다."
                         : summaryState.errorKind === "empty_response"
                           ? "요약 결과를 받지 못했습니다. 잠시 후 다시 시도해주세요."
-                          : "지금은 요약을 시도하기 어렵습니다. 잠시 후 다시 시도해주세요."}
+                          : summaryState.errorKind === "parse_failed"
+                            ? "요약 형식을 해석하지 못했습니다. 다시 시도해주세요."
+                            : "지금은 요약을 시도하기 어렵습니다. 잠시 후 다시 시도해주세요."}
                   </p>
                   {RETRYABLE.has(summaryState.errorKind) && (
                     <Button variant="outline" size="sm" onClick={handleRetry}>
