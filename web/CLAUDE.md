@@ -35,7 +35,7 @@ AI 없이도 설득력 있어야 한다. AI는 투자 판단 도구가 아니라
 - **fallback 구조**: 섹션별 독립 loading/error/empty, 부분 실패가 전체 실패로 번지지 않는 구조
 - **관심종목**: Zustand persist, localStorage 기반 저장
 - **공시**: 유형 분류, 체크포인트 배지, 요청형 AI 공시 요약
-- **AI 공시 요약**: `POST /api/disclosure-summary` API Route, Gemini 기반, DART 원문 ZIP 추출 → 요약 → DB 캐시, discriminated union 결과 타입(`SummarizeResult`), `not_summarizable` 분기(FINANCIAL 카테고리 차단), row 인라인 확장 UI (`DisclosuresSection` 내 `DisclosureItem`), 503 retry 로직
+- **AI 공시 요약**: `POST /api/disclosure-summary` API Route, Gemini 기반, DART 원문 ZIP 추출 → 요약 → DB 캐시, 3필드 구조화 출력(`headline / facts[] / detail`), Zod 스키마 단일 소스(`z.toJSONSchema` → Gemini `responseJsonSchema`, 응답도 같은 스키마로 `safeParse`), discriminated union 결과 타입(`SummarizeResult`), `not_summarizable` 분기(FINANCIAL 카테고리 차단), row 인라인 확장 UI (`DisclosuresSection` 내 `DisclosureItem` + `DisclosureSummaryBody`), 503 retry 로직
 - **재무 슬레이트**: 5년 연간 + 분기(Q1~Q3), 12개 지표, 연간/분기 토글, 행=항목·열=기간 축 구조
 
 ---
@@ -62,7 +62,7 @@ AI 없이도 설득력 있어야 한다. AI는 투자 판단 도구가 아니라
   - 공통: 로깅, 에러 격리, incremental update
 - **배포**: Vercel (Next.js) + Neon (PostgreSQL)
 - **외부 API**: DART OpenAPI (공시 데이터 + 재무제표), FSS API (종목 목록)
-- **AI 요약**: Gemini API (`summarize-disclosure.ts`), `POST /api/disclosure-summary` API Route
+- **AI 요약**: Gemini API (`lib/disclosure-summary.ts`), `POST /api/disclosure-summary` API Route, Zod 스키마 단일 소스 (`shared/types/disclosureSummary.ts`)
 
 ---
 
