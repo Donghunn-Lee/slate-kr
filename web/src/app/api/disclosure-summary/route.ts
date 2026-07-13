@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: { kind: "api_error", message: "DB 조회 실패" } });
   }
   if (cached) {
-    return NextResponse.json({ ok: true, summary: cached.summaryText });
+    return NextResponse.json({ ok: true, content: cached.content });
   }
 
   if (classifyDisclosure(disclosure_nm) === DisclosureType.FINANCIAL) {
@@ -57,13 +57,13 @@ export async function POST(req: NextRequest) {
     try {
       await saveDisclosureSummary({
         rceptNo: rcept_no,
-        summaryText: result.summary,
+        content: result.content,
         modelName: result.modelName,
       });
     } catch {
       // 캐시 저장 실패는 요약 반환에 영향 주지 않음
     }
-    return NextResponse.json({ ok: true, summary: result.summary });
+    return NextResponse.json({ ok: true, content: result.content });
   }
 
   return NextResponse.json({ ok: false, error: result.error });
