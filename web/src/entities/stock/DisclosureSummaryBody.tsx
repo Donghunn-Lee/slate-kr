@@ -12,16 +12,16 @@ export const DisclosureSummaryBody = ({ content }: DisclosureSummaryBodyProps) =
       <p className="text-base font-semibold leading-snug">{headline}</p>
 
       {facts.length > 0 && (
-        <dl className="flex flex-col gap-3 sm:grid sm:grid-cols-[auto_minmax(0,1fr)] sm:gap-x-4 sm:gap-y-0">
+        <dl className="grid grid-cols-2 items-start gap-3 sm:grid-cols-[auto_minmax(0,1fr)] sm:gap-x-4 sm:gap-y-0">
           {facts.map((fact, i) => (
             <div
               key={i}
-              className="flex flex-col gap-0.5 sm:col-span-2 sm:grid sm:grid-cols-subgrid sm:border-b sm:border-sky-border/30 sm:py-1.5 sm:last:border-b-0"
+              className="flex min-w-0 flex-col gap-0.5 sm:col-span-2 sm:grid sm:grid-cols-subgrid sm:border-b sm:border-sky-border/30 sm:py-1.5 sm:last:border-b-0"
             >
               <dt className="text-[11px] text-muted-foreground sm:whitespace-nowrap sm:text-sm">
                 {fact.label}
               </dt>
-              <dd className="break-keep text-xs tabular-nums sm:text-sm">
+              <dd className="wrap-anywhere break-keep text-xs tabular-nums sm:text-sm">
                 {fact.value}
               </dd>
             </div>
