@@ -86,9 +86,6 @@ const extractXmlFromZip = async (buffer: ArrayBuffer): Promise<string> => {
   return largest.content;
 };
 
-const removeLibraryBlocks = (xml: string): string =>
-  xml.replace(/<LIBRARY>[\s\S]*?<\/LIBRARY>/g, "");
-
 const removeEngAttributes = (xml: string): string => xml.replace(/\s+ENG="[^"]*"/g, "");
 
 const stripTags = (xml: string): string => xml.replace(/<[^>]+>/g, "");
@@ -124,8 +121,7 @@ export const fetchDisclosureText = async (rceptNo: string): Promise<FetchDisclos
   }
 
   const xml = await extractXmlFromZip(raw.buffer);
-  const noLibrary = removeLibraryBlocks(xml);
-  const noEng = removeEngAttributes(noLibrary);
+  const noEng = removeEngAttributes(xml);
   const noTags = stripTags(noEng);
   const cleaned = cleanWhitespace(noTags);
   const text = removeBoilerplate(cleaned);
