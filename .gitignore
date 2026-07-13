@@ -21,6 +21,7 @@
 web/.next/
 web/node_modules/
 web/scripts/
+web/tmp/
 
 # collector (Python)
 collector/__pycache__/
@@ -29,6 +30,7 @@ collector/.env
 collector/venv/
 collector/logs/
 collector/experiments/
+collector/probe/
 
 # production
 /build
