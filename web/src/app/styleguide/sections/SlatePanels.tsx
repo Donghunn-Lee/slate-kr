@@ -46,7 +46,7 @@ const VARIANTS: PanelVariant[] = [
     border: "border-lavender-border",
     dot: "bg-lavender-accent",
     codeBg: "bg-lavender-border",
-    label: "라벤더 — AI 요약·분석 섹션",
+    label: "라벤더 — 차트 섹션",
   },
   {
     name: "Peach",
