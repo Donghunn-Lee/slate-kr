@@ -186,7 +186,7 @@ const DisclosureItem = ({
       >
         <div style={{ overflow: "hidden" }}>
           <div className="pt-3 pb-1">
-            <div className="rounded-sm border border-sky-border/60 bg-sky-bg px-4 py-3">
+            <div className="rounded-sm border border-sky-border/60 bg-sky-bg px-4 py-4">
               {summaryState.kind === "loading" && (
                 <div className="animate-pulse space-y-2.5">
                   <div className="h-3.5 w-full rounded bg-muted" />
