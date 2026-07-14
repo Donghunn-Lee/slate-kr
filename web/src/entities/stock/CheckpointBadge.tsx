@@ -7,6 +7,7 @@ const TYPE_CLASSES: Record<DisclosureType, string> = {
   AUDIT: "bg-disclosure-audit-bg text-disclosure-audit-text",
   SHAREHOLDER_MEETING:
     "bg-disclosure-shareholder-meeting-bg text-disclosure-shareholder-meeting-text",
+  MARKET_ACTION: "bg-disclosure-market-action-bg text-disclosure-market-action-text",
 };
 
 const TYPE_LABELS: Record<DisclosureType, string> = {
@@ -15,6 +16,7 @@ const TYPE_LABELS: Record<DisclosureType, string> = {
   OWNERSHIP: "소유상황",
   AUDIT: "감사",
   SHAREHOLDER_MEETING: "주주총회",
+  MARKET_ACTION: "시장조치",
 };
 
 type CheckpointBadgeProps = {

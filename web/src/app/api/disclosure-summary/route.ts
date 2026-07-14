@@ -3,11 +3,12 @@ import { z } from "zod";
 import { fetchDisclosureText } from "@/lib/dart-document";
 import { summarizeDisclosure } from "@/lib/disclosure-summary";
 import { getDisclosureSummary, saveDisclosureSummary } from "@/lib/disclosure-summaries";
-import { classifyDisclosure, DisclosureType } from "@/shared/utils/classifyDisclosure";
+import { classifyDisclosure, DisclosureType, isExchangeFiled } from "@/shared/utils/classifyDisclosure";
 
 const RequestBodySchema = z.object({
   rcept_no: z.string().min(1),
   disclosure_nm: z.string().min(1),
+  flr_nm: z.string().min(1),
 });
 
 export async function POST(req: NextRequest) {
@@ -23,7 +24,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: { kind: "invalid_request" } }, { status: 400 });
   }
 
-  const { rcept_no, disclosure_nm } = parsed.data;
+  const { rcept_no, disclosure_nm, flr_nm } = parsed.data;
 
   let cached: Awaited<ReturnType<typeof getDisclosureSummary>>;
   try {
@@ -35,7 +36,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, content: cached.content });
   }
 
-  if (classifyDisclosure(disclosure_nm) === DisclosureType.FINANCIAL) {
+  if (isExchangeFiled(flr_nm)) {
+    return NextResponse.json({ ok: false, error: { kind: "not_summarizable" } });
+  }
+
+  if (classifyDisclosure(disclosure_nm, flr_nm) === DisclosureType.FINANCIAL) {
     return NextResponse.json({ ok: false, error: { kind: "not_summarizable" } });
   }
 

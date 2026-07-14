@@ -4,9 +4,16 @@ export const DisclosureType = {
   OWNERSHIP: "OWNERSHIP",
   AUDIT: "AUDIT",
   SHAREHOLDER_MEETING: "SHAREHOLDER_MEETING",
+  MARKET_ACTION: "MARKET_ACTION",
 } as const;
 
 export type DisclosureType = (typeof DisclosureType)[keyof typeof DisclosureType];
+
+const EXCHANGE_FILERS = ["코스닥시장본부", "유가증권시장본부"] as const;
+
+// 완전 일치. `코넥스시장`(39건)은 이 집합에 없어 자동 제외 — 의도된 동작.
+export const isExchangeFiled = (flrNm: string): boolean =>
+  EXCHANGE_FILERS.some((filer) => filer === flrNm);
 
 const PATTERNS: { type: DisclosureType; keywords: string[] }[] = [
   {
@@ -43,10 +50,36 @@ const PATTERNS: { type: DisclosureType; keywords: string[] }[] = [
   },
 ];
 
-// null = 행정성 공시, 태그 없음
-export const classifyDisclosure = (title: string): DisclosureType | null => {
+// 거래소 발신 공시 중 절차적·정기적인 것 — 배지 미부여
+const PROCEDURAL_KEYWORDS = [
+  "소속부변경",
+  "권리락",
+  "배당락",
+  "약명및영문명",
+  "의무보유",
+  "변경상장",
+  "전자등록 변경",
+  "무상증자",
+  "자본감소",
+  "단일판매공급계약",
+  "중요내용공시",
+  "합병결정 철회",
+  "SPAC",
+  "우회상장",
+] as const;
+
+// null = 배지 미부여
+export const classifyDisclosure = (
+  disclosureNm: string,
+  flrNm: string,
+): DisclosureType | null => {
+  if (isExchangeFiled(flrNm)) {
+    if (PROCEDURAL_KEYWORDS.some((kw) => disclosureNm.includes(kw))) return null;
+    return DisclosureType.MARKET_ACTION;
+  }
+
   for (const { type, keywords } of PATTERNS) {
-    if (keywords.some((kw) => title.includes(kw))) return type;
+    if (keywords.some((kw) => disclosureNm.includes(kw))) return type;
   }
   return null;
 };

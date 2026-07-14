@@ -4,7 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import type { DartDisclosure } from "@/shared/types/stock";
 import type { DisclosureSummaryContent } from "@/shared/types/disclosureSummary";
 import { formatDartDate } from "@/shared/format";
-import { classifyDisclosure } from "@/shared/utils/classifyDisclosure";
+import { classifyDisclosure, isExchangeFiled } from "@/shared/utils/classifyDisclosure";
 import { cn } from "@/lib/utils";
 import { DisclosureFilters } from "@/features/disclosure/DisclosureFilters";
 import { DisclosurePagination } from "@/features/disclosure/DisclosurePagination";
@@ -48,7 +48,8 @@ const DisclosureItem = ({
   hasAnyExpanded,
   onToggle,
 }: DisclosureItemProps) => {
-  const type = classifyDisclosure(disclosure.disclosureNm);
+  const type = classifyDisclosure(disclosure.disclosureNm, disclosure.flrNm);
+  const exchangeFiled = isExchangeFiled(disclosure.flrNm);
   const [settled, setSettled] = useState<SettledState | null>(null);
   const fetchInitiated = useRef(false);
 
@@ -63,6 +64,7 @@ const DisclosureItem = ({
         body: JSON.stringify({
           rcept_no: disclosure.rcpNo,
           disclosure_nm: disclosure.disclosureNm,
+          flr_nm: disclosure.flrNm,
         }),
       });
 
@@ -86,7 +88,7 @@ const DisclosureItem = ({
     } catch {
       setSettled({ kind: "error", errorKind: "api_error" });
     }
-  }, [disclosure.rcpNo, disclosure.disclosureNm]);
+  }, [disclosure.rcpNo, disclosure.disclosureNm, disclosure.flrNm]);
 
   const handleRetry = useCallback(() => {
     setSettled(null);
@@ -158,22 +160,26 @@ const DisclosureItem = ({
             <span className="rounded bg-secondary px-1.5 py-0.5 text-[11px]">{disclosure.rmk}</span>
           )}
         </div>
-        <button
-          type="button"
-          className={cn(
-            "w-full rounded border border-sky-border bg-elevated px-1 py-0.5 text-[11px] font-medium whitespace-nowrap cursor-pointer",
-            isExpanded
-              ? "text-muted-foreground hover:text-foreground"
-              : "text-sky-accent hover:bg-sky-bg"
-          )}
-          style={{
-            transition:
-              "color var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1)), background-color var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1))",
-          }}
-          onClick={handleToggleClick}
-        >
-          {isExpanded ? "닫기" : "AI 요약"}
-        </button>
+        {exchangeFiled ? (
+          <div />
+        ) : (
+          <button
+            type="button"
+            className={cn(
+              "w-full rounded border border-sky-border bg-elevated px-1 py-0.5 text-[11px] font-medium whitespace-nowrap cursor-pointer",
+              isExpanded
+                ? "text-muted-foreground hover:text-foreground"
+                : "text-sky-accent hover:bg-sky-bg"
+            )}
+            style={{
+              transition:
+                "color var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1)), background-color var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1))",
+            }}
+            onClick={handleToggleClick}
+          >
+            {isExpanded ? "닫기" : "AI 요약"}
+          </button>
+        )}
       </div>
 
       <div

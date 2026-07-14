@@ -60,7 +60,7 @@ export const StockDisclosuresPreview = async ({ ticker }: StockDisclosuresPrevie
       ) : (
         <ul>
           {disclosures.map((d) => {
-            const type = classifyDisclosure(d.disclosureNm);
+            const type = classifyDisclosure(d.disclosureNm, d.flrNm);
             return (
               <li
                 key={d.rcpNo}
