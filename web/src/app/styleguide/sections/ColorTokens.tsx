@@ -87,7 +87,7 @@ export const ColorTokens = () => (
       ))}
 
       <SwatchGroup
-        title="Disclosure — 공시 카테고리 (5종 × bg/text)"
+        title="Disclosure — 공시 카테고리 (6종 × bg/text)"
         tokens={[
           {
             token: "--disclosure-major-event-bg",
@@ -130,6 +130,16 @@ export const ColorTokens = () => (
             token: "--disclosure-shareholder-meeting-text",
             value: "oklch(0.60 0.15 60)",
             label: "주주총회 텍스트",
+          },
+          {
+            token: "--disclosure-market-action-bg",
+            value: "oklch(0.955 0.006 85)",
+            label: "시장조치 배경",
+          },
+          {
+            token: "--disclosure-market-action-text",
+            value: "oklch(0.34 0.012 85)",
+            label: "시장조치 텍스트",
           },
         ]}
       />
