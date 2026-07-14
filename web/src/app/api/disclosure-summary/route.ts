@@ -3,7 +3,7 @@ import { z } from "zod";
 import { fetchDisclosureText } from "@/lib/dart-document";
 import { summarizeDisclosure } from "@/lib/disclosure-summary";
 import { getDisclosureSummary, saveDisclosureSummary } from "@/lib/disclosure-summaries";
-import { classifyDisclosure, DisclosureType, isExchangeFiled } from "@/shared/utils/classifyDisclosure";
+import { classifyDisclosure, DisclosureType } from "@/shared/utils/classifyDisclosure";
 
 const RequestBodySchema = z.object({
   rcept_no: z.string().min(1),
@@ -36,10 +36,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, content: cached.content });
   }
 
-  if (isExchangeFiled(flr_nm)) {
-    return NextResponse.json({ ok: false, error: { kind: "not_summarizable" } });
-  }
-
+  // 클라이언트가 1차로 게이팅한다. 여기서는 FINANCIAL 만 2차 방어선으로 남긴다.
   if (classifyDisclosure(disclosure_nm, flr_nm) === DisclosureType.FINANCIAL) {
     return NextResponse.json({ ok: false, error: { kind: "not_summarizable" } });
   }

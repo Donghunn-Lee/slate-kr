@@ -1,10 +1,15 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { HelpCircle } from "lucide-react";
 import type { DartDisclosure } from "@/shared/types/stock";
 import type { DisclosureSummaryContent } from "@/shared/types/disclosureSummary";
 import { formatDartDate } from "@/shared/format";
-import { classifyDisclosure, isExchangeFiled } from "@/shared/utils/classifyDisclosure";
+import {
+  classifyDisclosure,
+  DisclosureType,
+  isExchangeFiled,
+} from "@/shared/utils/classifyDisclosure";
 import { cn } from "@/lib/utils";
 import { DisclosureFilters } from "@/features/disclosure/DisclosureFilters";
 import { DisclosurePagination } from "@/features/disclosure/DisclosurePagination";
@@ -12,6 +17,7 @@ import type { PeriodPreset } from "@/features/disclosure/types";
 import { CheckpointBadge } from "./CheckpointBadge";
 import { DisclosureSummaryBody } from "./DisclosureSummaryBody";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 type SettledState =
   | { kind: "success"; content: DisclosureSummaryContent }
@@ -32,8 +38,17 @@ const RETRYABLE = new Set([
   "parse_failed",
 ]);
 
+type NotSummarizableReason = "financial" | "procedural" | "unclassified";
+
+const NOT_SUMMARIZABLE_MESSAGES = {
+  financial:
+    "정기보고서는 원문이 길고 수치가 많아 요약 시 왜곡 위험이 있습니다. 원문을 확인해 주세요.",
+  procedural: "원문이 짧아 요약 없이 바로 확인할 수 있습니다.",
+  unclassified: "요약을 제공하지 않는 유형의 공시입니다.",
+} as const satisfies Record<NotSummarizableReason, string>;
+
 const GRID_COLS =
-  "grid-cols-[minmax(0,1fr)_60px] gap-1 md:grid-cols-[72px_88px_minmax(0,1fr)_88px_72px_32px_60px] md:gap-2 items-center";
+  "grid-cols-[minmax(0,1fr)_72px] gap-1 md:grid-cols-[72px_88px_minmax(0,1fr)_88px_72px_32px_72px] md:gap-2 items-center";
 
 type DisclosureItemProps = {
   disclosure: DartDisclosure;
@@ -49,7 +64,14 @@ const DisclosureItem = ({
   onToggle,
 }: DisclosureItemProps) => {
   const type = classifyDisclosure(disclosure.disclosureNm, disclosure.flrNm);
-  const exchangeFiled = isExchangeFiled(disclosure.flrNm);
+  const summarizable = type !== null && type !== DisclosureType.FINANCIAL;
+  const notSummarizableReason: NotSummarizableReason | null = summarizable
+    ? null
+    : type === DisclosureType.FINANCIAL
+      ? "financial"
+      : isExchangeFiled(disclosure.flrNm)
+        ? "procedural"
+        : "unclassified";
   const [settled, setSettled] = useState<SettledState | null>(null);
   const fetchInitiated = useRef(false);
 
@@ -160,26 +182,48 @@ const DisclosureItem = ({
             <span className="rounded bg-secondary px-1.5 py-0.5 text-[11px]">{disclosure.rmk}</span>
           )}
         </div>
-        {exchangeFiled ? (
-          <div />
-        ) : (
-          <button
-            type="button"
-            className={cn(
-              "w-full rounded border border-sky-border bg-elevated px-1 py-0.5 text-[11px] font-medium whitespace-nowrap cursor-pointer",
-              isExpanded
-                ? "text-muted-foreground hover:text-foreground"
-                : "text-sky-accent hover:bg-sky-bg"
-            )}
-            style={{
-              transition:
-                "color var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1)), background-color var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1))",
-            }}
-            onClick={handleToggleClick}
-          >
-            {isExpanded ? "닫기" : "AI 요약"}
-          </button>
-        )}
+        <div className="flex items-center justify-center">
+          {summarizable ? (
+            <button
+              type="button"
+              className={cn(
+                "w-full rounded border border-sky-border bg-elevated px-1 py-0.5 text-[11px] font-medium whitespace-nowrap cursor-pointer",
+                isExpanded
+                  ? "text-muted-foreground hover:text-foreground"
+                  : "text-sky-accent hover:bg-sky-bg"
+              )}
+              style={{
+                transition:
+                  "color var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1)), background-color var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1))",
+              }}
+              onClick={handleToggleClick}
+            >
+              {isExpanded ? "닫기" : "요약 보기"}
+            </button>
+          ) : (
+            notSummarizableReason && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="요약 불가 사유"
+                    className="inline-flex items-center text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <HelpCircle className="size-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent
+                  side="top"
+                  sideOffset={6}
+                  collisionPadding={8}
+                  className="max-w-xs px-3 py-2 text-left"
+                >
+                  {NOT_SUMMARIZABLE_MESSAGES[notSummarizableReason]}
+                </TooltipContent>
+              </Tooltip>
+            )
+          )}
+        </div>
       </div>
 
       <div
@@ -327,7 +371,7 @@ export const DisclosuresSection = ({
             <div>제출인</div>
             <div>접수일자</div>
             <div>비고</div>
-            <div />
+            <div>AI 공시 요약</div>
           </div>
           <ul>
             {disclosures.map((d) => (
