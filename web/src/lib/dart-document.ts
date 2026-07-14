@@ -88,6 +88,12 @@ const extractXmlFromZip = async (buffer: ArrayBuffer): Promise<string> => {
 
 const removeEngAttributes = (xml: string): string => xml.replace(/\s+ENG="[^"]*"/g, "");
 
+// XForms 스타일 서식 공시(공급계약·타법인취득·거래소 시장조치 등)는 XML에 <STYLE> 인라인 CSS를
+// 포함한다. stripTags는 태그만 벗기므로 CSS 텍스트가 그대로 살아남아 요약 입력을 오염시킨다.
+// CSS는 <STYLE>을 품을 수 없어 중첩이 불가능하므로 비탐욕 매칭이 안전하다.
+const removeStyleBlocks = (xml: string): string =>
+  xml.replace(/<STYLE\b[^>]*>[\s\S]*?<\/STYLE\s*>/gi, "");
+
 const stripTags = (xml: string): string => xml.replace(/<[^>]+>/g, "");
 
 const cleanWhitespace = (text: string): string => {
@@ -122,7 +128,8 @@ export const fetchDisclosureText = async (rceptNo: string): Promise<FetchDisclos
 
   const xml = await extractXmlFromZip(raw.buffer);
   const noEng = removeEngAttributes(xml);
-  const noTags = stripTags(noEng);
+  const noStyle = removeStyleBlocks(noEng);
+  const noTags = stripTags(noStyle);
   const cleaned = cleanWhitespace(noTags);
   const text = removeBoilerplate(cleaned);
   return { ok: true, text };
