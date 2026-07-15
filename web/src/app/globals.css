@@ -69,6 +69,8 @@
   --color-disclosure-shareholder-meeting-text: var(--disclosure-shareholder-meeting-text);
   --color-disclosure-market-action-bg: var(--disclosure-market-action-bg);
   --color-disclosure-market-action-text: var(--disclosure-market-action-text);
+  --color-disclosure-uncategorized-bg: var(--disclosure-uncategorized-bg);
+  --color-disclosure-uncategorized-text: var(--disclosure-uncategorized-text);
   /* ── Accent palette ── */
   --color-sky-bg: var(--sky-bg);
   --color-sky-border: var(--sky-border);
@@ -110,8 +112,8 @@
   --price-neutral: oklch(0.55 0.01 270); /* 보합 */
 
   /* ── Disclosure category tokens (6 types × bg / text) ── */
-  --disclosure-major-event-bg: oklch(0.96 0.04 25); /* light warm red */
-  --disclosure-major-event-text: oklch(0.5 0.2 25);
+  --disclosure-major-event-bg: oklch(0.93 0.09 55); /* light orange */
+  --disclosure-major-event-text: oklch(0.55 0.17 50);
   --disclosure-financial-bg: oklch(0.92 0.05 260); /* light blue */
   --disclosure-financial-text: oklch(0.48 0.18 260);
   --disclosure-ownership-bg: oklch(0.96 0.04 305); /* light purple */
@@ -120,8 +122,10 @@
   --disclosure-audit-text: oklch(0.5 0.14 185);
   --disclosure-shareholder-meeting-bg: oklch(0.97 0.05 80); /* light amber */
   --disclosure-shareholder-meeting-text: oklch(0.6 0.15 60);
-  --disclosure-market-action-bg: oklch(0.955 0.006 85); /* neutral warm gray */
-  --disclosure-market-action-text: oklch(0.34 0.012 85);
+  --disclosure-market-action-bg: oklch(0.92 0.09 22); /* saturated red */
+  --disclosure-market-action-text: oklch(0.45 0.22 22);
+  --disclosure-uncategorized-bg: oklch(0.955 0.006 85); /* neutral warm gray — chip only */
+  --disclosure-uncategorized-text: oklch(0.58 0.008 85);
 
   /* ── Accent palette (5 colors × 3 stages: bg / border / accent) ── */
   --sky-bg: oklch(0.97 0.03 220);

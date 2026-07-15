@@ -91,12 +91,12 @@ export const ColorTokens = () => (
         tokens={[
           {
             token: "--disclosure-major-event-bg",
-            value: "oklch(0.96 0.04 25)",
+            value: "oklch(0.93 0.09 55)",
             label: "주요사항 배경",
           },
           {
             token: "--disclosure-major-event-text",
-            value: "oklch(0.50 0.20 25)",
+            value: "oklch(0.55 0.17 50)",
             label: "주요사항 텍스트",
           },
           {
@@ -133,13 +133,29 @@ export const ColorTokens = () => (
           },
           {
             token: "--disclosure-market-action-bg",
-            value: "oklch(0.955 0.006 85)",
+            value: "oklch(0.92 0.09 22)",
             label: "시장조치 배경",
           },
           {
             token: "--disclosure-market-action-text",
-            value: "oklch(0.34 0.012 85)",
+            value: "oklch(0.45 0.22 22)",
             label: "시장조치 텍스트",
+          },
+        ]}
+      />
+
+      <SwatchGroup
+        title="Disclosure — 기타 (칩 전용)"
+        tokens={[
+          {
+            token: "--disclosure-uncategorized-bg",
+            value: "oklch(0.955 0.006 85)",
+            label: "기타 배경",
+          },
+          {
+            token: "--disclosure-uncategorized-text",
+            value: "oklch(0.58 0.008 85)",
+            label: "기타 텍스트",
           },
         ]}
       />
