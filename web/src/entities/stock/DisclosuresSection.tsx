@@ -48,7 +48,7 @@ const NOT_SUMMARIZABLE_MESSAGES = {
 } as const satisfies Record<NotSummarizableReason, string>;
 
 const GRID_COLS =
-  "grid-cols-[minmax(0,1fr)_72px] gap-1 md:grid-cols-[72px_88px_minmax(0,1fr)_88px_72px_32px_72px] md:gap-2 items-center";
+  "grid-cols-[minmax(0,1fr)_72px] gap-1 md:grid-cols-[72px_88px_minmax(0,1fr)_88px_72px_60px_56px] md:gap-2 items-center";
 
 type DisclosureItemProps = {
   disclosure: DartDisclosure;
@@ -143,7 +143,7 @@ const DisclosureItem = ({
           : "opacity var(--duration-base, 250ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1)), background-color var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1))",
       }}
     >
-      <div className={cn("grid", GRID_COLS, "border-b border-sky-border/30 py-2 md:py-3 group-last:border-b-0")}>
+      <div className={cn("grid", GRID_COLS, "border-b border-sky-border/30 py-1.5 md:py-2 group-last:border-b-0")}>
         <div className="hidden text-center md:block">
           {type && <CheckpointBadge type={type} />}
         </div>
@@ -177,17 +177,23 @@ const DisclosureItem = ({
             {formatDartDate(disclosure.rcptDt)}
           </div>
         </div>
-        <div className="hidden text-center text-xs text-muted-foreground md:block">
-          {disclosure.rmk && (
-            <span className="rounded bg-secondary px-1.5 py-0.5 text-[11px]">{disclosure.rmk}</span>
-          )}
+        <div className="hidden text-xs text-muted-foreground md:flex md:flex-wrap md:items-center md:justify-center md:gap-0.5">
+          {disclosure.rmk &&
+            [...disclosure.rmk].map((ch, i) => (
+              <span
+                key={`${i}-${ch}`}
+                className="inline-flex size-[18px] items-center justify-center rounded border border-border/60 bg-secondary text-[11px] leading-none"
+              >
+                {ch}
+              </span>
+            ))}
         </div>
         <div className="flex items-center justify-center">
           {summarizable ? (
             <button
               type="button"
               className={cn(
-                "w-full rounded border border-sky-border bg-elevated px-1 py-0.5 text-[11px] font-medium whitespace-nowrap cursor-pointer",
+                "w-full rounded border border-sky-border bg-elevated px-0.5 py-0.5 text-[11px] font-medium whitespace-nowrap cursor-pointer",
                 isExpanded
                   ? "text-muted-foreground hover:text-foreground"
                   : "text-sky-accent hover:bg-sky-bg"
@@ -373,8 +379,52 @@ export const DisclosuresSection = ({
             <div>보고서명</div>
             <div>제출인</div>
             <div>접수일자</div>
-            <div>비고</div>
-            <div>AI 공시 요약</div>
+            <div className="flex items-center justify-center gap-1">
+              <span>비고</span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="비고 코드 안내"
+                    className="inline-flex cursor-help items-center text-muted-foreground/70 transition-colors hover:text-foreground"
+                  >
+                    <HelpCircle className="size-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent
+                  side="top"
+                  sideOffset={6}
+                  collisionPadding={8}
+                  className="max-w-xs px-3 py-2 text-left"
+                >
+                  <div className="space-y-2">
+                    <p className="font-semibold">비고 코드</p>
+                    <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5">
+                      <dt className="font-semibold">유</dt>
+                      <dd>유가증권시장 소관</dd>
+                      <dt className="font-semibold">코</dt>
+                      <dd>코스닥시장 소관</dd>
+                      <dt className="font-semibold">넥</dt>
+                      <dd>코넥스시장 소관</dd>
+                      <dt className="font-semibold">공</dt>
+                      <dd>공정거래위원회 소관</dd>
+                      <dt className="font-semibold">채</dt>
+                      <dd>채권시장 소관</dd>
+                      <dt className="font-semibold">연</dt>
+                      <dd>연결재무제표 관련</dd>
+                      <dt className="font-semibold">정</dt>
+                      <dd>정정공시</dd>
+                      <dt className="font-semibold">철</dt>
+                      <dd>철회공시</dd>
+                    </dl>
+                    <p className="border-t border-primary-foreground/20 pt-1.5 text-[11px] text-primary-foreground/80">
+                      두 코드가 함께 붙기도 합니다 (예: 코정 = 코스닥 · 정정공시).
+                    </p>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <div>AI 요약</div>
           </div>
           <ul>
             {disclosures.map((d) => (
