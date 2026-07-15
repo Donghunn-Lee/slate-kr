@@ -3,7 +3,12 @@ import type { Metadata } from "next";
 import { getStockByTicker } from "@/lib/stocks";
 import { StockDisclosures } from "@/entities/stock/StockDisclosures";
 import { DisclosuresSkeleton } from "@/entities/stock/Skeletons";
-import { isPeriodPreset, type PeriodPreset } from "@/features/disclosure/types";
+import {
+  isDisclosureFilterType,
+  isPeriodPreset,
+  type DisclosureFilterType,
+  type PeriodPreset,
+} from "@/features/disclosure/types";
 
 export const revalidate = 3600;
 
@@ -13,6 +18,20 @@ type SearchParams = {
   end?: string;
   q?: string;
   page?: string;
+  types?: string;
+};
+
+const parseTypesParam = (raw: string | undefined): DisclosureFilterType[] => {
+  if (!raw) return [];
+  const seen = new Set<string>();
+  const out: DisclosureFilterType[] = [];
+  for (const part of raw.split(",")) {
+    if (isDisclosureFilterType(part) && !seen.has(part)) {
+      seen.add(part);
+      out.push(part);
+    }
+  }
+  return out;
 };
 
 type PageProps = {
@@ -39,6 +58,7 @@ export default async function DisclosuresPage({ params, searchParams }: PageProp
   const page = Math.max(1, Number(sp.page) || 1);
   const bgn = sp.bgn;
   const end = sp.end;
+  const types = parseTypesParam(sp.types);
 
   return (
     <Suspense fallback={<DisclosuresSkeleton />}>
@@ -48,6 +68,7 @@ export default async function DisclosuresPage({ params, searchParams }: PageProp
         bgnDate={bgn}
         endDate={end}
         query={query}
+        types={types}
         page={page}
       />
     </Suspense>

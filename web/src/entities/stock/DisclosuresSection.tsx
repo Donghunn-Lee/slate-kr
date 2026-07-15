@@ -13,7 +13,7 @@ import {
 import { cn } from "@/lib/utils";
 import { DisclosureFilters } from "@/features/disclosure/DisclosureFilters";
 import { DisclosurePagination } from "@/features/disclosure/DisclosurePagination";
-import type { PeriodPreset } from "@/features/disclosure/types";
+import type { DisclosureFilterType, PeriodPreset } from "@/features/disclosure/types";
 import { CheckpointBadge } from "./CheckpointBadge";
 import { DisclosureSummaryBody } from "./DisclosureSummaryBody";
 import { Button } from "@/components/ui/button";
@@ -297,6 +297,7 @@ type DisclosuresSectionProps = {
   bgnDate?: string;
   endDate?: string;
   query: string;
+  types: DisclosureFilterType[];
   noApiKey: boolean;
   hasError: boolean;
 };
@@ -311,6 +312,7 @@ export const DisclosuresSection = ({
   bgnDate,
   endDate,
   query,
+  types,
   noApiKey,
   hasError,
 }: DisclosuresSectionProps) => {
@@ -345,6 +347,7 @@ export const DisclosuresSection = ({
           currentBgnDate={bgnDate}
           currentEndDate={endDate}
           currentQuery={query}
+          currentTypes={types}
         />
       </header>
 
@@ -397,6 +400,7 @@ export const DisclosuresSection = ({
             bgnDate={bgnDate}
             endDate={endDate}
             query={query}
+            types={types}
           />
           <p className="text-xs text-tertiary">출처: DART 전자공시시스템</p>
         </footer>

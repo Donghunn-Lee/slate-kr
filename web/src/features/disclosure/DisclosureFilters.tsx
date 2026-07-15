@@ -7,7 +7,13 @@ import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import type { PeriodPreset } from "./types";
+import { cn } from "@/lib/utils";
+import { DisclosureType } from "@/shared/utils/classifyDisclosure";
+import {
+  DISCLOSURE_TYPE_CHIP_ON_CLASSES,
+  DISCLOSURE_TYPE_LABELS,
+} from "@/entities/stock/CheckpointBadge";
+import { isDisclosureFilterType, type DisclosureFilterType, type PeriodPreset } from "./types";
 
 type DisclosureFiltersProps = {
   ticker: string;
@@ -15,7 +21,24 @@ type DisclosureFiltersProps = {
   currentBgnDate?: string;
   currentEndDate?: string;
   currentQuery: string;
+  currentTypes: DisclosureFilterType[];
 };
+
+type ChipOption = { value: DisclosureFilterType; label: string; onClass: string };
+
+const CHIP_OPTIONS: ChipOption[] = [
+  ...(Object.keys(DISCLOSURE_TYPE_LABELS) as DisclosureType[]).map((type) => ({
+    value: type as DisclosureFilterType,
+    label: DISCLOSURE_TYPE_LABELS[type],
+    onClass: DISCLOSURE_TYPE_CHIP_ON_CLASSES[type],
+  })),
+  {
+    value: "UNCATEGORIZED",
+    label: "기타",
+    onClass:
+      "data-[state=on]:bg-disclosure-uncategorized-bg data-[state=on]:text-disclosure-uncategorized-text",
+  },
+];
 
 const PRESET_OPTIONS: { value: PeriodPreset; label: string }[] = [
   { value: "6M", label: "6개월" },
@@ -68,9 +91,10 @@ export const DisclosureFilters = ({
   currentBgnDate,
   currentEndDate,
   currentQuery,
+  currentTypes,
 }: DisclosureFiltersProps) => {
   const router = useRouter();
-  const [, startTransition] = useTransition();
+  const [isPending, startTransition] = useTransition();
   const [queryInput, setQueryInput] = useState(currentQuery);
   const [customBgn, setCustomBgn] = useState<Date | undefined>(parseYmd(currentBgnDate));
   const [customEnd, setCustomEnd] = useState<Date | undefined>(parseYmd(currentEndDate));
@@ -104,7 +128,13 @@ export const DisclosureFilters = ({
   }
 
   const buildUrl = useCallback(
-    (params: { preset: PeriodPreset; bgn?: string; end?: string; q?: string }) => {
+    (params: {
+      preset: PeriodPreset;
+      bgn?: string;
+      end?: string;
+      q?: string;
+      types: DisclosureFilterType[];
+    }) => {
       const sp = new URLSearchParams();
       sp.set("preset", params.preset);
       if (params.preset === "CUSTOM") {
@@ -112,6 +142,7 @@ export const DisclosureFilters = ({
         if (params.end) sp.set("end", params.end);
       }
       if (params.q) sp.set("q", params.q);
+      if (params.types.length > 0) sp.set("types", params.types.join(","));
       sp.set("page", "1");
       return `/stocks/${ticker}/disclosures?${sp.toString()}`;
     },
@@ -136,7 +167,7 @@ export const DisclosureFilters = ({
     }
     setCustomMode(false);
     if (preset === currentPreset) return;
-    navigate(buildUrl({ preset, q: queryInput.trim() || undefined }));
+    navigate(buildUrl({ preset, q: queryInput.trim() || undefined, types: currentTypes }));
   };
 
   const handleCustomApply = (next: { bgn?: Date; end?: Date }) => {
@@ -147,6 +178,7 @@ export const DisclosureFilters = ({
         bgn: toYmd(next.bgn),
         end: toYmd(next.end),
         q: queryInput.trim() || undefined,
+        types: currentTypes,
       })
     );
   };
@@ -163,9 +195,23 @@ export const DisclosureFilters = ({
           bgn: currentBgnDate,
           end: currentEndDate,
           q: trimmed || undefined,
+          types: currentTypes,
         })
       );
     }, 300);
+  };
+
+  const handleTypesChange = (values: string[]) => {
+    const nextTypes = values.filter(isDisclosureFilterType);
+    navigate(
+      buildUrl({
+        preset: currentPreset,
+        bgn: currentBgnDate,
+        end: currentEndDate,
+        q: queryInput.trim() || undefined,
+        types: nextTypes,
+      })
+    );
   };
 
   useEffect(() => {
@@ -178,63 +224,91 @@ export const DisclosureFilters = ({
   const displayPreset: PeriodPreset = customMode ? "CUSTOM" : currentPreset;
 
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex flex-wrap items-center gap-2">
-        <ToggleGroup
-          type="single"
-          value={displayPreset}
-          onValueChange={handlePresetChange}
-          variant="outline"
-          size="sm"
-          spacing={0}
-        >
-          {PRESET_OPTIONS.map((opt) => (
-            <ToggleGroupItem
-              key={opt.value}
-              value={opt.value}
-              aria-label={opt.label}
-              className="border-sky-border bg-transparent text-secondary-foreground hover:bg-sky-border/40 hover:text-foreground data-[state=on]:bg-elevated data-[state=on]:text-foreground"
-            >
-              {opt.label}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <ToggleGroup
+            type="single"
+            value={displayPreset}
+            onValueChange={handlePresetChange}
+            variant="outline"
+            size="sm"
+            spacing={0}
+          >
+            {PRESET_OPTIONS.map((opt) => (
+              <ToggleGroupItem
+                key={opt.value}
+                value={opt.value}
+                aria-label={opt.label}
+                className="border-sky-border bg-transparent text-secondary-foreground hover:bg-sky-border/40 hover:text-foreground data-[state=on]:bg-elevated data-[state=on]:text-foreground"
+              >
+                {opt.label}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
 
-        {showCustomPickers && (
-          <div className="flex items-center gap-1">
-            <DatePickerPopover
-              label="시작일"
-              value={customBgn}
-              max={customEnd}
-              onSelect={(d) => {
-                setCustomBgn(d);
-                handleCustomApply({ bgn: d, end: customEnd });
-              }}
-            />
-            <span className="text-xs text-muted-foreground">~</span>
-            <DatePickerPopover
-              label="끝일"
-              value={customEnd}
-              min={customBgn}
-              onSelect={(d) => {
-                setCustomEnd(d);
-                handleCustomApply({ bgn: customBgn, end: d });
-              }}
-            />
-          </div>
+          {showCustomPickers && (
+            <div className="flex items-center gap-1">
+              <DatePickerPopover
+                label="시작일"
+                value={customBgn}
+                max={customEnd}
+                onSelect={(d) => {
+                  setCustomBgn(d);
+                  handleCustomApply({ bgn: d, end: customEnd });
+                }}
+              />
+              <span className="text-xs text-muted-foreground">~</span>
+              <DatePickerPopover
+                label="끝일"
+                value={customEnd}
+                min={customBgn}
+                onSelect={(d) => {
+                  setCustomEnd(d);
+                  handleCustomApply({ bgn: customBgn, end: d });
+                }}
+              />
+            </div>
+          )}
+        </div>
+
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="공시 제목 검색"
+            value={queryInput}
+            onChange={(e) => handleQueryChange(e.target.value)}
+            className="h-8 border-sky-border bg-elevated/80 pl-8 sm:w-56"
+          />
+        </div>
+      </div>
+
+      <ToggleGroup
+        type="multiple"
+        value={currentTypes}
+        onValueChange={handleTypesChange}
+        variant="outline"
+        size="sm"
+        className={cn(
+          "w-full flex-wrap justify-start transition-opacity",
+          isPending && "pointer-events-none opacity-60",
         )}
-      </div>
-
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          type="text"
-          placeholder="공시 제목 검색"
-          value={queryInput}
-          onChange={(e) => handleQueryChange(e.target.value)}
-          className="h-8 border-sky-border bg-elevated/80 pl-8 sm:w-56"
-        />
-      </div>
+      >
+        {CHIP_OPTIONS.map((opt) => (
+          <ToggleGroupItem
+            key={opt.value}
+            value={opt.value}
+            aria-label={opt.label}
+            className={cn(
+              "border-sky-border bg-transparent text-secondary-foreground hover:bg-sky-border/40 hover:text-foreground data-[state=on]:border-transparent",
+              opt.onClass,
+            )}
+          >
+            {opt.label}
+          </ToggleGroupItem>
+        ))}
+      </ToggleGroup>
     </div>
   );
 };

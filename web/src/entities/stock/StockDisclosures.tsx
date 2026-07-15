@@ -2,7 +2,8 @@ import type { DartDisclosure } from "@/shared/types/stock";
 import { getCorpCode } from "@/lib/stocks";
 import { getDisclosures } from "@/lib/dart";
 import { resolveDateRange } from "@/features/disclosure/resolveDateRange";
-import type { PeriodPreset } from "@/features/disclosure/types";
+import type { DisclosureFilterType, PeriodPreset } from "@/features/disclosure/types";
+import { classifyDisclosure } from "@/shared/utils/classifyDisclosure";
 import { DisclosuresSection } from "./DisclosuresSection";
 
 const PAGE_SIZE = 10;
@@ -14,6 +15,7 @@ type StockDisclosuresProps = {
   bgnDate?: string;
   endDate?: string;
   query: string;
+  types: DisclosureFilterType[];
   page: number;
 };
 
@@ -48,6 +50,7 @@ const fetchUnfiltered = async (
 const fetchFiltered = async (
   corpCode: string,
   query: string,
+  types: DisclosureFilterType[],
   page: number,
   bgnDate: Date | undefined,
   endDate: Date | undefined,
@@ -75,9 +78,19 @@ const fetchFiltered = async (
   }
 
   const needle = query.toLowerCase();
-  const filtered = allItems.filter((d) =>
-    d.disclosureNm.toLowerCase().includes(needle),
-  );
+  const typeSet = new Set(types);
+  const filtered = allItems.filter((d) => {
+    if (query !== "" && !d.disclosureNm.toLowerCase().includes(needle)) return false;
+    if (typeSet.size > 0) {
+      const t = classifyDisclosure(d.disclosureNm, d.flrNm);
+      if (t === null) {
+        if (!typeSet.has("UNCATEGORIZED")) return false;
+      } else if (!typeSet.has(t)) {
+        return false;
+      }
+    }
+    return true;
+  });
   const sliceStart = (page - 1) * PAGE_SIZE;
   return {
     items: filtered.slice(sliceStart, sliceStart + PAGE_SIZE),
@@ -92,6 +105,7 @@ export const StockDisclosures = async ({
   bgnDate,
   endDate,
   query,
+  types,
   page,
 }: StockDisclosuresProps) => {
   let items: DartDisclosure[] = [];
@@ -111,10 +125,10 @@ export const StockDisclosures = async ({
           bgnDate,
           endDate,
         );
-        const result =
-          query === ""
-            ? await fetchUnfiltered(corpCode, page, bgn, end)
-            : await fetchFiltered(corpCode, query, page, bgn, end);
+        const needsMerge = query !== "" || types.length > 0;
+        const result = needsMerge
+          ? await fetchFiltered(corpCode, query, types, page, bgn, end)
+          : await fetchUnfiltered(corpCode, page, bgn, end);
         items = result.items;
         totalCount = result.totalCount;
         totalPage = result.totalPage;
@@ -135,6 +149,7 @@ export const StockDisclosures = async ({
       bgnDate={bgnDate}
       endDate={endDate}
       query={query}
+      types={types}
       noApiKey={noApiKey}
       hasError={hasError}
     />

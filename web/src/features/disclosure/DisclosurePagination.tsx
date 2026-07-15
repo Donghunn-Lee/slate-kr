@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ChevronLeftIcon, ChevronRightIcon, MoreHorizontalIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { PeriodPreset } from "./types";
+import type { DisclosureFilterType, PeriodPreset } from "./types";
 
 type DisclosurePaginationProps = {
   ticker: string;
@@ -12,6 +12,7 @@ type DisclosurePaginationProps = {
   bgnDate?: string;
   endDate?: string;
   query: string;
+  types: DisclosureFilterType[];
 };
 
 const buildHref = (
@@ -20,7 +21,8 @@ const buildHref = (
   preset: PeriodPreset,
   bgnDate: string | undefined,
   endDate: string | undefined,
-  query: string
+  query: string,
+  types: DisclosureFilterType[]
 ): string => {
   const sp = new URLSearchParams();
   sp.set("preset", preset);
@@ -29,6 +31,7 @@ const buildHref = (
     if (endDate) sp.set("end", endDate);
   }
   if (query) sp.set("q", query);
+  if (types.length > 0) sp.set("types", types.join(","));
   sp.set("page", String(page));
   return `/stocks/${ticker}/disclosures?${sp.toString()}`;
 };
@@ -55,11 +58,12 @@ export const DisclosurePagination = ({
   bgnDate,
   endDate,
   query,
+  types,
 }: DisclosurePaginationProps) => {
   if (totalPage <= 1) return null;
 
   const pages = buildPageList(currentPage, totalPage);
-  const href = (page: number) => buildHref(ticker, page, preset, bgnDate, endDate, query);
+  const href = (page: number) => buildHref(ticker, page, preset, bgnDate, endDate, query, types);
 
   const hasPrev = currentPage > 1;
   const hasNext = currentPage < totalPage;
