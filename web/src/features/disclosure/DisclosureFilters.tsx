@@ -247,7 +247,7 @@ export const DisclosureFilters = ({
                 key={opt.value}
                 value={opt.value}
                 aria-label={opt.label}
-                className="border-sky-border bg-transparent text-secondary-foreground hover:bg-sky-border/40 hover:text-foreground data-[state=on]:bg-elevated data-[state=on]:text-foreground"
+                className="h-7 border-sky-border bg-transparent px-2 text-xs text-secondary-foreground hover:bg-sky-border/40 hover:text-foreground data-[state=on]:bg-elevated data-[state=on]:text-foreground"
               >
                 {opt.label}
               </ToggleGroupItem>
@@ -281,14 +281,14 @@ export const DisclosureFilters = ({
 
         <div className="flex items-center gap-1">
           <div className="relative">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               type="text"
               placeholder="공시 제목 검색"
               value={queryInput}
               onChange={(e) => setQueryInput(e.target.value)}
               onKeyDown={handleQueryKeyDown}
-              className="h-8 border-sky-border bg-elevated/80 pl-8 sm:w-56"
+              className="h-7 border-sky-border bg-elevated/80 pl-7 text-xs sm:w-56"
             />
           </div>
           <Button
@@ -297,6 +297,7 @@ export const DisclosureFilters = ({
             size="sm"
             onClick={commit}
             aria-label="검색"
+            className="h-7 px-2 text-xs"
           >
             검색
           </Button>
@@ -323,7 +324,7 @@ export const DisclosureFilters = ({
               value={opt.value}
               aria-label={opt.label}
               className={cn(
-                "border-sky-border bg-transparent text-secondary-foreground hover:bg-sky-border/40 hover:text-foreground data-[state=on]:border-transparent",
+                "h-7 border-sky-border bg-transparent px-2 text-xs text-secondary-foreground hover:bg-sky-border/40 hover:text-foreground",
                 opt.onClass,
               )}
             >
@@ -340,6 +341,7 @@ export const DisclosureFilters = ({
             onClick={commit}
             disabled={applyDisabled}
             aria-label="필터 적용"
+            className="h-7 border-sky-border bg-sky-accent px-2.5 text-xs hover:bg-sky-accent/85 disabled:opacity-60"
           >
             적용
           </Button>
@@ -349,8 +351,9 @@ export const DisclosureFilters = ({
             size="sm"
             onClick={handleReset}
             aria-label="필터 초기화"
+            className="h-7 px-2 text-xs"
           >
-            <RotateCcw />
+            <RotateCcw className="size-3" />
             초기화
           </Button>
         </div>
@@ -414,16 +417,16 @@ const DatePickerPopover = ({ label, value, min, max, onSelect }: DatePickerPopov
         maxLength={10}
         aria-label={label}
         inputMode="numeric"
-        className="h-8 w-32 border-sky-border bg-elevated/80 pr-7 text-xs font-normal"
+        className="h-7 w-28 border-sky-border bg-elevated/80 pr-6 text-xs font-normal"
       />
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button
             type="button"
             aria-label={`${label} 달력 열기`}
-            className="absolute right-1 top-1/2 flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-sky-border/40 hover:text-foreground"
+            className="absolute right-1 top-1/2 flex size-5 -translate-y-1/2 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-sky-border/40 hover:text-foreground"
           >
-            <CalendarIcon className="size-3.5" />
+            <CalendarIcon className="size-3" />
           </button>
         </PopoverTrigger>
         <PopoverContent className="w-auto bg-elevated p-0" align="end">
