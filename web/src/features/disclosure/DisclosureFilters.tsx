@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Calendar as CalendarIcon, Search } from "lucide-react";
+import { Calendar as CalendarIcon, RotateCcw, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -48,6 +49,8 @@ const PRESET_OPTIONS: { value: PeriodPreset; label: string }[] = [
   { value: "ALL", label: "전체" },
   { value: "CUSTOM", label: "직접 입력" },
 ];
+
+const DEFAULT_PRESET: PeriodPreset = "1Y";
 
 const toYmd = (date: Date): string => {
   const y = date.getFullYear();
@@ -96,32 +99,38 @@ export const DisclosureFilters = ({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [queryInput, setQueryInput] = useState(currentQuery);
+  const [pendingTypes, setPendingTypes] = useState<DisclosureFilterType[]>(currentTypes);
   const [customBgn, setCustomBgn] = useState<Date | undefined>(parseYmd(currentBgnDate));
   const [customEnd, setCustomEnd] = useState<Date | undefined>(parseYmd(currentEndDate));
   const [customMode, setCustomMode] = useState(currentPreset === "CUSTOM");
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Render-time prop sync — keeps local state aligned with URL changes
   // without the cascading-render warning that useEffect-based sync triggers.
+  // types is stringified because the prop is a fresh array each render.
+  const currentTypesKey = currentTypes.join(",");
   const [prevUrl, setPrevUrl] = useState({
     preset: currentPreset,
     query: currentQuery,
     bgn: currentBgnDate,
     end: currentEndDate,
+    typesKey: currentTypesKey,
   });
   if (
     prevUrl.preset !== currentPreset ||
     prevUrl.query !== currentQuery ||
     prevUrl.bgn !== currentBgnDate ||
-    prevUrl.end !== currentEndDate
+    prevUrl.end !== currentEndDate ||
+    prevUrl.typesKey !== currentTypesKey
   ) {
     setPrevUrl({
       preset: currentPreset,
       query: currentQuery,
       bgn: currentBgnDate,
       end: currentEndDate,
+      typesKey: currentTypesKey,
     });
     setQueryInput(currentQuery);
+    setPendingTypes(currentTypes);
     setCustomBgn(parseYmd(currentBgnDate));
     setCustomEnd(parseYmd(currentEndDate));
     setCustomMode(currentPreset === "CUSTOM");
@@ -158,6 +167,20 @@ export const DisclosureFilters = ({
     [router]
   );
 
+  // Single commit path used by the search button, Enter key, and Apply button.
+  // Snapshots queryInput + pendingTypes together onto the current preset/dates.
+  const commit = useCallback(() => {
+    navigate(
+      buildUrl({
+        preset: currentPreset,
+        bgn: currentBgnDate,
+        end: currentEndDate,
+        q: queryInput.trim() || undefined,
+        types: pendingTypes,
+      })
+    );
+  }, [navigate, buildUrl, currentPreset, currentBgnDate, currentEndDate, queryInput, pendingTypes]);
+
   const handlePresetChange = (value: string) => {
     if (!value) return;
     const preset = value as PeriodPreset;
@@ -167,7 +190,7 @@ export const DisclosureFilters = ({
     }
     setCustomMode(false);
     if (preset === currentPreset) return;
-    navigate(buildUrl({ preset, q: queryInput.trim() || undefined, types: currentTypes }));
+    navigate(buildUrl({ preset, q: queryInput.trim() || undefined, types: pendingTypes }));
   };
 
   const handleCustomApply = (next: { bgn?: Date; end?: Date }) => {
@@ -178,50 +201,34 @@ export const DisclosureFilters = ({
         bgn: toYmd(next.bgn),
         end: toYmd(next.end),
         q: queryInput.trim() || undefined,
-        types: currentTypes,
+        types: pendingTypes,
       })
     );
   };
 
-  const handleQueryChange = (next: string) => {
-    setQueryInput(next);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      const trimmed = next.trim();
-      if (trimmed === currentQuery) return;
-      navigate(
-        buildUrl({
-          preset: currentPreset,
-          bgn: currentBgnDate,
-          end: currentEndDate,
-          q: trimmed || undefined,
-          types: currentTypes,
-        })
-      );
-    }, 300);
+  const handleQueryKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      commit();
+    }
   };
 
   const handleTypesChange = (values: string[]) => {
-    const nextTypes = values.filter(isDisclosureFilterType);
-    navigate(
-      buildUrl({
-        preset: currentPreset,
-        bgn: currentBgnDate,
-        end: currentEndDate,
-        q: queryInput.trim() || undefined,
-        types: nextTypes,
-      })
-    );
+    setPendingTypes(values.filter(isDisclosureFilterType));
   };
 
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, []);
+  const handleReset = () => {
+    setQueryInput("");
+    setPendingTypes([]);
+    setCustomBgn(undefined);
+    setCustomEnd(undefined);
+    setCustomMode(false);
+    navigate(buildUrl({ preset: DEFAULT_PRESET, types: [] }));
+  };
 
   const showCustomPickers = customMode;
   const displayPreset: PeriodPreset = customMode ? "CUSTOM" : currentPreset;
+  const applyDisabled = pendingTypes.length === 0;
 
   return (
     <div className="flex flex-col gap-3">
@@ -272,43 +279,82 @@ export const DisclosureFilters = ({
           )}
         </div>
 
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="공시 제목 검색"
-            value={queryInput}
-            onChange={(e) => handleQueryChange(e.target.value)}
-            className="h-8 border-sky-border bg-elevated/80 pl-8 sm:w-56"
-          />
+        <div className="flex items-center gap-1">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="공시 제목 검색"
+              value={queryInput}
+              onChange={(e) => setQueryInput(e.target.value)}
+              onKeyDown={handleQueryKeyDown}
+              className="h-8 border-sky-border bg-elevated/80 pl-8 sm:w-56"
+            />
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={commit}
+            aria-label="검색"
+          >
+            검색
+          </Button>
         </div>
       </div>
 
-      <ToggleGroup
-        type="multiple"
-        value={currentTypes}
-        onValueChange={handleTypesChange}
-        variant="outline"
-        size="sm"
+      <div
         className={cn(
-          "w-full flex-wrap justify-start transition-opacity",
+          "flex flex-wrap items-center justify-between gap-2 transition-opacity",
           isPending && "pointer-events-none opacity-60",
         )}
       >
-        {CHIP_OPTIONS.map((opt) => (
-          <ToggleGroupItem
-            key={opt.value}
-            value={opt.value}
-            aria-label={opt.label}
-            className={cn(
-              "border-sky-border bg-transparent text-secondary-foreground hover:bg-sky-border/40 hover:text-foreground data-[state=on]:border-transparent",
-              opt.onClass,
-            )}
+        <ToggleGroup
+          type="multiple"
+          value={pendingTypes}
+          onValueChange={handleTypesChange}
+          variant="outline"
+          size="sm"
+          className="flex-wrap justify-start"
+        >
+          {CHIP_OPTIONS.map((opt) => (
+            <ToggleGroupItem
+              key={opt.value}
+              value={opt.value}
+              aria-label={opt.label}
+              className={cn(
+                "border-sky-border bg-transparent text-secondary-foreground hover:bg-sky-border/40 hover:text-foreground data-[state=on]:border-transparent",
+                opt.onClass,
+              )}
+            >
+              {opt.label}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+
+        <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            variant="default"
+            size="sm"
+            onClick={commit}
+            disabled={applyDisabled}
+            aria-label="필터 적용"
           >
-            {opt.label}
-          </ToggleGroupItem>
-        ))}
-      </ToggleGroup>
+            적용
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleReset}
+            aria-label="필터 초기화"
+          >
+            <RotateCcw />
+            초기화
+          </Button>
+        </div>
+      </div>
     </div>
   );
 };
