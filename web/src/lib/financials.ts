@@ -305,7 +305,8 @@ const countTopConsecutive = (quarterly: FinancialPeriod[]): number => {
 export const computeTtmEps = (
   quarterly: FinancialPeriod[],
   latestAnnual: FinancialPeriod | null,
-  listedAt: Date | null = null
+  listedAt: Date | null = null,
+  now: Date = new Date()
 ): TtmEps => {
   const annualEps = latestAnnual?.eps ?? null;
   const annualFallback: TtmEps =
@@ -327,7 +328,7 @@ export const computeTtmEps = (
   // #3: 상장 1년 미만 & 최근부터 2~3분기 연속 → 연환산
   if (consecutive === 2 || consecutive === 3) {
     const monthsSinceListing =
-      listedAt !== null ? (Date.now() - listedAt.getTime()) / MS_PER_MONTH : null;
+      listedAt !== null ? (now.getTime() - listedAt.getTime()) / MS_PER_MONTH : null;
     const notYetFourQuarters =
       monthsSinceListing !== null && monthsSinceListing < RECENTLY_LISTED_MAX_MONTHS;
     if (notYetFourQuarters) {
