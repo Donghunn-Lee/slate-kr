@@ -29,6 +29,10 @@ jobs:
         working-directory: collector
         run: python fetch_stocks.py
 
+      - name: Run update_corp_codes
+        working-directory: collector
+        run: python update_corp_codes.py --execute
+
       - name: Run fetch_shares
         working-directory: collector
         run: python fetch_shares.py
