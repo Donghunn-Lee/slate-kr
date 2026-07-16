@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { HelpCircle } from "lucide-react";
 import type { DartDisclosure } from "@/shared/types/stock";
 import type { DisclosureSummaryContent } from "@/shared/types/disclosureSummary";
@@ -74,11 +74,22 @@ const DisclosureItem = ({
         : "unclassified";
   const [settled, setSettled] = useState<SettledState | null>(null);
   const fetchInitiated = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(
+    () => () => {
+      abortRef.current?.abort();
+    },
+    []
+  );
 
   const summaryState: SummaryState =
     settled ?? (isExpanded ? { kind: "loading" } : { kind: "idle" });
 
   const doFetch = useCallback(async () => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
       const res = await fetch("/api/disclosure-summary", {
         method: "POST",
@@ -88,10 +99,12 @@ const DisclosureItem = ({
           disclosure_nm: disclosure.disclosureNm,
           flr_nm: disclosure.flrNm,
         }),
+        signal: controller.signal,
       });
 
       if (!res.ok) {
         setSettled({ kind: "error", errorKind: "api_error" });
+        fetchInitiated.current = false;
         return;
       }
 
@@ -105,10 +118,13 @@ const DisclosureItem = ({
           setSettled({ kind: "blocked", reason: kind as "file_not_found" | "not_summarizable" });
         } else {
           setSettled({ kind: "error", errorKind: kind });
+          fetchInitiated.current = false;
         }
       }
     } catch {
+      if (controller.signal.aborted) return;
       setSettled({ kind: "error", errorKind: "api_error" });
+      fetchInitiated.current = false;
     }
   }, [disclosure.rcpNo, disclosure.disclosureNm, disclosure.flrNm]);
 
@@ -120,6 +136,7 @@ const DisclosureItem = ({
   const handleToggleClick = useCallback(() => {
     if (!isExpanded && !fetchInitiated.current) {
       fetchInitiated.current = true;
+      setSettled(null);
       void doFetch();
     }
     onToggle();
