@@ -1,0 +1,113 @@
+import { describe, it, expect } from "vitest";
+import { getPriceStats } from "./prices";
+import type { StockPriceSnapshot } from "@/shared/types/stock";
+
+// getPriceStats는 내부에서 정렬하지 않고 prices[0]을 oldest, prices[last]를 current로 취급한다.
+// 픽스처는 date 오름차순으로 구성한다.
+
+const mkSnap = (o: Partial<StockPriceSnapshot>): StockPriceSnapshot => ({
+  ticker: "TEST",
+  date: "2026-01-01",
+  open: 100,
+  high: 100,
+  low: 100,
+  close: 100,
+  volume: 0,
+  marketCap: null,
+  ...o,
+});
+
+describe("getPriceStats", () => {
+  describe("빈 배열", () => {
+    it("range52w=null, returns 3개 전부 value=null", () => {
+      const result = getPriceStats([]);
+      expect(result.range52w).toBeNull();
+      expect(result.returns).toEqual([
+        { period: "1M", value: null },
+        { period: "3M", value: null },
+        { period: "1Y", value: null },
+      ]);
+    });
+  });
+
+  describe("range52w", () => {
+    it("다중 요소: high=최대 high, low=최소 low, current=last.close, position 계산", () => {
+      const prices = [
+        mkSnap({ date: "2025-01-01", high: 120, low: 80, close: 100 }),
+        mkSnap({ date: "2025-06-01", high: 150, low: 90, close: 140 }),
+        mkSnap({ date: "2026-01-01", high: 130, low: 100, close: 125 }),
+      ];
+      const result = getPriceStats(prices);
+      expect(result.range52w?.high).toBe(150);
+      expect(result.range52w?.low).toBe(80);
+      expect(result.range52w?.current).toBe(125);
+      expect(result.range52w?.position).toBeCloseTo(45 / 70);
+    });
+
+    it("current == low → position 0", () => {
+      const prices = [
+        mkSnap({ date: "2025-01-01", high: 200, low: 100, close: 200 }),
+        mkSnap({ date: "2026-01-01", high: 200, low: 100, close: 100 }),
+      ];
+      expect(getPriceStats(prices).range52w?.position).toBe(0);
+    });
+
+    it("current == high → position 1", () => {
+      const prices = [
+        mkSnap({ date: "2025-01-01", high: 100, low: 100, close: 100 }),
+        mkSnap({ date: "2026-01-01", high: 200, low: 200, close: 200 }),
+      ];
+      expect(getPriceStats(prices).range52w?.position).toBe(1);
+    });
+
+    it("high === low → position 0 (0나눗셈 회피)", () => {
+      const prices = [mkSnap({ date: "2026-01-01", high: 100, low: 100, close: 100 })];
+      expect(getPriceStats(prices).range52w?.position).toBe(0);
+    });
+  });
+
+  describe("calcReturn: 기간 커버 여부", () => {
+    it("oldest > cutoff1Y → 1Y null (기간 커버 못함)", () => {
+      const prices = [
+        mkSnap({ date: "2025-06-01", close: 200 }),
+        mkSnap({ date: "2026-01-01", close: 250 }),
+      ];
+      const oneY = getPriceStats(prices).returns.find((r) => r.period === "1Y")!;
+      expect(oneY.value).toBeNull();
+    });
+
+    it("oldest ≤ cutoff1Y → basis (첫 p.date ≥ cutoff)의 close 대비 pct", () => {
+      const prices = [
+        mkSnap({ date: "2024-12-01", close: 100 }),
+        mkSnap({ date: "2025-01-01", close: 200 }),
+        mkSnap({ date: "2025-06-01", close: 220 }),
+        mkSnap({ date: "2026-01-01", close: 250 }),
+      ];
+      const oneY = getPriceStats(prices).returns.find((r) => r.period === "1Y")!;
+      expect(oneY.value).toBeCloseTo(25);
+    });
+  });
+
+  describe("등락 부호 (1M)", () => {
+    const build = (basisClose: number, currentClose: number): StockPriceSnapshot[] => [
+      mkSnap({ date: "2025-11-01", close: basisClose }),
+      mkSnap({ date: "2025-12-15", close: basisClose }),
+      mkSnap({ date: "2026-01-15", close: currentClose }),
+    ];
+
+    it("상승: current > basis → 양수", () => {
+      const r = getPriceStats(build(100, 110)).returns.find((x) => x.period === "1M")!;
+      expect(r.value).toBeCloseTo(10);
+    });
+
+    it("하락: current < basis → 음수", () => {
+      const r = getPriceStats(build(100, 90)).returns.find((x) => x.period === "1M")!;
+      expect(r.value).toBeCloseTo(-10);
+    });
+
+    it("보합: current === basis → 0", () => {
+      const r = getPriceStats(build(100, 100)).returns.find((x) => x.period === "1M")!;
+      expect(r.value).toBe(0);
+    });
+  });
+});
