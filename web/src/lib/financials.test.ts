@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import { computeTtmEps } from "./financials";
 import type { FinancialPeriod } from "@/shared/types/stock";
 
-// FinancialPeriod 18개 필드 전부 required. computeTtmEps가 실제 읽는 필드는
-// quarterly의 year/quarter/eps, latestAnnual의 eps뿐이므로 나머지는 타입 padding.
+// computeTtmEps가 실제 참조하는 필드는 quarterly의 year/quarter/eps와 latestAnnual의 eps뿐.
+// 나머지는 FinancialPeriod 타입 만족용 padding.
 const makeFP = (o: Partial<FinancialPeriod>): FinancialPeriod => ({
   ticker: "TEST",
   year: 2025,
@@ -35,7 +35,7 @@ const mkA = (year: number, eps: number | null): FinancialPeriod =>
 describe("computeTtmEps", () => {
   describe("#1 TTM 정상", () => {
     it("최근 4분기 연속 non-null, 합 > 0 → { source: 'ttm', value: sum }", () => {
-      // 최신→과거 순: 2026Q1 → 2025Q4 → 2025Q3 → 2025Q2 (Q4→다음해Q1 규칙)
+      // countTopConsecutive는 최신→과거 순서를 가정하며 Q4 뒤에는 다음해 Q1이 와야 연속으로 인정한다.
       const quarterly = [
         mkQ(2026, 1, 100),
         mkQ(2025, 4, 200),
@@ -55,7 +55,6 @@ describe("computeTtmEps", () => {
         mkQ(2025, 3, -200),
         mkQ(2025, 2, 100),
       ];
-      // sum = -150
       const result = computeTtmEps(quarterly, mkA(2025, 999));
       expect(result).toEqual({ value: null, source: "ttm_negative" });
     });
@@ -67,21 +66,18 @@ describe("computeTtmEps", () => {
         mkQ(2025, 3, 50),
         mkQ(2025, 2, -50),
       ];
-      // sum = 0
       const result = computeTtmEps(quarterly, mkA(2025, 999));
       expect(result).toEqual({ value: null, source: "ttm_negative" });
     });
   });
 
   describe("#3 연환산 (2~3분기 & 상장 <14개월)", () => {
-    // MS_PER_MONTH = 1000*60*60*24*30.44. 2025-01-01 → 2026-01-01 = 365d ≈ 11.99개월 (<14).
+    // MS_PER_MONTH가 30.44일 기준이라 365일은 약 11.99개월로 계산된다.
     const listedAt = new Date("2025-01-01T00:00:00Z");
     const now12mo = new Date("2026-01-01T00:00:00Z");
 
     it("3분기 연속 양수 → { source: 'annualized', value: sum*4/3 }", () => {
-      // 최신→과거: 2026Q3 → 2026Q2 → 2026Q1
       const quarterly = [mkQ(2026, 3, 100), mkQ(2026, 2, 200), mkQ(2026, 1, 300)];
-      // sum = 600, annualized = 600 * 4/3 = 800
       const result = computeTtmEps(quarterly, mkA(2025, 999), listedAt, now12mo);
       expect(result.source).toBe("annualized");
       expect(result.value).toBeCloseTo(800);
@@ -89,7 +85,6 @@ describe("computeTtmEps", () => {
 
     it("2분기 연속 음수 합 → { source: 'annualized', value: null }", () => {
       const quarterly = [mkQ(2026, 2, -100), mkQ(2026, 1, -200)];
-      // sum = -300, annualized = -600 ≤ 0 → value null
       const result = computeTtmEps(quarterly, mkA(2025, 999), listedAt, now12mo);
       expect(result).toEqual({ value: null, source: "annualized" });
     });
@@ -97,8 +92,8 @@ describe("computeTtmEps", () => {
 
   describe("#3 경계: 14개월 임계 (< 14 strict)", () => {
     const listedAt = new Date("2025-01-01T00:00:00Z");
-    const nowUnder14 = new Date("2026-01-01T00:00:00Z"); // ≈11.99개월 < 14 → 진입
-    const nowOver14 = new Date("2026-04-01T00:00:00Z"); // ≈14.88개월 ≥ 14 → 폴스루
+    const nowUnder14 = new Date("2026-01-01T00:00:00Z"); // 약 11.99개월
+    const nowOver14 = new Date("2026-04-01T00:00:00Z"); // 약 14.88개월
 
     const quarterly = [mkQ(2026, 3, 100), mkQ(2026, 2, 100), mkQ(2026, 1, 100)];
     const latestAnnual = mkA(2025, 500);
@@ -106,7 +101,7 @@ describe("computeTtmEps", () => {
     it("14개월 미만 → annualized 진입", () => {
       const result = computeTtmEps(quarterly, latestAnnual, listedAt, nowUnder14);
       expect(result.source).toBe("annualized");
-      expect(result.value).toBeCloseTo(400); // 300 * 4/3
+      expect(result.value).toBeCloseTo(400);
     });
 
     it("14개월 이상 → annual_fallback 폴스루", () => {

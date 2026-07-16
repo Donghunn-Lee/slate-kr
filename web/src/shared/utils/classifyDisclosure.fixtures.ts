@@ -1,29 +1,25 @@
 import { DisclosureType } from "./classifyDisclosure";
 
-// 픽스처 소스: web/tmp/d6/raw.json (D6 probe dump). tmp/는 .gitignore 대상이므로
-// 필요한 데이터를 여기 baked-in 한다. 라벨(expected)은 classifyDisclosure.ts의
-// 분기 로직에서 엄밀히 도출한 값이며, 각 라인 코멘트에 근거를 남긴다.
-
 export type CuratedCase = {
   report_nm: string;
   flr_nm: string;
   expected: DisclosureType | null;
 };
 
-// classifyDisclosure의 모든 분기 경로 커버. 소스 근거는 라인별 코멘트 참조.
 export const CURATED_CASES: CuratedCase[] = [
-  { report_nm: "소속부변경              ", flr_nm: "코스닥시장본부", expected: null }, // PROCEDURAL #1 소속부변경 매칭 (거래소 발신)
-  { report_nm: "권리락              (유상증자)", flr_nm: "코스닥시장본부", expected: null }, // PROCEDURAL #2 권리락 매칭 (거래소 발신)
-  { report_nm: "불성실공시법인지정              ", flr_nm: "유가증권시장본부", expected: DisclosureType.MARKET_ACTION }, // exchange filer + PROCEDURAL 14개 모두 무매칭
-  { report_nm: "주권매매거래정지기간변경              (개선기간 부여)", flr_nm: "코스닥시장본부", expected: DisclosureType.MARKET_ACTION }, // exchange filer + PROCEDURAL 14개 모두 무매칭 (실제 raw.json 관측)
-  { report_nm: "주요사항보고서(유상증자결정)", flr_nm: "삼성전자", expected: DisclosureType.MAJOR_EVENT }, // PATTERNS[0].keywords[0] 주요사항보고서 매칭
-  { report_nm: "분기보고서 (2026.03)", flr_nm: "삼성전자", expected: DisclosureType.FINANCIAL }, // PATTERNS[1].keywords[1] 분기보고서 매칭 (앞선 MAJOR_EVENT 무매칭 확인)
-  { report_nm: "주식등의대량보유상황보고서", flr_nm: "현대차", expected: DisclosureType.OWNERSHIP }, // PATTERNS[2].keywords[0] 대량보유상황보고 매칭 (앞선 카테고리 무매칭)
-  { report_nm: "감사보고서제출", flr_nm: "SK하이닉스", expected: DisclosureType.AUDIT }, // PATTERNS[3].keywords[0] 감사보고서 매칭 (앞선 카테고리 무매칭)
-  { report_nm: "정기주주총회소집공고", flr_nm: "LG전자", expected: DisclosureType.SHAREHOLDER_MEETING }, // PATTERNS[4].keywords[0] 주주총회 매칭
-  { report_nm: "기업설명회(IR)개최(안내공시)", flr_nm: "카카오", expected: null }, // 회사 발신 + 5개 PATTERNS 모두 무매칭
-  { report_nm: "단일판매ㆍ공급계약체결", flr_nm: "삼성전자", expected: DisclosureType.MAJOR_EVENT }, // ㆍ 포함: PATTERNS[0] MAJOR_EVENT 매칭 (회사 발신 경로)
-  { report_nm: "단일판매공급계약", flr_nm: "유가증권시장본부", expected: null }, // ㆍ 미포함: PROCEDURAL #10 단일판매공급계약 매칭 (거래소 발신 경로)
+  { report_nm: "소속부변경              ", flr_nm: "코스닥시장본부", expected: null },
+  { report_nm: "권리락              (유상증자)", flr_nm: "코스닥시장본부", expected: null },
+  { report_nm: "불성실공시법인지정              ", flr_nm: "유가증권시장본부", expected: DisclosureType.MARKET_ACTION },
+  { report_nm: "주권매매거래정지기간변경              (개선기간 부여)", flr_nm: "코스닥시장본부", expected: DisclosureType.MARKET_ACTION },
+  { report_nm: "주요사항보고서(유상증자결정)", flr_nm: "삼성전자", expected: DisclosureType.MAJOR_EVENT },
+  { report_nm: "분기보고서 (2026.03)", flr_nm: "삼성전자", expected: DisclosureType.FINANCIAL },
+  { report_nm: "주식등의대량보유상황보고서", flr_nm: "현대차", expected: DisclosureType.OWNERSHIP },
+  { report_nm: "감사보고서제출", flr_nm: "SK하이닉스", expected: DisclosureType.AUDIT },
+  { report_nm: "정기주주총회소집공고", flr_nm: "LG전자", expected: DisclosureType.SHAREHOLDER_MEETING },
+  { report_nm: "기업설명회(IR)개최(안내공시)", flr_nm: "카카오", expected: null },
+  // ㆍ 유무 경계: 회사 발신 → MAJOR_EVENT 매칭, 거래소 발신 → PROCEDURAL 매칭으로 null.
+  { report_nm: "단일판매ㆍ공급계약체결", flr_nm: "삼성전자", expected: DisclosureType.MAJOR_EVENT },
+  { report_nm: "단일판매공급계약", flr_nm: "유가증권시장본부", expected: null },
 ];
 
 export type ExchangeFiledSample = {
@@ -31,10 +27,6 @@ export type ExchangeFiledSample = {
   flr_nm: string;
 };
 
-// raw.json exchangeItems에서 isExchangeFiled(flr_nm) === true 인 항목만
-// (report_nm, flr_nm) 쌍으로 dedup 한 결과 (전량, 176건).
-// 라벨 없이 불변식 테스트용: "거래소 발신 → MARKET_ACTION | null,
-// PATTERNS 카테고리(MAJOR_EVENT/FINANCIAL/OWNERSHIP/AUDIT/SHAREHOLDER_MEETING) 도달 불가".
 export const EXCHANGE_FILED_SAMPLE: ExchangeFiledSample[] = [
   { report_nm: "기타시장안내(금일NXT경쟁매매대상종목지정으로인한KRX시간외단일가매매제외종목안내(유가증권시장))              ", flr_nm: "유가증권시장본부" },
   { report_nm: "기타시장안내(금일NXT경쟁매매대상종목지정으로인한KRX시간외단일가매매제외종목안내(코스닥시장))              ", flr_nm: "코스닥시장본부" },
@@ -219,8 +211,6 @@ export type MisclassifiedSeed = {
   classified: string;
 };
 
-// raw.json classifierMisclassified 시드. 분류기 수정은 별도 트랙(D backlog).
-// 여기서는 it.todo 로 문서화만 하고 단언/수정은 하지 않는다.
 export const MISCLASSIFIED_SEEDS: MisclassifiedSeed[] = [
   { report_nm: "조회공시요구(풍문또는보도)              (주주총회효력정지 가처분 및 직무집행정지 가처분 결정설)", classified: "SHAREHOLDER_MEETING" },
   { report_nm: "기타시장안내              (분기보고서 미제출 관련 상장폐지 절차 미진행)", classified: "FINANCIAL" },

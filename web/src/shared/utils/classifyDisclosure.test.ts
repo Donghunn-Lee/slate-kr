@@ -6,9 +6,7 @@ import {
   MISCLASSIFIED_SEEDS,
 } from "./classifyDisclosure.fixtures";
 
-// 필드 매핑 어댑터: DART 원본은 snake_case(report_nm/flr_nm), classifyDisclosure는
-// camelCase(disclosureNm/flrNm) 인자를 받는다. 픽스처는 원본 형태를 유지하므로
-// 호출부에서 어댑터 방식으로 매핑한다.
+// 픽스처는 DART 원본 스키마(snake_case)를 유지 — 호출부에서 camelCase 인자로 매핑.
 
 describe("CURATED_CASES", () => {
   it.each(CURATED_CASES)(
@@ -28,7 +26,6 @@ describe("isExchangeFiled", () => {
     expect(isExchangeFiled("코스닥시장본부")).toBe(true);
   });
 
-  // 회귀 가드: 코넥스시장은 EXCHANGE_FILERS 집합에서 의도적으로 제외 (raw.json 39건).
   it("코넥스시장 → false (의도적 제외)", () => {
     expect(isExchangeFiled("코넥스시장")).toBe(false);
   });
@@ -42,9 +39,8 @@ describe("isExchangeFiled", () => {
   });
 });
 
+// 거래소 발신 경로는 PATTERNS에 도달하지 않는다는 불변식 회귀 가드.
 describe("불변식: 거래소 발신 → MARKET_ACTION | null", () => {
-  // 거래소 발신 경로는 구조상 PATTERNS(MAJOR_EVENT/FINANCIAL/OWNERSHIP/AUDIT/SHAREHOLDER_MEETING)에
-  // 도달 불가. 리팩토링 회귀 가드.
   const CATEGORY_TYPES: DisclosureType[] = [
     DisclosureType.MAJOR_EVENT,
     DisclosureType.FINANCIAL,
@@ -63,10 +59,7 @@ describe("불변식: 거래소 발신 → MARKET_ACTION | null", () => {
   );
 });
 
-describe("알려진 오분류 (D트랙 backlog, 문서화 전용)", () => {
-  // 현재 분류기는 report_nm에 카테고리 키워드가 우연히 substring으로 포함되면
-  // 회사 발신 경로에서 오분류한다. 아래는 raw.json classifierMisclassified 시드.
-  // 분류기 수정은 별도 트랙 — 여기서는 it.todo 로 문서화만.
+describe("알려진 오분류 (분류기 수정은 별도 트랙, 문서화 전용)", () => {
   for (const seed of MISCLASSIFIED_SEEDS) {
     it.todo(
       `report_nm=${JSON.stringify(seed.report_nm)} → 현재 ${seed.classified} 오분류, 재검토 필요`
