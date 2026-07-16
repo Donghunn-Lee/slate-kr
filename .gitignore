@@ -22,6 +22,7 @@ web/.next/
 web/node_modules/
 web/scripts/
 web/tmp/
+web/coverage/
 
 # collector (Python)
 collector/__pycache__/
