@@ -76,7 +76,7 @@ export const IndicesView = ({
           })}
         </div>
       </div>
-      <StockPanel>
+      <StockPanel variant="lavender">
         {prices === null ? (
           <>
             <h2 className="mb-3 text-sm font-semibold text-muted-foreground">

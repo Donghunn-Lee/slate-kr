@@ -1,6 +1,6 @@
 import type { StockPriceSnapshot } from "@/shared/types/stock";
 import { getDailyPrices } from "@/lib/prices";
-import { StockPanel } from "./StockPanel";
+import { StockPanel, type StockPanelVariant } from "./StockPanel";
 import { StockChartDynamic } from "./StockChartDynamic";
 
 type StockChartSectionProps = {
@@ -9,6 +9,7 @@ type StockChartSectionProps = {
   label?: string;
   viewAllHref?: string;
   interactive?: boolean;
+  variant?: StockPanelVariant;
 };
 
 export const StockChartSection = async ({
@@ -17,6 +18,7 @@ export const StockChartSection = async ({
   label,
   viewAllHref,
   interactive = true,
+  variant,
 }: StockChartSectionProps) => {
   let prices: StockPriceSnapshot[] = [];
   let hasError = false;
@@ -34,7 +36,7 @@ export const StockChartSection = async ({
         <p className="text-sm text-muted-foreground">차트 데이터를 불러오지 못했습니다</p>
       </>
     );
-    return interactive ? errorContent : <StockPanel>{errorContent}</StockPanel>;
+    return interactive ? errorContent : <StockPanel variant={variant}>{errorContent}</StockPanel>;
   }
 
   const chart = (
@@ -47,5 +49,5 @@ export const StockChartSection = async ({
     />
   );
 
-  return interactive ? chart : <StockPanel>{chart}</StockPanel>;
+  return interactive ? chart : <StockPanel variant={variant}>{chart}</StockPanel>;
 };
