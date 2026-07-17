@@ -111,7 +111,7 @@
   --price-down-muted: oklch(0.48 0.18 260 / 12%);
   --price-neutral: oklch(0.55 0.01 270); /* 보합 */
 
-  /* ── Disclosure category tokens (6 types × bg / text) ── */
+  /* ── Disclosure category tokens (7 types × bg / text) ── */
   --disclosure-major-event-bg: oklch(0.93 0.09 55); /* light orange */
   --disclosure-major-event-text: oklch(0.55 0.17 50);
   --disclosure-financial-bg: oklch(0.92 0.05 260); /* light blue */
@@ -186,36 +186,74 @@
 }
 
 .dark {
-  --background: oklch(0.09 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
+  /* ── Base (dark) ── */
+  --bg-base: oklch(0.17 0.005 85); /* 짙은 웜 그레이 페이지 (not black) */
+  --bg-elevated: oklch(0.21 0.004 85); /* 패널 — base보다 밝게 (역방향) */
+  --text-primary: oklch(0.95 0.008 270); /* 반전 */
+  --text-secondary: oklch(0.78 0.01 270);
+  --text-tertiary: oklch(0.62 0.008 270);
+  --border-subtle: oklch(0.26 0.005 85); /* 다크는 border가 bg보다 밝음 */
+  --border-default: oklch(0.32 0.006 85);
+
+  /* ── Functional: 등락 (hue 고정, L만 상향) ── */
+  --price-up: oklch(0.62 0.19 25);
+  --price-up-muted: oklch(0.62 0.19 25 / 15%);
+  --price-down: oklch(0.62 0.16 260);
+  --price-down-muted: oklch(0.62 0.16 260 / 15%);
+  --price-neutral: oklch(0.62 0.01 270);
+
+  /* ── Disclosure (dark) ── */
+  --disclosure-major-event-bg: oklch(0.32 0.06 55);
+  --disclosure-major-event-text: oklch(0.78 0.13 60);
+  --disclosure-financial-bg: oklch(0.32 0.07 260);
+  --disclosure-financial-text: oklch(0.75 0.12 260);
+  --disclosure-ownership-bg: oklch(0.32 0.07 305);
+  --disclosure-ownership-text: oklch(0.78 0.12 305);
+  --disclosure-audit-bg: oklch(0.32 0.055 185);
+  --disclosure-audit-text: oklch(0.75 0.1 185);
+  --disclosure-shareholder-meeting-bg: oklch(0.33 0.06 80);
+  --disclosure-shareholder-meeting-text: oklch(0.8 0.12 70);
+  --disclosure-market-action-bg: oklch(0.33 0.09 22);
+  --disclosure-market-action-text: oklch(0.72 0.16 22);
+  --disclosure-uncategorized-bg: oklch(0.27 0.005 85);
+  --disclosure-uncategorized-text: oklch(0.68 0.006 85);
+
+  /* ── Accent palette (dark) ── */
+  --sky-bg: oklch(0.31 0.07 220);
+  --sky-border: oklch(0.4 0.06 220);
+  --sky-accent: oklch(0.7 0.11 220);
+  --sage-bg: oklch(0.31 0.075 165);
+  --sage-border: oklch(0.38 0.06 165);
+  --sage-accent: oklch(0.68 0.11 165);
+  --amber-bg: oklch(0.32 0.07 80);
+  --amber-border: oklch(0.36 0.05 80);
+  --amber-accent: oklch(0.75 0.13 65);
+  --lavender-bg: oklch(0.31 0.075 290);
+  --lavender-border: oklch(0.4 0.06 290);
+  --lavender-accent: oklch(0.7 0.12 290);
+  --peach-bg: oklch(0.32 0.075 45);
+  --peach-border: oklch(0.4 0.07 45);
+  --peach-accent: oklch(0.75 0.12 50);
+
+  /* ── shadcn: SlateKR 소스 없는 것만 raw 유지 (나머지 12개는 :root var() 브리지로 자동 통과) ── */
   --primary: oklch(0.922 0 0);
   --primary-foreground: oklch(0.205 0 0);
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
 }
 
