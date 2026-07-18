@@ -8,7 +8,6 @@ import { PriceChange } from "@/shared/components/PriceChange";
 import { formatMarketCap } from "@/shared/format";
 import type { PriceSign } from "@/shared/types/quote";
 import type { Market, MarketRankingItem } from "@/shared/types/ranking";
-import type { KrxSession } from "@/shared/utils/market";
 import { cn } from "@/lib/utils";
 import { Pill, TabButton } from "./RankingControls";
 import { useMarketRanking } from "./useMarketRanking";
@@ -30,45 +29,6 @@ const compactShares = (n: number): string => {
   if (n >= 10_000)
     return Math.round(n / 10_000).toLocaleString("ko-KR") + "만주";
   return n.toLocaleString("ko-KR") + "주";
-};
-
-const SESSION_LABEL: Record<KrxSession, string> = {
-  regular: "실시간",
-  after: "장 마감",
-  after_close: "장 마감",
-  pre: "프리마켓",
-  preopen: "장 개장 전",
-  closed: "휴장",
-};
-
-type StatusProps = {
-  session: KrxSession | undefined;
-  failed: boolean;
-};
-
-const Status = ({ session, failed }: StatusProps) => {
-  if (!session) return null;
-  const isOpen = session === "regular";
-  return (
-    <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
-      {isOpen ? (
-        <span className="inline-flex items-center gap-1.5">
-          <span
-            aria-hidden
-            className="inline-block size-1.5 rounded-full bg-emerald-500"
-          />
-          {SESSION_LABEL[session]}
-        </span>
-      ) : (
-        <span>{SESSION_LABEL[session]}</span>
-      )}
-      {failed && (
-        <span className="rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-[11px] leading-none text-muted-foreground">
-          일시 지연
-        </span>
-      )}
-    </div>
-  );
 };
 
 type RowProps = {
@@ -186,7 +146,7 @@ export const MarketRankingSlate = () => {
       ? ({ kind: "fluctuation", direction, market } as const)
       : ({ kind: "volume", by, market } as const);
 
-  const { items, failed, session, isLoading, isError, isPlaceholderData } =
+  const { items, failed, isLoading, isError, isPlaceholderData } =
     useMarketRanking(kind);
 
   const rows = items.slice(0, TOP_N);
@@ -198,7 +158,12 @@ export const MarketRankingSlate = () => {
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="text-lg font-semibold text-foreground">시장 순위</h2>
         <div className="flex items-center gap-3">
-          <Status session={session} failed={failed && rows.length > 0} />
+          {/* rows 는 있지만 route 가 부분 실패 — 표시값이 stale 임을 알리는 유일한 신호. */}
+          {failed && rows.length > 0 && (
+            <span className="rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-[11px] leading-none text-muted-foreground">
+              일시 지연
+            </span>
+          )}
           <Link
             href={toRankingHref(tab, direction, by, market)}
             className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
