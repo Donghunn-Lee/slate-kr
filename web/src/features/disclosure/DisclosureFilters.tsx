@@ -247,7 +247,7 @@ export const DisclosureFilters = ({
                 key={opt.value}
                 value={opt.value}
                 aria-label={opt.label}
-                className="h-7 border-sky-border bg-transparent px-2 text-xs text-secondary-foreground hover:bg-sky-border/40 hover:text-foreground data-[state=on]:bg-elevated data-[state=on]:text-foreground"
+                className="h-7 border-sky-border bg-sky-border/30 px-2 text-xs text-secondary-foreground hover:bg-sky-border/40 hover:text-foreground data-[state=on]:bg-elevated data-[state=on]:text-foreground"
               >
                 {opt.label}
               </ToggleGroupItem>
@@ -324,7 +324,7 @@ export const DisclosureFilters = ({
               value={opt.value}
               aria-label={opt.label}
               className={cn(
-                "h-7 border-sky-border bg-transparent px-2 text-xs text-secondary-foreground hover:bg-sky-border/40 hover:text-foreground",
+                "h-7 border-sky-border bg-sky-border/30 px-2 text-xs text-secondary-foreground hover:bg-sky-border/40 hover:text-foreground",
                 opt.onClass,
               )}
             >
@@ -341,7 +341,7 @@ export const DisclosureFilters = ({
             onClick={commit}
             disabled={applyDisabled}
             aria-label="필터 적용"
-            className="h-7 border-sky-border bg-sky-accent px-2.5 text-xs hover:bg-sky-accent/85 disabled:opacity-60"
+            className="h-7 bg-sky-accent px-2.5 text-xs hover:bg-sky-accent/85 disabled:bg-transparent disabled:border-sky-accent/50 disabled:text-muted-foreground disabled:opacity-100"
           >
             적용
           </Button>

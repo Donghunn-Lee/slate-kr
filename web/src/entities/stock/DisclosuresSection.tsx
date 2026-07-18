@@ -434,7 +434,7 @@ export const DisclosuresSection = ({
                       <dt className="font-semibold">철</dt>
                       <dd>철회공시</dd>
                     </dl>
-                    <p className="border-t border-primary-foreground/20 pt-1.5 text-[11px] text-primary-foreground/80">
+                    <p className="border-t border-primary-foreground/20 dark:border-white/15 pt-1.5 text-[11px] text-primary-foreground/80 dark:text-white/70">
                       두 코드가 함께 붙기도 합니다 (예: 코정 = 코스닥 · 정정공시).
                     </p>
                   </div>
