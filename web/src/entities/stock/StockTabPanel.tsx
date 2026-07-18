@@ -60,7 +60,7 @@ export const StockTabPanel = ({ ticker, children }: StockTabPanelProps) => {
                 "relative flex shrink-0 items-center justify-center rounded-t-md border px-3 py-2 text-sm transition-colors sm:px-6",
                 ACCENT_CLASSES[tab.accent],
                 isActive
-                  ? "z-20 -mb-px border-b-transparent font-medium text-foreground"
+                  ? "z-20 -mb-px border-b-0 font-medium text-foreground"
                   : "z-10 border-b-0 text-muted-foreground opacity-80 hover:opacity-100"
               )}
             >
