@@ -5,7 +5,7 @@ import type { IndexDailySnapshot } from "@/shared/types/quote";
 
 const IndexChartInner = dynamic(
   () => import("./IndexChart").then((m) => ({ default: m.IndexChart })),
-  { ssr: false, loading: () => <div className="h-[348px] rounded-xl border bg-elevated" /> }
+  { ssr: false, loading: () => <div className="h-[498px] rounded-xl border bg-elevated" /> }
 );
 
 type IndexCode = "KOSPI" | "KOSDAQ" | "KOSPI200";

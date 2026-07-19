@@ -7,7 +7,7 @@ const StockChartTabsInner = dynamic(
   () => import("./StockChartTabs").then((m) => ({ default: m.StockChartTabs })),
   {
     ssr: false,
-    loading: () => <div className="h-[348px] rounded-xl border bg-elevated" />,
+    loading: () => <div className="h-[498px] rounded-xl border bg-elevated" />,
   },
 );
 

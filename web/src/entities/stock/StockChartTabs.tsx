@@ -154,7 +154,7 @@ const snapshotsToBars = (snaps: IndexDailySnapshot[]): ChartBar[] =>
     close: s.close,
   }));
 
-const EMPTY_STATE_HEIGHT = 300;
+const EMPTY_STATE_HEIGHT = 450;
 
 export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
   // 기본 full/day: 폐장/장전엔 종목 intraday 응답이 완전히 비어 첫인상에 빈 상태를 보게 되므로,
@@ -437,6 +437,7 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
           bars={bars}
           precision={0}
           timeVisible={isIntradayView}
+          height={EMPTY_STATE_HEIGHT}
           locked={isIntradayView}
           showVolume
           showLegend

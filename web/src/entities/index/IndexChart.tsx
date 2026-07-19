@@ -68,7 +68,7 @@ const GRANULARITY_DEFAULT_BARS: Record<Granularity, number> = {
   month: 12,
 };
 
-const EMPTY_STATE_HEIGHT = 300;
+const EMPTY_STATE_HEIGHT = 450;
 
 // intraday bar time 은 kis-quote-fetch 의 kstToFakeUtcSec 로 인코딩된 fake-UTC epoch 초.
 // KST 00:00 을 같은 규칙으로 인코딩하면 세션 경계 epoch 를 얻는다.
@@ -430,6 +430,7 @@ export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChart
           bars={bars}
           precision={2}
           timeVisible={renderIntraday}
+          height={EMPTY_STATE_HEIGHT}
           interactive={interactive}
           locked={renderIntraday}
           dimBefore={renderIntraday ? todayStartSec : undefined}
