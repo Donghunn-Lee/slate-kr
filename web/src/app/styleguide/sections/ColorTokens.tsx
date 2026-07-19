@@ -80,6 +80,15 @@ export const ColorTokens = () => (
           title={`Accent — ${name}`}
           tokens={[
             { token: `--${prefix}-bg`, value: `(hue ${prefix})`, label: "배경" },
+            ...(prefix === "lavender"
+              ? [
+                  {
+                    token: `--lavender-emphasis`,
+                    value: `(hue lavender)`,
+                    label: "hover·active 헤더 배경",
+                  },
+                ]
+              : []),
             { token: `--${prefix}-border`, value: `(hue ${prefix})`, label: "테두리" },
             { token: `--${prefix}-accent`, value: `(hue ${prefix})`, label: "아이콘·강조" },
           ]}
