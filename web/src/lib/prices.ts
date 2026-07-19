@@ -78,7 +78,11 @@ export const getPricesForStats = async (ticker: string): Promise<StockPriceSnaps
   }
 };
 
-export const getPriceStats = (prices: StockPriceSnapshot[]): PriceStats => {
+// 계산에 필요한 최소 필드만 요구 — 지수(IndexDailySnapshot) 등 다른 도메인 시계열도
+// 구조적으로 그대로 투입 가능. 종목 호출부는 StockPriceSnapshot 이 상위 타입이므로 무영향.
+export type PriceStatsInput = Pick<StockPriceSnapshot, "date" | "high" | "low" | "close">;
+
+export const getPriceStats = (prices: PriceStatsInput[]): PriceStats => {
   if (prices.length === 0) {
     return {
       range52w: null,
