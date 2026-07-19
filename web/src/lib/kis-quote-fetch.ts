@@ -4,7 +4,6 @@ import { normalizeIndexQuote, normalizeMultiQuote, normalizeStockQuote } from "@
 import type { ChartBar, IndexQuote, StockQuote } from "@/shared/types/quote";
 import {
   getKrxSessionState,
-  getKrxTradingDate,
   getKstDateAndMinutes,
 } from "@/shared/utils/market";
 
@@ -511,8 +510,11 @@ const callStockMinuteAnchor = async (
 };
 
 // 종목 당일 1분봉. 13콜 fan-out → dedupe → ASC. 세션 상태에 따라 필요한 anchor 만 콜.
-// null = 자격/토큰 실패 또는 fan-out 전체 실패, [] = 세션상 데이터 없음(pre/preopen/휴장 등),
-// ChartBar[] = 성공(부분 포함). 실패/정상-빈값 구분은 route 의 캐시 evict 판정에 쓰인다.
+// null = 자격/토큰 실패 또는 fan-out 전체 실패, [] = pre(봉 없음) / anchors 필터가 비었을 때.
+// ChartBar[] = 성공(부분 포함). 비거래일엔 KIS 가 FID_PW_DATA_INCU_YN=Y 로 직전 완결
+// 세션을 반환하므로(2026-07-19 실측), 별도 tradingDate 게이트 없이 그대로 흘려보낸다 —
+// 마지막 세션 표시는 소비측(PriceChart.applyLockedRange 폴백)이 담당.
+// 실패/정상-빈값 구분은 route 의 캐시 evict 판정에 쓰인다.
 export const fetchStockIntradayChart = async (
   ticker: string,
 ): Promise<ChartBar[] | null> => {
@@ -528,11 +530,8 @@ export const fetchStockIntradayChart = async (
     return null;
   }
 
-  // 세션 게이트: endpoint 는 "today KST" 만 반환하므로 tradingDate!=today 면 fetch 무의미.
-  // pre 는 정규장 개시 전이라 봉 자체가 없음.
-  const { date: todayKst, minutes: nowMin } = getKstDateAndMinutes();
-  const tradingDate = getKrxTradingDate();
-  if (tradingDate !== todayKst) return [];
+  // pre 는 정규장 개시 전이라 봉 자체가 없음 — 유지(pre-open 동작 미검증 상태로 보수적).
+  const { minutes: nowMin } = getKstDateAndMinutes();
   const session = getKrxSessionState();
   if (session === "pre") return [];
 
