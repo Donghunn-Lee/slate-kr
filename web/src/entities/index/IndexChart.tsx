@@ -33,12 +33,6 @@ type IndexChartProps = {
   interactive?: boolean;
 };
 
-const INDEX_LABEL: Record<IndexCode, string> = {
-  KOSPI: "코스피",
-  KOSDAQ: "코스닥",
-  KOSPI200: "코스피200",
-};
-
 const CELL_KEY: Record<IndexCode, "kospi" | "kosdaq" | "kospi200"> = {
   KOSPI: "kospi",
   KOSDAQ: "kosdaq",
@@ -297,14 +291,7 @@ export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChart
   };
 
   if (prices.length === 0 && !intradayHasData) {
-    return (
-      <>
-        <h2 className="mb-3 text-sm font-semibold text-muted-foreground">
-          {INDEX_LABEL[indexCode]}
-        </h2>
-        <p className="text-sm text-muted-foreground">차트 데이터 없음</p>
-      </>
-    );
+    return <p className="text-sm text-muted-foreground">차트 데이터 없음</p>;
   }
 
   const toolbarButtonCls = (active: boolean, disabled = false) =>
@@ -323,10 +310,7 @@ export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChart
   return (
     <>
       <div className="mb-3 flex flex-col gap-1.5">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-muted-foreground">
-            {INDEX_LABEL[indexCode]}
-          </h2>
+        <div className="flex items-center justify-end gap-2">
           <div className={groupWrapperCls} role="group" aria-label="차트 뷰">
             {VIEW_MODE_BUTTONS.map(({ value, label: btnLabel }) => (
               <button
