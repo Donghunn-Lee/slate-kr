@@ -432,7 +432,10 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
           className="flex w-full items-center justify-center rounded-md text-sm text-muted-foreground"
           style={{ height: EMPTY_STATE_HEIGHT }}
         >
-          당일 인트라데이 데이터 없음
+          {intradayQuery.data?.session === "pre" ||
+          intradayQuery.data?.session === "preopen"
+            ? "정규장 개장 전입니다 · 09:00 시작"
+            : "당일 인트라데이 데이터 없음"}
         </div>
       ) : (
         <PriceChart
