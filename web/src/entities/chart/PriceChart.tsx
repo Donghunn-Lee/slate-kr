@@ -281,8 +281,9 @@ const chartTickFormatter = (time: Time, tickMarkType: TickMarkType): string => {
   }
 };
 
-// locked 뷰의 가시 범위. from = (마지막 dim 봉 time) − LOOKBACK 로 고정, to = 최신 봉 + 소폭 추적.
-// dim 봉이 없으면 첫 봉을 anchor 로.
+// locked 뷰의 가시 범위. from = (전일 마지막 dim 봉 time) − LOOKBACK, to = 최신 봉 + 소폭 추적.
+// anchor 가 last 와 같으면(= 오늘 데이터 없이 마지막 세션 봉만 있음) 좁은 70분 창 대신
+// 전체 봉 범위로 폴백해 주말/장전에도 마지막 세션 전체가 보이게 한다.
 const applyLockedRange = (
   chart: IChartApi,
   bars: ChartBar[],
@@ -303,13 +304,15 @@ const applyLockedRange = (
     }
   }
 
+  // anchor 가 last 와 동일하면 "전일 tail + 오늘" 컨텍스트가 성립하지 않으므로
+  // 첫 봉을 시작으로 삼는다(= 전체 세션 표시).
+  const hasIntradayContext = anchor !== null && anchor !== last;
   const first = bars[0].time;
-  const from =
-    anchor !== null
-      ? anchor - INTRADAY_PREV_LOOKBACK_SEC
-      : typeof first === "number"
-        ? first
-        : last;
+  const from = hasIntradayContext
+    ? (anchor as number) - INTRADAY_PREV_LOOKBACK_SEC
+    : typeof first === "number"
+      ? first
+      : last;
   const to = last + INTRADAY_BAR_BUFFER_SEC;
 
   chart.timeScale().setVisibleRange({
@@ -812,7 +815,11 @@ export const PriceChart = ({
   // config effect 재실행/데이터 effect 와 별개로 툴바 조작(프리셋·입력) 반영 경로.
   // 휠에서 역산돼 올라간 값(prop === lastReportedRef.current) 은 이미 그 창을 보고 있으니
   // 재적용하면 반올림 오차로 미세하게 튐 → skip.
+  // locked 뷰(당일)에서는 applyLockedRange 가 시간축 범위를 잡으므로 논리 범위 재적용을
+  // 스킵한다 — 이 가드가 없으면 EOD→당일 전환 시 visibleBars(N→undefined) 이 여기서
+  // 전체 논리 범위로 override 해 applyLockedRange 결과를 덮어썼다.
   useEffect(() => {
+    if (lockedRef.current) return;
     if (visibleBars === lastReportedRef.current) return;
     applyRangeRef.current?.(visibleBars);
   }, [visibleBars]);
