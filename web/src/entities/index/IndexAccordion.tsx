@@ -26,6 +26,13 @@ const CELL_KEY: Record<IndexCode, "kospi" | "kosdaq" | "kospi200"> = {
   KOSPI200: "kospi200",
 };
 
+// 요약행 상단 overline — 텍스처용 영문 라벨. 정보가 아니라 시각 리듬이므로 muted 톤만.
+const INDEX_OVERLINE: Record<IndexCode, string> = {
+  KOSPI: "KOSPI",
+  KOSDAQ: "KOSDAQ",
+  KOSPI200: "KOSPI 200",
+};
+
 const MarketStatus = ({
   marketOpen,
   date,
@@ -45,60 +52,54 @@ const MarketStatus = ({
   );
 
 type SummaryRowProps = {
+  overline: string;
   label: string;
   cell: IndexCellData | undefined;
+  loading: boolean;
 };
 
-// 요약행: 지수명 + 현재가 + 등락률. (KIS index quote 응답에 거래량 필드 없음 — 다음 단계.)
-// live > fallback(직전 거래일) > "데이터 없음" 순으로 폴백. IndexSlate 규칙과 정합.
-const SummaryRow = ({ label, cell }: SummaryRowProps) => {
-  if (cell?.live) {
-    const { live } = cell;
-    return (
-      <div className="flex flex-1 items-center justify-between gap-4">
-        <span className="text-base font-medium">{label}</span>
-        <div className="flex items-center gap-3">
-          <span className="text-lg font-semibold tabular-nums">
-            <PriceCountUp from={live.price} to={live.price} />
-          </span>
-          <PriceChange
-            change={live.change}
-            changeRate={live.changeRate}
-            sign={live.sign}
-            symbol="arrow"
-            size="sm"
-          />
-        </div>
+// 좌측 클러스터 세로 스택: overline(영문) · 지수명 · 현재가+등락률.
+// live > fallback(직전 거래일) > "데이터 없음" 순으로 line 3 폴백.
+// (KIS index quote 응답에 거래량 필드 없음 — line 3 거래량 slot 은 다음 스텝.)
+const SummaryRow = ({ overline, label, cell, loading }: SummaryRowProps) => (
+  <div className="flex flex-col gap-0.5 text-left">
+    <span className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+      {overline}
+    </span>
+    <span className="text-lg font-medium">{label}</span>
+    {loading && !cell ? (
+      <div className="mt-1 h-5 w-32 animate-pulse rounded bg-muted" />
+    ) : cell?.live ? (
+      <div className="flex items-baseline gap-2">
+        <span className="text-base font-semibold tabular-nums">
+          <PriceCountUp from={cell.live.price} to={cell.live.price} />
+        </span>
+        <PriceChange
+          change={cell.live.change}
+          changeRate={cell.live.changeRate}
+          sign={cell.live.sign}
+          symbol="arrow"
+          size="sm"
+        />
       </div>
-    );
-  }
-  if (cell?.fallback) {
-    const { fallback } = cell;
-    return (
-      <div className="flex flex-1 items-center justify-between gap-4">
-        <span className="text-base font-medium">{label}</span>
-        <div className="flex items-center gap-3">
-          <span className="text-lg font-semibold tabular-nums">
-            {fallback.close.toLocaleString("ko-KR")}
-          </span>
-          <span className="text-[11px] text-muted-foreground">직전 거래일</span>
-          <PriceChange
-            change={fallback.change}
-            changeRate={fallback.changeRate}
-            symbol="arrow"
-            size="sm"
-          />
-        </div>
+    ) : cell?.fallback ? (
+      <div className="flex items-baseline gap-2">
+        <span className="text-base font-semibold tabular-nums">
+          {cell.fallback.close.toLocaleString("ko-KR")}
+        </span>
+        <PriceChange
+          change={cell.fallback.change}
+          changeRate={cell.fallback.changeRate}
+          symbol="arrow"
+          size="sm"
+        />
+        <span className="text-[11px] text-muted-foreground">직전 거래일</span>
       </div>
-    );
-  }
-  return (
-    <div className="flex flex-1 items-center justify-between gap-4">
-      <span className="text-base font-medium">{label}</span>
+    ) : (
       <span className="text-sm text-muted-foreground">데이터 없음</span>
-    </div>
-  );
-};
+    )}
+  </div>
+);
 
 export const IndexAccordion = ({
   dailyByIndex,
@@ -135,19 +136,19 @@ export const IndexAccordion = ({
           const prices = dailyByIndex[code];
           const cell = data?.quotes[CELL_KEY[code]];
           return (
-            <AccordionItem key={code} value={code} className="border-b-0">
-              <StockPanel variant="lavender" className="p-0">
-                <AccordionTrigger className="px-6 py-4">
-                  {isLoading && !cell ? (
-                    <div className="flex flex-1 items-center justify-between gap-4">
-                      <span className="text-base font-medium">
-                        {INDEX_LABEL[code]}
-                      </span>
-                      <div className="h-5 w-32 animate-pulse rounded bg-muted" />
-                    </div>
-                  ) : (
-                    <SummaryRow label={INDEX_LABEL[code]} cell={cell} />
-                  )}
+            // group 으로 AccordionItem 의 data-state 를 하위 StockPanel border 에 전달.
+            <AccordionItem key={code} value={code} className="group border-b-0">
+              <StockPanel
+                variant="lavender"
+                className="overflow-hidden p-0 transition-colors group-data-[state=open]:border-lavender-accent group-data-[state=open]:bg-lavender-emphasis"
+              >
+                <AccordionTrigger className="px-6 py-4 transition-colors hover:bg-lavender-emphasis">
+                  <SummaryRow
+                    overline={INDEX_OVERLINE[code]}
+                    label={INDEX_LABEL[code]}
+                    cell={cell}
+                    loading={isLoading}
+                  />
                 </AccordionTrigger>
                 <AccordionContent className="px-6 pb-6">
                   {/* Radix Content 는 open 시에만 자식을 마운트하고 width 는 애니메이션 중
