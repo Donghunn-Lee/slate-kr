@@ -298,9 +298,11 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
 
   return (
     <>
-      <div className="mb-3 flex flex-col gap-1.5">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-muted-foreground">가격 차트</h2>
+      {/* h2 좌측 유지, 우측에 클러스터 단일 행. 당일/전체와 나머지 클러스터는
+          gap-4 로 벌려 의미 구분(모바일에선 flex-wrap 로 자연 wrap). */}
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold text-muted-foreground">가격 차트</h2>
+        <div className="flex flex-wrap items-center justify-end gap-4">
           <div className={groupWrapperCls} role="group" aria-label="차트 뷰">
             {VIEW_MODE_BUTTONS.map(({ value, label: btnLabel }) => (
               <button
@@ -314,82 +316,82 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
               </button>
             ))}
           </div>
-        </div>
-        <div className="flex items-center justify-end gap-1.5">
-          <div className={groupWrapperCls} role="group" aria-label="차트 종류">
-            {SERIES_KIND_BUTTONS.map(({ value, label: btnLabel, Icon }) => {
-              const active = seriesKind === value;
-              return (
-                <button
-                  key={value}
-                  type="button"
-                  aria-label={btnLabel}
-                  aria-pressed={active}
-                  onClick={() => setSeriesKind(value)}
-                  className={toolbarButtonCls(active)}
-                >
-                  <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-                </button>
-              );
-            })}
-          </div>
-          {isIntradayView ? (
-            <div className={groupWrapperCls} role="group" aria-label="분봉 간격">
-              {INTRADAY_INTERVAL_BUTTONS.map((m) => {
-                const active = intradayInterval === m;
-                return (
-                  <button
-                    key={m}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => setIntradayInterval(m)}
-                    className={toolbarButtonCls(active)}
-                  >
-                    {m}분
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <div className={groupWrapperCls} role="group" aria-label="차트 주기">
-              {GRANULARITY_BUTTONS.map(({ value, label: btnLabel }) => {
-                const active = granularity === value;
+          <div className="flex flex-wrap items-center gap-1.5">
+            <div className={groupWrapperCls} role="group" aria-label="차트 종류">
+              {SERIES_KIND_BUTTONS.map(({ value, label: btnLabel, Icon }) => {
+                const active = seriesKind === value;
                 return (
                   <button
                     key={value}
                     type="button"
+                    aria-label={btnLabel}
                     aria-pressed={active}
-                    onClick={() => setGranularity(value)}
+                    onClick={() => setSeriesKind(value)}
                     className={toolbarButtonCls(active)}
                   >
-                    {btnLabel}
+                    <Icon className="h-3.5 w-3.5" aria-hidden="true" />
                   </button>
                 );
               })}
             </div>
-          )}
-          <input
-            key={`bc-${barCount ?? "all"}-${inputRevertNonce}`}
-            type="number"
-            inputMode="numeric"
-            min={1}
-            aria-label="표시 봉 개수"
-            aria-disabled={isIntradayView}
-            disabled={isIntradayView}
-            defaultValue={barCount === null ? "" : String(barCount)}
-            onBlur={(e) => applyBarCountFromInput(e.currentTarget.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.currentTarget.blur();
-              }
-            }}
-            className={cn(
-              "h-[26px] w-14 rounded-md border border-subtle bg-elevated px-2 text-xs text-foreground",
-              "focus:border-lavender-border focus:outline-none",
-              "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
-              isIntradayView && "opacity-40",
+            {isIntradayView ? (
+              <div className={groupWrapperCls} role="group" aria-label="분봉 간격">
+                {INTRADAY_INTERVAL_BUTTONS.map((m) => {
+                  const active = intradayInterval === m;
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => setIntradayInterval(m)}
+                      className={toolbarButtonCls(active)}
+                    >
+                      {m}분
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className={groupWrapperCls} role="group" aria-label="차트 주기">
+                {GRANULARITY_BUTTONS.map(({ value, label: btnLabel }) => {
+                  const active = granularity === value;
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => setGranularity(value)}
+                      className={toolbarButtonCls(active)}
+                    >
+                      {btnLabel}
+                    </button>
+                  );
+                })}
+              </div>
             )}
-          />
+            <input
+              key={`bc-${barCount ?? "all"}-${inputRevertNonce}`}
+              type="number"
+              inputMode="numeric"
+              min={1}
+              aria-label="표시 봉 개수"
+              aria-disabled={isIntradayView}
+              disabled={isIntradayView}
+              defaultValue={barCount === null ? "" : String(barCount)}
+              onBlur={(e) => applyBarCountFromInput(e.currentTarget.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.currentTarget.blur();
+                }
+              }}
+              className={cn(
+                "h-[26px] w-14 rounded-md border border-subtle bg-elevated px-2 text-xs text-foreground",
+                "focus:border-lavender-border focus:outline-none",
+                "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+                isIntradayView && "opacity-40",
+              )}
+            />
+          </div>
         </div>
       </div>
       {showFailedIntraday ? (

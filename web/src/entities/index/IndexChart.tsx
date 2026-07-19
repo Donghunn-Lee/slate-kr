@@ -309,23 +309,23 @@ export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChart
 
   return (
     <>
-      <div className="mb-3 flex flex-col gap-1.5">
-        <div className="flex items-center justify-end gap-2">
-          <div className={groupWrapperCls} role="group" aria-label="차트 뷰">
-            {VIEW_MODE_BUTTONS.map(({ value, label: btnLabel }) => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={viewMode === value}
-                onClick={() => setViewMode(value)}
-                className={toolbarButtonCls(viewMode === value)}
-              >
-                {btnLabel}
-              </button>
-            ))}
-          </div>
+      {/* 우측 정렬 단일 행. 당일/전체 그룹과 나머지 클러스터를 gap-4 로 벌려
+          의미 구분(모바일에선 flex-wrap 로 두 그룹이 두 줄로 나뉨). */}
+      <div className="mb-3 flex flex-wrap items-center justify-end gap-4">
+        <div className={groupWrapperCls} role="group" aria-label="차트 뷰">
+          {VIEW_MODE_BUTTONS.map(({ value, label: btnLabel }) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={viewMode === value}
+              onClick={() => setViewMode(value)}
+              className={toolbarButtonCls(viewMode === value)}
+            >
+              {btnLabel}
+            </button>
+          ))}
         </div>
-        <div className="flex items-center justify-end gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           <div className={groupWrapperCls} role="group" aria-label="차트 종류">
             {SERIES_KIND_BUTTONS.map(({ value, label: btnLabel, Icon }) => {
               const active = seriesKind === value;
