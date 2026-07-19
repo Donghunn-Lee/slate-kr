@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { StockPanel } from "@/entities/stock/StockPanel";
 import { PriceCountUp } from "@/entities/stock/PriceCountUp";
 import { PriceChange } from "@/shared/components/PriceChange";
 import { INDEX_CODES, INDEX_LABEL, type IndexCode } from "@/shared/constants/indices";
@@ -50,7 +50,7 @@ type SummaryRowProps = {
 };
 
 // 요약행: 지수명 + 현재가 + 등락률. (KIS index quote 응답에 거래량 필드 없음 — 다음 단계.)
-// live > fallback(직전 거래일) > "—" 순으로 폴백. IndexSlate 규칙과 정합.
+// live > fallback(직전 거래일) > "데이터 없음" 순으로 폴백. IndexSlate 규칙과 정합.
 const SummaryRow = ({ label, cell }: SummaryRowProps) => {
   if (cell?.live) {
     const { live } = cell;
@@ -104,22 +104,18 @@ export const IndexAccordion = ({
   dailyByIndex,
   initialSelected,
 }: IndexAccordionProps) => {
-  const [selected, setSelected] = useState<IndexCode>(initialSelected);
   const { data, isLoading } = useIndexQuotes();
 
-  // 아코디언 변경 = 지수 전환. `collapsible={false}` 라 빈 문자열은 오지 않는다.
-  // URL 은 replaceState 로 갱신 — deep-link/새로고침 대응, back 스택 오염 없음.
+  // collapsible → 열린 지수 클릭 시 닫힘. next==="" 은 전부 닫힘 상태.
+  // URL 은 열림 지수만 반영, 닫힘 시 ?index= 제거.
   const handleValueChange = (next: string) => {
-    if (next === "") return;
-    const code = next as IndexCode;
-    setSelected(code);
-    if (typeof window !== "undefined") {
-      window.history.replaceState(null, "", `/stocks/indices?index=${code}`);
-    }
+    if (typeof window === "undefined") return;
+    const url = next === "" ? "/stocks/indices" : `/stocks/indices?index=${next}`;
+    window.history.replaceState(null, "", url);
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <div className="flex items-center justify-end px-1">
         {data ? (
           <MarketStatus
@@ -130,40 +126,42 @@ export const IndexAccordion = ({
       </div>
       <Accordion
         type="single"
-        value={selected}
+        defaultValue={initialSelected}
         onValueChange={handleValueChange}
-        collapsible={false}
+        collapsible
+        className="space-y-4"
       >
         {INDEX_CODES.map((code) => {
-          const isOpen = selected === code;
           const prices = dailyByIndex[code];
           const cell = data?.quotes[CELL_KEY[code]];
           return (
-            <AccordionItem key={code} value={code}>
-              <AccordionTrigger className="px-1">
-                {isLoading && !cell ? (
-                  <div className="flex flex-1 items-center justify-between gap-4">
-                    <span className="text-base font-medium">
-                      {INDEX_LABEL[code]}
-                    </span>
-                    <div className="h-5 w-32 animate-pulse rounded bg-muted" />
-                  </div>
-                ) : (
-                  <SummaryRow label={INDEX_LABEL[code]} cell={cell} />
-                )}
-              </AccordionTrigger>
-              <AccordionContent>
-                {/* Radix Content 는 open 시에만 자식을 마운트하므로 lightweight-charts
-                    가 항상 정상 폭에서 초기화된다. 추가 방어로 isOpen 조건도 걸어
-                    데이터 미도착 상태에서의 마운트/언마운트를 제어. */}
-                {isOpen && prices !== null && prices !== undefined ? (
-                  <IndexChartDynamic indexCode={code} prices={prices} />
-                ) : isOpen ? (
-                  <p className="px-1 text-sm text-muted-foreground">
-                    차트 데이터를 불러오지 못했습니다
-                  </p>
-                ) : null}
-              </AccordionContent>
+            <AccordionItem key={code} value={code} className="border-b-0">
+              <StockPanel variant="lavender" className="p-0">
+                <AccordionTrigger className="px-6 py-4">
+                  {isLoading && !cell ? (
+                    <div className="flex flex-1 items-center justify-between gap-4">
+                      <span className="text-base font-medium">
+                        {INDEX_LABEL[code]}
+                      </span>
+                      <div className="h-5 w-32 animate-pulse rounded bg-muted" />
+                    </div>
+                  ) : (
+                    <SummaryRow label={INDEX_LABEL[code]} cell={cell} />
+                  )}
+                </AccordionTrigger>
+                <AccordionContent className="px-6 pb-6">
+                  {/* Radix Content 는 open 시에만 자식을 마운트하고 width 는 애니메이션 중
+                      유지되므로 (height 만 keyframes 로 animate + overflow hidden),
+                      height=450 고정 차트는 0폭 초기화 문제가 없다. */}
+                  {prices !== null && prices !== undefined ? (
+                    <IndexChartDynamic indexCode={code} prices={prices} />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      차트 데이터를 불러오지 못했습니다
+                    </p>
+                  )}
+                </AccordionContent>
+              </StockPanel>
             </AccordionItem>
           );
         })}
