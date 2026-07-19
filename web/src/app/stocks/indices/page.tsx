@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { INDEX_CODES, INDEX_LABEL, type IndexCode } from "@/shared/constants/indices";
 import { IndicesView } from "@/entities/index/IndicesView";
 import { getIndexDailyPrices } from "@/lib/indices";
+import { getPriceStats } from "@/lib/prices";
 import type { IndexDailySnapshot } from "@/shared/types/quote";
+import type { PriceStats } from "@/shared/types/stock";
 
 export const revalidate = 3600;
 
@@ -43,9 +45,32 @@ export default async function IndicesPage({ searchParams }: PageProps) {
     IndexDailySnapshot[] | null
   >;
 
+  // stats · 최신 volume 은 이미 fetch 된 dailyByIndex 를 재사용해 SSR 에서 산출.
+  // getPriceStats 는 date/high/low/close 만 요구하므로 IndexDailySnapshot 구조적 투입.
+  // 최신 EOD volume 은 ASC 배열의 마지막 원소. 결측(월봉 재샘플 등)엔 null.
+  const statsByIndex = Object.fromEntries(
+    INDEX_CODES.map((code) => {
+      const daily = dailyByIndex[code];
+      return [code, daily && daily.length > 0 ? getPriceStats(daily) : null];
+    }),
+  ) as Record<IndexCode, PriceStats | null>;
+
+  const volumeByIndex = Object.fromEntries(
+    INDEX_CODES.map((code) => {
+      const daily = dailyByIndex[code];
+      const last = daily && daily.length > 0 ? daily[daily.length - 1] : null;
+      return [code, last?.volume ?? null];
+    }),
+  ) as Record<IndexCode, number | null>;
+
   return (
     <main className="container mx-auto max-w-4xl space-y-4 px-4 py-8">
-      <IndicesView dailyByIndex={dailyByIndex} initialSelected={selected} />
+      <IndicesView
+        dailyByIndex={dailyByIndex}
+        statsByIndex={statsByIndex}
+        volumeByIndex={volumeByIndex}
+        initialSelected={selected}
+      />
     </main>
   );
 }
