@@ -12,6 +12,7 @@ import { parseISO, startOfWeek, format } from "date-fns";
 import { PriceChart } from "@/entities/chart/PriceChart";
 import { useIndexIntraday } from "@/features/index-quotes/useIndexIntraday";
 import { useIndexQuotes } from "@/features/index-quotes/useIndexQuotes";
+import type { DomesticIndexCode } from "@/shared/constants/indices";
 import type {
   ChartBar,
   IndexDailySnapshot,
@@ -22,18 +23,17 @@ import { resampleToMonthly } from "@/shared/utils/resampleToMonthly";
 import { resampleToWeekly } from "@/shared/utils/resampleToWeekly";
 import { cn } from "@/lib/utils";
 
-type IndexCode = "KOSPI" | "KOSDAQ" | "KOSPI200";
 type ViewMode = "intraday" | "full";
 type Granularity = "day" | "week" | "month";
 type SeriesKind = "candle" | "line";
 
 type IndexChartProps = {
-  indexCode: IndexCode;
+  indexCode: DomesticIndexCode;
   prices: IndexDailySnapshot[]; // ASC
   interactive?: boolean;
 };
 
-const CELL_KEY: Record<IndexCode, "kospi" | "kosdaq" | "kospi200"> = {
+const CELL_KEY: Record<DomesticIndexCode, "kospi" | "kosdaq" | "kospi200"> = {
   KOSPI: "kospi",
   KOSDAQ: "kosdaq",
   KOSPI200: "kospi200",

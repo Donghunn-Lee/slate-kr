@@ -10,7 +10,12 @@ import {
 import { StockPanel } from "@/entities/stock/StockPanel";
 import { PriceCountUp } from "@/entities/stock/PriceCountUp";
 import { PriceChange } from "@/shared/components/PriceChange";
-import { INDEX_CODES, INDEX_LABEL, type IndexCode } from "@/shared/constants/indices";
+import {
+  DOMESTIC_INDEX_CODES,
+  INDEX_LABEL,
+  getIndexMeta,
+  type DomesticIndexCode,
+} from "@/shared/constants/indices";
 import type { IndexDailySnapshot } from "@/shared/types/quote";
 import type { PriceStats } from "@/shared/types/stock";
 import { useIndexQuotes, type IndexCellData } from "@/features/index-quotes/useIndexQuotes";
@@ -18,24 +23,17 @@ import { cn } from "@/lib/utils";
 import { IndexChartDynamic } from "./IndexChartDynamic";
 
 type IndexAccordionProps = {
-  dailyByIndex: Record<IndexCode, IndexDailySnapshot[] | null>;
-  statsByIndex: Record<IndexCode, PriceStats | null>;
-  volumeByIndex: Record<IndexCode, number | null>;
-  initialSelected: IndexCode;
+  dailyByIndex: Record<DomesticIndexCode, IndexDailySnapshot[] | null>;
+  statsByIndex: Record<DomesticIndexCode, PriceStats | null>;
+  volumeByIndex: Record<DomesticIndexCode, number | null>;
+  initialSelected: DomesticIndexCode;
 };
 
 // useIndexQuotes 응답 키 매핑 — IndexChart 의 CELL_KEY 와 동일 축.
-const CELL_KEY: Record<IndexCode, "kospi" | "kosdaq" | "kospi200"> = {
+const CELL_KEY: Record<DomesticIndexCode, "kospi" | "kosdaq" | "kospi200"> = {
   KOSPI: "kospi",
   KOSDAQ: "kosdaq",
   KOSPI200: "kospi200",
-};
-
-// 요약행 상단 overline — 텍스처용 영문 라벨. 정보가 아니라 시각 리듬이므로 muted 톤만.
-const INDEX_OVERLINE: Record<IndexCode, string> = {
-  KOSPI: "KOSPI",
-  KOSDAQ: "KOSDAQ",
-  KOSPI200: "KOSPI 200",
 };
 
 // 지수값 — 원 단위 아님. 소수 최대 2자리, ko-KR 로케일.
@@ -216,7 +214,7 @@ export const IndexAccordion = ({
         collapsible
         className="space-y-4"
       >
-        {INDEX_CODES.map((code) => {
+        {DOMESTIC_INDEX_CODES.map((code) => {
           const prices = dailyByIndex[code];
           const cell = data?.quotes[CELL_KEY[code]];
           return (
@@ -228,7 +226,7 @@ export const IndexAccordion = ({
                 <AccordionTrigger className="px-6 py-4 transition-colors hover:bg-lavender-emphasis">
                   <div className="flex flex-1 items-center gap-8">
                     <SummaryCluster
-                      overline={INDEX_OVERLINE[code]}
+                      overline={getIndexMeta(code).overline}
                       label={INDEX_LABEL[code]}
                       cell={cell}
                       volume={volumeByIndex[code]}

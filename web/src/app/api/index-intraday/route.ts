@@ -3,12 +3,10 @@ import { NextResponse } from "next/server";
 
 import { getIndexIntradayPrices } from "@/lib/indices";
 import { isKrxMarketOpen } from "@/shared/utils/market";
+import { DOMESTIC_INDEX_CODES, type DomesticIndexCode } from "@/shared/constants/indices";
 import type { IndexIntradaySnapshot } from "@/shared/types/quote";
 
 export const dynamic = "force-dynamic";
-
-type IndexCode = "KOSPI" | "KOSDAQ" | "KOSPI200";
-const INDEX_CODES: readonly IndexCode[] = ["KOSPI", "KOSDAQ", "KOSPI200"];
 
 type IndexQuotes = {
   kospi: IndexIntradaySnapshot[];
@@ -25,14 +23,14 @@ type IndexFailedMap = {
 // 지수 × session 별로 unstable_cache 래퍼를 memoize. 장중 60s / 폐장 3600s.
 // stock 쪽과 동일 패턴 — tag 도 session-scoped 로 정밀 evict.
 type IndexFetcher = () => Promise<IndexIntradaySnapshot[] | null>;
-const openFetchers = new Map<IndexCode, IndexFetcher>();
-const closedFetchers = new Map<IndexCode, IndexFetcher>();
+const openFetchers = new Map<DomesticIndexCode, IndexFetcher>();
+const closedFetchers = new Map<DomesticIndexCode, IndexFetcher>();
 
-const cacheTag = (indexCode: IndexCode, marketOpen: boolean): string =>
+const cacheTag = (indexCode: DomesticIndexCode, marketOpen: boolean): string =>
   `index-intraday-${indexCode.toLowerCase()}-${marketOpen ? "open" : "closed"}`;
 
 const getCachedFetcher = (
-  indexCode: IndexCode,
+  indexCode: DomesticIndexCode,
   marketOpen: boolean,
 ): IndexFetcher => {
   const map = marketOpen ? openFetchers : closedFetchers;
@@ -57,7 +55,7 @@ type IndexResolveResult = {
 };
 
 const resolve = (
-  indexCode: IndexCode,
+  indexCode: DomesticIndexCode,
   marketOpen: boolean,
   r: PromiseSettledResult<IndexIntradaySnapshot[] | null>,
 ): IndexResolveResult => {
@@ -72,7 +70,7 @@ export const GET = async () => {
   const marketOpen = isKrxMarketOpen();
   try {
     const results = await Promise.allSettled(
-      INDEX_CODES.map((code) => getCachedFetcher(code, marketOpen)()),
+      DOMESTIC_INDEX_CODES.map((code) => getCachedFetcher(code, marketOpen)()),
     );
     const [kospi, kosdaq, kospi200] = results;
 

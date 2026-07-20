@@ -2,14 +2,13 @@ import { cache } from "react";
 import { format } from "date-fns";
 import { pool } from "./db";
 import { fetchIndexIntradayChart } from "./kis-quote-fetch";
+import type { DomesticIndexCode } from "@/shared/constants/indices";
 import type {
   IndexDailySnapshot,
   IndexIntradaySnapshot,
 } from "@/shared/types/quote";
 
-type IndexCode = "KOSPI" | "KOSDAQ" | "KOSPI200";
-
-const ISCD_BY_INDEX: Record<IndexCode, string> = {
+const ISCD_BY_INDEX: Record<DomesticIndexCode, string> = {
   KOSPI: "0001",
   KOSDAQ: "1001",
   KOSPI200: "2001",
@@ -54,7 +53,7 @@ export const getLatestIndexPrice = cache(
 // 적재 못 했다면 null이라 change=0 — UI는 차트만 그릴 거라 영향 없음.
 // null = fetch 실패 (route 에서 캐시 evict 판정에 사용), [] = 정상 empty.
 export const getIndexIntradayPrices = async (
-  indexCode: IndexCode,
+  indexCode: DomesticIndexCode,
 ): Promise<IndexIntradaySnapshot[] | null> => {
   const [bars, prev] = await Promise.all([
     fetchIndexIntradayChart(ISCD_BY_INDEX[indexCode]),

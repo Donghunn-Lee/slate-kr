@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import type { DomesticIndexCode } from "@/shared/constants/indices";
 import type { IndexDailySnapshot } from "@/shared/types/quote";
 
 const IndexChartInner = dynamic(
@@ -8,10 +9,8 @@ const IndexChartInner = dynamic(
   { ssr: false, loading: () => <div className="h-[498px] rounded-xl border bg-elevated" /> }
 );
 
-type IndexCode = "KOSPI" | "KOSDAQ" | "KOSPI200";
-
 type IndexChartDynamicProps = {
-  indexCode: IndexCode;
+  indexCode: DomesticIndexCode;
   prices: IndexDailySnapshot[];
   interactive?: boolean;
 };

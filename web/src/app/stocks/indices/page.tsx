@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
-import { INDEX_CODES, INDEX_LABEL, type IndexCode } from "@/shared/constants/indices";
+import {
+  DOMESTIC_INDEX_CODES,
+  INDEX_LABEL,
+  type DomesticIndexCode,
+} from "@/shared/constants/indices";
 import { IndicesView } from "@/entities/index/IndicesView";
 import { getIndexDailyPrices } from "@/lib/indices";
 import { getPriceStats } from "@/lib/prices";
@@ -12,8 +16,10 @@ type PageProps = {
   searchParams: Promise<{ index?: string }>;
 };
 
-const resolveIndex = (raw: string | undefined): IndexCode =>
-  (INDEX_CODES as readonly string[]).includes(raw ?? "") ? (raw as IndexCode) : "KOSPI";
+const resolveIndex = (raw: string | undefined): DomesticIndexCode =>
+  (DOMESTIC_INDEX_CODES as readonly string[]).includes(raw ?? "")
+    ? (raw as DomesticIndexCode)
+    : "KOSPI";
 
 export const generateMetadata = async ({ searchParams }: PageProps): Promise<Metadata> => {
   const { index } = await searchParams;
@@ -32,7 +38,7 @@ export default async function IndicesPage({ searchParams }: PageProps) {
   // 3지수 일봉을 병렬 fetch — 이후 client 전환 시 재요청 없이 즉시 스왑 가능.
   // per-code try/catch: 한 지수 실패가 나머지 렌더를 막지 않게.
   const dailyEntries = await Promise.all(
-    INDEX_CODES.map(async (code) => {
+    DOMESTIC_INDEX_CODES.map(async (code) => {
       try {
         return [code, await getIndexDailyPrices(code, 1000)] as const;
       } catch {
@@ -41,7 +47,7 @@ export default async function IndicesPage({ searchParams }: PageProps) {
     }),
   );
   const dailyByIndex = Object.fromEntries(dailyEntries) as Record<
-    IndexCode,
+    DomesticIndexCode,
     IndexDailySnapshot[] | null
   >;
 
@@ -49,19 +55,19 @@ export default async function IndicesPage({ searchParams }: PageProps) {
   // getPriceStats 는 date/high/low/close 만 요구하므로 IndexDailySnapshot 구조적 투입.
   // 최신 EOD volume 은 ASC 배열의 마지막 원소. 결측(월봉 재샘플 등)엔 null.
   const statsByIndex = Object.fromEntries(
-    INDEX_CODES.map((code) => {
+    DOMESTIC_INDEX_CODES.map((code) => {
       const daily = dailyByIndex[code];
       return [code, daily && daily.length > 0 ? getPriceStats(daily) : null];
     }),
-  ) as Record<IndexCode, PriceStats | null>;
+  ) as Record<DomesticIndexCode, PriceStats | null>;
 
   const volumeByIndex = Object.fromEntries(
-    INDEX_CODES.map((code) => {
+    DOMESTIC_INDEX_CODES.map((code) => {
       const daily = dailyByIndex[code];
       const last = daily && daily.length > 0 ? daily[daily.length - 1] : null;
       return [code, last?.volume ?? null];
     }),
-  ) as Record<IndexCode, number | null>;
+  ) as Record<DomesticIndexCode, number | null>;
 
   return (
     <main className="container mx-auto max-w-4xl space-y-4 px-4 py-8">
