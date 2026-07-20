@@ -15,6 +15,7 @@ import {
   INDEX_LABEL,
   getIndexMeta,
   type DomesticIndexCode,
+  type IndexCode,
 } from "@/shared/constants/indices";
 import type { IndexDailySnapshot } from "@/shared/types/quote";
 import type { PriceStats } from "@/shared/types/stock";
@@ -23,10 +24,11 @@ import { cn } from "@/lib/utils";
 import { IndexChartDynamic } from "./IndexChartDynamic";
 
 type IndexAccordionProps = {
-  dailyByIndex: Record<DomesticIndexCode, IndexDailySnapshot[] | null>;
-  statsByIndex: Record<DomesticIndexCode, PriceStats | null>;
-  volumeByIndex: Record<DomesticIndexCode, number | null>;
-  initialSelected: DomesticIndexCode;
+  // 국내·해외 모두 포함 (Stage 3). Stage 4 에서 해외 행 렌더 시 그대로 소비.
+  dailyByIndex: Record<IndexCode, IndexDailySnapshot[] | null>;
+  statsByIndex: Record<IndexCode, PriceStats | null>;
+  volumeByIndex: Record<IndexCode, number | null>;
+  initialSelected: IndexCode;
 };
 
 // useIndexQuotes 응답 키 매핑 — IndexChart 의 CELL_KEY 와 동일 축.
