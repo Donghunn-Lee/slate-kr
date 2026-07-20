@@ -9,12 +9,12 @@ KRX Marketplace 지수 일봉 → index_daily_prices idempotent upsert.
   --backfill START END     YYYY-MM-DD 구간 순회 적재
                            주말은 사전 스킵, 공휴일은 KRX 빈 응답으로 skip
 
-대상 지수 (3종)
-  KOSPI / KOSDAQ / KOSPI200
+대상 지수 (4종)
+  KOSPI / KOSDAQ / KOSPI200 / KOSDAQ150
 
 호출 (영업일당 2회)
   idx/kospi_dd_trd   → IDX_NM '코스피' + '코스피 200' 두 건 추출
-  idx/kosdaq_dd_trd  → IDX_NM '코스닥' 한 건 추출
+  idx/kosdaq_dd_trd  → IDX_NM '코스닥' + '코스닥 150' 두 건 추출
 
 규약은 fetch_prices.py 와 정합: psycopg2 / load_dotenv / logs/{prefix}_{YYYYMMDD}.log /
 ON CONFLICT DO UPDATE / 에러 격리.
@@ -60,12 +60,13 @@ IDX_NM_TO_CODE = {
     "코스피": "KOSPI",
     "코스피 200": "KOSPI200",
     "코스닥": "KOSDAQ",
+    "코스닥 150": "KOSDAQ150",
 }
 
 # endpoint → 그 endpoint 응답에서 추출할 IDX_NM 들
 ENDPOINT_TO_NAMES: dict[str, tuple[str, ...]] = {
     "idx/kospi_dd_trd": ("코스피", "코스피 200"),
-    "idx/kosdaq_dd_trd": ("코스닥",),
+    "idx/kosdaq_dd_trd": ("코스닥", "코스닥 150"),
 }
 
 BACKFILL_SLEEP_SEC = 0.3
@@ -143,7 +144,7 @@ UPSERT_SQL = """
 
 def fetch_day(conn, cursor, bas_dd: str):
     """
-    한 날짜 적재. 2 endpoint 호출 → 최대 3개 지수 upsert.
+    한 날짜 적재. 2 endpoint 호출 → 최대 4개 지수 upsert.
     반환 (inserted, skipped, errored) — 모두 지수 단위 카운트.
     """
     rows_to_upsert: list[tuple] = []
@@ -247,7 +248,8 @@ def run_backfill(start_str: str, end_str: str):
                     conn.rollback()
                 except Exception:
                     pass
-                ins, skp, err = 0, 0, 3  # 3개 지수 전부 실패로 집계
+                # 지수 개수를 하드코딩하지 않고 ENDPOINT_TO_NAMES 에서 파생.
+                ins, skp, err = 0, 0, sum(len(v) for v in ENDPOINT_TO_NAMES.values())
 
             total_ins += ins
             total_skp += skp
