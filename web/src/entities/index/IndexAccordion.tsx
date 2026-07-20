@@ -11,7 +11,7 @@ import { StockPanel } from "@/entities/stock/StockPanel";
 import { PriceCountUp } from "@/entities/stock/PriceCountUp";
 import { PriceChange } from "@/shared/components/PriceChange";
 import {
-  DOMESTIC_INDEX_CODES,
+  INDEX_CODES,
   INDEX_LABEL,
   getIndexMeta,
   type DomesticIndexCode,
@@ -88,6 +88,8 @@ type SummaryClusterProps = {
   cell: IndexCellData | undefined;
   volume: number | null;
   loading: boolean;
+  // fallback 라벨 대체. 국내는 "직전 거래일", 해외는 "미국 · 최근 거래일 YYYY-MM-DD".
+  fallbackLabel?: string;
 };
 
 // 좌측 클러스터: overline · 지수명 · 현재가+등락률(+거래량 append).
@@ -98,6 +100,7 @@ const SummaryCluster = ({
   cell,
   volume,
   loading,
+  fallbackLabel = "직전 거래일",
 }: SummaryClusterProps) => (
   <div className="flex flex-col gap-0.5 text-left">
     <span className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
@@ -135,7 +138,7 @@ const SummaryCluster = ({
           symbol="arrow"
           size="sm"
         />
-        <span className="text-[11px] text-muted-foreground">직전 거래일</span>
+        <span className="text-[11px] text-muted-foreground">{fallbackLabel}</span>
         {volume !== null && (
           <span className="text-[11px] text-muted-foreground tabular-nums">
             · 거래량 {formatIndexVolume(volume)}
@@ -216,9 +219,24 @@ export const IndexAccordion = ({
         collapsible
         className="space-y-4"
       >
-        {DOMESTIC_INDEX_CODES.map((code) => {
+        {INDEX_CODES.map((code) => {
+          const meta = getIndexMeta(code);
+          const isDomestic = meta.region === "domestic";
           const prices = dailyByIndex[code];
-          const cell = data?.quotes[CELL_KEY[code]];
+          const latestDaily =
+            prices && prices.length > 0 ? prices[prices.length - 1] : null;
+          // 국내: useIndexQuotes 실시간/폴백 cell. 해외: 최신 EOD 봉으로 fallback 합성
+          // (실시간 quote 없음). change/changeRate 는 collector 가 chain 계산해서 저장.
+          const cell: IndexCellData | undefined = isDomestic
+            ? data?.quotes[CELL_KEY[code as DomesticIndexCode]]
+            : latestDaily
+              ? { live: null, fallback: latestDaily }
+              : undefined;
+          const fallbackLabel = isDomestic
+            ? "직전 거래일"
+            : latestDaily
+              ? `미국 · 최근 거래일 ${latestDaily.date}`
+              : "미국";
           return (
             <AccordionItem key={code} value={code} className="group border-b-0">
               <StockPanel
@@ -228,11 +246,12 @@ export const IndexAccordion = ({
                 <AccordionTrigger className="px-6 py-4 transition-colors hover:bg-lavender-emphasis">
                   <div className="flex flex-1 items-center gap-8">
                     <SummaryCluster
-                      overline={getIndexMeta(code).overline}
+                      overline={meta.overline}
                       label={INDEX_LABEL[code]}
                       cell={cell}
-                      volume={volumeByIndex[code]}
-                      loading={isLoading}
+                      volume={isDomestic ? volumeByIndex[code] : null}
+                      loading={isDomestic && isLoading}
+                      fallbackLabel={fallbackLabel}
                     />
                     <StatsCluster stats={statsByIndex[code]} />
                   </div>
@@ -240,9 +259,14 @@ export const IndexAccordion = ({
                 <AccordionContent className="px-6 pb-6">
                   {/* Radix Content 는 open 시에만 자식을 마운트하고 width 는 애니메이션 중
                       유지되므로 (height 만 keyframes 로 animate + overflow hidden),
-                      height=450 고정 차트는 0폭 초기화 문제가 없다. */}
+                      height=450 고정 차트는 0폭 초기화 문제가 없다.
+                      해외는 intraday 미지원 → intradayEnabled=false 로 daily 차트만. */}
                   {prices !== null && prices !== undefined ? (
-                    <IndexChartDynamic indexCode={code} prices={prices} />
+                    <IndexChartDynamic
+                      indexCode={code}
+                      prices={prices}
+                      intradayEnabled={isDomestic}
+                    />
                   ) : (
                     <p className="text-sm text-muted-foreground">
                       차트 데이터를 불러오지 못했습니다

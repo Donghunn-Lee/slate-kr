@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import {
-  DOMESTIC_INDEX_CODES,
   INDEX_CODES,
   INDEX_LABEL,
   type IndexCode,
@@ -73,22 +72,13 @@ export default async function IndicesPage({ searchParams }: PageProps) {
     }),
   ) as Record<IndexCode, number | null>;
 
-  // resolveIndex 가 해외 코드를 허용하지만 이 스테이지 아코디언은 국내만 렌더한다.
-  // 따라서 해외 코드로 진입 시 국내 KOSPI 로 clamp — 아코디언이 자연스럽게 열린 상태로.
-  // Stage 4 에서 해외 행이 추가되면 이 clamp 를 제거한다.
-  const initialSelected: IndexCode = (
-    DOMESTIC_INDEX_CODES as readonly string[]
-  ).includes(selected)
-    ? selected
-    : "KOSPI";
-
   return (
     <main className="container mx-auto max-w-4xl space-y-4 px-4 py-8">
       <IndicesView
         dailyByIndex={dailyByIndex}
         statsByIndex={statsByIndex}
         volumeByIndex={volumeByIndex}
-        initialSelected={initialSelected}
+        initialSelected={selected}
       />
     </main>
   );

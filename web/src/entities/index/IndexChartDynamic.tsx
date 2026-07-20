@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import type { DomesticIndexCode } from "@/shared/constants/indices";
+import type { IndexCode } from "@/shared/constants/indices";
 import type { IndexDailySnapshot } from "@/shared/types/quote";
 
 const IndexChartInner = dynamic(
@@ -10,9 +10,10 @@ const IndexChartInner = dynamic(
 );
 
 type IndexChartDynamicProps = {
-  indexCode: DomesticIndexCode;
+  indexCode: IndexCode;
   prices: IndexDailySnapshot[];
   interactive?: boolean;
+  intradayEnabled?: boolean;
 };
 
 export const IndexChartDynamic = (props: IndexChartDynamicProps) => (

@@ -12,7 +12,10 @@ import { parseISO, startOfWeek, format } from "date-fns";
 import { PriceChart } from "@/entities/chart/PriceChart";
 import { useIndexIntraday } from "@/features/index-quotes/useIndexIntraday";
 import { useIndexQuotes } from "@/features/index-quotes/useIndexQuotes";
-import type { DomesticIndexCode } from "@/shared/constants/indices";
+import type {
+  DomesticIndexCode,
+  IndexCode,
+} from "@/shared/constants/indices";
 import type {
   ChartBar,
   IndexDailySnapshot,
@@ -28,9 +31,12 @@ type Granularity = "day" | "week" | "month";
 type SeriesKind = "candle" | "line";
 
 type IndexChartProps = {
-  indexCode: DomesticIndexCode;
+  indexCode: IndexCode;
   prices: IndexDailySnapshot[]; // ASC
   interactive?: boolean;
+  // 해외 지수용 daily-only 모드. false 이면 useIndexQuotes/useIndexIntraday
+  // 호출 없이 EOD 만 그린다. viewMode 토글 UI 도 숨긴다.
+  intradayEnabled?: boolean;
 };
 
 const CELL_KEY: Record<DomesticIndexCode, "kospi" | "kosdaq" | "kospi200"> = {
@@ -167,7 +173,12 @@ const mergeLiveDayBar = (
   return [...eodBars, liveBar];
 };
 
-export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChartProps) => {
+export const IndexChart = ({
+  indexCode,
+  prices,
+  interactive = true,
+  intradayEnabled = true,
+}: IndexChartProps) => {
   const [viewMode, setViewMode] = useState<ViewMode>("full");
   const [granularity, setGranularity] = useState<Granularity>("day");
   const [seriesKind, setSeriesKind] = useState<SeriesKind>("candle");
@@ -175,7 +186,7 @@ export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChart
     GRANULARITY_DEFAULT_BARS.day,
   );
   const [inputRevertNonce, setInputRevertNonce] = useState(0);
-  const isIntradayView = viewMode === "intraday";
+  const isIntradayView = intradayEnabled && viewMode === "intraday";
 
   // granularity 전환 시 표시 창을 해당 기본값으로 재설정 — StockChartTabs 와 대칭.
   useEffect(() => {
@@ -183,14 +194,20 @@ export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChart
   }, [granularity]);
 
   // 홈 IndexSlate 와 캐시 공유 (동시 열림 시 네트워크 중복 제거).
+  // 해외(intradayEnabled=false)면 훅은 호출되지만 결과는 무시 — CELL_KEY 로
+  // 매핑 불가한 코드에서 데이터 접근을 시도하지 않는다.
   const intradayQuery = useIndexIntraday();
   const intradayData = intradayQuery.data;
   const { data: quotesData } = useIndexQuotes();
 
-  const cellKey = CELL_KEY[indexCode];
-  const rawIntraday = intradayData?.quotes[cellKey] ?? null;
-  const liveQuote = quotesData?.quotes[cellKey].live ?? null;
-  const liveDate = quotesData?.date;
+  const cellKey = intradayEnabled
+    ? CELL_KEY[indexCode as DomesticIndexCode]
+    : null;
+  const rawIntraday =
+    cellKey !== null ? intradayData?.quotes[cellKey] ?? null : null;
+  const liveQuote =
+    cellKey !== null ? quotesData?.quotes[cellKey].live ?? null : null;
+  const liveDate = intradayEnabled ? quotesData?.date : undefined;
 
   // 오늘/전일 세션 경계 (fake-UTC epoch). liveDate 미도착 전에는 undefined.
   const todayStartSec = liveDate ? dateToKstStartSec(liveDate) : undefined;
@@ -209,7 +226,8 @@ export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChart
   const renderIntraday = isIntradayView && intradayHasData;
   // route 가 완전 fetch 실패 시 해당 지수 true. bars 는 항상 [] 이므로 실패는 empty 를 동반.
   // stock-intraday 와 동일 계약 — 실패↔정상 empty(preopen/휴장) 구분 신호.
-  const intradayFailed = intradayData?.failed?.[cellKey] ?? false;
+  const intradayFailed =
+    cellKey !== null ? intradayData?.failed?.[cellKey] ?? false : false;
   // 실패는 항상 empty 를 동반하므로 failed 로 분기 우선순위 결정 — 두 분기는 상호 배타.
   const showFailedIntraday =
     isIntradayView &&
@@ -312,19 +330,21 @@ export const IndexChart = ({ indexCode, prices, interactive = true }: IndexChart
       {/* 우측 정렬 단일 행. 당일/전체 그룹과 나머지 클러스터를 gap-4 로 벌려
           의미 구분(모바일에선 flex-wrap 로 두 그룹이 두 줄로 나뉨). */}
       <div className="mb-3 flex flex-wrap items-center justify-end gap-4">
-        <div className={groupWrapperCls} role="group" aria-label="차트 뷰">
-          {VIEW_MODE_BUTTONS.map(({ value, label: btnLabel }) => (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={viewMode === value}
-              onClick={() => setViewMode(value)}
-              className={toolbarButtonCls(viewMode === value)}
-            >
-              {btnLabel}
-            </button>
-          ))}
-        </div>
+        {intradayEnabled && (
+          <div className={groupWrapperCls} role="group" aria-label="차트 뷰">
+            {VIEW_MODE_BUTTONS.map(({ value, label: btnLabel }) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={viewMode === value}
+                onClick={() => setViewMode(value)}
+                className={toolbarButtonCls(viewMode === value)}
+              >
+                {btnLabel}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="flex flex-wrap items-center gap-1.5">
           <div className={groupWrapperCls} role="group" aria-label="차트 종류">
             {SERIES_KIND_BUTTONS.map(({ value, label: btnLabel, Icon }) => {
