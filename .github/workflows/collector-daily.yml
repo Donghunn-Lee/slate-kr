@@ -13,6 +13,8 @@ jobs:
       DATABASE_URL: ${{ secrets.NEON_DIRECT_URL }}
       DART_API_KEY: ${{ secrets.DART_API_KEY }}
       KRX_OPEN_API_KEY: ${{ secrets.KRX_OPEN_API_KEY }}
+      KIS_APP_KEY: ${{ secrets.KIS_APP_KEY }}
+      KIS_APP_SECRET: ${{ secrets.KIS_APP_SECRET }}
 
     steps:
       - uses: actions/checkout@v5
@@ -33,3 +35,8 @@ jobs:
       - name: Run fetch_index_prices
         working-directory: collector
         run: python fetch_index_prices.py
+        continue-on-error: true
+
+      - name: Run fetch_overseas_indices
+        working-directory: collector
+        run: python fetch_overseas_indices.py
