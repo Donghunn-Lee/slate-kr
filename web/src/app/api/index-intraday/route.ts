@@ -12,12 +12,14 @@ type IndexQuotes = {
   kospi: IndexIntradaySnapshot[];
   kosdaq: IndexIntradaySnapshot[];
   kospi200: IndexIntradaySnapshot[];
+  kosdaq150: IndexIntradaySnapshot[];
 };
 
 type IndexFailedMap = {
   kospi: boolean;
   kosdaq: boolean;
   kospi200: boolean;
+  kosdaq150: boolean;
 };
 
 // 지수 × session 별로 unstable_cache 래퍼를 memoize. 장중 60s / 폐장 3600s.
@@ -72,21 +74,24 @@ export const GET = async () => {
     const results = await Promise.allSettled(
       DOMESTIC_INDEX_CODES.map((code) => getCachedFetcher(code, marketOpen)()),
     );
-    const [kospi, kosdaq, kospi200] = results;
+    const [kospi, kosdaq, kospi200, kosdaq150] = results;
 
     const kospiR = resolve("KOSPI", marketOpen, kospi);
     const kosdaqR = resolve("KOSDAQ", marketOpen, kosdaq);
     const kospi200R = resolve("KOSPI200", marketOpen, kospi200);
+    const kosdaq150R = resolve("KOSDAQ150", marketOpen, kosdaq150);
 
     const quotes: IndexQuotes = {
       kospi: kospiR.bars,
       kosdaq: kosdaqR.bars,
       kospi200: kospi200R.bars,
+      kosdaq150: kosdaq150R.bars,
     };
     const failed: IndexFailedMap = {
       kospi: kospiR.failed,
       kosdaq: kosdaqR.failed,
       kospi200: kospi200R.failed,
+      kosdaq150: kosdaq150R.failed,
     };
 
     return NextResponse.json({ quotes, marketOpen, failed });
@@ -95,9 +100,9 @@ export const GET = async () => {
     console.error(`[index-intraday] ${message}`);
     return NextResponse.json(
       {
-        quotes: { kospi: [], kosdaq: [], kospi200: [] },
+        quotes: { kospi: [], kosdaq: [], kospi200: [], kosdaq150: [] },
         marketOpen: false,
-        failed: { kospi: true, kosdaq: true, kospi200: true },
+        failed: { kospi: true, kosdaq: true, kospi200: true, kosdaq150: true },
       },
       { status: 200 },
     );

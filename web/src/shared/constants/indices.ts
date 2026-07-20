@@ -16,6 +16,7 @@ export const INDEX_REGISTRY = [
   { code: "KOSPI", label: "코스피", region: "domestic", overline: "KOSPI" },
   { code: "KOSDAQ", label: "코스닥", region: "domestic", overline: "KOSDAQ" },
   { code: "KOSPI200", label: "코스피200", region: "domestic", overline: "KOSPI 200" },
+  { code: "KOSDAQ150", label: "코스닥150", region: "domestic", overline: "KOSDAQ 150" },
   { code: "SPX", label: "S&P 500", region: "overseas", overline: "S&P 500" },
   { code: ".DJI", label: "다우존스", region: "overseas", overline: "DOW JONES" },
   { code: "COMP", label: "나스닥종합", region: "overseas", overline: "NASDAQ COMP" },

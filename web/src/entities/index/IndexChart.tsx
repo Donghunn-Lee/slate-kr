@@ -39,10 +39,14 @@ type IndexChartProps = {
   intradayEnabled?: boolean;
 };
 
-const CELL_KEY: Record<DomesticIndexCode, "kospi" | "kosdaq" | "kospi200"> = {
+const CELL_KEY: Record<
+  DomesticIndexCode,
+  "kospi" | "kosdaq" | "kospi200" | "kosdaq150"
+> = {
   KOSPI: "kospi",
   KOSDAQ: "kosdaq",
   KOSPI200: "kospi200",
+  KOSDAQ150: "kosdaq150",
 };
 
 const VIEW_MODE_BUTTONS: { value: ViewMode; label: string }[] = [

@@ -11,6 +11,7 @@ export type IndexQuotesResponse = {
     kospi: IndexCellData;
     kosdaq: IndexCellData;
     kospi200: IndexCellData;
+    kosdaq150: IndexCellData;
   };
   marketOpen: boolean;
   date: string; // KST 거래일 'YYYY-MM-DD' (당일 봉 병합용)

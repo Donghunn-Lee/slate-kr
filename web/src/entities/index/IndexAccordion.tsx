@@ -32,10 +32,14 @@ type IndexAccordionProps = {
 };
 
 // useIndexQuotes 응답 키 매핑 — IndexChart 의 CELL_KEY 와 동일 축.
-const CELL_KEY: Record<DomesticIndexCode, "kospi" | "kosdaq" | "kospi200"> = {
+const CELL_KEY: Record<
+  DomesticIndexCode,
+  "kospi" | "kosdaq" | "kospi200" | "kosdaq150"
+> = {
   KOSPI: "kospi",
   KOSDAQ: "kosdaq",
   KOSPI200: "kospi200",
+  KOSDAQ150: "kosdaq150",
 };
 
 // 지수값 — 원 단위 아님. 소수 최대 2자리, ko-KR 로케일.

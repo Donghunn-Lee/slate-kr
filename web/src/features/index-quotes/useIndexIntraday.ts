@@ -6,6 +6,7 @@ export type IndexIntradayResponse = {
     kospi: IndexIntradaySnapshot[];
     kosdaq: IndexIntradaySnapshot[];
     kospi200: IndexIntradaySnapshot[];
+    kosdaq150: IndexIntradaySnapshot[];
   };
   marketOpen: boolean;
   // route 가 완전 fetch 실패 시 해당 지수 true. bars 는 항상 [] 로 정규화되므로
@@ -14,6 +15,7 @@ export type IndexIntradayResponse = {
     kospi: boolean;
     kosdaq: boolean;
     kospi200: boolean;
+    kosdaq150: boolean;
   };
 };
 

@@ -26,6 +26,11 @@ const getCachedIndexQuote = {
     ["index-quote-kospi200"],
     { revalidate: 60 },
   ),
+  "3003": unstable_cache(
+    () => fetchIndexQuote("3003"),
+    ["index-quote-kosdaq150"],
+    { revalidate: 60 },
+  ),
 } as const;
 
 type IndexCellData = {
@@ -37,6 +42,7 @@ type IndexQuotes = {
   kospi: IndexCellData;
   kosdaq: IndexCellData;
   kospi200: IndexCellData;
+  kosdaq150: IndexCellData;
 };
 
 const pick = <T>(r: PromiseSettledResult<T | null>): T | null =>
@@ -48,22 +54,27 @@ export const GET = async () => {
       kospiLive,
       kosdaqLive,
       kospi200Live,
+      kosdaq150Live,
       kospiFb,
       kosdaqFb,
       kospi200Fb,
+      kosdaq150Fb,
     ] = await Promise.allSettled([
       getCachedIndexQuote["0001"](),
       getCachedIndexQuote["1001"](),
       getCachedIndexQuote["2001"](),
+      getCachedIndexQuote["3003"](),
       getLatestIndexPrice("KOSPI"),
       getLatestIndexPrice("KOSDAQ"),
       getLatestIndexPrice("KOSPI200"),
+      getLatestIndexPrice("KOSDAQ150"),
     ]);
 
     const quotes: IndexQuotes = {
       kospi: { live: pick(kospiLive), fallback: pick(kospiFb) },
       kosdaq: { live: pick(kosdaqLive), fallback: pick(kosdaqFb) },
       kospi200: { live: pick(kospi200Live), fallback: pick(kospi200Fb) },
+      kosdaq150: { live: pick(kosdaq150Live), fallback: pick(kosdaq150Fb) },
     };
 
     return NextResponse.json({

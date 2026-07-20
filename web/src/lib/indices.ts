@@ -12,6 +12,7 @@ const ISCD_BY_INDEX: Record<DomesticIndexCode, string> = {
   KOSPI: "0001",
   KOSDAQ: "1001",
   KOSPI200: "2001",
+  KOSDAQ150: "3003",
 };
 
 type DailyIndexRow = {
