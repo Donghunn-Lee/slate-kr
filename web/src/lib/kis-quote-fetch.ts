@@ -25,43 +25,55 @@ const MULTI_QUOTE_LIMIT = 30; // KIS 공식 상한
 const INTRADAY_INTERVAL_SEC = "600"; // 10분봉
 
 // 종목 1분봉 fan-out anchors — 각 anchor 는 (anchor-30min, anchor] 창의 30개 봉을 반환.
-// anchor 마다 marketDiv 를 명시:
-//   - 정규장(09:00~15:30) 창은 J(KRX) — UN 이 비NXT 종목의 정규 anchor 에서도 sentinel
-//     (OHL=0)을 반환하는 실측 결과에 따라 KRX 직접 사용(#probe_stock_minute_un3).
-//   - NXT 프리(08:00~09:00) · 애프터(15:30~20:00) 창은 NX — NXT 세션 실체결. 비NXT 종목은
-//     이 창들에서 sentinel 을 받고 isSentinelBar 필터로 걸러져 x축이 09:00~15:30 로
-//     자연 축소된다.
-type MinuteMarketDiv = "J" | "NX";
-const STOCK_INTRADAY_ANCHORS: readonly {
-  anchor: string;
-  div: MinuteMarketDiv;
-}[] = [
-  { anchor: "080000", div: "NX" },
-  { anchor: "083000", div: "NX" },
-  { anchor: "090000", div: "NX" },
-  { anchor: "093000", div: "J" },
-  { anchor: "100000", div: "J" },
-  { anchor: "103000", div: "J" },
-  { anchor: "110000", div: "J" },
-  { anchor: "113000", div: "J" },
-  { anchor: "120000", div: "J" },
-  { anchor: "123000", div: "J" },
-  { anchor: "130000", div: "J" },
-  { anchor: "133000", div: "J" },
-  { anchor: "140000", div: "J" },
-  { anchor: "143000", div: "J" },
-  { anchor: "150000", div: "J" },
-  { anchor: "153000", div: "J" },
-  { anchor: "160000", div: "NX" },
-  { anchor: "163000", div: "NX" },
-  { anchor: "170000", div: "NX" },
-  { anchor: "173000", div: "NX" },
-  { anchor: "180000", div: "NX" },
-  { anchor: "183000", div: "NX" },
-  { anchor: "190000", div: "NX" },
-  { anchor: "193000", div: "NX" },
-  { anchor: "200000", div: "NX" },
+// NXT 거래가능 종목은 UN 로 25개(08:00~20:00) 전체 요청, 비NXT 종목은 J 로 13개
+// (09:30~15:30) 정규장만 요청. eligibility 는 probeNxtEligibility 로 판정.
+type MinuteMarketDiv = "J" | "UN";
+const STOCK_INTRADAY_ANCHORS_NXT: readonly string[] = [
+  "080000",
+  "083000",
+  "090000",
+  "093000",
+  "100000",
+  "103000",
+  "110000",
+  "113000",
+  "120000",
+  "123000",
+  "130000",
+  "133000",
+  "140000",
+  "143000",
+  "150000",
+  "153000",
+  "160000",
+  "163000",
+  "170000",
+  "173000",
+  "180000",
+  "183000",
+  "190000",
+  "193000",
+  "200000",
 ] as const;
+const STOCK_INTRADAY_ANCHORS_REGULAR: readonly string[] = [
+  "093000",
+  "100000",
+  "103000",
+  "110000",
+  "113000",
+  "120000",
+  "123000",
+  "130000",
+  "133000",
+  "140000",
+  "143000",
+  "150000",
+  "153000",
+] as const;
+// NXT eligibility probe anchor — 미들데이. 어느 세션이든 (KIS docstring: 미래 anchor 는
+// 현재 시각으로 clamp) 실거래 시간대 데이터를 반환. NXT 종목이면 UN 응답이 실봉,
+// 비NXT 종목이면 sentinel(OHL=0) → callStockMinuteAnchor 내부 필터로 [] 반환.
+const NXT_PROBE_ANCHOR = "120000";
 // 확장 세션 상한 (NXT 애프터 종료). 세션 종료 후 anchor 필터 상한으로 사용.
 const AFTER_END_MIN = 20 * 60;
 
@@ -539,17 +551,33 @@ const callStockMinuteAnchor = async (
   }
 };
 
-// 종목 당일 1분봉. 25콜 fan-out → sentinel 필터 → dedupe → ASC. 세션 상태에 따라
-// 필요한 anchor 만 콜. 정규장(09:00~15:30) 는 J(KRX) anchor, NXT 프리(08:00~09:00) +
-// NXT 애프터(15:30~20:00) 는 NX anchor 로 병렬 통합 (UN 이 비NXT 종목 정규 anchor 에서도
-// sentinel 을 반환하는 실측에 따라 J 로 직접).
+// NXT 거래가능 판정 — 미들데이 UN anchor 1콜 → sentinel 필터 후 실봉이 남아있으면
+// NXT 종목. KIS 종목 마스터에 NXT 플래그가 없어 데이터 파생으로 감지 (agent 조사 확인).
+// null(요청 실패) → 보수적으로 비NXT 취급 (정규장 J 만 요청, 확장 세션 봉 손실 감수).
+const probeNxtEligibility = async (
+  ticker: string,
+  token: string,
+  appKey: string,
+  appSecret: string,
+): Promise<boolean> => {
+  const bars = await callStockMinuteAnchor(
+    ticker,
+    NXT_PROBE_ANCHOR,
+    "UN",
+    token,
+    appKey,
+    appSecret,
+  );
+  return bars !== null && bars.length > 0;
+};
+
+// 종목 당일 1분봉. probe → adaptive fan-out → sentinel 필터 → dedupe → ASC.
+// NXT 종목: UN 25 anchor (08:00~20:00, KRX+NXT 통합 vol). 비NXT: J 13 anchor (정규장만).
 // null = 자격/토큰 실패 또는 fan-out 전체 실패, [] = preopen/휴장(봉 없음) 또는
 // anchors 필터가 비었을 때. ChartBar[] = 성공(부분 포함).
 // 비거래일엔 KIS 가 FID_PW_DATA_INCU_YN=Y 로 직전 완결 세션을 반환하므로(2026-07-19
 // 실측), 별도 tradingDate 게이트 없이 그대로 흘려보낸다 — 마지막 세션 표시는
 // 소비측(PriceChart.applyLockedRange 폴백)이 담당.
-// 비NXT 종목은 NX anchor 응답이 sentinel 봉이므로 isSentinelBar 로 걸러져
-// x축이 09:00~15:30 로 자연 축소된다. NXT 마스터 플래그 불필요.
 export const fetchStockIntradayChart = async (
   ticker: string,
 ): Promise<ChartBar[] | null> => {
@@ -571,14 +599,25 @@ export const fetchStockIntradayChart = async (
   const session = getKrxSessionState();
   if (session === "preopen" || session === "closed") return [];
 
+  const isNxt = await probeNxtEligibility(
+    ticker,
+    tokenResult.token,
+    appKey,
+    appSecret,
+  );
+  const anchorSet = isNxt
+    ? STOCK_INTRADAY_ANCHORS_NXT
+    : STOCK_INTRADAY_ANCHORS_REGULAR;
+  const div: MinuteMarketDiv = isNxt ? "UN" : "J";
+
   // 활성 세션(pre/regular/after) 중: 현재 시각 + 30분 이내 anchor 만 요청.
   // after_close(20:00 이후 야간·새벽): 오늘 확장 세션 이미 완결 → 전 anchor 요청.
   const cutoffMin =
     session === "pre" || session === "regular" || session === "after"
       ? nowMin + 30
       : AFTER_END_MIN + 30;
-  const anchors = STOCK_INTRADAY_ANCHORS.filter(
-    ({ anchor }) => anchorToMinutes(anchor) <= cutoffMin,
+  const anchors = anchorSet.filter(
+    (anchor) => anchorToMinutes(anchor) <= cutoffMin,
   );
   if (anchors.length === 0) return [];
 
@@ -586,7 +625,7 @@ export const fetchStockIntradayChart = async (
   // 전체 anchor 가 실패 (모두 null) 인 경우 정상 empty([]) 와 구분하기 위해 null 반환.
   // 부분 성공은 기존대로 merged 결과 반환 (성공분만 노출).
   const results = await Promise.all(
-    anchors.map(({ anchor, div }) =>
+    anchors.map((anchor) =>
       callStockMinuteAnchor(
         ticker,
         anchor,
