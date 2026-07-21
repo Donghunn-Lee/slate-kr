@@ -107,10 +107,13 @@ export const IndexRail = ({
                       onClick={() => onSelect(code)}
                       aria-pressed={isSelected}
                       className={cn(
-                        "flex w-full flex-col gap-0.5 rounded-md border px-3 py-2 text-left transition-colors",
+                        // slate 3-state: rest 는 중립 elevated slate, hover 는 옅은 lavender wash,
+                        // selected 는 우측 상세 pane 과 동일한 lavender-bg + lavender-accent 윤곽 +
+                        // 강화 shadow — 선택 탭과 차트 pane 이 하나의 layer 로 읽히도록.
+                        "flex w-full flex-col gap-0.5 rounded-md border px-3 py-2.5 text-left transition-colors",
                         isSelected
-                          ? "border-lavender-border bg-lavender-emphasis"
-                          : "border-transparent hover:bg-lavender-bg/60",
+                          ? "border-lavender-accent bg-lavender-bg shadow-slate-hover"
+                          : "border-subtle bg-elevated shadow-slate hover:bg-lavender-bg/50",
                       )}
                     >
                       <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
