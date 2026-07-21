@@ -111,16 +111,17 @@ export const StockHeaderLivePrice = ({
       )}
       {session && (
         <span className="mb-1.5 inline-flex items-center gap-1.5 text-[13px] text-muted-foreground">
+          {timeText && <span className="tabular-nums">{timeText}</span>}
+          {timeText && <span aria-hidden>·</span>}
           {session === "regular" && !isFailedQuote && (
             <span className="inline-block size-1.5 rounded-full bg-emerald-500" aria-hidden />
           )}
-          {labelText}
+          <span>{labelText}</span>
           {isFailedQuote && (
             <span className="rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-[11px] leading-none text-muted-foreground">
               일시 지연
             </span>
           )}
-          {timeText && ` · ${timeText}`}
         </span>
       )}
     </div>
