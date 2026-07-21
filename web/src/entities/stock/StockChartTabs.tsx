@@ -308,9 +308,8 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
           {isIntradayView && hasIntraday && (
             <span className="ml-2 text-xs font-normal text-muted-foreground/70">
               ·{" "}
-              {hasExtendedSessionBar
-                ? "당일 · 08–20시 · KRX+NXT"
-                : "당일 · 09:00~15:30"}
+              {intradayQuery.data?.date}{" "}
+              {hasExtendedSessionBar ? "· 08–20시 · KRX+NXT" : "· KRX"}
             </span>
           )}
         </h2>
