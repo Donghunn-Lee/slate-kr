@@ -1,7 +1,7 @@
 import type { IndexDailySnapshot } from "@/shared/types/quote";
 import type { IndexCode } from "@/shared/constants/indices";
 import type { PriceStats } from "@/shared/types/stock";
-import { IndexAccordion } from "./IndexAccordion";
+import { IndexBoard } from "./IndexBoard";
 
 type IndicesViewProps = {
   dailyByIndex: Record<IndexCode, IndexDailySnapshot[] | null>;
@@ -20,7 +20,7 @@ export const IndicesView = ({
     <h1 className="text-lg font-semibold tracking-tight text-foreground">
       지수
     </h1>
-    <IndexAccordion
+    <IndexBoard
       dailyByIndex={dailyByIndex}
       statsByIndex={statsByIndex}
       volumeByIndex={volumeByIndex}
