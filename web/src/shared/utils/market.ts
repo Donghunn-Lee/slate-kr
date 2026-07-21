@@ -96,3 +96,13 @@ export const getKrxTradingDate = (now: Date = new Date()): string => {
 // fromDate 직전 거래일. intraday 이전 세션 경계 계산용.
 export const getPreviousKrxTradingDate = (fromDate: string): string =>
   findRecentTradingDay(shiftKstDate(fromDate, -1));
+
+// 지수 라벨용 "가장 최근 완결 정규장 마감일".
+// 오늘이 거래일이고 15:30 지났으면 오늘, 그 외(개장 전·주말·휴장·다음날 새벽/오전)엔 지난 거래일.
+// getKrxTradingDate 와 다른 점: pre(08:00~08:50 NXT 프리마켓)에서도 지난 마감일을 반환 —
+// 지수는 정규장 개장 전까지 어제 종가가 최신 완결값이므로.
+export const getKrxLastCloseDate = (now: Date = new Date()): string => {
+  const { minutes, date } = toKstParts(now);
+  if (isKrxTradingDay(date) && minutes >= REGULAR_END_MINUTES) return date;
+  return findRecentTradingDay(shiftKstDate(date, -1));
+};
