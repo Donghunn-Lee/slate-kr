@@ -16,6 +16,11 @@ import {
   useIndexQuotes,
   type IndexCellData,
 } from "@/features/index-quotes/useIndexQuotes";
+import {
+  getKrxLastCloseDate,
+  getKrxSessionState,
+  getKstDateAndMinutes,
+} from "@/shared/utils/market";
 import { cn } from "@/lib/utils";
 import { IndexChartDynamic } from "./IndexChartDynamic";
 
@@ -66,24 +71,25 @@ const formatClock = (d: Date): string =>
     hour12: false,
   });
 
-// 장중일 때만 다음 분 경계에 맞춰 tick — 폴링과 무관하게 시각 라벨을 최신화한다.
-// enabled=false 이면 시계는 정지(마지막 값 유지). 렌더 측에서 조건부로만 표시.
-const useLiveMinute = (enabled: boolean): string => {
-  const [now, setNow] = useState<Date>(() => new Date());
+// 매 분 tick 하는 client clock. null = pre-mount (SSR hydration mismatch 회피).
+// 장 상태와 무관하게 항상 tick — 15:30·09:00 세션 경계 넘을 때 라벨이 자동 갱신되어야 함.
+const useNow = (): Date | null => {
+  const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
-    if (!enabled) return;
+    const tick = () => setNow(new Date());
+    tick();
     const msToNextMinute = 60_000 - (Date.now() % 60_000);
     let intervalId: number | undefined;
     const timeoutId = window.setTimeout(() => {
-      setNow(new Date());
-      intervalId = window.setInterval(() => setNow(new Date()), 60_000);
+      tick();
+      intervalId = window.setInterval(tick, 60_000);
     }, msToNextMinute);
     return () => {
       window.clearTimeout(timeoutId);
       if (intervalId !== undefined) window.clearInterval(intervalId);
     };
-  }, [enabled]);
-  return formatClock(now);
+  }, []);
+  return now;
 };
 
 type StatCellProps = {
@@ -172,22 +178,29 @@ export const IndexDetailPane = ({
     : latestDaily
       ? { live: null, fallback: latestDaily }
       : undefined;
-  const marketOpen = isDomestic ? (data?.marketOpen ?? false) : false;
-  const clock = useLiveMinute(marketOpen);
-  // 국내 fallback 은 quote 서비스가 넣어준 직전 EOD 날짜, 없으면 우리가 fetch 한
-  // latestDaily.date. 해외는 항상 latestDaily.date.
-  const refDate = isDomestic
-    ? (cell?.fallback?.date ?? latestDaily?.date ?? null)
-    : (latestDaily?.date ?? null);
+
+  // 라벨은 request time 기준: 국내는 client clock 으로 세션·기준일을 도출한다
+  // (KIS live/intraday 가 오늘치를 이미 그리고 있으므로 라벨도 오늘·현재 시각을 반영).
+  // 해외는 실시간 소스 없음 → DB 최신 EOD 기준일 유지.
+  const now = useNow();
+  const isRegular = isDomestic && now !== null && getKrxSessionState(now) === "regular";
+  const domesticDate = now
+    ? isRegular
+      ? getKstDateAndMinutes(now).date
+      : getKrxLastCloseDate(now)
+    : null;
+  const overseasDate = latestDaily?.date ?? null;
 
   const stats = statsByIndex[selected];
   const volume = isDomestic ? volumeByIndex[selected] : null;
 
-  const referenceLabel = marketOpen
-    ? `실시간 · ${clock}`
-    : isDomestic
-      ? `정규장 마감${refDate ? ` · 기준일 ${refDate}` : ""}`
-      : `미국 · 정규장 마감${refDate ? ` · 기준일 ${refDate}` : ""}`;
+  const referenceLabel = isDomestic
+    ? now === null
+      ? "정규장 마감"
+      : isRegular
+        ? `실시간 · ${domesticDate} ${formatClock(now)}`
+        : `정규장 마감 · ${domesticDate} 15:30`
+    : `미국 · 정규장 마감${overseasDate ? ` · 기준일 ${overseasDate}` : ""}`;
 
   return (
     <StockPanel variant="lavender" className="overflow-hidden p-0">
@@ -199,7 +212,7 @@ export const IndexDetailPane = ({
           <h2 className="text-lg font-medium">{INDEX_LABEL[selected]}</h2>
         </div>
         <div className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
-          {marketOpen && (
+          {isRegular && (
             <span
               className="inline-block size-1.5 rounded-full bg-emerald-500"
               aria-hidden
@@ -248,7 +261,7 @@ export const IndexDetailPane = ({
             stats={stats}
             isDomestic={isDomestic}
             volume={volume}
-            refDate={refDate}
+            refDate={overseasDate}
           />
         )}
       </div>
