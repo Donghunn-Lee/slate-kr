@@ -22,6 +22,7 @@ import type {
   IndexIntradaySnapshot,
 } from "@/shared/types/quote";
 import { getPreviousKrxTradingDate } from "@/shared/utils/market";
+import { mergeLiveDayBar } from "@/shared/utils/mergeLiveDayBar";
 import { resampleToMonthly } from "@/shared/utils/resampleToMonthly";
 import { resampleToWeekly } from "@/shared/utils/resampleToWeekly";
 import { cn } from "@/lib/utils";
@@ -153,29 +154,8 @@ const snapshotsToBars = (snaps: IndexDailySnapshot[]): ChartBar[] =>
     close: s.close,
   }));
 
-// EOD 일봉 + 실시간 quote 병합. 지수 quote(IndexQuote) 에는 volume 이 없어
-// 오늘 봉 volume 은 EOD 에 이미 있는 경우만 보존한다.
-const mergeLiveDayBar = (
-  eod: IndexDailySnapshot[],
-  live: { price: number; open: number; high: number; low: number } | null,
-  liveDate: string | undefined,
-): ChartBar[] => {
-  const eodBars = dailyToBars(eod);
-  if (!live || !liveDate) return eodBars;
-  const last = eod[eod.length - 1];
-  const preservedVolume =
-    last && last.date === liveDate ? last.volume : undefined;
-  const liveBar: ChartBar = {
-    time: liveDate,
-    open: live.open,
-    high: live.high,
-    low: live.low,
-    close: live.price,
-    volume: preservedVolume,
-  };
-  if (last && last.date === liveDate) return [...eodBars.slice(0, -1), liveBar];
-  return [...eodBars, liveBar];
-};
+// EOD 일봉 + 실시간 quote 병합은 shared/utils/mergeLiveDayBar 로 이관.
+// 지수/종목 모두 동일 무효-OHL 게이트 + 도지 합성 규칙을 공유한다.
 
 export const IndexChart = ({
   indexCode,
@@ -245,7 +225,7 @@ export const IndexChart = ({
     !intradayFailed;
 
   const dayBars = useMemo<ChartBar[]>(
-    () => mergeLiveDayBar(prices, liveQuote, liveDate),
+    () => mergeLiveDayBar(dailyToBars(prices), liveQuote, liveDate),
     [prices, liveQuote, liveDate],
   );
 

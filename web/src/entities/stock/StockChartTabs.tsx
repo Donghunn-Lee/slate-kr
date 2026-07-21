@@ -6,6 +6,7 @@ import { useStockIntraday } from "@/features/stock-intraday/useStockIntraday";
 import { useStockQuote } from "@/features/stock-quote/useStockQuote";
 import type { ChartBar, IndexDailySnapshot } from "@/shared/types/quote";
 import type { StockPriceSnapshot } from "@/shared/types/stock";
+import { mergeLiveDayBar } from "@/shared/utils/mergeLiveDayBar";
 import { resampleIntradayBars } from "@/shared/utils/resampleIntradayBars";
 import { resampleToMonthly } from "@/shared/utils/resampleToMonthly";
 import { resampleToWeekly } from "@/shared/utils/resampleToWeekly";
@@ -81,29 +82,7 @@ const stockPricesToBars = (prices: StockPriceSnapshot[]): ChartBar[] =>
       volume: p.volume,
     }));
 
-// P2 종목 병합 로직: 마지막 EOD 봉 time === 당일 date → replace, 아니면 append.
-// 오늘 봉 volume 은 라이브 quote 의 acml_vol(누적 거래량) 을 우선 사용.
-// EOD 에 오늘 봉이 이미 있는 경우(replace 경로) preservedVolume 을 fallback 으로 유지 —
-// 라이브 quote 가 아직 도착하지 않았거나 파싱 실패로 volume 이 결측일 때 안전망.
-const mergeLiveDayBar = (
-  eod: ChartBar[],
-  quote: { open: number; high: number; low: number; price: number; volume: number } | null,
-  date: string | undefined
-): ChartBar[] => {
-  if (!quote || !date) return eod;
-  const last = eod[eod.length - 1];
-  const preservedVolume = last && last.time === date ? last.volume : undefined;
-  const live: ChartBar = {
-    time: date,
-    open: quote.open,
-    high: quote.high,
-    low: quote.low,
-    close: quote.price,
-    volume: quote.volume ?? preservedVolume,
-  };
-  if (last && last.time === date) return [...eod.slice(0, -1), live];
-  return [...eod, live];
-};
+// EOD + 라이브 quote 병합은 shared/utils/mergeLiveDayBar 로 이관 (무효-OHL 도지 게이트 포함).
 
 // dayBars → 월별 volume 합. resampleToMonthly 결과 date("YYYY-MM-01") 와 "YYYY-MM" 로 조인.
 // resampleToMonthly 시그니처가 IndexDailySnapshot(volume 없음) 이라 shim 을 안 뜯고 여기서 얹는다.
