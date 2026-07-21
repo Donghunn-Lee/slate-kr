@@ -109,21 +109,26 @@ type StatsBlockProps = {
 
 const StatsBlock = ({ stats, isDomestic, volume, refDate }: StatsBlockProps) => {
   const { range52w, returns } = stats;
+  // flex-wrap 은 항목 수가 가변인 stats 행에 media-query grid 보다 견고 —
+  // 넓은 pane 에선 한 줄, 좁은 pane 이나 모바일에선 자연 reflow.
   return (
-    <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 md:grid-cols-5">
-      {range52w !== null ? (
-        <StatCell label="52주 저-고">
-          <span>
-            {formatIndexPrice(range52w.low)}
-            <span className="mx-1 text-muted-foreground/60">–</span>
-            {formatIndexPrice(range52w.high)}
-          </span>
-        </StatCell>
-      ) : (
-        <StatCell label="52주 저-고">
+    <div className="flex flex-wrap gap-x-6 gap-y-3">
+      <StatCell label="52주">
+        {range52w !== null ? (
+          <div className="flex items-baseline gap-3 whitespace-nowrap">
+            <span>
+              <span className="text-muted-foreground/70">저 </span>
+              {formatIndexPrice(range52w.low)}
+            </span>
+            <span>
+              <span className="text-muted-foreground/70">고 </span>
+              {formatIndexPrice(range52w.high)}
+            </span>
+          </div>
+        ) : (
           <span className="text-muted-foreground">—</span>
-        </StatCell>
-      )}
+        )}
+      </StatCell>
       {returns.map(({ period, value }) => (
         <StatCell key={period} label={period}>
           <span className={cn("font-medium", returnColorClass(value))}>
