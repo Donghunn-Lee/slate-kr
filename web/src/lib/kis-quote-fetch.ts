@@ -25,36 +25,42 @@ const MULTI_QUOTE_LIMIT = 30; // KIS 공식 상한
 const INTRADAY_INTERVAL_SEC = "600"; // 10분봉
 
 // 종목 1분봉 fan-out anchors — 각 anchor 는 (anchor-30min, anchor] 창의 30개 봉을 반환.
-// 25개 * 30봉 = 07:31~20:00 KST (NXT 프리 + 정규 + NXT 애프터 커버).
-// marketDiv=UN 하 NXT 상장 종목만 확장 세션 실거래 봉을 받는다 — 비NXT 종목은 확장
-// 시간대 anchor 가 sentinel 봉을 반환하므로 isSentinelBar 필터로 자동 제거되어
-// 결과 x축이 09:00~15:30 로 자연 축소된다.
-const STOCK_INTRADAY_ANCHORS = [
-  "080000",
-  "083000",
-  "090000",
-  "093000",
-  "100000",
-  "103000",
-  "110000",
-  "113000",
-  "120000",
-  "123000",
-  "130000",
-  "133000",
-  "140000",
-  "143000",
-  "150000",
-  "153000",
-  "160000",
-  "163000",
-  "170000",
-  "173000",
-  "180000",
-  "183000",
-  "190000",
-  "193000",
-  "200000",
+// anchor 마다 marketDiv 를 명시:
+//   - 정규장(09:00~15:30) 창은 J(KRX) — UN 이 비NXT 종목의 정규 anchor 에서도 sentinel
+//     (OHL=0)을 반환하는 실측 결과에 따라 KRX 직접 사용(#probe_stock_minute_un3).
+//   - NXT 프리(08:00~09:00) · 애프터(15:30~20:00) 창은 NX — NXT 세션 실체결. 비NXT 종목은
+//     이 창들에서 sentinel 을 받고 isSentinelBar 필터로 걸러져 x축이 09:00~15:30 로
+//     자연 축소된다.
+type MinuteMarketDiv = "J" | "NX";
+const STOCK_INTRADAY_ANCHORS: readonly {
+  anchor: string;
+  div: MinuteMarketDiv;
+}[] = [
+  { anchor: "080000", div: "NX" },
+  { anchor: "083000", div: "NX" },
+  { anchor: "090000", div: "NX" },
+  { anchor: "093000", div: "J" },
+  { anchor: "100000", div: "J" },
+  { anchor: "103000", div: "J" },
+  { anchor: "110000", div: "J" },
+  { anchor: "113000", div: "J" },
+  { anchor: "120000", div: "J" },
+  { anchor: "123000", div: "J" },
+  { anchor: "130000", div: "J" },
+  { anchor: "133000", div: "J" },
+  { anchor: "140000", div: "J" },
+  { anchor: "143000", div: "J" },
+  { anchor: "150000", div: "J" },
+  { anchor: "153000", div: "J" },
+  { anchor: "160000", div: "NX" },
+  { anchor: "163000", div: "NX" },
+  { anchor: "170000", div: "NX" },
+  { anchor: "173000", div: "NX" },
+  { anchor: "180000", div: "NX" },
+  { anchor: "183000", div: "NX" },
+  { anchor: "190000", div: "NX" },
+  { anchor: "193000", div: "NX" },
+  { anchor: "200000", div: "NX" },
 ] as const;
 // 확장 세션 상한 (NXT 애프터 종료). 세션 종료 후 anchor 필터 상한으로 사용.
 const AFTER_END_MIN = 20 * 60;
@@ -466,18 +472,18 @@ export const fetchMultiQuote = async (
 
 // 종목 1분봉 fan-out 헬퍼. anchor 1개 호출 → 성공 시 ChartBar[], 실패 시 null.
 // 실패 격리: 개별 anchor 실패가 전체 fetch 를 무너뜨리지 않도록 null 반환.
-// marketDiv=UN 로 KRX+NXT 통합 조회 (probe 실측 확인: NXT 상장 종목은 확장 세션
-// 실거래 봉을 반환, 비NXT 는 sentinel 봉을 반환하며 isSentinelBar 로 걸러진다).
+// marketDiv 는 anchor 목록에서 명시된 값 사용 (정규장=J, NXT 프리/애프터=NX).
 const callStockMinuteAnchor = async (
   ticker: string,
   anchor: string,
+  div: MinuteMarketDiv,
   token: string,
   appKey: string,
   appSecret: string,
 ): Promise<ChartBar[] | null> => {
   const url = new URL(BASE_URL + STOCK_MINUTE_PATH);
   url.searchParams.set("FID_ETC_CLS_CODE", "");
-  url.searchParams.set("FID_COND_MRKT_DIV_CODE", MARKET_DIV_INTEGRATED);
+  url.searchParams.set("FID_COND_MRKT_DIV_CODE", div);
   url.searchParams.set("FID_INPUT_ISCD", ticker);
   url.searchParams.set("FID_INPUT_HOUR_1", anchor); // HHMMSS 시각 anchor
   url.searchParams.set("FID_PW_DATA_INCU_YN", "Y");
@@ -497,19 +503,19 @@ const callStockMinuteAnchor = async (
     });
     if (!res.ok) {
       console.error(
-        `[kis] stock intraday anchor=${anchor} HTTP ${res.status}`,
+        `[kis] stock intraday anchor=${anchor} div=${div} HTTP ${res.status}`,
       );
       return null;
     }
     const json: unknown = await res.json();
     const parsed = KisStockMinuteResponseSchema.safeParse(json);
     if (!parsed.success) {
-      console.error(`[kis] stock intraday anchor=${anchor} parse failed`);
+      console.error(`[kis] stock intraday anchor=${anchor} div=${div} parse failed`);
       return null;
     }
     if (parsed.data.rt_cd !== "0") {
       console.error(
-        `[kis] stock intraday anchor=${anchor} rt_cd=${parsed.data.rt_cd} msg=${parsed.data.msg1 ?? ""}`,
+        `[kis] stock intraday anchor=${anchor} div=${div} rt_cd=${parsed.data.rt_cd} msg=${parsed.data.msg1 ?? ""}`,
       );
       return null;
     }
@@ -527,21 +533,22 @@ const callStockMinuteAnchor = async (
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(
-      `[kis] stock intraday anchor=${anchor} fetch failed: ${message}`,
+      `[kis] stock intraday anchor=${anchor} div=${div} fetch failed: ${message}`,
     );
     return null;
   }
 };
 
 // 종목 당일 1분봉. 25콜 fan-out → sentinel 필터 → dedupe → ASC. 세션 상태에 따라
-// 필요한 anchor 만 콜. marketDiv=UN 로 NXT 프리(08:00~08:50) + 정규(09:00~15:30) +
-// NXT 애프터(15:30~20:00) 통합 커버.
+// 필요한 anchor 만 콜. 정규장(09:00~15:30) 는 J(KRX) anchor, NXT 프리(08:00~09:00) +
+// NXT 애프터(15:30~20:00) 는 NX anchor 로 병렬 통합 (UN 이 비NXT 종목 정규 anchor 에서도
+// sentinel 을 반환하는 실측에 따라 J 로 직접).
 // null = 자격/토큰 실패 또는 fan-out 전체 실패, [] = preopen/휴장(봉 없음) 또는
 // anchors 필터가 비었을 때. ChartBar[] = 성공(부분 포함).
 // 비거래일엔 KIS 가 FID_PW_DATA_INCU_YN=Y 로 직전 완결 세션을 반환하므로(2026-07-19
 // 실측), 별도 tradingDate 게이트 없이 그대로 흘려보낸다 — 마지막 세션 표시는
 // 소비측(PriceChart.applyLockedRange 폴백)이 담당.
-// 비NXT 종목은 확장 세션 anchor 가 sentinel 봉을 반환 → isSentinelBar 로 걸러져
+// 비NXT 종목은 NX anchor 응답이 sentinel 봉이므로 isSentinelBar 로 걸러져
 // x축이 09:00~15:30 로 자연 축소된다. NXT 마스터 플래그 불필요.
 export const fetchStockIntradayChart = async (
   ticker: string,
@@ -571,7 +578,7 @@ export const fetchStockIntradayChart = async (
       ? nowMin + 30
       : AFTER_END_MIN + 30;
   const anchors = STOCK_INTRADAY_ANCHORS.filter(
-    (a) => anchorToMinutes(a) <= cutoffMin,
+    ({ anchor }) => anchorToMinutes(anchor) <= cutoffMin,
   );
   if (anchors.length === 0) return [];
 
@@ -579,8 +586,15 @@ export const fetchStockIntradayChart = async (
   // 전체 anchor 가 실패 (모두 null) 인 경우 정상 empty([]) 와 구분하기 위해 null 반환.
   // 부분 성공은 기존대로 merged 결과 반환 (성공분만 노출).
   const results = await Promise.all(
-    anchors.map((a) =>
-      callStockMinuteAnchor(ticker, a, tokenResult.token, appKey, appSecret),
+    anchors.map(({ anchor, div }) =>
+      callStockMinuteAnchor(
+        ticker,
+        anchor,
+        div,
+        tokenResult.token,
+        appKey,
+        appSecret,
+      ),
     ),
   );
   if (results.every((rows) => rows === null)) return null;
