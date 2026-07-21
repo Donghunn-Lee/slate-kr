@@ -20,20 +20,23 @@ export const GET = async (req: NextRequest) => {
   const date = getKrxTradingDate();
 
   try {
+    // UN(KRX+NXT 통합) 단일 호출. 이전엔 세션별 J/NX 토글이 있었으나 KIS 실측 결과
+    // UN 이 통합 vol/OHL 을 반환하며(J vol + NX vol ≈ UN vol), NXT 미상장 종목의
+    // NX 응답(값 전부 0)으로 인한 today-bar 폭락 버그를 피할 수 있음.
+    // preopen/closed 는 KIS 호출 스킵 유지 — 시세 없는 시간대에 낭비되는 요청 회피.
     let quote: StockQuote | null = null;
-    if (session === "regular") {
-      quote = await fetchStockQuote(ticker, "J");
-    } else if (
+    if (
+      session === "regular" ||
       session === "after" ||
       session === "after_close" ||
       session === "pre"
     ) {
-      quote = await fetchStockQuote(ticker, "NX");
+      quote = await fetchStockQuote(ticker);
     }
 
-    // 정규장 중 KIS 가 throw 없이 null 만 돌려준 경우도 실패로 취급 — 09:00~15:30 에는
-    // KRX 상장 종목이면 응답이 있어야 정상. after/pre/after_close 는 NXT 미지원(=진짜 empty)
-    // 과 KIS 실패가 구분 불가라 여기서 실패 판정하지 않고 isNxtMiss("장 마감") 로 흘림.
+    // 정규장 중 KIS 가 throw 없이 null 만 돌려준 경우만 실패로 취급 — 09:00~15:30 에는
+    // KRX 상장 종목이면 응답이 있어야 정상. 그 외 세션은 실패/정상-빈응답이 구분 불가라
+    // 클라이언트가 세션 라벨 유지한 채 자연 처리하도록 failed=false.
     const failed = session === "regular" && quote === null;
     return NextResponse.json({ quote, marketOpen, session, date, failed });
   } catch (err: unknown) {

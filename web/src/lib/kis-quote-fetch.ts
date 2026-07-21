@@ -262,9 +262,13 @@ export const fetchIndexQuote = async (iscd: string): Promise<IndexQuote | null> 
   }
 };
 
+// marketDiv 는 UN(KRX+NXT 통합) 고정. KIS docstring 상 이 값이 REST snapshot 의
+// 통합 조회 방식(J:KRX, NX:NXT, UN:통합). 세션별 J/NX 토글은 NXT 미상장 종목에서
+// 응답 OHL=0 을 유발해 today-bar 폭락 버그의 근원이었음(#probe #3 실측 확인).
+const MARKET_DIV_INTEGRATED = "UN";
+
 export const fetchStockQuote = async (
   ticker: string,
-  marketDiv: "J" | "NX",
 ): Promise<StockQuote | null> => {
   const tokenResult = await getKisToken();
   if (!tokenResult.ok) {
@@ -280,7 +284,7 @@ export const fetchStockQuote = async (
   }
 
   const url = new URL(BASE_URL + STOCK_PRICE_PATH);
-  url.searchParams.set("FID_COND_MRKT_DIV_CODE", marketDiv);
+  url.searchParams.set("FID_COND_MRKT_DIV_CODE", MARKET_DIV_INTEGRATED);
   url.searchParams.set("FID_INPUT_ISCD", ticker);
 
   try {
@@ -300,7 +304,7 @@ export const fetchStockQuote = async (
     if (!res.ok) {
       const body = await res.text();
       console.error(
-        `[kis] stock quote HTTP ${res.status} ticker=${ticker} div=${marketDiv} body=${body.slice(0, 300)}`,
+        `[kis] stock quote HTTP ${res.status} ticker=${ticker} body=${body.slice(0, 300)}`,
       );
       return null;
     }
@@ -338,9 +342,9 @@ export type MultiQuoteResult = {
 
 // 입력 tickers 전체를 키로 갖는 Record 반환. 실패·미응답 ticker는 quote=null, failed=true.
 // 입력 순서 비의존 — 응답 row의 inter_shrn_iscd로 매칭한다.
+// marketDiv 는 UN(통합) 고정 — fetchStockQuote 와 동일 근거.
 export const fetchMultiQuote = async (
   tickers: string[],
-  marketDiv: "J" | "NX",
 ): Promise<MultiQuoteResult> => {
   if (tickers.length === 0) return { quotes: {}, failed: {} };
 
@@ -373,7 +377,7 @@ export const fetchMultiQuote = async (
   const url = new URL(BASE_URL + MULTI_PRICE_PATH);
   effective.forEach((ticker, idx) => {
     const i = idx + 1; // KIS 파라미터 인덱스는 1-base
-    url.searchParams.set(`FID_COND_MRKT_DIV_CODE_${i}`, marketDiv);
+    url.searchParams.set(`FID_COND_MRKT_DIV_CODE_${i}`, MARKET_DIV_INTEGRATED);
     url.searchParams.set(`FID_INPUT_ISCD_${i}`, ticker);
   });
 

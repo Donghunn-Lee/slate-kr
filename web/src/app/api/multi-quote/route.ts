@@ -29,14 +29,14 @@ export const GET = async (req: NextRequest) => {
     let quotes: Record<string, StockQuote | null> = {};
     let failed: Record<string, boolean> = {};
     if (tickers.length > 0) {
-      if (session === "regular") {
-        ({ quotes, failed } = await fetchMultiQuote(tickers, "J"));
-      } else if (
+      // UN(KRX+NXT 통합) 단일 호출. stock-quote route 와 동일 근거.
+      if (
+        session === "regular" ||
         session === "after" ||
         session === "after_close" ||
         session === "pre"
       ) {
-        ({ quotes, failed } = await fetchMultiQuote(tickers, "NX"));
+        ({ quotes, failed } = await fetchMultiQuote(tickers));
       }
       // preopen / closed: KIS 호출 스킵, quotes/failed 모두 {} 유지 (라이브 미시도 → 실패 개념 없음).
     }
