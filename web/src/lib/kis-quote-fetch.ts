@@ -297,13 +297,17 @@ export const fetchIndexQuote = async (iscd: string): Promise<IndexQuote | null> 
   }
 };
 
-// marketDiv 는 UN(KRX+NXT 통합) 고정. KIS docstring 상 이 값이 REST snapshot 의
-// 통합 조회 방식(J:KRX, NX:NXT, UN:통합). 세션별 J/NX 토글은 NXT 미상장 종목에서
-// 응답 OHL=0 을 유발해 today-bar 폭락 버그의 근원이었음(#probe #3 실측 확인).
+// marketDiv:
+//   - fetchMultiQuote (watchlist ranking) 는 UN(KRX+NXT 통합) 고정 — 배지 시그널이
+//     없어 통합 vol 유지가 이득.
+//   - fetchStockQuote (종목 상세 헤더) 는 세션별 J/NX 토글 유지 — StockHeaderLivePrice
+//     의 isNxtMiss 판정이 NX 응답의 iscd=null(비NXT 종목) → normalizeStockQuote=null
+//     경로에 의존하므로 UN 통합 시 KRX 값이 흘러가 배지 회귀 발생.
 const MARKET_DIV_INTEGRATED = "UN";
 
 export const fetchStockQuote = async (
   ticker: string,
+  marketDiv: "J" | "NX",
 ): Promise<StockQuote | null> => {
   const tokenResult = await getKisToken();
   if (!tokenResult.ok) {
@@ -319,7 +323,7 @@ export const fetchStockQuote = async (
   }
 
   const url = new URL(BASE_URL + STOCK_PRICE_PATH);
-  url.searchParams.set("FID_COND_MRKT_DIV_CODE", MARKET_DIV_INTEGRATED);
+  url.searchParams.set("FID_COND_MRKT_DIV_CODE", marketDiv);
   url.searchParams.set("FID_INPUT_ISCD", ticker);
 
   try {
@@ -339,7 +343,7 @@ export const fetchStockQuote = async (
     if (!res.ok) {
       const body = await res.text();
       console.error(
-        `[kis] stock quote HTTP ${res.status} ticker=${ticker} body=${body.slice(0, 300)}`,
+        `[kis] stock quote HTTP ${res.status} ticker=${ticker} div=${marketDiv} body=${body.slice(0, 300)}`,
       );
       return null;
     }
