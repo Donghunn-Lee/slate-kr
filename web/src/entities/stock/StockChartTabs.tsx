@@ -69,6 +69,17 @@ const INTRADAY_INTERVAL_DEFAULT = 5;
 // intradayResampled useMemo 의 deps 가 매 렌더 바뀌지 않게 한다.
 const EMPTY_BARS: ChartBar[] = [];
 
+// KST 정규장 창 (분). 확장 세션(NXT 프리/애프터) 판정에 사용.
+const REGULAR_START_KST_MIN = 9 * 60;
+const REGULAR_END_KST_MIN = 15 * 60 + 30;
+
+// intradayBars.time 은 kstToFakeUtcSec 로 KST 시각을 UTC 위장 인코딩 —
+// UTC 시각으로 그대로 읽으면 KST 시각(분 단위) 이 나온다.
+const barKstMinuteOfDay = (t: number): number => {
+  const d = new Date(t * 1000);
+  return d.getUTCHours() * 60 + d.getUTCMinutes();
+};
+
 // DESC → ASC ChartBar[]. volume 은 histogram 오버레이용 (StockPriceSnapshot.volume 그대로).
 const stockPricesToBars = (prices: StockPriceSnapshot[]): ChartBar[] =>
   [...prices]
@@ -198,6 +209,18 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
   // route 가 완전 fetch 실패 시 true. bars 는 항상 [] 이므로 실패는 empty 를 동반.
   const intradayFailed = intradayQuery.data?.failed ?? false;
 
+  // NXT 확장 세션 유입 판정 — sentinel 필터 후에도 정규장(09:00~15:30) 밖 봉이 하나라도
+  // 있으면 NXT 상장 종목. 데이터 파생 — 마스터 플래그 불필요.
+  const hasExtendedSessionBar = useMemo<boolean>(
+    () =>
+      intradayBars.some((b) => {
+        if (typeof b.time !== "number") return false;
+        const m = barKstMinuteOfDay(b.time);
+        return m < REGULAR_START_KST_MIN || m > REGULAR_END_KST_MIN;
+      }),
+    [intradayBars],
+  );
+
   // intraday base 는 1분봉 → 선택한 간격으로 N분 리샘플. 1분은 raw 통과.
   const intradayResampled = useMemo<ChartBar[]>(
     () => resampleIntradayBars(intradayBars, intradayInterval),
@@ -280,7 +303,17 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
       {/* h2 좌측 유지, 우측에 클러스터 단일 행. 당일/전체와 나머지 클러스터는
           gap-4 로 벌려 의미 구분(모바일에선 flex-wrap 로 자연 wrap). */}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold text-muted-foreground">가격 차트</h2>
+        <h2 className="text-sm font-semibold text-muted-foreground">
+          가격 차트
+          {isIntradayView && hasIntraday && (
+            <span className="ml-2 text-xs font-normal text-muted-foreground/70">
+              ·{" "}
+              {hasExtendedSessionBar
+                ? "당일 · 08–20시 · KRX+NXT"
+                : "당일 · 09:00~15:30"}
+            </span>
+          )}
+        </h2>
         <div className="flex flex-wrap items-center justify-end gap-4">
           <div className={groupWrapperCls} role="group" aria-label="차트 뷰">
             {VIEW_MODE_BUTTONS.map(({ value, label: btnLabel }) => (

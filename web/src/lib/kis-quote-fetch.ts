@@ -2,6 +2,7 @@ import { z } from "zod";
 import { getKisToken } from "@/lib/kis-token";
 import { normalizeIndexQuote, normalizeMultiQuote, normalizeStockQuote } from "@/lib/kis-quote";
 import type { ChartBar, IndexQuote, StockQuote } from "@/shared/types/quote";
+import { isSentinelBar } from "@/shared/utils/intradaySentinel";
 import {
   getKrxSessionState,
   getKstDateAndMinutes,
@@ -24,8 +25,14 @@ const MULTI_QUOTE_LIMIT = 30; // KIS 공식 상한
 const INTRADAY_INTERVAL_SEC = "600"; // 10분봉
 
 // 종목 1분봉 fan-out anchors — 각 anchor 는 (anchor-30min, anchor] 창의 30개 봉을 반환.
-// 13개 * 30봉 = 09:01~15:30 KST (정규장 390분 커버, 09:00 개장봉은 이 endpoint 특성상 제외).
+// 25개 * 30봉 = 07:31~20:00 KST (NXT 프리 + 정규 + NXT 애프터 커버).
+// marketDiv=UN 하 NXT 상장 종목만 확장 세션 실거래 봉을 받는다 — 비NXT 종목은 확장
+// 시간대 anchor 가 sentinel 봉을 반환하므로 isSentinelBar 필터로 자동 제거되어
+// 결과 x축이 09:00~15:30 로 자연 축소된다.
 const STOCK_INTRADAY_ANCHORS = [
+  "080000",
+  "083000",
+  "090000",
   "093000",
   "100000",
   "103000",
@@ -39,8 +46,18 @@ const STOCK_INTRADAY_ANCHORS = [
   "143000",
   "150000",
   "153000",
+  "160000",
+  "163000",
+  "170000",
+  "173000",
+  "180000",
+  "183000",
+  "190000",
+  "193000",
+  "200000",
 ] as const;
-const REGULAR_END_MIN = 15 * 60 + 30;
+// 확장 세션 상한 (NXT 애프터 종료). 세션 종료 후 anchor 필터 상한으로 사용.
+const AFTER_END_MIN = 20 * 60;
 
 const anchorToMinutes = (a: string): number =>
   Number(a.slice(0, 2)) * 60 + Number(a.slice(2, 4));
@@ -449,6 +466,8 @@ export const fetchMultiQuote = async (
 
 // 종목 1분봉 fan-out 헬퍼. anchor 1개 호출 → 성공 시 ChartBar[], 실패 시 null.
 // 실패 격리: 개별 anchor 실패가 전체 fetch 를 무너뜨리지 않도록 null 반환.
+// marketDiv=UN 로 KRX+NXT 통합 조회 (probe 실측 확인: NXT 상장 종목은 확장 세션
+// 실거래 봉을 반환, 비NXT 는 sentinel 봉을 반환하며 isSentinelBar 로 걸러진다).
 const callStockMinuteAnchor = async (
   ticker: string,
   anchor: string,
@@ -458,7 +477,7 @@ const callStockMinuteAnchor = async (
 ): Promise<ChartBar[] | null> => {
   const url = new URL(BASE_URL + STOCK_MINUTE_PATH);
   url.searchParams.set("FID_ETC_CLS_CODE", "");
-  url.searchParams.set("FID_COND_MRKT_DIV_CODE", "J");
+  url.searchParams.set("FID_COND_MRKT_DIV_CODE", MARKET_DIV_INTEGRATED);
   url.searchParams.set("FID_INPUT_ISCD", ticker);
   url.searchParams.set("FID_INPUT_HOUR_1", anchor); // HHMMSS 시각 anchor
   url.searchParams.set("FID_PW_DATA_INCU_YN", "Y");
@@ -503,7 +522,8 @@ const callStockMinuteAnchor = async (
         low: r.stck_lwpr,
         close: r.stck_prpr,
         volume: r.cntg_vol,
-      }));
+      }))
+      .filter((b) => !isSentinelBar(b));
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(
@@ -513,12 +533,16 @@ const callStockMinuteAnchor = async (
   }
 };
 
-// 종목 당일 1분봉. 13콜 fan-out → dedupe → ASC. 세션 상태에 따라 필요한 anchor 만 콜.
-// null = 자격/토큰 실패 또는 fan-out 전체 실패, [] = pre(봉 없음) / anchors 필터가 비었을 때.
-// ChartBar[] = 성공(부분 포함). 비거래일엔 KIS 가 FID_PW_DATA_INCU_YN=Y 로 직전 완결
-// 세션을 반환하므로(2026-07-19 실측), 별도 tradingDate 게이트 없이 그대로 흘려보낸다 —
-// 마지막 세션 표시는 소비측(PriceChart.applyLockedRange 폴백)이 담당.
-// 실패/정상-빈값 구분은 route 의 캐시 evict 판정에 쓰인다.
+// 종목 당일 1분봉. 25콜 fan-out → sentinel 필터 → dedupe → ASC. 세션 상태에 따라
+// 필요한 anchor 만 콜. marketDiv=UN 로 NXT 프리(08:00~08:50) + 정규(09:00~15:30) +
+// NXT 애프터(15:30~20:00) 통합 커버.
+// null = 자격/토큰 실패 또는 fan-out 전체 실패, [] = preopen/휴장(봉 없음) 또는
+// anchors 필터가 비었을 때. ChartBar[] = 성공(부분 포함).
+// 비거래일엔 KIS 가 FID_PW_DATA_INCU_YN=Y 로 직전 완결 세션을 반환하므로(2026-07-19
+// 실측), 별도 tradingDate 게이트 없이 그대로 흘려보낸다 — 마지막 세션 표시는
+// 소비측(PriceChart.applyLockedRange 폴백)이 담당.
+// 비NXT 종목은 확장 세션 anchor 가 sentinel 봉을 반환 → isSentinelBar 로 걸러져
+// x축이 09:00~15:30 로 자연 축소된다. NXT 마스터 플래그 불필요.
 export const fetchStockIntradayChart = async (
   ticker: string,
 ): Promise<ChartBar[] | null> => {
@@ -534,15 +558,18 @@ export const fetchStockIntradayChart = async (
     return null;
   }
 
-  // pre 는 정규장 개시 전이라 봉 자체가 없음 — 유지(pre-open 동작 미검증 상태로 보수적).
+  // preopen/closed 는 활성 시세 없음 → 스킵. 나머지 세션(pre 8:00-8:50 · regular ·
+  // after 15:30-20:00 · after_close 야간/새벽) 은 확장 세션 봉 취득 대상.
   const { minutes: nowMin } = getKstDateAndMinutes();
   const session = getKrxSessionState();
-  if (session === "pre") return [];
+  if (session === "preopen" || session === "closed") return [];
 
-  // regular 중: 현재 시각 + 30분(=미래 30분 이내 anchor 까지) 이하만.
-  // regular 후 (after/after_close 저녁/이례적으로 오늘=tradingDate 인 그 외): 13개 전체.
+  // 활성 세션(pre/regular/after) 중: 현재 시각 + 30분 이내 anchor 만 요청.
+  // after_close(20:00 이후 야간·새벽): 오늘 확장 세션 이미 완결 → 전 anchor 요청.
   const cutoffMin =
-    session === "regular" ? nowMin + 30 : REGULAR_END_MIN + 30;
+    session === "pre" || session === "regular" || session === "after"
+      ? nowMin + 30
+      : AFTER_END_MIN + 30;
   const anchors = STOCK_INTRADAY_ANCHORS.filter(
     (a) => anchorToMinutes(a) <= cutoffMin,
   );
