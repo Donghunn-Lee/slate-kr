@@ -22,40 +22,36 @@ const IndexCell = ({ label, cell, bars, intradayFailed }: IndexCellProps) => (
     <div>
       <div className="text-[13px] text-muted-foreground">{label}</div>
       {cell.live ? (
-        <>
-          <div className="mt-1 text-2xl font-medium tabular-nums">
+        <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          <span className="text-2xl font-medium tabular-nums">
             <PriceCountUp from={cell.live.price} to={cell.live.price} />
-          </div>
-          <div className="mt-1">
-            <PriceChange
-              change={cell.live.change}
-              changeRate={cell.live.changeRate}
-              sign={cell.live.sign}
-              symbol="arrow"
-              size="sm"
-            />
-          </div>
-        </>
+          </span>
+          <PriceChange
+            change={cell.live.change}
+            changeRate={cell.live.changeRate}
+            sign={cell.live.sign}
+            symbol="arrow"
+            size="sm"
+          />
+        </div>
       ) : cell.fallback ? (
-        <>
-          <div className="mt-1 text-2xl font-medium tabular-nums">
+        <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          <span className="text-2xl font-medium tabular-nums">
             {cell.fallback.close.toLocaleString("ko-KR")}
-          </div>
-          <div className="mt-1 flex items-center gap-1.5">
-            <span className="text-[11px] text-muted-foreground">직전 거래일</span>
-            <PriceChange
-              change={cell.fallback.change}
-              changeRate={cell.fallback.changeRate}
-              symbol="arrow"
-              size="sm"
-            />
-          </div>
-        </>
+          </span>
+          <PriceChange
+            change={cell.fallback.change}
+            changeRate={cell.fallback.changeRate}
+            symbol="arrow"
+            size="sm"
+          />
+          <span className="text-[11px] text-muted-foreground">직전 거래일</span>
+        </div>
       ) : (
-        <>
-          <div className="mt-1 text-2xl font-medium tabular-nums text-muted-foreground">—</div>
-          <div className="mt-1 text-[13px] text-muted-foreground">데이터 없음</div>
-        </>
+        <div className="mt-1 flex items-baseline gap-2">
+          <span className="text-2xl font-medium tabular-nums text-muted-foreground">—</span>
+          <span className="text-[13px] text-muted-foreground">데이터 없음</span>
+        </div>
       )}
     </div>
     <IndexMiniChart bars={bars} failed={intradayFailed} />
