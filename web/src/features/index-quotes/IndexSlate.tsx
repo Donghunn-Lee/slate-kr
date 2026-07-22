@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { StockPanel } from "@/entities/stock/StockPanel";
@@ -9,6 +10,11 @@ import { IndexMiniChart } from "@/entities/index/IndexMiniChart";
 import type { IndexIntradaySnapshot } from "@/shared/types/quote";
 import { useIndexQuotes, type IndexCellData } from "./useIndexQuotes";
 import { useIndexIntraday } from "./useIndexIntraday";
+
+type IndexSlateProps = {
+  // 해외 EOD 행을 서버에서 SSR 해서 넘긴다. client인 이 컴포넌트가 server child 를 감싸는 정형 패턴.
+  overseasSlot?: ReactNode;
+};
 
 type IndexCellProps = {
   label: string;
@@ -83,7 +89,7 @@ const GRID_CLASS =
 
 const EMPTY_BARS: IndexIntradaySnapshot[] = [];
 
-export const IndexSlate = () => {
+export const IndexSlate = ({ overseasSlot }: IndexSlateProps = {}) => {
   const { data, isLoading, isError } = useIndexQuotes();
   const { data: intraday } = useIndexIntraday();
 
@@ -138,6 +144,9 @@ export const IndexSlate = () => {
               intradayFailed={intraday?.failed.kospi200 ?? false}
             />
           </div>
+        )}
+        {overseasSlot && (
+          <div className="border-t border-border/60 pb-2">{overseasSlot}</div>
         )}
       </StockPanel>
     </section>
