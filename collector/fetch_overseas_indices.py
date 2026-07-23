@@ -53,7 +53,7 @@ DEFAULT_BACKFILL_YEARS = 3
 # 100봉 하드캡 대비 안전 창 — 트레이딩일 100개 ≈ 140 캘린더일. 여유를 둬 200.
 DAILY_WINDOW_DAYS = 200
 
-OVERSEAS_CODES = ("SPX", ".DJI", "COMP")
+OVERSEAS_CODES = ("SPX", ".DJI", "COMP", "NDX")
 
 # ── 로깅 (fetch_index_prices.py 와 동일 형태) ─────────────────
 _log_dir = os.path.join(os.path.dirname(__file__), "logs")
