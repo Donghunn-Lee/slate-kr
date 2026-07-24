@@ -2,7 +2,13 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import { useTheme } from "next-themes";
-import { createChart, LineSeries, type UTCTimestamp } from "lightweight-charts";
+import {
+  createChart,
+  AreaSeries,
+  LineStyle,
+  type AutoscaleInfo,
+  type UTCTimestamp,
+} from "lightweight-charts";
 import type { IndexIntradaySnapshot } from "@/shared/types/quote";
 
 type IndexSparklineProps = {
@@ -13,21 +19,25 @@ type IndexSparklineProps = {
 
 type Trend = "up" | "down" | "flat";
 
-// IndexMiniChart 팔레트와 동일 hex — 상승/하락 톤 통일.
-// 여기 co-locate 하는 이유: sparkline 은 라인 단색만 사용하고 gradient/border 필요 없어서
-// 팔레트 shape 이 미니와 다르다. 공용화 시 dead 필드가 생겨 유지비만 증가.
-const LIGHT: Record<Trend, string> = {
-  up: "#dc2626",
-  down: "#2563eb",
-  flat: "#737373",
+// IndexMiniChart 팔레트와 동일 hex — 상승/하락 톤 통일. 면 그라데이션은 라인색의
+// ~20% alpha, bottomColor 는 transparent(자연 소멸).
+type AreaTone = { line: string; top: string };
+const LIGHT: Record<Trend, AreaTone> = {
+  up: { line: "#dc2626", top: "rgba(220,38,38,0.20)" },
+  down: { line: "#2563eb", top: "rgba(37,99,235,0.20)" },
+  flat: { line: "#737373", top: "rgba(115,115,115,0.20)" },
 };
-const DARK: Record<Trend, string> = {
-  up: "#ef4444",
-  down: "#3b82f6",
-  flat: "#a3a3a3",
+const DARK: Record<Trend, AreaTone> = {
+  up: { line: "#ef4444", top: "rgba(239,68,68,0.20)" },
+  down: { line: "#3b82f6", top: "rgba(59,130,246,0.20)" },
+  flat: { line: "#a3a3a3", top: "rgba(163,163,163,0.20)" },
 };
 
-const HEIGHT_PX = 36;
+// 전일종가 기준선 색상 — 무채색 muted. 축 라벨 없이 대시만.
+const PREV_CLOSE_LINE_LIGHT = "rgba(0,0,0,0.28)";
+const PREV_CLOSE_LINE_DARK = "rgba(255,255,255,0.28)";
+
+const HEIGHT_PX = 60;
 
 const trendOf = (change: number): Trend => {
   if (change > 0) return "up";
@@ -57,7 +67,14 @@ export const IndexSparkline = ({ bars, failed = false }: IndexSparklineProps) =>
     if (sessionBars.length === 0) return;
 
     const palette = resolvedTheme === "dark" ? DARK : LIGHT;
-    const color = palette[trendOf(sessionBars[sessionBars.length - 1].change)];
+    const tone = palette[trendOf(sessionBars[sessionBars.length - 1].change)];
+
+    // 전일종가 = close - change (같은 세션 봉에서 상수). autoscaleInfoProvider 에서
+    // series priceRange 로 clamp 하지 않고 prevClose 도 포함시켜, price line 이
+    // [min close, max close] 밖으로 벗어난 경우에도 잘리지 않게 한다.
+    const first = sessionBars[0];
+    const prevClose = first.close - first.change;
+    const hasPrevClose = prevClose > 0;
 
     const chart = createChart(containerRef.current, {
       autoSize: true,
@@ -78,12 +95,27 @@ export const IndexSparkline = ({ bars, failed = false }: IndexSparklineProps) =>
       handleScale: false,
     });
 
-    const series = chart.addSeries(LineSeries, {
-      color,
-      lineWidth: 1,
+    const series = chart.addSeries(AreaSeries, {
+      lineColor: tone.line,
+      topColor: tone.top,
+      bottomColor: "transparent",
+      lineWidth: 2,
       lastValueVisible: false,
       priceLineVisible: false,
       crosshairMarkerVisible: false,
+      autoscaleInfoProvider: hasPrevClose
+        ? (original: () => AutoscaleInfo | null): AutoscaleInfo | null => {
+            const info = original();
+            if (!info || !info.priceRange) return info;
+            return {
+              ...info,
+              priceRange: {
+                minValue: Math.min(info.priceRange.minValue, prevClose),
+                maxValue: Math.max(info.priceRange.maxValue, prevClose),
+              },
+            };
+          }
+        : undefined,
     });
 
     series.setData(
@@ -92,6 +124,19 @@ export const IndexSparkline = ({ bars, failed = false }: IndexSparklineProps) =>
         value: b.close,
       })),
     );
+
+    // 큰 차트 스타일 준용 — 대시 라인, 얇게, 축 라벨 없이 순수 시각 기준선.
+    if (hasPrevClose) {
+      series.createPriceLine({
+        price: prevClose,
+        color:
+          resolvedTheme === "dark" ? PREV_CLOSE_LINE_DARK : PREV_CLOSE_LINE_LIGHT,
+        lineStyle: LineStyle.Dashed,
+        lineWidth: 1,
+        axisLabelVisible: false,
+        title: "",
+      });
+    }
 
     chart.timeScale().fitContent();
 

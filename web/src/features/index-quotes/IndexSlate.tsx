@@ -107,7 +107,7 @@ const MiniIndexCell = ({ label, cell, bars, intradayFailed }: MiniIndexCellProps
         <div className="mt-0.5 text-sm text-muted-foreground">데이터 없음</div>
       )}
     </div>
-    <div className="w-[78px] shrink-0">
+    <div className="min-w-[110px] flex-1">
       <IndexSparkline bars={bars} failed={intradayFailed} />
     </div>
   </div>
