@@ -359,6 +359,17 @@ export const IndexChart = ({
           ? MONTH_MA_PERIODS
           : DAY_MA_PERIODS;
 
+  // 전일 종가 기준선 — intraday 뷰 한정. 오늘 세션 첫 봉의 (close - change) 로 역산.
+  // IndexIntradaySnapshot.change 는 국내·해외 모두 lib/indices.ts 에서
+  // close - prevClose 로 채워지므로 동일 산식이 성립.
+  const intradayBaseline = useMemo<number | undefined>(() => {
+    if (!renderIntraday || !intraday || todayStartSec === undefined) return undefined;
+    const first = intraday.find((b) => b.timestamp >= todayStartSec);
+    if (!first) return undefined;
+    const prev = first.close - first.change;
+    return prev > 0 ? prev : undefined;
+  }, [renderIntraday, intraday, todayStartSec]);
+
   // 데이터 길이 기준 MA 필터 — 창 밖 데이터로 SMA 계산 가능하므로 창 크기와 분리.
   const effectiveMaPeriods = useMemo(() => {
     if (!maPeriods) return undefined;
@@ -530,6 +541,7 @@ export const IndexChart = ({
           showLegend
           maPeriods={effectiveMaPeriods}
           seriesKind={seriesKind}
+          baseline={intradayBaseline}
           visibleBars={renderIntraday ? undefined : barCount}
           onVisibleBarsChange={renderIntraday ? undefined : setBarCount}
         />

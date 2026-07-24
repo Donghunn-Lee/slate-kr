@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { useTheme } from "next-themes";
 import {
   createChart,
+  BaselineSeries,
   CandlestickSeries,
   HistogramSeries,
   LineSeries,
@@ -46,6 +47,9 @@ type PriceChartProps = {
   // 메인 시리즈 종류. "candle" — CandlestickSeries(OHLC). "line" — close 기반 LineSeries.
   // 기본 "candle" — 기존 호출부(지수·미니차트) 변경 없이 캔들 유지.
   seriesKind?: "candle" | "line";
+  // 선차트 기준선 가격. seriesKind==="line" 일 때만 BaselineSeries(위=up/아래=down 2색) 로 전환.
+  // 미제공 시 LineSeries 단색 유지. 값 변경은 시리즈 재생성 없이 applyOptions 로 반영.
+  baseline?: number;
   // 최근 N봉만 보이도록 시계축 논리 범위를 제어. null/undefined = 전체 표시.
   // 데이터를 자르지 않고 표시 창만 조정 → 툴바 조작 시 계산/네트워크 비용 없이 즉시 반영.
   // locked=true(intraday) 뷰에서는 무시 (applyLockedRange 가 우선).
@@ -333,13 +337,16 @@ export const PriceChart = ({
   maPeriods,
   showLegend = false,
   seriesKind = "candle",
+  baseline,
   visibleBars,
   onVisibleBarsChange,
 }: PriceChartProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   // seriesKind 변경 시 config effect 가 재실행되어 재생성하므로 union 참조로 유지.
-  const seriesRef = useRef<ISeriesApi<"Candlestick" | "Line"> | null>(null);
+  const seriesRef = useRef<
+    ISeriesApi<"Candlestick" | "Line" | "Baseline"> | null
+  >(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   // period 별 라인 시리즈. bars.length < period 로 생성 스킵된 항목은 배열에 없음.
   // colorIdx = 원본 maPeriods 인덱스 → 라인과 MA 범례 색을 동일 팔레트 인덱스로 매칭.
@@ -375,6 +382,10 @@ export const PriceChart = ({
 
   // period 배열 참조 안정화 (부모가 새 배열을 만들어도 값 동일하면 재실행 방지).
   const maPeriodsKey = maPeriods?.join(",") ?? "";
+
+  // 정의 여부만 config effect 재생성 트리거 (LineSeries ↔ BaselineSeries 스왑).
+  // 값 자체 변경은 아래 baseline effect 가 applyOptions 로 흡수해 시리즈 재생성 회피.
+  const hasBaseline = seriesKind === "line" && baseline !== undefined;
 
   const { resolvedTheme } = useTheme();
 
@@ -443,32 +454,45 @@ export const PriceChart = ({
       handleScale: scrollScale,
     });
 
-    // seriesKind 분기: candle=OHLC, line=close 기반. 라인색은 상승색(up) 재사용.
-    const series: ISeriesApi<"Candlestick" | "Line"> =
-      seriesKind === "line"
-        ? chart.addSeries(LineSeries, {
-            color: c.up,
-            lineWidth: 2,
-            priceLineVisible: false,
-            lastValueVisible: true,
-            priceFormat: {
-              type: "price",
-              precision,
-              minMove: 10 ** -precision,
-            },
-          })
-        : chart.addSeries(CandlestickSeries, {
-            upColor: c.up,
-            downColor: c.down,
-            borderVisible: false,
-            wickUpColor: c.up,
-            wickDownColor: c.down,
-            priceFormat: {
-              type: "price",
-              precision,
-              minMove: 10 ** -precision,
-            },
-          });
+    // candle=OHLC / line+baseline=BaselineSeries 2색 / line only=LineSeries 단색 fallback.
+    const priceFormat = {
+      type: "price" as const,
+      precision,
+      minMove: 10 ** -precision,
+    };
+    let series: ISeriesApi<"Candlestick" | "Line" | "Baseline">;
+    if (hasBaseline) {
+      series = chart.addSeries(BaselineSeries, {
+        baseValue: { type: "price", price: baseline as number },
+        topLineColor: c.up,
+        bottomLineColor: c.down,
+        topFillColor1: c.baseline.topFill1,
+        topFillColor2: c.baseline.topFill2,
+        bottomFillColor1: c.baseline.bottomFill1,
+        bottomFillColor2: c.baseline.bottomFill2,
+        lineWidth: 2,
+        priceLineVisible: false,
+        lastValueVisible: true,
+        priceFormat,
+      });
+    } else if (seriesKind === "line") {
+      series = chart.addSeries(LineSeries, {
+        color: c.up,
+        lineWidth: 2,
+        priceLineVisible: false,
+        lastValueVisible: true,
+        priceFormat,
+      });
+    } else {
+      series = chart.addSeries(CandlestickSeries, {
+        upColor: c.up,
+        downColor: c.down,
+        borderVisible: false,
+        wickUpColor: c.up,
+        wickDownColor: c.down,
+        priceFormat,
+      });
+    }
 
     // 캔들 상단 여백은 유지, showVolume 이면 하단 여백을 확보해 histogram 이 겹치지 않게.
     chart.priceScale("right").applyOptions({
@@ -588,7 +612,7 @@ export const PriceChart = ({
 
     if (initial.length > 0) {
       if (seriesKind === "line") {
-        (series as ISeriesApi<"Line">).setData(initial.map(mapLine));
+        (series as ISeriesApi<"Line" | "Baseline">).setData(initial.map(mapLine));
       } else {
         (series as ISeriesApi<"Candlestick">).setData(
           initial.map((b) => mapBar(b, c, dimBefore)),
@@ -715,7 +739,17 @@ export const PriceChart = ({
     };
     // maPeriodsKey 로 배열 값 변화를 감지 (참조 대신 값 비교).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [precision, timeVisible, interactive, resolvedTheme, locked, dimBefore, showVolume, maPeriodsKey, showLegend, seriesKind]);
+  }, [precision, timeVisible, interactive, resolvedTheme, locked, dimBefore, showVolume, maPeriodsKey, showLegend, seriesKind, hasBaseline]);
+
+  // baseline 값만 바뀌면 baseValue 만 갱신 — 시리즈 재생성 회피. Baseline 시리즈가 아니면 no-op.
+  useEffect(() => {
+    const series = seriesRef.current;
+    if (!series) return;
+    if (baseline === undefined || seriesKind !== "line") return;
+    (series as ISeriesApi<"Baseline">).applyOptions({
+      baseValue: { type: "price", price: baseline },
+    });
+  }, [baseline, seriesKind]);
 
   // bars-only 갱신. 첫 봉 time 동일 + length 동일/+1 → series.update 로 줌 유지.
   // 그 외(탭 전환 등 데이터셋 자체 변경) → setData + (locked: applyLockedRange, else: fitContent).
@@ -732,7 +766,7 @@ export const PriceChart = ({
 
     if (bars.length === 0) {
       if (seriesKind === "line") {
-        (series as ISeriesApi<"Line">).setData([]);
+        (series as ISeriesApi<"Line" | "Baseline">).setData([]);
       } else {
         (series as ISeriesApi<"Candlestick">).setData([]);
       }
@@ -759,7 +793,7 @@ export const PriceChart = ({
     if (canIncremental) {
       const lastBar = bars[bars.length - 1];
       if (seriesKind === "line") {
-        (series as ISeriesApi<"Line">).update(mapLine(lastBar));
+        (series as ISeriesApi<"Line" | "Baseline">).update(mapLine(lastBar));
       } else {
         (series as ISeriesApi<"Candlestick">).update(mapBar(lastBar, c, dimBefore));
       }
@@ -776,7 +810,7 @@ export const PriceChart = ({
       }
     } else {
       if (seriesKind === "line") {
-        (series as ISeriesApi<"Line">).setData(bars.map(mapLine));
+        (series as ISeriesApi<"Line" | "Baseline">).setData(bars.map(mapLine));
       } else {
         (series as ISeriesApi<"Candlestick">).setData(
           bars.map((b) => mapBar(b, c, dimBefore)),
