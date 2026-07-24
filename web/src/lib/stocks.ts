@@ -65,6 +65,13 @@ type SearchOptions = {
   offset?: number;
 };
 
+type SearchRow = Pick<StockRow, "ticker" | "name" | "market"> & {
+  total_count: number;
+};
+
+// total_count 는 offset 창에 결과가 있을 때만 회수 가능. 빈 페이지(offset이 total 초과)
+// 시 0 으로 반환되므로, 호출측이 page > 1 && results.length === 0 → 1페이지 redirect
+// 로 범위 밖 상태를 복구한다.
 export const searchStocks = async (
   query: string,
   opts: SearchOptions = {}
@@ -75,24 +82,23 @@ export const searchStocks = async (
   const containsPattern = `%${query}%`;
   const prefixPattern = `${query}%`;
 
-  const [rows] = await pool.query<Pick<StockRow, "ticker" | "name" | "market">[]>(
-    `SELECT ticker, name, market
+  const [rows] = await pool.query<SearchRow[]>(
+    `SELECT ticker, name, market, COUNT(*) OVER() AS total_count
      FROM stocks
      WHERE (name ILIKE $1 OR ticker ILIKE $2) AND is_active = true
      ORDER BY (name ILIKE $3 OR ticker ILIKE $4) DESC, name ASC
      LIMIT $5 OFFSET $6`,
-    [containsPattern, containsPattern, prefixPattern, prefixPattern, limit + 1, offset]
+    [containsPattern, containsPattern, prefixPattern, prefixPattern, limit, offset]
   );
 
-  const hasMore = rows.length > limit;
-  const trimmed = hasMore ? rows.slice(0, limit) : rows;
+  const total = rows.length > 0 ? rows[0].total_count : 0;
 
   return {
-    results: trimmed.map((row) => ({
+    results: rows.map((row) => ({
       ticker: row.ticker,
       name: row.name,
       market: row.market,
     })),
-    hasMore,
+    total,
   };
 };

@@ -25,7 +25,7 @@ export type StockSearchResult = {
 
 export type StockSearchPage = {
   results: StockSearchResult[];
-  hasMore: boolean;
+  total: number;
 };
 
 export type CompanyProfile = {
