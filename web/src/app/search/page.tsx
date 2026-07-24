@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { searchStocks } from "@/lib/stocks";
+import { getLatestPricesByTickers, type LatestPriceSummary } from "@/lib/prices";
 import { SearchResultList } from "@/features/search/SearchResultList";
 import { SearchBarWithState } from "@/features/search/SearchBarWithState";
 import { buttonVariants } from "@/components/ui/button";
@@ -129,11 +130,19 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const totalPages = Math.ceil(result.total / PAGE_SIZE);
   const pageTokens = buildPageTokens(page, totalPages);
 
+  // 가격 조회 실패는 검색 결과 자체를 죽이지 않는다 — 정적 필드만 남기고 계속.
+  let basePrices: Record<string, LatestPriceSummary> = {};
+  try {
+    basePrices = await getLatestPricesByTickers(result.results.map((r) => r.ticker));
+  } catch {
+    basePrices = {};
+  }
+
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-10">
       <SearchHeader query={query} />
       <p className="mb-4 text-xs text-muted-foreground">{result.total}개 종목</p>
-      <SearchResultList results={result.results} />
+      <SearchResultList results={result.results} basePrices={basePrices} />
       {totalPages > 1 && (
         <Pagination className="mt-6">
           <PaginationContent>

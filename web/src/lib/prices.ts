@@ -57,6 +57,61 @@ export const getLatestPrice = cache(async (ticker: string): Promise<StockPriceSn
   };
 });
 
+// tickers 각각의 최신 종가·전일 대비 등락·거래량. change 컬럼이 스키마에 없어(2026-07 확인)
+// LAG 로 직전 거래일 종가를 붙여 파생 계산한다. 10일 lookback 은 연휴/휴장 갭 대비.
+// 결과에서 누락된 ticker(시세 없음)는 caller 가 부재로 처리한다.
+export type LatestPriceSummary = {
+  close: number;
+  change: number | null;
+  changeRate: number | null;
+  volume: number;
+};
+
+type LatestPriceRow = {
+  ticker: string;
+  close: number;
+  volume: number;
+  prev_close: number | null;
+};
+
+export const getLatestPricesByTickers = async (
+  tickers: string[]
+): Promise<Record<string, LatestPriceSummary>> => {
+  if (tickers.length === 0) return {};
+
+  const placeholders = tickers.map((_, i) => `$${i + 1}`).join(",");
+
+  const [rows] = await pool.query<LatestPriceRow[]>(
+    `WITH ranked AS (
+       SELECT ticker, close, volume,
+              LAG(close) OVER (PARTITION BY ticker ORDER BY date) AS prev_close,
+              ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY date DESC) AS rn
+       FROM daily_prices
+       WHERE ticker IN (${placeholders})
+         AND date >= CURRENT_DATE - INTERVAL '10 days'
+     )
+     SELECT ticker, close, volume, prev_close
+     FROM ranked
+     WHERE rn = 1`,
+    tickers
+  );
+
+  const result: Record<string, LatestPriceSummary> = {};
+  for (const row of rows) {
+    const prev = row.prev_close;
+    const change = prev === null ? null : row.close - prev;
+    const changeRate =
+      prev === null || prev === 0 ? null : ((row.close - prev) / prev) * 100;
+    result[row.ticker] = {
+      close: row.close,
+      change,
+      changeRate,
+      volume: row.volume,
+    };
+  }
+  return result;
+};
+
 export const getPricesForStats = async (ticker: string): Promise<StockPriceSnapshot[]> => {
   try {
     const [rows] = await pool.query<DailyPriceRow[]>(
