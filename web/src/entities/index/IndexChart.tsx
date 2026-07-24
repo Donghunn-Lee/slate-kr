@@ -12,17 +12,23 @@ import { parseISO, startOfWeek, format } from "date-fns";
 import { PriceChart } from "@/entities/chart/PriceChart";
 import { useIndexIntraday } from "@/features/index-quotes/useIndexIntraday";
 import { useIndexQuotes } from "@/features/index-quotes/useIndexQuotes";
-import type {
-  DomesticIndexCode,
-  IndexCode,
+import { useOverseasIndexIntraday } from "@/features/index-quotes/useOverseasIndexIntraday";
+import {
+  isOverseasIntradayCode,
+  type DomesticIndexCode,
+  type IndexCode,
+  type OverseasIntradayCode,
 } from "@/shared/constants/indices";
 import type {
   ChartBar,
   IndexDailySnapshot,
   IndexIntradaySnapshot,
 } from "@/shared/types/quote";
-import { getPreviousKrxTradingDate } from "@/shared/utils/market";
-import { mergeLiveDayBar } from "@/shared/utils/mergeLiveDayBar";
+import {
+  getPreviousKrxTradingDate,
+  getPreviousUsTradingDate,
+} from "@/shared/utils/market";
+import { mergeLiveDayBar, type LiveQuoteForMerge } from "@/shared/utils/mergeLiveDayBar";
 import { resampleToMonthly } from "@/shared/utils/resampleToMonthly";
 import { resampleToWeekly } from "@/shared/utils/resampleToWeekly";
 import { cn } from "@/lib/utils";
@@ -48,6 +54,22 @@ const CELL_KEY: Record<
   KOSDAQ: "kosdaq",
   KOSPI200: "kospi200",
   KOSDAQ150: "kosdaq150",
+};
+
+const OVERSEAS_CELL_KEY: Record<OverseasIntradayCode, "spx" | "comp" | "ndx"> = {
+  SPX: "spx",
+  COMP: "comp",
+  NDX: "ndx",
+};
+
+// fake-UTC 초 → ET 로컬 캘린더 날짜(YYYY-MM-DD). 인코딩 대칭 — Date.UTC 로 위장했으므로
+// getUTC* 가 원래 ET 컴포넌트를 돌려준다.
+const fakeUtcSecToLocalDate = (sec: number): string => {
+  const d = new Date(sec * 1000);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(d.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
 };
 
 const VIEW_MODE_BUTTONS: { value: ViewMode; label: string }[] = [
@@ -178,25 +200,57 @@ export const IndexChart = ({
   }, [granularity]);
 
   // 홈 IndexSlate 와 캐시 공유 (동시 열림 시 네트워크 중복 제거).
-  // 해외(intradayEnabled=false)면 훅은 호출되지만 결과는 무시 — CELL_KEY 로
-  // 매핑 불가한 코드에서 데이터 접근을 시도하지 않는다.
-  const intradayQuery = useIndexIntraday();
-  const intradayData = intradayQuery.data;
+  // 국내/해외 훅을 모두 호출하고 지수 리전에 따라 소비 소스를 선택한다.
+  // React Query 가 queryKey 로 dedup 하므로 다른 컴포넌트와 네트워크 중복 없음.
+  const isOverseasIntraday = isOverseasIntradayCode(indexCode);
+  const domesticIntradayQuery = useIndexIntraday();
+  const overseasIntradayQuery = useOverseasIndexIntraday();
   const { data: quotesData } = useIndexQuotes();
 
-  const cellKey = intradayEnabled
-    ? CELL_KEY[indexCode as DomesticIndexCode]
-    : null;
-  const rawIntraday =
-    cellKey !== null ? intradayData?.quotes[cellKey] ?? null : null;
-  const liveQuote =
-    cellKey !== null ? quotesData?.quotes[cellKey].live ?? null : null;
-  const liveDate = intradayEnabled ? quotesData?.date : undefined;
+  const intradayQuery = isOverseasIntraday
+    ? overseasIntradayQuery
+    : domesticIntradayQuery;
+
+  const domesticCellKey =
+    intradayEnabled && !isOverseasIntraday
+      ? CELL_KEY[indexCode as DomesticIndexCode]
+      : null;
+  const overseasCellKey =
+    intradayEnabled && isOverseasIntraday
+      ? OVERSEAS_CELL_KEY[indexCode as OverseasIntradayCode]
+      : null;
+
+  const rawIntraday: IndexIntradaySnapshot[] | null = isOverseasIntraday
+    ? overseasCellKey !== null
+      ? overseasIntradayQuery.data?.quotes[overseasCellKey] ?? null
+      : null
+    : domesticCellKey !== null
+      ? domesticIntradayQuery.data?.quotes[domesticCellKey] ?? null
+      : null;
+
+  // 오늘 세션 date — 리전별 소스:
+  //  · 국내: /api/index-quotes 의 date (서버 기준 KST tradingDate)
+  //  · 해외: 최신 intraday 봉의 ET 캘린더 날짜 (client clock 대신 데이터-파생 —
+  //         feed 개시 지연 시 자동으로 "전일" 로 유지되어 라벨/차트가 정직해진다)
+  const overseasLatestDate =
+    isOverseasIntraday && rawIntraday && rawIntraday.length > 0
+      ? fakeUtcSecToLocalDate(rawIntraday[rawIntraday.length - 1].timestamp)
+      : undefined;
+  const liveDate = isOverseasIntraday
+    ? overseasLatestDate
+    : intradayEnabled
+      ? quotesData?.date
+      : undefined;
 
   // 오늘/전일 세션 경계 (fake-UTC epoch). liveDate 미도착 전에는 undefined.
+  // dateToKstStartSec 는 순수 캘린더 산술이라 ET 에도 동일 트릭 재사용.
   const todayStartSec = liveDate ? dateToKstStartSec(liveDate) : undefined;
   const prevStartSec = liveDate
-    ? dateToKstStartSec(getPreviousKrxTradingDate(liveDate))
+    ? dateToKstStartSec(
+        isOverseasIntraday
+          ? getPreviousUsTradingDate(liveDate)
+          : getPreviousKrxTradingDate(liveDate),
+      )
     : undefined;
 
   // intraday 필터: 당일 + 전일만. 전전일 이전은 데이터에서 제외.
@@ -206,12 +260,46 @@ export const IndexChart = ({
     return rawIntraday.filter((b) => b.timestamp >= prevStartSec);
   }, [rawIntraday, prevStartSec]);
 
+  // 국내: /api/index-quotes 의 live. 해외: 오늘 intraday 봉을 세션 전체 aggregate
+  // (open=첫봉 open, high/low=max/min, price=마지막 봉 close) 로 합성. 이렇게 하면
+  // mergeLiveDayBar 가 EOD 마지막 봉을 today-bar 로 replace 할 때 국내와 동일 계약.
+  const domesticLiveQuote =
+    domesticCellKey !== null
+      ? quotesData?.quotes[domesticCellKey].live ?? null
+      : null;
+  const overseasLiveQuote: LiveQuoteForMerge | null = useMemo(() => {
+    if (!isOverseasIntraday || !rawIntraday || !overseasLatestDate) return null;
+    const today = rawIntraday.filter(
+      (b) => fakeUtcSecToLocalDate(b.timestamp) === overseasLatestDate,
+    );
+    if (today.length === 0) return null;
+    let high = today[0].high;
+    let low = today[0].low;
+    for (const b of today) {
+      if (b.high > high) high = b.high;
+      if (b.low < low) low = b.low;
+    }
+    return {
+      open: today[0].open,
+      high,
+      low,
+      price: today[today.length - 1].close,
+    };
+  }, [isOverseasIntraday, rawIntraday, overseasLatestDate]);
+  const liveQuote: LiveQuoteForMerge | null = isOverseasIntraday
+    ? overseasLiveQuote
+    : domesticLiveQuote;
+
   const intradayHasData = intraday !== null && intraday.length > 0;
   const renderIntraday = isIntradayView && intradayHasData;
   // route 가 완전 fetch 실패 시 해당 지수 true. bars 는 항상 [] 이므로 실패는 empty 를 동반.
-  // stock-intraday 와 동일 계약 — 실패↔정상 empty(preopen/휴장) 구분 신호.
-  const intradayFailed =
-    cellKey !== null ? intradayData?.failed?.[cellKey] ?? false : false;
+  const intradayFailed = isOverseasIntraday
+    ? overseasCellKey !== null
+      ? overseasIntradayQuery.data?.failed?.[overseasCellKey] ?? false
+      : false
+    : domesticCellKey !== null
+      ? domesticIntradayQuery.data?.failed?.[domesticCellKey] ?? false
+      : false;
   // 실패는 항상 empty 를 동반하므로 failed 로 분기 우선순위 결정 — 두 분기는 상호 배타.
   const showFailedIntraday =
     isIntradayView &&
