@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { NavbarSearch } from "@/features/search/NavbarSearch";
+import { NavbarMobileSearch } from "@/features/search/NavbarMobileSearch";
 import { ThemeToggle } from "./ThemeToggle";
 
 export function Navbar() {
@@ -12,7 +13,7 @@ export function Navbar() {
         <div className="hidden justify-self-center md:block md:w-64">
           <NavbarSearch />
         </div>
-        <nav className="flex items-center gap-5 text-sm text-muted-foreground">
+        <nav className="flex items-center gap-3 text-sm text-muted-foreground md:gap-5">
           <Link href="/ranking" className="transition-colors hover:text-foreground">
             시장 순위
           </Link>
@@ -27,6 +28,7 @@ export function Navbar() {
           >
             GitHub
           </a>
+          <NavbarMobileSearch />
           <ThemeToggle />
         </nav>
       </div>

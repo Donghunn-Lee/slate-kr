@@ -14,22 +14,26 @@ type SearchInputProps = {
   value: string;
   onChange: (value: string) => void;
   onSelect?: (ticker: string, name: string) => void;
+  onNavigate?: () => void;
   disabled?: boolean;
   size?: "sm" | "default" | "lg";
   showPreview?: boolean;
   showButton?: boolean;
   placeholder?: string;
+  autoFocus?: boolean;
 };
 
 export const SearchInput = ({
   value,
   onChange,
   onSelect,
+  onNavigate,
   disabled,
   size = "default",
   showPreview = true,
   showButton = true,
   placeholder = DEFAULT_PLACEHOLDER,
+  autoFocus = false,
 }: SearchInputProps) => {
   const router = useRouter();
   const { results, isLoading, error } = useStockSearch(value);
@@ -65,12 +69,14 @@ export const SearchInput = ({
     setActiveIndex(-1);
     onSelect?.(ticker, name);
     router.push(`/stocks/${ticker}`);
+    onNavigate?.();
   };
 
   const handleSearchNavigate = () => {
     const trimmed = value.trim();
     if (!trimmed) return;
     router.push(`/search?q=${encodeURIComponent(trimmed)}`);
+    onNavigate?.();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -120,6 +126,7 @@ export const SearchInput = ({
             size === "lg" && "h-12 text-base md:text-base"
           )}
           autoComplete="off"
+          autoFocus={autoFocus}
         />
         {isOpen && (
           <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-md border bg-popover shadow-md">

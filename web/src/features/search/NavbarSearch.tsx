@@ -3,7 +3,12 @@
 import { useState } from "react";
 import { SearchInput } from "./SearchInput";
 
-export const NavbarSearch = () => {
+type NavbarSearchProps = {
+  autoFocus?: boolean;
+  onNavigate?: () => void;
+};
+
+export const NavbarSearch = ({ autoFocus, onNavigate }: NavbarSearchProps = {}) => {
   const [value, setValue] = useState("");
 
   return (
@@ -13,6 +18,8 @@ export const NavbarSearch = () => {
       size="sm"
       showButton={false}
       placeholder="종목 검색"
+      autoFocus={autoFocus}
+      onNavigate={onNavigate}
     />
   );
 };
