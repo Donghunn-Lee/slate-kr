@@ -315,8 +315,11 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-sm font-semibold text-muted-foreground">
           가격 차트
+          <span className="ml-1.5 text-xs font-normal text-muted-foreground/70">
+            · 기간별 가격 흐름과 거래량
+          </span>
           {isIntradayView && hasIntraday && (
-            <span className="ml-2 text-xs font-normal text-muted-foreground/70">
+            <span className="ml-1.5 text-xs font-normal text-muted-foreground/70">
               ·{" "}
               {intradayQuery.data?.date}{" "}
               {hasExtendedSessionBar ? "· 08–20시 · KRX+NXT" : "· KRX"}

@@ -155,8 +155,15 @@ export const StockFinancialsClient = ({
 
   return (
     <Tabs value={tab} onValueChange={(v) => setTab(v as "annual" | "quarterly")}>
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-muted-foreground">재무 요약</h2>
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
+        <h2 className="text-sm font-semibold text-muted-foreground">
+          재무 요약
+          {!compact && (
+            <span className="ml-1.5 text-xs font-normal text-muted-foreground/70">
+              · 연간·분기 재무 추이
+            </span>
+          )}
+        </h2>
         {viewAllHref && (
           <Link href={viewAllHref} className="text-xs text-muted-foreground hover:underline">
             전체 보기 →
@@ -181,6 +188,7 @@ export const StockFinancialsClient = ({
       </div>
       <p className={`${compact ? "mb-2" : "mb-3"} text-xs text-muted-foreground`}>
         단위: 억원 (별도 표기 없는 항목 기준)
+        {!compact && (tab === "annual" ? " · 최근 5개년" : " · 최근 4분기")}
       </p>
       <TabsContent value="annual">
         <FinancialsTable periods={annual} mode="annual" compact={compact} />

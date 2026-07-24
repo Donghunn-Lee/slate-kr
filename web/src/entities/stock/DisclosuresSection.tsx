@@ -357,8 +357,13 @@ export const DisclosuresSection = ({
   return (
     <>
       <header className="-mx-6 mb-3 border-sky-border/50 px-6 pb-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold">공시 목록</h2>
+        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
+          <h2 className="text-sm font-semibold">
+            공시 목록
+            <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+              · 주요 공시와 AI 요약으로 빠르게
+            </span>
+          </h2>
           {!noApiKey && !hasError && totalCount > 0 && (
             <p className="text-xs text-muted-foreground">총 {totalCount.toLocaleString()}건</p>
           )}

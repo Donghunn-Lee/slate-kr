@@ -31,26 +31,34 @@ export const generateMetadata = async ({ params }: PageProps): Promise<Metadata>
 export default async function OverviewPage({ params }: PageProps) {
   const { ticker } = await params;
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-      <Suspense fallback={<ChartSkeleton />}>
-        <StockChartSection
-          ticker={ticker}
-          limit={60}
-          label="최근 3개월"
-          viewAllHref={`/stocks/${ticker}/chart`}
-          interactive={false}
-          variant="lavender"
-        />
-      </Suspense>
-      <Suspense fallback={<FinancialsSkeleton />}>
-        <StockFinancials ticker={ticker} viewAllHref={`/stocks/${ticker}/financials`} compact />
-      </Suspense>
-      <Suspense fallback={<DisclosuresSkeleton />}>
-        <StockDisclosuresPreview ticker={ticker} />
-      </Suspense>
-      <Suspense fallback={<PriceStatsSkeleton />}>
-        <PriceStatsSection ticker={ticker} />
-      </Suspense>
-    </div>
+    <>
+      <div className="mb-4 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+        <h2 className="text-sm font-semibold text-muted-foreground">종합정보</h2>
+        <span className="text-xs font-normal text-muted-foreground/70">
+          · 핵심 지표와 가격 정보를 한눈에
+        </span>
+      </div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <Suspense fallback={<ChartSkeleton />}>
+          <StockChartSection
+            ticker={ticker}
+            limit={60}
+            label="최근 3개월"
+            viewAllHref={`/stocks/${ticker}/chart`}
+            interactive={false}
+            variant="lavender"
+          />
+        </Suspense>
+        <Suspense fallback={<FinancialsSkeleton />}>
+          <StockFinancials ticker={ticker} viewAllHref={`/stocks/${ticker}/financials`} compact />
+        </Suspense>
+        <Suspense fallback={<DisclosuresSkeleton />}>
+          <StockDisclosuresPreview ticker={ticker} />
+        </Suspense>
+        <Suspense fallback={<PriceStatsSkeleton />}>
+          <PriceStatsSection ticker={ticker} />
+        </Suspense>
+      </div>
+    </>
   );
 }
