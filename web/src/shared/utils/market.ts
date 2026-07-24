@@ -1,4 +1,5 @@
 import { isKrxHoliday } from "./krxHolidays";
+import { isUsMarketHoliday } from "./usMarketHolidays";
 
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
@@ -106,3 +107,91 @@ export const getKrxLastCloseDate = (now: Date = new Date()): string => {
   if (isKrxTradingDay(date) && minutes >= REGULAR_END_MINUTES) return date;
   return findRecentTradingDay(shiftKstDate(date, -1));
 };
+
+// ── US 세션 (NYSE 정규장 09:30~16:00 ET) ─────────────────
+// DST 자동: Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York' }) 로 ET 파싱.
+// 조기마감(1/2, 7/3(Thu), 11/27, 12/24 등)은 보수적으로 정규 16:00 마감으로 취급.
+
+const US_REGULAR_START_MINUTES = 9 * 60 + 30;
+const US_REGULAR_END_MINUTES = 16 * 60;
+
+export type UsSession = "regular" | "closed";
+
+type EtParts = { day: number; minutes: number; date: string };
+
+const US_ET_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/New_York",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+  weekday: "short",
+});
+
+const WEEKDAY_TO_INDEX: Record<string, number> = {
+  Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
+};
+
+const toEtParts = (now: Date): EtParts => {
+  const parts = US_ET_FORMATTER.formatToParts(now);
+  const bag: Record<string, string> = {};
+  for (const p of parts) if (p.type !== "literal") bag[p.type] = p.value;
+  const hour = Number(bag.hour === "24" ? "00" : bag.hour); // en-US 24h 는 자정을 "24" 로 반환
+  return {
+    day: WEEKDAY_TO_INDEX[bag.weekday] ?? 0,
+    minutes: hour * 60 + Number(bag.minute),
+    date: `${bag.year}-${bag.month}-${bag.day}`,
+  };
+};
+
+export const getUsSessionState = (now: Date = new Date()): UsSession => {
+  const { day, minutes, date } = toEtParts(now);
+  if (day === 0 || day === 6) return "closed";
+  if (isUsMarketHoliday(date)) return "closed";
+  if (minutes >= US_REGULAR_START_MINUTES && minutes < US_REGULAR_END_MINUTES) return "regular";
+  return "closed";
+};
+
+export const isUsMarketOpen = (now: Date = new Date()): boolean =>
+  getUsSessionState(now) === "regular";
+
+// ET 캘린더 일자와 분(0~1439). 세션 무관, 순수 ET 파싱만.
+export const getEtDateAndMinutes = (
+  now: Date = new Date(),
+): { date: string; minutes: number } => {
+  const { date, minutes } = toEtParts(now);
+  return { date, minutes };
+};
+
+const shiftUsDate = shiftKstDate; // 순수 캘린더 산술 — TZ 무관, 재사용.
+
+const isUsTradingDay = (yyyyMmDd: string): boolean => {
+  const [y, m, d] = yyyyMmDd.split("-").map(Number);
+  const day = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  if (day === 0 || day === 6) return false;
+  return !isUsMarketHoliday(yyyyMmDd);
+};
+
+const findRecentUsTradingDay = (fromDate: string): string => {
+  let d = fromDate;
+  for (let i = 0; i < 15; i++) {
+    if (isUsTradingDay(d)) return d;
+    d = shiftUsDate(d, -1);
+  }
+  return d;
+};
+
+// 실시간 시세가 반영되는 NYSE 거래일(ET).
+// regular = 오늘. 그 외(pre-open · 애프터마켓 · 주말 · 휴장) = 이전 완결 거래일.
+// getKrxTradingDate 와 달리 US 는 세션 상태를 regular/closed 2-state 로만 다룬다.
+export const getUsTradingDate = (now: Date = new Date()): string => {
+  const { date } = toEtParts(now);
+  if (getUsSessionState(now) === "regular") return date;
+  return findRecentUsTradingDay(shiftUsDate(date, -1));
+};
+
+// fromDate 직전 US 거래일. intraday 이전 세션 경계 계산용.
+export const getPreviousUsTradingDate = (fromDate: string): string =>
+  findRecentUsTradingDay(shiftUsDate(fromDate, -1));
