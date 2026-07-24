@@ -260,6 +260,16 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
     return filtered.length > 0 ? filtered : undefined;
   }, [maPeriods, bars.length]);
 
+  // 전일 종가 기준선 — intraday 뷰 한정. LiveQuoteCore.change = "전일 대비" 계약에서
+  // price - change 로 역산. 지수 IndexIntradaySnapshot 의 close - change 와 동형.
+  const intradayBaseline = useMemo<number | undefined>(() => {
+    if (!isIntradayView || !hasIntraday) return undefined;
+    const q = quoteData?.quote;
+    if (!q) return undefined;
+    const prev = q.price - q.change;
+    return prev > 0 ? prev : undefined;
+  }, [isIntradayView, hasIntraday, quoteData]);
+
   const applyBarCountFromInput = (raw: string) => {
     const trimmed = raw.trim();
     if (!trimmed) {
@@ -459,6 +469,7 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
           showLegend
           maPeriods={effectiveMaPeriods}
           seriesKind={seriesKind}
+          baseline={intradayBaseline}
           visibleBars={isIntradayView ? undefined : barCount}
           onVisibleBarsChange={isIntradayView ? undefined : setBarCount}
         />
