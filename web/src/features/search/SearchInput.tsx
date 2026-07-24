@@ -8,13 +8,17 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useStockSearch } from "./useStockSearch";
 
+const DEFAULT_PLACEHOLDER = "종목명 또는 종목코드 검색";
+
 type SearchInputProps = {
   value: string;
   onChange: (value: string) => void;
   onSelect?: (ticker: string, name: string) => void;
   disabled?: boolean;
-  size?: "default" | "lg";
+  size?: "sm" | "default" | "lg";
   showPreview?: boolean;
+  showButton?: boolean;
+  placeholder?: string;
 };
 
 export const SearchInput = ({
@@ -24,6 +28,8 @@ export const SearchInput = ({
   disabled,
   size = "default",
   showPreview = true,
+  showButton = true,
+  placeholder = DEFAULT_PLACEHOLDER,
 }: SearchInputProps) => {
   const router = useRouter();
   const { results, isLoading, error } = useStockSearch(value);
@@ -99,16 +105,20 @@ export const SearchInput = ({
   };
 
   return (
-    <div ref={containerRef} className="relative flex gap-2">
+    <div ref={containerRef} className={cn("relative flex", showButton && "gap-2")}>
       <div className="relative flex-1">
         <Input
           type="text"
-          placeholder="종목명 또는 종목코드 검색"
+          placeholder={placeholder}
           value={value}
           onChange={(e) => handleChange(e.target.value)}
           onKeyDown={handleKeyDown}
           disabled={disabled}
-          className={cn("w-full", size === "lg" && "h-12 text-base md:text-base")}
+          className={cn(
+            "w-full",
+            size === "sm" && "h-8 text-sm md:text-sm",
+            size === "lg" && "h-12 text-base md:text-base"
+          )}
           autoComplete="off"
         />
         {isOpen && (
@@ -149,13 +159,15 @@ export const SearchInput = ({
           </div>
         )}
       </div>
-      <Button
-        onClick={handleSearchNavigate}
-        disabled={disabled}
-        className={cn(size === "lg" && "h-12 px-6 text-base")}
-      >
-        검색
-      </Button>
+      {showButton && (
+        <Button
+          onClick={handleSearchNavigate}
+          disabled={disabled}
+          className={cn(size === "lg" && "h-12 px-6 text-base")}
+        >
+          검색
+        </Button>
+      )}
     </div>
   );
 };
