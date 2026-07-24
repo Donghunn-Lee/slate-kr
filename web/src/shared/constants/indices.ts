@@ -40,6 +40,17 @@ export const OVERSEAS_INDEX_CODES = INDEX_REGISTRY
   .filter((m): m is OverseasIndexEntry => m.region === "overseas")
   .map((m) => m.code) as readonly OverseasIndexCode[];
 
+// intraday(1분봉·현재가) 를 지원하는 해외 지수 화이트리스트.
+// .DJI 는 KIS intraday API 가 rt_cd=0 + 빈 배열을 돌려주므로 제외 — 이 목록에
+// 없는 해외 지수는 IndexDetailPane 에서 daily-only 로 동작한다.
+export const OVERSEAS_INTRADAY_CODES = ["SPX", "COMP", "NDX"] as const;
+export type OverseasIntradayCode = (typeof OVERSEAS_INTRADAY_CODES)[number];
+
+export const isOverseasIntradayCode = (
+  code: string,
+): code is OverseasIntradayCode =>
+  (OVERSEAS_INTRADAY_CODES as readonly string[]).includes(code);
+
 const META_BY_CODE = Object.fromEntries(
   INDEX_REGISTRY.map((m) => [m.code, m]),
 ) as Record<IndexCode, IndexEntry>;
