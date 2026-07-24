@@ -31,10 +31,10 @@ type OverseasCellProps = {
 };
 
 const OverseasCell = ({ label, snapshot }: OverseasCellProps) => (
-  <div className="px-6 py-3">
+  <div className="flex flex-1 flex-col justify-center px-6 py-3">
     <div className="text-xs text-muted-foreground">{label}</div>
     {snapshot ? (
-      <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+      <div className="mt-0.5 flex flex-col items-start gap-0.5">
         <span className="text-base font-medium tabular-nums">
           {formatIndexPrice(snapshot.close)}
         </span>

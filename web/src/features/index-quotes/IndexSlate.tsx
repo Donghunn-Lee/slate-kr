@@ -26,7 +26,7 @@ type IndexCellProps = {
 const IndexCell = ({ label, cell, bars, intradayFailed }: IndexCellProps) => (
   <div className="flex flex-col gap-3 px-6 py-4">
     <div>
-      <div className="text-[13px] text-muted-foreground">{label}</div>
+      <div className="text-sm text-muted-foreground">{label}</div>
       {cell.live ? (
         <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
           <span className="text-2xl font-medium tabular-nums">
@@ -64,11 +64,66 @@ const IndexCell = ({ label, cell, bars, intradayFailed }: IndexCellProps) => (
   </div>
 );
 
+// 3열 미니 셀: 차트 없이 label·가격·PriceChange만. 시각 언어는 OverseasIndexRow의
+// OverseasCell에 맞추되, 데이터는 국내 live quote(IndexCellData) 사용.
+type MiniIndexCellProps = {
+  label: string;
+  cell: IndexCellData;
+};
+
+const MiniIndexCell = ({ label, cell }: MiniIndexCellProps) => (
+  <div className="flex flex-1 flex-col justify-center px-6 py-3">
+    <div className="text-sm text-muted-foreground">{label}</div>
+    {cell.live ? (
+      <div className="mt-0.5 flex flex-col items-start gap-0.5">
+        <span className="text-xl font-medium tabular-nums">
+          <PriceCountUp from={cell.live.price} to={cell.live.price} />
+        </span>
+        <PriceChange
+          change={cell.live.change}
+          changeRate={cell.live.changeRate}
+          sign={cell.live.sign}
+          symbol="arrow"
+          size="xs"
+        />
+      </div>
+    ) : cell.fallback ? (
+      <div className="mt-0.5 flex flex-col items-start gap-0.5">
+        <span className="text-xl font-medium tabular-nums">
+          {cell.fallback.close.toLocaleString("ko-KR")}
+        </span>
+        <PriceChange
+          change={cell.fallback.change}
+          changeRate={cell.fallback.changeRate}
+          symbol="arrow"
+          size="xs"
+        />
+      </div>
+    ) : (
+      <div className="mt-0.5 text-sm text-muted-foreground">데이터 없음</div>
+    )}
+  </div>
+);
+
 const CellSkeleton = ({ label }: { label: string }) => (
   <div className="px-6 py-4">
-    <div className="text-[13px] text-muted-foreground">{label}</div>
+    <div className="text-sm text-muted-foreground">{label}</div>
     <div className="mt-2 h-7 w-24 animate-pulse rounded bg-muted" />
     <div className="mt-2 h-4 w-32 animate-pulse rounded bg-muted" />
+  </div>
+);
+
+const MiniCellSkeleton = ({ label }: { label: string }) => (
+  <div className="flex flex-1 flex-col justify-center px-6 py-3">
+    <div className="text-sm text-muted-foreground">{label}</div>
+    <div className="mt-1 h-5 w-20 animate-pulse rounded bg-muted" />
+  </div>
+);
+
+const MiniCellStackSkeleton = () => (
+  <div className="flex flex-col divide-y divide-border/60">
+    <MiniCellSkeleton label="코스피200" />
+    <MiniCellSkeleton label="코스닥150" />
   </div>
 );
 
@@ -121,7 +176,7 @@ export const IndexSlate = ({ overseasSlot }: IndexSlateProps = {}) => {
           <div className={GRID_CLASS}>
             <CellSkeleton label="코스피" />
             <CellSkeleton label="코스닥" />
-            <CellSkeleton label="코스피200" />
+            <MiniCellStackSkeleton />
           </div>
         ) : (
           <div className={GRID_CLASS}>
@@ -137,12 +192,10 @@ export const IndexSlate = ({ overseasSlot }: IndexSlateProps = {}) => {
               bars={intraday?.quotes.kosdaq ?? EMPTY_BARS}
               intradayFailed={intraday?.failed.kosdaq ?? false}
             />
-            <IndexCell
-              label="코스피200"
-              cell={data.quotes.kospi200}
-              bars={intraday?.quotes.kospi200 ?? EMPTY_BARS}
-              intradayFailed={intraday?.failed.kospi200 ?? false}
-            />
+            <div className="flex flex-col divide-y divide-border/60">
+              <MiniIndexCell label="코스피200" cell={data.quotes.kospi200} />
+              <MiniIndexCell label="코스닥150" cell={data.quotes.kosdaq150} />
+            </div>
           </div>
         )}
         {overseasSlot && (
