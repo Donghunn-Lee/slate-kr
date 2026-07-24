@@ -49,7 +49,7 @@ export const IndexBoard = ({
           volumeByIndex={volumeByIndex}
         />
       </div>
-      <aside className="order-2 md:order-1 md:w-[260px] md:flex-shrink-0">
+      <aside className="order-2 md:order-1 md:w-[260px] md:shrink-0">
         <IndexRail
           selected={selected}
           onSelect={handleSelect}
