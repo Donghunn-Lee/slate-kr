@@ -1,12 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { StockSearchPage, StockSearchResult } from "@/shared/types/stock";
 
-export type SearchResultItem = {
-  ticker: string;
-  name: string;
-  market: string;
-};
+export type SearchResultItem = StockSearchResult;
 
 type UseStockSearchResult = {
   results: SearchResultItem[];
@@ -51,8 +48,8 @@ export const useStockSearch = (query: string): UseStockSearchResult => {
           signal: controller.signal,
         });
         if (!res.ok) throw new Error("Search failed");
-        const data: SearchResultItem[] = await res.json();
-        setResults(data);
+        const data: StockSearchPage = await res.json();
+        setResults(data.results);
         setIsLoading(false);
       } catch (err) {
         if ((err as Error).name === "AbortError") return;

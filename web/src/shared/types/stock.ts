@@ -17,6 +17,17 @@ export type StockSummary = {
   marketCap: number | null;
 };
 
+export type StockSearchResult = {
+  ticker: string;
+  name: string;
+  market: "KOSPI" | "KOSDAQ";
+};
+
+export type StockSearchPage = {
+  results: StockSearchResult[];
+  hasMore: boolean;
+};
+
 export type CompanyProfile = {
   sectorName: string | null;
   homepageUrl: string | null;

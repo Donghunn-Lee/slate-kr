@@ -2,8 +2,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { searchStocks } from "@/lib/stocks";
-import { SearchResultCard } from "@/features/search/SearchResultCard";
+import { SearchResultList } from "@/features/search/SearchResultList";
 import { SearchBarWithState } from "@/features/search/SearchBarWithState";
+
+const INITIAL_PAGE_SIZE = 20;
 
 type SearchPageProps = {
   searchParams: Promise<{ q?: string }>;
@@ -43,9 +45,9 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     );
   }
 
-  let results: Awaited<ReturnType<typeof searchStocks>>;
+  let page: Awaited<ReturnType<typeof searchStocks>>;
   try {
-    results = await searchStocks(query);
+    page = await searchStocks(query, { limit: INITIAL_PAGE_SIZE });
   } catch {
     return (
       <main className="mx-auto w-full max-w-2xl px-4 py-10">
@@ -57,7 +59,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     );
   }
 
-  if (results.length === 0) {
+  if (page.results.length === 0) {
     return (
       <main className="mx-auto w-full max-w-2xl px-4 py-10">
         <SearchHeader query={query} />
@@ -68,21 +70,19 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     );
   }
 
-  if (results.length === 1) {
-    redirect(`/stocks/${results[0].ticker}`);
+  if (page.results.length === 1) {
+    redirect(`/stocks/${page.results[0].ticker}`);
   }
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-10">
       <SearchHeader query={query} />
-      <p className="mb-4 text-xs text-muted-foreground">{results.length}개 종목</p>
-      <ul className="flex flex-col gap-2">
-        {results.map((stock) => (
-          <li key={stock.ticker}>
-            <SearchResultCard stock={stock} />
-          </li>
-        ))}
-      </ul>
+      <SearchResultList
+        key={query}
+        query={query}
+        initialResults={page.results}
+        initialHasMore={page.hasMore}
+      />
     </main>
   );
 }
