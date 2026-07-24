@@ -1,0 +1,230 @@
+"use client";
+
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { cn } from "@/lib/utils";
+
+// 뷰포트 진입 시 1회 재생 + prefers-reduced-motion 존중. 재진입 시 재생 안 함.
+const usePrefersReducedMotion = () => {
+  return useSyncExternalStore(
+    (callback) => {
+      const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+      mq.addEventListener("change", callback);
+      return () => mq.removeEventListener("change", callback);
+    },
+    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    () => false,
+  );
+};
+
+const useInViewOnce = <T extends HTMLElement>() => {
+  const ref = useRef<T | null>(null);
+  const [inView, setInView] = useState(false);
+
+  useEffect(() => {
+    if (inView || !ref.current) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setInView(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.3 },
+    );
+    observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [inView]);
+
+  return { ref, inView };
+};
+
+const DISCLOSURE_CHIPS = [
+  { label: "주요사항", cls: "bg-disclosure-major-event-bg text-disclosure-major-event-text" },
+  { label: "재무", cls: "bg-disclosure-financial-bg text-disclosure-financial-text" },
+  { label: "자본", cls: "bg-disclosure-ownership-bg text-disclosure-ownership-text" },
+  { label: "AI 요약", cls: "bg-sky-bg text-sky-accent border border-sky-border" },
+];
+
+export const DisclosurePreview = () => {
+  const { ref, inView } = useInViewOnce<HTMLDivElement>();
+  const prefersReduced = usePrefersReducedMotion();
+  const active = inView || prefersReduced;
+
+  return (
+    <div ref={ref} className="flex flex-wrap items-center gap-1.5">
+      {DISCLOSURE_CHIPS.map((chip, i) => (
+        <span
+          key={chip.label}
+          className={cn(
+            "inline-flex items-center rounded-sm px-1.5 py-0.5 text-[10px] font-medium",
+            chip.cls,
+            !prefersReduced && "transition-all duration-500 ease-out",
+            active ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0",
+          )}
+          style={!prefersReduced ? { transitionDelay: `${i * 150}ms` } : undefined}
+        >
+          {chip.label}
+        </span>
+      ))}
+    </div>
+  );
+};
+
+// 대시선(y=46) 아래 횡보 → 급등 돌파 → 깊은 되돌림(재테스트) → 다시 상승 후 지그재그로 신고가.
+// 구간별로 슬로프와 진폭을 달리해 실제 시장 차트 느낌. pathLength=1 정규화 후 dashoffset draw.
+const SPARKLINE_PATH = [
+  // 1) 하방 횡보 — 잔잔한 진동
+  "M 4 51",
+  "L 10 53", "L 16 50", "L 22 54", "L 28 51", "L 34 55", "L 40 52",
+  // 2) 급등 돌파 — 큰 폭으로 대시선 상향 이탈
+  "L 46 47", "L 52 40", "L 58 35", "L 64 38", "L 70 32",
+  // 3) 깊은 되돌림 — 대시선 하향 재테스트, 저점 두드림
+  "L 76 40", "L 82 46", "L 88 52", "L 94 56", "L 100 53", "L 106 55",
+  // 4) 반등, 다시 상방
+  "L 112 48", "L 118 42", "L 124 38", "L 130 33", "L 136 36", "L 142 28",
+  // 5) 지그재그 신고가 — 상승 폭 크고 눌림 폭 작음. 대시선 끝(x=200)까지 이어짐.
+  "L 148 30", "L 154 22", "L 160 26", "L 166 18", "L 172 22",
+  "L 178 12", "L 184 15", "L 192 8", "L 200 4",
+].join(" ");
+
+const SPARKLINE_VIEW_W = 200;
+const SPARKLINE_VIEW_H = 60;
+const SPARKLINE_END_X = 200;
+const SPARKLINE_END_Y = 4;
+
+export const PricePreview = () => {
+  const { ref, inView } = useInViewOnce<HTMLDivElement>();
+  const prefersReduced = usePrefersReducedMotion();
+  const active = inView || prefersReduced;
+
+  // 마커는 SVG 안 <circle> 대신 SVG 밖 CSS 원으로 배치. preserveAspectRatio="none" 상황에서
+  // <circle> 은 x/y 배율 차이로 타원이 되지만, HTML 요소는 좌표계에 무관해 언제나 정원.
+  const markerLeftPct = (SPARKLINE_END_X / SPARKLINE_VIEW_W) * 100;
+  const markerTopPct = (SPARKLINE_END_Y / SPARKLINE_VIEW_H) * 100;
+
+  return (
+    <div ref={ref} className="relative h-full w-full text-lavender-accent">
+      <svg
+        viewBox={`0 0 ${SPARKLINE_VIEW_W} ${SPARKLINE_VIEW_H}`}
+        preserveAspectRatio="none"
+        className="h-full w-full overflow-visible"
+        aria-hidden
+      >
+        <line
+          x1="0"
+          y1="46"
+          x2="200"
+          y2="46"
+          stroke="currentColor"
+          strokeWidth="1"
+          strokeDasharray="3 3"
+          opacity="0.35"
+          vectorEffect="non-scaling-stroke"
+        />
+        {/*
+          non-scaling-stroke 는 Blink 에서 dasharray 를 화면 픽셀 기준으로 재해석 →
+          카드 폭 커지면 실제 path 픽셀 length 를 커버 못해 뒷부분 잘림.
+          non-scaling-stroke 제거 + pathLength=1 정규화로 폭 무관 완전 draw 보장.
+          (트레이드오프: stroke 두께가 카드 폭에 따라 아주 살짝 변동)
+        */}
+        <path
+          d={SPARKLINE_PATH}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          pathLength={1}
+          style={{
+            strokeDasharray: 1,
+            strokeDashoffset: active ? 0 : 1,
+            transition: prefersReduced ? "none" : "stroke-dashoffset 1s ease-out",
+          }}
+        />
+      </svg>
+      <span
+        aria-hidden
+        className="pointer-events-none absolute size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-current ring-2 ring-lavender-bg"
+        style={{
+          left: `${markerLeftPct}%`,
+          top: `${markerTopPct}%`,
+          opacity: active ? 1 : 0,
+          transition: prefersReduced ? "none" : "opacity 250ms ease-out 900ms",
+        }}
+      />
+    </div>
+  );
+};
+
+type Metric = {
+  label: string;
+  target: number;
+  format: (v: number) => string;
+};
+
+const METRICS: Metric[] = [
+  { label: "PER", target: 12.3, format: (v) => v.toFixed(1) },
+  { label: "PBR", target: 1.24, format: (v) => v.toFixed(2) },
+  { label: "EPS", target: 5384, format: (v) => Math.round(v).toLocaleString() },
+];
+
+const COUNTUP_DURATION_MS = 900;
+
+const useCountUp = (target: number, active: boolean, animate: boolean) => {
+  const [value, setValue] = useState(0);
+
+  useEffect(() => {
+    if (!active || !animate) return;
+    let raf = 0;
+    const start = performance.now();
+    const tick = (now: number) => {
+      const t = Math.min((now - start) / COUNTUP_DURATION_MS, 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setValue(target * eased);
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, active, animate]);
+
+  return animate ? value : target;
+};
+
+const MetricValue = ({
+  metric,
+  active,
+  animate,
+}: {
+  metric: Metric;
+  active: boolean;
+  animate: boolean;
+}) => {
+  const value = useCountUp(metric.target, active, animate);
+  return (
+    <div className="flex flex-col">
+      <span className="text-[10px] text-muted-foreground/80">{metric.label}</span>
+      <span className="tabular-nums text-sm font-semibold text-foreground">
+        {metric.format(value)}
+      </span>
+    </div>
+  );
+};
+
+export const MetricsPreview = () => {
+  const { ref, inView } = useInViewOnce<HTMLDivElement>();
+  const prefersReduced = usePrefersReducedMotion();
+  const active = inView || prefersReduced;
+
+  return (
+    <div ref={ref} className="grid grid-cols-3 gap-2">
+      {METRICS.map((metric) => (
+        <MetricValue
+          key={metric.label}
+          metric={metric}
+          active={active}
+          animate={!prefersReduced}
+        />
+      ))}
+    </div>
+  );
+};

@@ -38,6 +38,7 @@ async function HomePage() {
 
   return (
     <main className="mx-auto w-full max-w-4xl space-y-8 px-4 pb-12">
+      <ServiceValue />
       <IndexSlate
         overseasSlot={<OverseasIndexRow snapshotsByCode={overseasByCode} />}
       />
@@ -46,7 +47,6 @@ async function HomePage() {
         <MarketRankingSlate />
         <WatchlistPreview />
       </div>
-      <ServiceValue />
     </main>
   );
 }
