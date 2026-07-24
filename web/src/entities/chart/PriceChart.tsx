@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { useTheme } from "next-themes";
 import {
   createChart,
+  AreaSeries,
   BaselineSeries,
   CandlestickSeries,
   HistogramSeries,
@@ -44,11 +45,11 @@ type PriceChartProps = {
   // 좌상단 OHLC(+Vol) legend. crosshair 이동 시 해당 봉 값, 미호버 시 최신 봉 값으로 갱신.
   // ref 로 DOM 직접 갱신 → crosshair 콜백에서 setState 리렌더 없음.
   showLegend?: boolean;
-  // 메인 시리즈 종류. "candle" — CandlestickSeries(OHLC). "line" — close 기반 LineSeries.
+  // 메인 시리즈 종류. "candle" — CandlestickSeries(OHLC). "line" — close 기반 선/영역 시리즈.
   // 기본 "candle" — 기존 호출부(지수·미니차트) 변경 없이 캔들 유지.
   seriesKind?: "candle" | "line";
   // 선차트 기준선 가격. seriesKind==="line" 일 때만 BaselineSeries(위=up/아래=down 2색) 로 전환.
-  // 미제공 시 LineSeries 단색 유지. 값 변경은 시리즈 재생성 없이 applyOptions 로 반영.
+  // 미제공 시 AreaSeries 무채색 fallback. 값 변경은 시리즈 재생성 없이 applyOptions 로 반영.
   baseline?: number;
   // 최근 N봉만 보이도록 시계축 논리 범위를 제어. null/undefined = 전체 표시.
   // 데이터를 자르지 않고 표시 창만 조정 → 툴바 조작 시 계산/네트워크 비용 없이 즉시 반영.
@@ -345,7 +346,7 @@ export const PriceChart = ({
   const chartRef = useRef<IChartApi | null>(null);
   // seriesKind 변경 시 config effect 가 재실행되어 재생성하므로 union 참조로 유지.
   const seriesRef = useRef<
-    ISeriesApi<"Candlestick" | "Line" | "Baseline"> | null
+    ISeriesApi<"Candlestick" | "Area" | "Baseline"> | null
   >(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   // period 별 라인 시리즈. bars.length < period 로 생성 스킵된 항목은 배열에 없음.
@@ -383,7 +384,7 @@ export const PriceChart = ({
   // period 배열 참조 안정화 (부모가 새 배열을 만들어도 값 동일하면 재실행 방지).
   const maPeriodsKey = maPeriods?.join(",") ?? "";
 
-  // 정의 여부만 config effect 재생성 트리거 (LineSeries ↔ BaselineSeries 스왑).
+  // 정의 여부만 config effect 재생성 트리거 (AreaSeries ↔ BaselineSeries 스왑).
   // 값 자체 변경은 아래 baseline effect 가 applyOptions 로 흡수해 시리즈 재생성 회피.
   const hasBaseline = seriesKind === "line" && baseline !== undefined;
 
@@ -454,13 +455,13 @@ export const PriceChart = ({
       handleScale: scrollScale,
     });
 
-    // candle=OHLC / line+baseline=BaselineSeries 2색 / line only=LineSeries 단색 fallback.
+    // candle=OHLC / line+baseline=BaselineSeries 2색 / line only=AreaSeries 무채색 fallback.
     const priceFormat = {
       type: "price" as const,
       precision,
       minMove: 10 ** -precision,
     };
-    let series: ISeriesApi<"Candlestick" | "Line" | "Baseline">;
+    let series: ISeriesApi<"Candlestick" | "Area" | "Baseline">;
     if (hasBaseline) {
       series = chart.addSeries(BaselineSeries, {
         baseValue: { type: "price", price: baseline as number },
@@ -476,8 +477,10 @@ export const PriceChart = ({
         priceFormat,
       });
     } else if (seriesKind === "line") {
-      series = chart.addSeries(LineSeries, {
-        color: c.up,
+      series = chart.addSeries(AreaSeries, {
+        lineColor: c.neutralLine,
+        topColor: c.neutralTopFill,
+        bottomColor: c.neutralBottomFill,
         lineWidth: 2,
         priceLineVisible: false,
         lastValueVisible: true,
@@ -612,7 +615,7 @@ export const PriceChart = ({
 
     if (initial.length > 0) {
       if (seriesKind === "line") {
-        (series as ISeriesApi<"Line" | "Baseline">).setData(initial.map(mapLine));
+        (series as ISeriesApi<"Area" | "Baseline">).setData(initial.map(mapLine));
       } else {
         (series as ISeriesApi<"Candlestick">).setData(
           initial.map((b) => mapBar(b, c, dimBefore)),
@@ -766,7 +769,7 @@ export const PriceChart = ({
 
     if (bars.length === 0) {
       if (seriesKind === "line") {
-        (series as ISeriesApi<"Line" | "Baseline">).setData([]);
+        (series as ISeriesApi<"Area" | "Baseline">).setData([]);
       } else {
         (series as ISeriesApi<"Candlestick">).setData([]);
       }
@@ -793,7 +796,7 @@ export const PriceChart = ({
     if (canIncremental) {
       const lastBar = bars[bars.length - 1];
       if (seriesKind === "line") {
-        (series as ISeriesApi<"Line" | "Baseline">).update(mapLine(lastBar));
+        (series as ISeriesApi<"Area" | "Baseline">).update(mapLine(lastBar));
       } else {
         (series as ISeriesApi<"Candlestick">).update(mapBar(lastBar, c, dimBefore));
       }
@@ -810,7 +813,7 @@ export const PriceChart = ({
       }
     } else {
       if (seriesKind === "line") {
-        (series as ISeriesApi<"Line" | "Baseline">).setData(bars.map(mapLine));
+        (series as ISeriesApi<"Area" | "Baseline">).setData(bars.map(mapLine));
       } else {
         (series as ISeriesApi<"Candlestick">).setData(
           bars.map((b) => mapBar(b, c, dimBefore)),
