@@ -1,3 +1,5 @@
+import type { Time } from "lightweight-charts";
+
 // KR 관행: 상승=레드, 하락=블루. Tailwind red-600/blue-600 톤으로 globals.css의 oklch와 매칭.
 // dim.{up,down} — 전일 봉 등 흐림 처리용 저채도 저대비 버전. 무채색 계열과 톤 충돌 없도록
 // 원색의 알파를 낮춰 배경에 자연스레 녹아들게 한다.
@@ -65,3 +67,37 @@ export type ChartPalette = (typeof CHART_THEME)[keyof typeof CHART_THEME];
 
 // intraday 잠금 뷰: 전일 마지막 세션 봉을 좌측에 흐리게 걸치는 여유. 3600s = 6개 10분봉.
 export const INTRADAY_PREV_LOOKBACK_SEC = 3600;
+
+// 크로스헤어 시간 라벨 포맷터. intraday(timeVisible)= `MM-DD HH:mm` / EOD= `YYYY-MM-DD`.
+// timestamp 는 국내 KST · 해외 ET 벽시계를 UTC 로 위장한 epoch 초 → getUTC* 로 원본
+// 컴포넌트 복원 (로컬 TZ 변환 금지). 하단 tickMarkFormatter 는 별도 관리.
+const pad2 = (n: number): string => String(n).padStart(2, "0");
+
+const formatCrosshairTime = (time: Time, timeVisible: boolean): string => {
+  let y: number, m: number, d: number, hh = 0, mm = 0;
+  if (typeof time === "number") {
+    const dt = new Date(time * 1000);
+    y = dt.getUTCFullYear();
+    m = dt.getUTCMonth() + 1;
+    d = dt.getUTCDate();
+    hh = dt.getUTCHours();
+    mm = dt.getUTCMinutes();
+  } else if (typeof time === "string") {
+    const [ys, ms, ds] = time.split("-").map(Number);
+    y = ys;
+    m = ms;
+    d = ds;
+  } else {
+    y = time.year;
+    m = time.month;
+    d = time.day;
+  }
+  return timeVisible
+    ? `${pad2(m)}-${pad2(d)} ${pad2(hh)}:${pad2(mm)}`
+    : `${y}-${pad2(m)}-${pad2(d)}`;
+};
+
+export const crosshairLocalization = (timeVisible: boolean) => ({
+  locale: "ko-KR",
+  timeFormatter: (time: Time): string => formatCrosshairTime(time, timeVisible),
+});

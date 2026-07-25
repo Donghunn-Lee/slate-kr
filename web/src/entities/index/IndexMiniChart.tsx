@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useTheme } from "next-themes";
 import { createChart, AreaSeries, type UTCTimestamp } from "lightweight-charts";
+import { crosshairLocalization } from "@/shared/constants/chart";
 import type { IndexIntradaySnapshot } from "@/shared/types/quote";
 
 type IndexMiniChartProps = {
@@ -90,6 +91,8 @@ export const IndexMiniChart = ({ bars, failed }: IndexMiniChartProps) => {
         horzLines: { color: palette.border },
       },
       crosshair: { mode: 1 },
+      // 크로스헤어 라벨은 intraday 포맷 `MM-DD HH:mm` (shared/constants/chart).
+      localization: crosshairLocalization(true),
       timeScale: {
         borderColor: palette.border,
         timeVisible: true,

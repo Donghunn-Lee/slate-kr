@@ -23,6 +23,7 @@ import {
 import {
   CHART_THEME,
   INTRADAY_PREV_LOOKBACK_SEC,
+  crosshairLocalization,
   type ChartPalette,
 } from "@/shared/constants/chart";
 import type { ChartBar } from "@/shared/types/quote";
@@ -275,7 +276,7 @@ const chartTickFormatter = (time: Time, tickMarkType: TickMarkType): string => {
   const dd = String(d).padStart(2, "0");
   switch (tickMarkType) {
     case TickMarkType.Year:
-      // 2자리(예: 2026 → 26). 축 밀도 절감. crosshair 툴팁은 localization.dateFormat 그대로.
+      // 2자리(예: 2026 → 26). 축 밀도 절감. crosshair 툴팁은 localization.timeFormatter 가 담당.
       return String(y % 100).padStart(2, "0");
     case TickMarkType.Month:
       return mm;
@@ -434,8 +435,8 @@ export const PriceChart = ({
         horzLines: { color: c.border },
       },
       crosshair: { mode: 1 },
-      // 크로스헤어 툴팁 날짜: 연-월-일. 인트라데이는 시간 표기가 별도로 붙어 그대로 유지.
-      localization: { locale: "ko-KR", dateFormat: "yyyy-MM-dd" },
+      // 크로스헤어 시간 라벨: intraday=`MM-DD HH:mm`, EOD=`YYYY-MM-DD` (shared/constants/chart).
+      localization: crosshairLocalization(timeVisible),
       timeScale: {
         borderColor: c.border,
         timeVisible,
