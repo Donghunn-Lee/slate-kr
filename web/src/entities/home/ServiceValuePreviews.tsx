@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/utils";
 
-// 뷰포트 진입 시 1회 재생 + prefers-reduced-motion 존중. 재진입 시 재생 안 함.
 const usePrefersReducedMotion = () => {
   return useSyncExternalStore(
     (callback) => {
@@ -16,30 +15,10 @@ const usePrefersReducedMotion = () => {
   );
 };
 
-const useInViewOnce = <T extends HTMLElement>() => {
-  const ref = useRef<T | null>(null);
-  const [inView, setInView] = useState(false);
+// play=true 로 마운트되면 애니메이션 실행. play=false 면 최종 상태 정지 렌더.
+// 재재생은 부모가 key 를 바꿔 재마운트시키는 방식으로 트리거.
+type PreviewProps = { play: boolean };
 
-  useEffect(() => {
-    if (inView || !ref.current) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          setInView(true);
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.3 },
-    );
-    observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, [inView]);
-
-  return { ref, inView };
-};
-
-// 실제 사용 중인 CheckpointBadge 라벨과 정확히 일치시킴 (정기보고서는 AI 요약 대상이 아니라 제외).
-// AI 요약은 배지가 없는 기능이지만 소개 목적으로 sky 톤으로 표시.
 const DISCLOSURE_CHIPS = [
   { label: "주요사항", cls: "bg-disclosure-major-event-bg text-disclosure-major-event-text" },
   { label: "소유상황", cls: "bg-disclosure-ownership-bg text-disclosure-ownership-text" },
@@ -47,23 +26,29 @@ const DISCLOSURE_CHIPS = [
   { label: "AI 요약", cls: "bg-sky-bg text-sky-accent border border-sky-border" },
 ];
 
-export const DisclosurePreview = () => {
-  const { ref, inView } = useInViewOnce<HTMLDivElement>();
+export const DisclosurePreview = ({ play }: PreviewProps) => {
   const prefersReduced = usePrefersReducedMotion();
-  const active = inView || prefersReduced;
+  const shouldAnimate = play && !prefersReduced;
+  const [entered, setEntered] = useState(!shouldAnimate);
+
+  useEffect(() => {
+    if (!shouldAnimate) return;
+    const raf = requestAnimationFrame(() => setEntered(true));
+    return () => cancelAnimationFrame(raf);
+  }, [shouldAnimate]);
 
   return (
-    <div ref={ref} className="flex flex-wrap items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-1.5">
       {DISCLOSURE_CHIPS.map((chip, i) => (
         <span
           key={chip.label}
           className={cn(
             "inline-flex items-center rounded-sm px-1.5 py-0.5 text-[10px] font-medium",
             chip.cls,
-            !prefersReduced && "transition-all duration-500 ease-out",
-            active ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0",
+            shouldAnimate && "transition-all duration-500 ease-out",
+            entered ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0",
           )}
-          style={!prefersReduced ? { transitionDelay: `${i * 150}ms` } : undefined}
+          style={shouldAnimate ? { transitionDelay: `${i * 150}ms` } : undefined}
         >
           {chip.label}
         </span>
@@ -75,16 +60,11 @@ export const DisclosurePreview = () => {
 // 대시선(y=46) 아래 횡보 → 급등 돌파 → 깊은 되돌림(재테스트) → 다시 상승 후 지그재그로 신고가.
 // 구간별로 슬로프와 진폭을 달리해 실제 시장 차트 느낌. pathLength=1 정규화 후 dashoffset draw.
 const SPARKLINE_PATH = [
-  // 1) 하방 횡보 — 잔잔한 진동
   "M 4 51",
   "L 10 53", "L 16 50", "L 22 54", "L 28 51", "L 34 55", "L 40 52",
-  // 2) 급등 돌파 — 큰 폭으로 대시선 상향 이탈
   "L 46 47", "L 52 40", "L 58 35", "L 64 38", "L 70 32",
-  // 3) 깊은 되돌림 — 대시선 하향 재테스트, 저점 두드림
   "L 76 40", "L 82 46", "L 88 52", "L 94 56", "L 100 53", "L 106 55",
-  // 4) 반등, 다시 상방
   "L 112 48", "L 118 42", "L 124 38", "L 130 33", "L 136 36", "L 142 28",
-  // 5) 지그재그 신고가 — 상승 폭 크고 눌림 폭 작음. 대시선 끝(x=200)까지 이어짐.
   "L 148 30", "L 154 22", "L 160 26", "L 166 18", "L 172 22",
   "L 178 12", "L 184 15", "L 192 8", "L 200 4",
 ].join(" ");
@@ -94,10 +74,16 @@ const SPARKLINE_VIEW_H = 60;
 const SPARKLINE_END_X = 200;
 const SPARKLINE_END_Y = 4;
 
-export const PricePreview = () => {
-  const { ref, inView } = useInViewOnce<HTMLDivElement>();
+export const PricePreview = ({ play }: PreviewProps) => {
   const prefersReduced = usePrefersReducedMotion();
-  const active = inView || prefersReduced;
+  const shouldAnimate = play && !prefersReduced;
+  const [entered, setEntered] = useState(!shouldAnimate);
+
+  useEffect(() => {
+    if (!shouldAnimate) return;
+    const raf = requestAnimationFrame(() => setEntered(true));
+    return () => cancelAnimationFrame(raf);
+  }, [shouldAnimate]);
 
   // 마커는 SVG 안 <circle> 대신 SVG 밖 CSS 원으로 배치. preserveAspectRatio="none" 상황에서
   // <circle> 은 x/y 배율 차이로 타원이 되지만, HTML 요소는 좌표계에 무관해 언제나 정원.
@@ -105,7 +91,7 @@ export const PricePreview = () => {
   const markerTopPct = (SPARKLINE_END_Y / SPARKLINE_VIEW_H) * 100;
 
   return (
-    <div ref={ref} className="relative h-full w-full text-lavender-accent">
+    <div className="relative h-full w-full text-lavender-accent">
       <svg
         viewBox={`0 0 ${SPARKLINE_VIEW_W} ${SPARKLINE_VIEW_H}`}
         preserveAspectRatio="none"
@@ -127,7 +113,6 @@ export const PricePreview = () => {
           non-scaling-stroke 는 Blink 에서 dasharray 를 화면 픽셀 기준으로 재해석 →
           카드 폭 커지면 실제 path 픽셀 length 를 커버 못해 뒷부분 잘림.
           non-scaling-stroke 제거 + pathLength=1 정규화로 폭 무관 완전 draw 보장.
-          (트레이드오프: stroke 두께가 카드 폭에 따라 아주 살짝 변동)
         */}
         <path
           d={SPARKLINE_PATH}
@@ -139,8 +124,8 @@ export const PricePreview = () => {
           pathLength={1}
           style={{
             strokeDasharray: 1,
-            strokeDashoffset: active ? 0 : 1,
-            transition: prefersReduced ? "none" : "stroke-dashoffset 1s ease-out",
+            strokeDashoffset: entered ? 0 : 1,
+            transition: shouldAnimate ? "stroke-dashoffset 1s ease-out" : "none",
           }}
         />
       </svg>
@@ -150,8 +135,8 @@ export const PricePreview = () => {
         style={{
           left: `${markerLeftPct}%`,
           top: `${markerTopPct}%`,
-          opacity: active ? 1 : 0,
-          transition: prefersReduced ? "none" : "opacity 250ms ease-out 900ms",
+          opacity: entered ? 1 : 0,
+          transition: shouldAnimate ? "opacity 250ms ease-out 900ms" : "none",
         }}
       />
     </div>
@@ -172,11 +157,11 @@ const METRICS: Metric[] = [
 
 const COUNTUP_DURATION_MS = 900;
 
-const useCountUp = (target: number, active: boolean, animate: boolean) => {
-  const [value, setValue] = useState(0);
+const useCountUp = (target: number, shouldAnimate: boolean) => {
+  const [value, setValue] = useState(shouldAnimate ? 0 : target);
 
   useEffect(() => {
-    if (!active || !animate) return;
+    if (!shouldAnimate) return;
     let raf = 0;
     const start = performance.now();
     const tick = (now: number) => {
@@ -187,21 +172,19 @@ const useCountUp = (target: number, active: boolean, animate: boolean) => {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [target, active, animate]);
+  }, [target, shouldAnimate]);
 
-  return animate ? value : target;
+  return value;
 };
 
 const MetricValue = ({
   metric,
-  active,
-  animate,
+  shouldAnimate,
 }: {
   metric: Metric;
-  active: boolean;
-  animate: boolean;
+  shouldAnimate: boolean;
 }) => {
-  const value = useCountUp(metric.target, active, animate);
+  const value = useCountUp(metric.target, shouldAnimate);
   return (
     <div className="flex flex-col">
       <span className="text-[10px] text-muted-foreground/80">{metric.label}</span>
@@ -212,20 +195,14 @@ const MetricValue = ({
   );
 };
 
-export const MetricsPreview = () => {
-  const { ref, inView } = useInViewOnce<HTMLDivElement>();
+export const MetricsPreview = ({ play }: PreviewProps) => {
   const prefersReduced = usePrefersReducedMotion();
-  const active = inView || prefersReduced;
+  const shouldAnimate = play && !prefersReduced;
 
   return (
-    <div ref={ref} className="grid grid-cols-3 gap-2">
+    <div className="grid grid-cols-3 gap-2">
       {METRICS.map((metric) => (
-        <MetricValue
-          key={metric.label}
-          metric={metric}
-          active={active}
-          animate={!prefersReduced}
-        />
+        <MetricValue key={metric.label} metric={metric} shouldAnimate={shouldAnimate} />
       ))}
     </div>
   );

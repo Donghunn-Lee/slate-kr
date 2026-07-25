@@ -1,5 +1,5 @@
 import { RecentVisited } from "@/entities/home/RecentVisited";
-import { ServiceValue } from "@/entities/home/ServiceValue";
+import { HomeHero } from "@/entities/home/HomeHero";
 import { IndexSlate } from "@/features/index-quotes/IndexSlate";
 import { MarketRankingSlate } from "@/features/market-ranking/MarketRankingSlate";
 import { WatchlistPreview } from "@/features/watchlist/WatchlistPreview";
@@ -38,7 +38,7 @@ async function HomePage() {
 
   return (
     <main className="mx-auto w-full max-w-4xl space-y-8 px-4 pb-12">
-      <ServiceValue />
+      <HomeHero />
       <IndexSlate
         overseasSlot={<OverseasIndexRow snapshotsByCode={overseasByCode} />}
       />
