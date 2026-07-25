@@ -47,7 +47,7 @@ const CARDS: Card[] = [
   },
 ];
 
-const AUTO_INTERVAL_MS = 5500;
+const AUTO_INTERVAL_MS = 3000;
 const SLIDE_WIDTH_CQW = 70;
 const CENTER_OFFSET_CQW = (100 - SLIDE_WIDTH_CQW) / 2;
 

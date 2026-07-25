@@ -21,8 +21,11 @@ type PreviewProps = { play: boolean };
 
 const DISCLOSURE_CHIPS = [
   { label: "주요사항", cls: "bg-disclosure-major-event-bg text-disclosure-major-event-text" },
+  { label: "정기보고서", cls: "bg-disclosure-financial-bg text-disclosure-financial-text" },
   { label: "소유상황", cls: "bg-disclosure-ownership-bg text-disclosure-ownership-text" },
   { label: "감사", cls: "bg-disclosure-audit-bg text-disclosure-audit-text" },
+  { label: "주주총회", cls: "bg-disclosure-shareholder-meeting-bg text-disclosure-shareholder-meeting-text" },
+  { label: "시장조치", cls: "bg-disclosure-market-action-bg text-disclosure-market-action-text" },
   { label: "AI 요약", cls: "bg-sky-bg text-sky-accent border border-sky-border" },
 ];
 
@@ -153,6 +156,7 @@ const METRICS: Metric[] = [
   { label: "PER", target: 12.3, format: (v) => v.toFixed(1) },
   { label: "PBR", target: 1.24, format: (v) => v.toFixed(2) },
   { label: "EPS", target: 5384, format: (v) => Math.round(v).toLocaleString() },
+  { label: "BPS", target: 45821, format: (v) => Math.round(v).toLocaleString() },
 ];
 
 const COUNTUP_DURATION_MS = 900;
@@ -200,7 +204,7 @@ export const MetricsPreview = ({ play }: PreviewProps) => {
   const shouldAnimate = play && !prefersReduced;
 
   return (
-    <div className="grid grid-cols-3 gap-2">
+    <div className="grid grid-cols-4 gap-2">
       {METRICS.map((metric) => (
         <MetricValue key={metric.label} metric={metric} shouldAnimate={shouldAnimate} />
       ))}
