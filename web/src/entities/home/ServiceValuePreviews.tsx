@@ -38,10 +38,12 @@ const useInViewOnce = <T extends HTMLElement>() => {
   return { ref, inView };
 };
 
+// 실제 사용 중인 CheckpointBadge 라벨과 정확히 일치시킴 (정기보고서는 AI 요약 대상이 아니라 제외).
+// AI 요약은 배지가 없는 기능이지만 소개 목적으로 sky 톤으로 표시.
 const DISCLOSURE_CHIPS = [
   { label: "주요사항", cls: "bg-disclosure-major-event-bg text-disclosure-major-event-text" },
-  { label: "재무", cls: "bg-disclosure-financial-bg text-disclosure-financial-text" },
-  { label: "자본", cls: "bg-disclosure-ownership-bg text-disclosure-ownership-text" },
+  { label: "소유상황", cls: "bg-disclosure-ownership-bg text-disclosure-ownership-text" },
+  { label: "감사", cls: "bg-disclosure-audit-bg text-disclosure-audit-text" },
   { label: "AI 요약", cls: "bg-sky-bg text-sky-accent border border-sky-border" },
 ];
 

@@ -20,7 +20,7 @@ const CARDS: Card[] = [
   {
     icon: FileText,
     title: "공시 분류",
-    description: "공시를 유형별로 분류하고, 긴 원문은 AI 요약으로 핵심만",
+    description: "공시를 유형별로 분류하고, AI 요약으로 핵심만 빠르게",
     variant: "sky",
     iconTint: "bg-elevated text-sky-accent",
     Preview: DisclosurePreview,
