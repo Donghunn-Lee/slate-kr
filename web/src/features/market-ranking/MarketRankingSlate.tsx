@@ -36,25 +36,22 @@ type RowProps = {
   secondary: string | null; // "4,293만주" | "614억원" | null
 };
 
-// 좌측 순위 전용 컬럼 + 우측 콘텐츠(코드-first). rank 는 숫자만, mono/muted, 세로 중앙 정렬.
+// 좌측 순위 전용 컬럼 + 우측 콘텐츠. rank 는 숫자만, mono/muted, 세로 중앙 정렬.
+// 상단 mini row: 좌=시장구분(KOSPI/KOSDAQ), 우=secondary(거래량/거래대금). 양쪽 다 없으면 mini row 자체를 생략.
 const Row = ({ item, secondary }: RowProps) => (
   <li className="group relative -mx-6 bg-transparent px-6 transition-colors hover:bg-muted/40">
-    <div className="flex items-stretch gap-3 border-b border-subtle pb-2 pt-1.5 group-last:border-b-0">
+    <div className="flex items-stretch gap-3 border-b border-subtle py-1.5 group-last:border-b-0">
       <span className="flex w-7 shrink-0 items-center justify-center font-mono text-sm tabular-nums text-muted-foreground">
         {item.rank}
       </span>
       <div className="min-w-0 flex-1">
-        <div className="flex min-h-5 items-center gap-2">
-          <span className="shrink-0 font-mono text-[11px] leading-none text-muted-foreground">
-            {item.ticker}
-          </span>
-          {secondary && (
-            <span className="ml-auto shrink-0 font-mono text-[11px] leading-none text-muted-foreground">
-              {secondary}
-            </span>
-          )}
-        </div>
-        <div className="mt-1 flex items-baseline justify-between gap-2">
+        {(item.market || secondary) && (
+          <div className="mb-0.5 flex items-center justify-between gap-2 text-[11px] leading-none text-muted-foreground">
+            <span className="tabular-nums">{item.market ?? ""}</span>
+            {secondary && <span className="tabular-nums">{secondary}</span>}
+          </div>
+        )}
+        <div className="flex items-baseline justify-between gap-2">
           <span className="min-w-0 truncate text-sm font-semibold text-foreground">
             {item.name}
           </span>
@@ -87,15 +84,16 @@ const SkeletonRows = () => (
   <ul>
     {Array.from({ length: TOP_N }).map((_, i) => (
       <li key={i} className="group -mx-6 animate-pulse px-6">
-        <div className="flex items-stretch gap-3 border-b border-subtle pb-2 pt-1.5 group-last:border-b-0">
+        <div className="flex items-stretch gap-3 border-b border-subtle py-1.5 group-last:border-b-0">
           <div className="flex w-7 shrink-0 items-center justify-center">
             <div className="h-3.5 w-3 rounded bg-muted" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="flex min-h-5 items-center gap-2">
-              <div className="h-3 w-16 rounded bg-muted" />
+            <div className="mb-0.5 flex items-center justify-between gap-2">
+              <div className="h-3 w-10 rounded bg-muted" />
+              <div className="h-3 w-14 rounded bg-muted" />
             </div>
-            <div className="mt-1 flex items-baseline justify-between gap-2">
+            <div className="flex items-baseline justify-between gap-2">
               <div className="h-4 w-32 rounded bg-muted" />
               <div className="flex shrink-0 items-end gap-2">
                 <div className="h-4 w-20 rounded bg-muted" />

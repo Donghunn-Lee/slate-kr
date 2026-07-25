@@ -110,18 +110,18 @@ export function WatchlistPreview() {
                 key={item.ticker}
                 className="group relative -mx-6 bg-transparent px-6 transition-colors hover:bg-muted/40"
               >
-                <div className="border-b border-subtle pb-2 pt-1.5 group-last:border-b-0">
-                  <div className="flex min-h-5 items-center gap-2">
-                    <span className="shrink-0 font-mono text-[11px] leading-none text-muted-foreground">
-                      {item.ticker} · {item.market}
+                <div className="border-b border-subtle py-1.5 group-last:border-b-0">
+                  <div className="mb-0.5 flex items-center justify-between gap-2">
+                    <span className="text-[11px] leading-none text-muted-foreground tabular-nums">
+                      {item.market}
                     </span>
                     {isLiveFailed && (
-                      <span className="ml-auto shrink-0 rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-[11px] leading-none text-muted-foreground">
+                      <span className="shrink-0 rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-[11px] leading-none text-muted-foreground">
                         일시 지연
                       </span>
                     )}
                   </div>
-                  <div className="mt-1 flex items-baseline justify-between gap-2">
+                  <div className="flex items-baseline justify-between gap-2">
                     <span className="min-w-0 truncate text-sm font-semibold text-foreground">
                       {item.name}
                     </span>

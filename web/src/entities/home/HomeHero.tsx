@@ -2,7 +2,7 @@ import { ServiceCardCarousel } from "./ServiceCardCarousel";
 
 export const HomeHero = () => {
   return (
-    <section className="grid gap-8 pt-6 md:grid-cols-2 md:items-center md:gap-10">
+    <section className="grid gap-8 pt-8 md:grid-cols-2 md:items-center md:gap-10">
       <div className="md:pr-2">
         <h1 className="text-3xl font-bold tracking-tight">SlateKR</h1>
         <h2 className="mt-4 text-lg font-semibold text-foreground sm:text-xl">
