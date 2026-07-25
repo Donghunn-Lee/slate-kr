@@ -46,8 +46,8 @@ const Row = ({ item, secondary }: RowProps) => (
       </span>
       <div className="min-w-0 flex-1">
         {(item.market || secondary) && (
-          <div className="mb-0.5 flex items-center justify-between gap-2 text-[11px] leading-none text-muted-foreground">
-            <span className="tabular-nums">{item.market ?? ""}</span>
+          <div className="mb-0.5 flex items-center justify-between gap-2 text-[10px] leading-none text-muted-foreground">
+            <span className="tracking-wide">{item.market ?? ""}</span>
             {secondary && <span className="tabular-nums">{secondary}</span>}
           </div>
         )}
