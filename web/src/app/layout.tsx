@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { Providers } from "./providers";
 import { Navbar } from "@/components/layout/Navbar";
+import { RecentVisitedBar } from "@/components/layout/RecentVisitedBar";
 import { Footer } from "@/components/layout/Footer";
 
 const suit = localFont({
@@ -37,6 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="flex min-h-screen flex-col font-sans antialiased">
         <Providers>
           <Navbar />
+          <RecentVisitedBar />
           <div className="flex-1">{children}</div>
           <Footer />
         </Providers>

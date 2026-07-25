@@ -1,4 +1,3 @@
-import { RecentVisited } from "@/entities/home/RecentVisited";
 import { HomeHero } from "@/entities/home/HomeHero";
 import { IndexSlate } from "@/features/index-quotes/IndexSlate";
 import { MarketRankingSlate } from "@/features/market-ranking/MarketRankingSlate";
@@ -42,7 +41,6 @@ async function HomePage() {
       <IndexSlate
         overseasSlot={<OverseasIndexRow snapshotsByCode={overseasByCode} />}
       />
-      <RecentVisited />
       <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
         <MarketRankingSlate />
         <WatchlistPreview />
