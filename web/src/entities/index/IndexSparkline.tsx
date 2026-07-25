@@ -45,7 +45,8 @@ const trendOf = (change: number): Trend => {
   return "flat";
 };
 
-// timestamp 는 KST 를 UTC 로 위장한 epoch 초 → getUTC* 로 원래 KST 컴포넌트를 얻는다.
+// timestamp 는 벽시계(국내 KST · 해외 ET)를 UTC 로 위장한 epoch 초 → getUTC* 로
+// 원본 시간대 컴포넌트를 복원한다. 아래 세션 필터도 자연스레 해당 캘린더 기준으로 동작.
 const kstDateKey = (ts: number): string => {
   const d = new Date(ts * 1000);
   return `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
