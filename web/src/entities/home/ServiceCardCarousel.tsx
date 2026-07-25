@@ -170,6 +170,9 @@ export const ServiceCardCarousel = () => {
             <button
               key={card.title}
               type="button"
+              // 마우스 클릭으로 포커스가 남아 자동 재생이 무기한 정지되는 것을 방지.
+              // 키보드 tab 포커스는 정상 동작.
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => goTo(i)}
               aria-label={`${card.title} 슬라이드`}
               aria-current={isActive}
@@ -207,6 +210,7 @@ const SlideCard = ({ isActive, onClick, title, children }: SlideCardProps) => {
   return (
     <button
       type="button"
+      onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
       aria-label={`${title} 슬라이드로 이동`}
       tabIndex={-1}
