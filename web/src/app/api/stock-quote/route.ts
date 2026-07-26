@@ -20,16 +20,20 @@ export const GET = async (req: NextRequest) => {
   const date = getKrxTradingDate();
 
   try {
-    // 세션별 J/NX 토글 — StockHeaderLivePrice.isNxtMiss 는 after/after_close/pre 에서
+    // 세션별 J/NX 토글 — StockHeaderLivePrice.isNxtMiss 는 after/after_close/pre/closed 에서
     // NX 응답이 null(비NXT 종목 iscd=null → normalizeStockQuote=null)인 경로에 의존.
     // UN 통합으로 바꾸면 KRX 값이 흘러가 배지가 "장 마감" 대신 "애프터마켓" 으로 회귀.
+    // closed(주말·공휴일) NX 요청은 KIS 가 마지막 NXT 세션 종가(직전 거래일 20:00)를
+    // 그대로 반환하는 특성에 의존 — NXT 종목은 애프터마켓 종가로 표시되고 비NXT 는
+    // iscd=null → isNxtMiss → "장 마감" 라벨로 폴백.
     let quote: StockQuote | null = null;
     if (session === "regular") {
       quote = await fetchStockQuote(ticker, "J");
     } else if (
       session === "after" ||
       session === "after_close" ||
-      session === "pre"
+      session === "pre" ||
+      session === "closed"
     ) {
       quote = await fetchStockQuote(ticker, "NX");
     }

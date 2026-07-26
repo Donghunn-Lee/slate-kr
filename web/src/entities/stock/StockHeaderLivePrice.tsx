@@ -28,17 +28,21 @@ export const StockHeaderLivePrice = ({
   // 구분해 세션 라벨(애프터마켓 등) 은 유지한 채 "일시 지연" 배지만 얹기 위한 축.
   const isFailedQuote = data?.failed ?? false;
 
-  // NXT 미지원 종목: after/after_close/pre인데 NX 응답이 null. failed=true 인 경우는
-  // KIS 실패라 실제 NXT 미지원과 구분해야 하므로 !isFailedQuote 로 게이트.
+  // 비NXT 종목: NX 응답이 null. failed=true 인 경우는 KIS 실패라 실제 NXT 미지원과
+  // 구분해야 하므로 !isFailedQuote 로 게이트. closed(주말·공휴일)에서도 NX 요청이 나가
+  // 동일 게이트가 걸린다 — NXT 종목은 live NXT 값을 그대로 흘리고, 비NXT 만 폴백.
   const isNxtMiss =
     !isFailedQuote &&
-    (session === "after" || session === "after_close" || session === "pre") &&
+    (session === "after" ||
+      session === "after_close" ||
+      session === "pre" ||
+      session === "closed") &&
     live === null;
 
   // preopen: 새 거래일 개장 전 → 전일종가 + 0%
-  // closed / NXT miss: 장 없음 → 직전 거래일 종가 + 직전 거래일 등락 유지
+  // isNxtMiss: 활성 세션 없음 → initialPrice 유지 (직전 거래일 등락 그대로)
   const isPreopen = session === "preopen";
-  const isClosedLike = session === "closed" || isNxtMiss;
+  const isClosedLike = isNxtMiss;
 
   const displayPrice =
     isPreopen || isClosedLike ? initialPrice : (live?.price ?? initialPrice);
@@ -57,31 +61,32 @@ export const StockHeaderLivePrice = ({
 
   // 세션 라벨은 실패 여부와 무관하게 유지 — 실패 시엔 "일시 지연" 배지가 별도로 붙는다.
   // isNxtMiss 는 정상 NXT 미지원 경로에서만 true (실패 시 아래 배지 축과 충돌하지 않도록).
+  // after_close 와 closed 는 같은 "애프터마켓 종가" 카피 — closed 세션에서도 KIS 가
+  // 직전 거래일 NXT 20:00 종가를 반환하므로 의미가 정확히 일치한다.
   const labelText = isNxtMiss
     ? "장 마감"
     : session === "regular"
       ? "실시간"
       : session === "after"
         ? "애프터마켓"
-        : session === "after_close"
+        : session === "after_close" || session === "closed"
           ? "애프터마켓 종가"
           : session === "pre"
             ? "프리마켓"
             : session === "preopen"
               ? "장 시작 전"
-              : "장 마감"; // closed
+              : "장 마감";
 
-  // 시각 표시: 활성 세션은 갱신 시각, after_close는 20:00 고정,
-  // 장 마감(=isNxtMiss after/after_close + closed)은 정규장 마감 15:30 고정.
+  // 시각 표시: 활성 세션은 갱신 시각, after_close/closed + NXT live는 20:00 고정,
+  // isNxtMiss(비NXT after/after_close) 및 closed 폴백은 정규장 마감 15:30 고정.
   // 06시 이후~정규장 시작 사이(preopen, isNxtMiss pre)는 시각 없음.
   const timeText = (() => {
     if ((session === "regular" || session === "after" || session === "pre") && live !== null) {
       return updatedAtText;
     }
-    if (session === "after_close" && live !== null) return "20:00";
-    if ((isNxtMiss && (session === "after" || session === "after_close")) || session === "closed") {
-      return "15:30";
-    }
+    if ((session === "after_close" || session === "closed") && live !== null) return "20:00";
+    if (isNxtMiss && (session === "after" || session === "after_close")) return "15:30";
+    if (session === "closed") return "15:30";
     return "";
   })();
 
