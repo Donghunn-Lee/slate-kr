@@ -14,6 +14,9 @@ import type {
   IndexIntradaySnapshot,
 } from "@/shared/types/quote";
 
+// quote(FHPUP02100000) · intraday(FHKUP03500200) TR 전용 매핑.
+// daily TR(FHKUP03500100) 은 KOSDAQ150=2203 으로 상이 —
+// collector/fetch_index_prices.py INDEX_CODE_TO_ISCD 참조 (#097).
 const ISCD_BY_INDEX: Record<DomesticIndexCode, string> = {
   KOSPI: "0001",
   KOSDAQ: "1001",

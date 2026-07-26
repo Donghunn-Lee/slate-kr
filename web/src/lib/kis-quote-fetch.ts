@@ -84,6 +84,7 @@ const INDEX_NAME_BY_ISCD: Record<string, string> = {
   "0001": "코스피",
   "1001": "코스닥",
   "2001": "코스피200",
+  "3003": "코스닥150",
 };
 
 const KisResponseSchema = z.object({
