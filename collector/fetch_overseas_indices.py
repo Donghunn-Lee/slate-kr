@@ -30,7 +30,6 @@ logs/{prefix}_{YYYYMMDD}.log / ON CONFLICT DO UPDATE / per-code 에러 격리.
 """
 
 import argparse
-import json
 import logging
 import os
 import sys
@@ -41,6 +40,8 @@ from decimal import Decimal, InvalidOperation
 import psycopg2
 import requests
 from dotenv import load_dotenv
+
+from kis_token import get_token
 
 load_dotenv()
 
@@ -76,40 +77,6 @@ logger = logging.getLogger(__name__)
 
 def get_connection():
     return psycopg2.connect(os.getenv("DATABASE_URL"))
-
-
-def issue_token() -> str:
-    """KIS 토큰 직접 발급. 실패 시 exit 1.
-    probe_overseas_depth.py 와 동일 패턴 — kis_token 테이블(웹 read) 은
-    별도 cron 이 갱신하므로 여기서 upsert 하지 않는다."""
-    try:
-        r = requests.post(
-            f"{DOMAIN}/oauth2/tokenP",
-            data=json.dumps(
-                {
-                    "grant_type": "client_credentials",
-                    "appkey": KIS_APP_KEY,
-                    "appsecret": KIS_APP_SECRET,
-                }
-            ),
-            headers={"content-type": "application/json"},
-            timeout=10,
-        )
-    except requests.RequestException as e:
-        logger.error("KIS 토큰 요청 실패: %s", e)
-        sys.exit(1)
-    if r.status_code != 200:
-        logger.error("KIS 토큰 HTTP %d: %s", r.status_code, r.text[:200])
-        sys.exit(1)
-    try:
-        token = r.json().get("access_token")
-    except ValueError:
-        logger.error("KIS 토큰 JSON 파싱 실패: %s", r.text[:200])
-        sys.exit(1)
-    if not token:
-        logger.error("KIS access_token 미존재: %s", r.text[:200])
-        sys.exit(1)
-    return token
 
 
 def kis_daily_call(token: str, iscd: str, d1: str, d2: str):
@@ -318,9 +285,9 @@ def run_backfill(years: int):
     end = datetime.today().date()
     start = end - timedelta(days=int(years * 365.25))
     logger.info("백필 시작 %s ~ %s (%d년) · 코드=%s", start, end, years, OVERSEAS_CODES)
-    token = issue_token()
 
     conn = get_connection()
+    token = get_token(conn)
     cursor = conn.cursor()
     total_ins = total_err = 0
     try:
@@ -348,9 +315,9 @@ def run_backfill(years: int):
 def run_daily():
     end = datetime.today().date()
     logger.info("일일 append 시작 · 대상=%s", OVERSEAS_CODES)
-    token = issue_token()
 
     conn = get_connection()
+    token = get_token(conn)
     cursor = conn.cursor()
     total_ins = total_skp = total_err = 0
     try:

@@ -40,6 +40,8 @@ import psycopg2
 import requests
 from dotenv import load_dotenv
 
+from kis_token import get_token
+
 load_dotenv()
 
 KIS_APP_KEY = os.getenv("KIS_APP_KEY")
@@ -77,33 +79,6 @@ logger = logging.getLogger(__name__)
 
 def get_connection():
     return psycopg2.connect(os.getenv("DATABASE_URL"))
-
-
-def read_token(cursor):
-    """kis_token 최신행 read. 없음/만료면 None."""
-    cursor.execute(
-        "SELECT access_token, expires_at_ms FROM kis_token "
-        "ORDER BY updated_at DESC LIMIT 1"
-    )
-    row = cursor.fetchone()
-    if row is None:
-        logger.warning("kis_token 비어있음 — issue_kis_token.py 실행 대기")
-        return None
-    token, expires_at_ms = row
-    if not token or not expires_at_ms:
-        logger.warning("kis_token 필드 누락 — 이번 실행 skip")
-        return None
-    now_ms = int(time.time() * 1000)
-    if int(expires_at_ms) <= now_ms:
-        logger.warning(
-            "kis_token 만료 (now_ms=%d, expires_at_ms=%d) — 이번 실행 skip",
-            now_ms,
-            int(expires_at_ms),
-        )
-        return None
-    remaining_min = (int(expires_at_ms) - now_ms) / 1000 / 60
-    logger.info("kis_token 로드 완료 · 잔여 ~%.1f분", remaining_min)
-    return token
 
 
 def kis_intraday_call(token: str, iscd: str):
@@ -232,11 +207,7 @@ def run():
     conn = get_connection()
     cursor = conn.cursor()
     try:
-        token = read_token(cursor)
-        if token is None:
-            # 만료·미존재는 정상 종료 — 다음 cron 에서 재시도.
-            logger.info("토큰 미가용으로 종료 (exit 0)")
-            return
+        token = get_token(conn)
 
         total_recv = total_ins = total_skip = 0
         for code in OVERSEAS_CODES:

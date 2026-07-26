@@ -32,7 +32,6 @@ logs/{prefix}_{YYYYMMDD}.log / ON CONFLICT DO UPDATE / per-code 에러 격리.
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import sys
@@ -43,6 +42,8 @@ from decimal import Decimal, InvalidOperation
 import psycopg2
 import requests
 from dotenv import load_dotenv
+
+from kis_token import get_token
 
 load_dotenv()
 
@@ -87,56 +88,6 @@ logger = logging.getLogger(__name__)
 
 def get_connection():
     return psycopg2.connect(os.getenv("DATABASE_URL"))
-
-
-def read_token(cursor) -> str | None:
-    """kis_token 최신행 read. 없음/만료면 None (호출자가 issue_token 폴백)."""
-    cursor.execute(
-        "SELECT access_token, expires_at_ms FROM kis_token "
-        "ORDER BY updated_at DESC LIMIT 1"
-    )
-    row = cursor.fetchone()
-    if row is None:
-        return None
-    token, expires_at_ms = row
-    if not token or not expires_at_ms:
-        return None
-    # 5분 여유 두고 만료 판정.
-    if int(expires_at_ms) <= int(time.time() * 1000) + 5 * 60 * 1000:
-        return None
-    return token
-
-
-def issue_token() -> str:
-    """DB 토큰 미가용 시 폴백 발급. 실패 시 exit 1."""
-    try:
-        r = requests.post(
-            f"{DOMAIN}/oauth2/tokenP",
-            data=json.dumps(
-                {
-                    "grant_type": "client_credentials",
-                    "appkey": KIS_APP_KEY,
-                    "appsecret": KIS_APP_SECRET,
-                }
-            ),
-            headers={"content-type": "application/json"},
-            timeout=10,
-        )
-    except requests.RequestException as e:
-        logger.error("KIS 토큰 요청 실패: %s", e)
-        sys.exit(1)
-    if r.status_code != 200:
-        logger.error("KIS 토큰 HTTP %d: %s", r.status_code, r.text[:200])
-        sys.exit(1)
-    try:
-        tok = r.json().get("access_token")
-    except ValueError:
-        logger.error("KIS 토큰 JSON 파싱 실패: %s", r.text[:200])
-        sys.exit(1)
-    if not tok:
-        logger.error("KIS access_token 미존재: %s", r.text[:200])
-        sys.exit(1)
-    return tok
 
 
 def kis_daily_call(token: str, iscd: str, d1: str, d2: str) -> list | None:
@@ -339,12 +290,7 @@ def main():
     cursor = conn.cursor()
 
     try:
-        token = read_token(cursor)
-        if token is None:
-            logger.warning("kis_token 미가용 → 자체 발급 폴백 (issue_kis_token cron 확인 필요)")
-            token = issue_token()
-        else:
-            logger.info("kis_token DB 재사용")
+        token = get_token(conn)
 
         total_ins = total_noop = total_err = 0
         for code, iscd in INDEX_CODE_TO_ISCD.items():
