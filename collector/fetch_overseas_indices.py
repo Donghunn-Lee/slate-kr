@@ -6,10 +6,11 @@ KIS 해외지수 일봉 → index_daily_prices idempotent upsert.
                            비어있는 지수는 자동으로 3년 백필로 승격(첫 실행).
   --backfill [--years N]   전 코드에 대해 N년(기본 3) 과거까지 walk 백필.
 
-대상 지수 (US 3종)
+대상 지수 (US 4종 · OVERSEAS_CODES 실체 기준)
   SPX      S&P 500
   .DJI     다우존스
   COMP     나스닥종합
+  NDX      나스닥 100
 
 호출
   GET /uapi/overseas-price/v1/quotations/inquire-daily-chartprice  tr_id=FHKST03030100

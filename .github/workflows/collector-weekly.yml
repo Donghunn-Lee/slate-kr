@@ -26,17 +26,46 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run fetch_stocks
+        id: fetch_stocks
         working-directory: collector
         run: python fetch_stocks.py
+        continue-on-error: true
 
       - name: Run update_corp_codes
+        id: update_corp_codes
         working-directory: collector
         run: python update_corp_codes.py --execute
+        continue-on-error: true
 
       - name: Run fetch_shares
+        id: fetch_shares
         working-directory: collector
         run: python fetch_shares.py
+        continue-on-error: true
 
       - name: Run fetch_financials
+        id: fetch_financials
         working-directory: collector
         run: python fetch_financials.py --periods 1
+        continue-on-error: true
+
+      # Gate: 위 스텝 중 하나라도 실패면 워크플로우 실패로 만든다.
+      # continue-on-error 로 첫 실패가 이후 스텝을 계단식 스킵시키는 것을 막되,
+      # silent success 는 허용하지 않는다.
+      - name: Aggregate failure gate
+        if: always()
+        run: |
+          fail=0
+          for outcome in \
+            "${{ steps.fetch_stocks.outcome }}" \
+            "${{ steps.update_corp_codes.outcome }}" \
+            "${{ steps.fetch_shares.outcome }}" \
+            "${{ steps.fetch_financials.outcome }}"; do
+            if [ "$outcome" = "failure" ]; then
+              fail=1
+            fi
+          done
+          if [ "$fail" = "1" ]; then
+            echo "::error::One or more weekly collector steps failed (see individual step logs)."
+            exit 1
+          fi
