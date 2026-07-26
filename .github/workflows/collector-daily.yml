@@ -2,7 +2,10 @@ name: Collector Daily
 
 on:
   schedule:
-    - cron: "0 7 * * *"
+    # 평일 KST 16:00 (=07:00 UTC): 국내 EOD + 해외 EOD 전체.
+    - cron: "0 7 * * 1-5"
+    # 토 KST 16:00: 해외 EOD 만 (US 금요일 마감분). 국내는 주말 휴장.
+    - cron: "0 7 * * 6"
   workflow_dispatch:
 
 jobs:
@@ -27,16 +30,52 @@ jobs:
         working-directory: collector
         run: pip install -r requirements.txt
 
+      # 국내 스텝: 평일 스케줄만 실행. 토요일 스케줄이면 skip.
+      # workflow_dispatch 는 schedule 값이 빈 문자열이라 조건 참 → 전체 실행
+      # (수동 재-run 은 복구 목적이라 의도된 기본값).
       - name: Run fetch_prices
+        id: fetch_prices
+        if: github.event.schedule != '0 7 * * 6'
         working-directory: collector
         run: python fetch_prices.py
         continue-on-error: true
 
       - name: Run fetch_index_prices
+        id: fetch_index_prices
+        if: github.event.schedule != '0 7 * * 6'
         working-directory: collector
         run: python fetch_index_prices.py
         continue-on-error: true
 
       - name: Run fetch_overseas_indices
+        id: fetch_overseas_indices
         working-directory: collector
         run: python fetch_overseas_indices.py
+        continue-on-error: true
+
+      - name: Verify daily freshness
+        id: verify_freshness
+        if: github.event.schedule != '0 7 * * 6'
+        working-directory: collector
+        run: python verify_daily_freshness.py
+        continue-on-error: true
+
+      # Gate: 위 스텝 중 하나라도 실패면 워크플로우 실패로 만든다.
+      # continue-on-error 로 개별 실패를 격리하되, silent success 는 허용하지 않는다.
+      - name: Aggregate failure gate
+        if: always()
+        run: |
+          fail=0
+          for outcome in \
+            "${{ steps.fetch_prices.outcome }}" \
+            "${{ steps.fetch_index_prices.outcome }}" \
+            "${{ steps.fetch_overseas_indices.outcome }}" \
+            "${{ steps.verify_freshness.outcome }}"; do
+            if [ "$outcome" = "failure" ]; then
+              fail=1
+            fi
+          done
+          if [ "$fail" = "1" ]; then
+            echo "::error::One or more collector steps failed (see individual step logs)."
+            exit 1
+          fi
