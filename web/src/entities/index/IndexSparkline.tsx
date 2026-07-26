@@ -5,6 +5,7 @@ import { useTheme } from "next-themes";
 import {
   createChart,
   AreaSeries,
+  BaselineSeries,
   LineStyle,
   type AutoscaleInfo,
   type UTCTimestamp,
@@ -17,19 +18,22 @@ type IndexSparklineProps = {
   failed?: boolean;
 };
 
-type Trend = "up" | "down" | "flat";
-
-// IndexMiniChart 팔레트와 동일 hex — 상승/하락 톤 통일. 면 그라데이션은 라인색의
-// ~20% alpha, bottomColor 는 transparent(자연 소멸).
-type AreaTone = { line: string; top: string };
-const LIGHT: Record<Trend, AreaTone> = {
-  up: { line: "#dc2626", top: "rgba(220,38,38,0.20)" },
-  down: { line: "#2563eb", top: "rgba(37,99,235,0.20)" },
+// 전일종가 기준 위/아래 2색. IndexMiniChart · PriceChart 팔레트와 동일 hex.
+// baseline 그라데이션: line 근처 fill1(진함) → baseline 근처 fill2(투명) 로 소멸.
+// flat: prevClose 미도착 시 AreaSeries fallback 용 무채색 톤.
+type BaselinePalette = {
+  up: { line: string; fill1: string; fill2: string };
+  down: { line: string; fill1: string; fill2: string };
+  flat: { line: string; top: string };
+};
+const LIGHT: BaselinePalette = {
+  up: { line: "#dc2626", fill1: "rgba(220,38,38,0.28)", fill2: "rgba(220,38,38,0)" },
+  down: { line: "#2563eb", fill1: "rgba(37,99,235,0.28)", fill2: "rgba(37,99,235,0)" },
   flat: { line: "#737373", top: "rgba(115,115,115,0.20)" },
 };
-const DARK: Record<Trend, AreaTone> = {
-  up: { line: "#ef4444", top: "rgba(239,68,68,0.20)" },
-  down: { line: "#3b82f6", top: "rgba(59,130,246,0.20)" },
+const DARK: BaselinePalette = {
+  up: { line: "#ef4444", fill1: "rgba(239,68,68,0.28)", fill2: "rgba(239,68,68,0)" },
+  down: { line: "#3b82f6", fill1: "rgba(59,130,246,0.28)", fill2: "rgba(59,130,246,0)" },
   flat: { line: "#a3a3a3", top: "rgba(163,163,163,0.20)" },
 };
 
@@ -38,12 +42,6 @@ const PREV_CLOSE_LINE_LIGHT = "rgba(0,0,0,0.28)";
 const PREV_CLOSE_LINE_DARK = "rgba(255,255,255,0.28)";
 
 const HEIGHT_PX = 60;
-
-const trendOf = (change: number): Trend => {
-  if (change > 0) return "up";
-  if (change < 0) return "down";
-  return "flat";
-};
 
 // timestamp 는 벽시계(국내 KST · 해외 ET)를 UTC 로 위장한 epoch 초 → getUTC* 로
 // 원본 시간대 컴포넌트를 복원한다. 아래 세션 필터도 자연스레 해당 캘린더 기준으로 동작.
@@ -68,7 +66,6 @@ export const IndexSparkline = ({ bars, failed = false }: IndexSparklineProps) =>
     if (sessionBars.length === 0) return;
 
     const palette = resolvedTheme === "dark" ? DARK : LIGHT;
-    const tone = palette[trendOf(sessionBars[sessionBars.length - 1].change)];
 
     // 전일종가 = close - change (같은 세션 봉에서 상수). autoscaleInfoProvider 에서
     // series priceRange 로 clamp 하지 않고 prevClose 도 포함시켜, price line 이
@@ -96,16 +93,24 @@ export const IndexSparkline = ({ bars, failed = false }: IndexSparklineProps) =>
       handleScale: false,
     });
 
-    const series = chart.addSeries(AreaSeries, {
-      lineColor: tone.line,
-      topColor: tone.top,
-      bottomColor: "transparent",
-      lineWidth: 2,
-      lastValueVisible: false,
-      priceLineVisible: false,
-      crosshairMarkerVisible: false,
-      autoscaleInfoProvider: hasPrevClose
-        ? (original: () => AutoscaleInfo | null): AutoscaleInfo | null => {
+    // BaselineSeries: baseValue 기준 위(up)/아래(down) 2색. hasPrevClose 미충족
+    // (신규 지수 등 직전 세션 row 부재) 시 AreaSeries 무채색 fallback — PriceChart 동일 패턴.
+    const series = hasPrevClose
+      ? chart.addSeries(BaselineSeries, {
+          baseValue: { type: "price", price: prevClose },
+          topLineColor: palette.up.line,
+          bottomLineColor: palette.down.line,
+          topFillColor1: palette.up.fill1,
+          topFillColor2: palette.up.fill2,
+          bottomFillColor1: palette.down.fill1,
+          bottomFillColor2: palette.down.fill2,
+          lineWidth: 2,
+          lastValueVisible: false,
+          priceLineVisible: false,
+          crosshairMarkerVisible: false,
+          autoscaleInfoProvider: (
+            original: () => AutoscaleInfo | null,
+          ): AutoscaleInfo | null => {
             const info = original();
             if (!info || !info.priceRange) return info;
             return {
@@ -115,9 +120,17 @@ export const IndexSparkline = ({ bars, failed = false }: IndexSparklineProps) =>
                 maxValue: Math.max(info.priceRange.maxValue, prevClose),
               },
             };
-          }
-        : undefined,
-    });
+          },
+        })
+      : chart.addSeries(AreaSeries, {
+          lineColor: palette.flat.line,
+          topColor: palette.flat.top,
+          bottomColor: "transparent",
+          lineWidth: 2,
+          lastValueVisible: false,
+          priceLineVisible: false,
+          crosshairMarkerVisible: false,
+        });
 
     series.setData(
       sessionBars.map((b) => ({

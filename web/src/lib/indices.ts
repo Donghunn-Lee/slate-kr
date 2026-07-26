@@ -58,19 +58,48 @@ export const getLatestIndexPrice = cache(
   }
 );
 
-// 인트라데이(10분봉) 가져와서 전일 종가 기준 change/changeRate 채워서 반환.
-// 전일 종가는 index_daily_prices 직전 영업일 close 사용. cron이 아직 어제 데이터를
-// 적재 못 했다면 null이라 change=0 — UI는 차트만 그릴 거라 영향 없음.
+// fake-UTC epoch sec (KST/ET 벽시계를 UTC 로 위장) → 원본 캘린더 YYYY-MM-DD.
+// getUTC* 로 위장 컴포넌트를 그대로 복원 — 국내/해외 intraday 봉 timestamp 공용.
+const sessionDateFromTimestamp = (sec: number): string => {
+  const d = new Date(sec * 1000);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(d.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
+};
+
+// intraday change 계산용 직전 세션 close. sessionDate 는 화면에 그릴 세션의 캘린더
+// 날짜 — 벽시계 today 대신 봉 데이터에서 파생해 야간/DST/collector 지연 corner 흡수.
+// getLatestIndexPrice 는 오늘자 EOD 를 이미 잡으므로 여기선 별도 쿼리로 base_date <
+// sessionDate 로 필터해야 "직전 세션 close" 시맨틱 유지.
+// null (신규 지수 등 직전 세션 row 부재) → 소비측이 prevClose=0 로 graceful degrade.
+const queryPrevSessionClose = async (
+  indexCode: string,
+  sessionDate: string,
+): Promise<number | null> => {
+  const [rows] = await pool.query<{ close: number }[]>(
+    "SELECT close FROM index_daily_prices WHERE index_code = $1 AND base_date < $2 ORDER BY base_date DESC LIMIT 1",
+    [indexCode, sessionDate],
+  );
+  return rows.length > 0 ? rows[0].close : null;
+};
+
+// 인트라데이(10분봉) 가져와서 직전 세션 close 기준 change/changeRate 채워서 반환.
+// prevClose 미도착(신규 지수 등) 이면 change=0 — UI 는 차트만 그릴 거라 영향 없음.
 // null = fetch 실패 (route 에서 캐시 evict 판정에 사용), [] = 정상 empty.
 export const getIndexIntradayPrices = async (
   indexCode: DomesticIndexCode,
 ): Promise<IndexIntradaySnapshot[] | null> => {
-  const [bars, prev] = await Promise.all([
-    fetchIndexIntradayChart(ISCD_BY_INDEX[indexCode]),
-    getLatestIndexPrice(indexCode),
-  ]);
+  const bars = await fetchIndexIntradayChart(ISCD_BY_INDEX[indexCode]);
   if (bars === null) return null;
-  const prevClose = prev?.close ?? 0;
+  const sessionDate =
+    bars.length > 0
+      ? sessionDateFromTimestamp(bars[bars.length - 1].timestamp)
+      : null;
+  const prevClose =
+    sessionDate !== null
+      ? (await queryPrevSessionClose(indexCode, sessionDate)) ?? 0
+      : 0;
   return bars.map((bar) => {
     const change = prevClose > 0 ? bar.close - prevClose : 0;
     const changeRate = prevClose > 0 ? (change / prevClose) * 100 : 0;
@@ -191,10 +220,9 @@ export const getOverseasIndexIntradayPrices = async (
   indexCode: OverseasIntradayCode,
 ): Promise<IndexIntradaySnapshot[] | null> => {
   const iscd = indexCode; // 해외 코드는 KIS ISCD 와 그대로 일치 (SPX / COMP / NDX)
-  const [dbBars, liveBars, prev] = await Promise.all([
+  const [dbBars, liveBars] = await Promise.all([
     readOverseasIntradayFromDb(indexCode),
     fetchOverseasIndexIntradayChart(iscd),
-    getLatestIndexPrice(indexCode),
   ]);
 
   const liveFailed = liveBars === null;
@@ -206,7 +234,14 @@ export const getOverseasIndexIntradayPrices = async (
 
   const merged = mergeOverseasIntradayBars(dbBars, liveBars ?? []);
   const resampled = resampleIntradayBars(merged, INTRADAY_RESAMPLE_MINUTES);
-  const prevClose = prev?.close ?? 0;
+  const sessionDate =
+    resampled.length > 0
+      ? sessionDateFromTimestamp(resampled[resampled.length - 1].time as number)
+      : null;
+  const prevClose =
+    sessionDate !== null
+      ? (await queryPrevSessionClose(indexCode, sessionDate)) ?? 0
+      : 0;
   return toIntradaySnapshots(indexCode, resampled, prevClose);
 };
 
