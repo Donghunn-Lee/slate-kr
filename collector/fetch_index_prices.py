@@ -1,31 +1,43 @@
 """
-KRX Marketplace 지수 일봉 → index_daily_prices idempotent upsert.
+KIS 국내지수 일봉 → index_daily_prices idempotent upsert (당일 EOD 회귀 적재).
 
 모드
-  (인자 없음)              직전일(today − 1, KST) 1일 적재
-                           (KRX Marketplace 가 당일 데이터를 익일 08:00 갱신하므로
-                            익일 오전 cron 에서 "어제"를 조회)
-                           휴장·주말 직전일은 KRX 빈 응답으로 skip
-  --backfill START END     YYYY-MM-DD 구간 순회 적재
-                           주말은 사전 스킵, 공휴일은 KRX 빈 응답으로 skip
+  (인자 없음)  지수별 DB MAX(base_date)+1 ~ today(KST) 구간 append.
+               신규 봉 없으면 no-op 로그. 빈 테이블은 에러 (백필 스크립트 필요).
+               휴장·주말은 KIS 응답에 봉이 없으므로 자연 skip.
 
-대상 지수 (4종)
-  KOSPI / KOSDAQ / KOSPI200 / KOSDAQ150
+  * 대량 과거 백필은 backfill_index_prices.py (KRX Marketplace 전용) 사용.
 
-호출 (영업일당 2회)
-  idx/kospi_dd_trd   → IDX_NM '코스피' + '코스피 200' 두 건 추출
-  idx/kosdaq_dd_trd  → IDX_NM '코스닥' + '코스닥 150' 두 건 추출
+대상 지수 (4종, IndexCode 상수와 정합)
+  KOSPI     KOSDAQ     KOSPI200     KOSDAQ150
 
-규약은 fetch_prices.py 와 정합: psycopg2 / load_dotenv / logs/{prefix}_{YYYYMMDD}.log /
-ON CONFLICT DO UPDATE / 에러 격리.
+호출
+  GET /uapi/domestic-stock/v1/quotations/inquire-daily-indexchartprice
+  tr_id=FHKUP03500100 · FID_COND_MRKT_DIV_CODE='U' · FID_PERIOD_DIV_CODE='D'
+  output2: DESC(최신→과거) 정렬 · 60일 요청 시 약 41 트레이딩봉 반환 (probe #097).
+
+output2 매핑
+  stck_bsop_date · bstp_nmix_oprc/hgpr/lwpr/prpr · acml_vol · acml_tr_pbmn
+  등락/등락률은 output2 미포함 → prev_close chain 계산.
+
+단위 환산 (probe #097 실측)
+  acml_vol      × 1,000       → volume(주)
+  acml_tr_pbmn  × 1,000,000   → value(원)
+  KOSDAQ 는 KRX 대비 vol/val 이 ~1% 크게 나옴(원인 미상, OHLC 는 완전 일치).
+  보정하지 않음 — 지수 표시엔 OHLC 가 우선.
+
+규약 정합 (fetch_overseas_indices.py 대칭): psycopg2 / load_dotenv /
+logs/{prefix}_{YYYYMMDD}.log / ON CONFLICT DO UPDATE / per-code 에러 격리.
 """
 
-import argparse
+from __future__ import annotations
+
+import json
 import logging
 import os
 import sys
 import time
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 
 import psycopg2
@@ -34,10 +46,28 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-KRX_KEY = os.getenv("KRX_OPEN_API_KEY")
-KRX_BASE = "https://data-dbg.krx.co.kr/svc/apis"
+KIS_APP_KEY = os.getenv("KIS_APP_KEY")
+KIS_APP_SECRET = os.getenv("KIS_APP_SECRET")
+DOMAIN = "https://openapi.koreainvestment.com:9443"
+API_URL = "/uapi/domestic-stock/v1/quotations/inquire-daily-indexchartprice"
+TR_ID = "FHKUP03500100"
+CALL_GAP_SEC = 0.5
+# 1콜 41 트레이딩봉 상한(probe #097). 60 캘린더일 = 약 40~43 봉 → 여유 두고 55.
+DAILY_GAP_LIMIT_DAYS = 55
+KST = timezone(timedelta(hours=9))
 
-# ── 로깅 (fetch_prices.py 와 동일 형태) ───────────────────────
+# IndexCode(웹) → KIS 국내업종 ISCD.
+# daily TR 코드는 quote TR 과 상이 (KOSDAQ150: quote=3003 / daily=2203,
+# #097 probe 실측). 웹 IndexCode 상수 재사용 금지 — 이 매핑은 KIS API
+# 전용이므로 이 파일에 하드코딩한다.
+INDEX_CODE_TO_ISCD: dict[str, str] = {
+    "KOSPI":     "0001",
+    "KOSDAQ":    "1001",
+    "KOSPI200":  "2001",
+    "KOSDAQ150": "2203",
+}
+
+# ── 로깅 (fetch_overseas_indices.py 와 동일 형태) ─────────────
 _log_dir = os.path.join(os.path.dirname(__file__), "logs")
 os.makedirs(_log_dir, exist_ok=True)
 _log_file = os.path.join(
@@ -55,74 +85,131 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# IDX_NM (KRX 원본 그대로, 공백 포함) → index_code 매핑
-IDX_NM_TO_CODE = {
-    "코스피": "KOSPI",
-    "코스피 200": "KOSPI200",
-    "코스닥": "KOSDAQ",
-    "코스닥 150": "KOSDAQ150",
-}
-
-# endpoint → 그 endpoint 응답에서 추출할 IDX_NM 들
-ENDPOINT_TO_NAMES: dict[str, tuple[str, ...]] = {
-    "idx/kospi_dd_trd": ("코스피", "코스피 200"),
-    "idx/kosdaq_dd_trd": ("코스닥", "코스닥 150"),
-}
-
-BACKFILL_SLEEP_SEC = 0.3
-
-
 def get_connection():
     return psycopg2.connect(os.getenv("DATABASE_URL"))
 
 
-def krx_call(path: str, bas_dd: str):
-    """
-    KRX Marketplace 단일 일자 호출.
-    성공 → rows (list, 빈 배열 가능 = 휴장)
-    실패 → None
-    """
+def read_token(cursor) -> str | None:
+    """kis_token 최신행 read. 없음/만료면 None (호출자가 issue_token 폴백)."""
+    cursor.execute(
+        "SELECT access_token, expires_at_ms FROM kis_token "
+        "ORDER BY updated_at DESC LIMIT 1"
+    )
+    row = cursor.fetchone()
+    if row is None:
+        return None
+    token, expires_at_ms = row
+    if not token or not expires_at_ms:
+        return None
+    # 5분 여유 두고 만료 판정.
+    if int(expires_at_ms) <= int(time.time() * 1000) + 5 * 60 * 1000:
+        return None
+    return token
+
+
+def issue_token() -> str:
+    """DB 토큰 미가용 시 폴백 발급. 실패 시 exit 1."""
     try:
-        r = requests.get(
-            f"{KRX_BASE}/{path}",
-            headers={"AUTH_KEY": (KRX_KEY or "").strip()},
-            params={"basDd": bas_dd},
-            timeout=30,
+        r = requests.post(
+            f"{DOMAIN}/oauth2/tokenP",
+            data=json.dumps(
+                {
+                    "grant_type": "client_credentials",
+                    "appkey": KIS_APP_KEY,
+                    "appsecret": KIS_APP_SECRET,
+                }
+            ),
+            headers={"content-type": "application/json"},
+            timeout=10,
         )
     except requests.RequestException as e:
-        logger.error("KRX 호출 실패 %s %s: %s", path, bas_dd, e)
+        logger.error("KIS 토큰 요청 실패: %s", e)
+        sys.exit(1)
+    if r.status_code != 200:
+        logger.error("KIS 토큰 HTTP %d: %s", r.status_code, r.text[:200])
+        sys.exit(1)
+    try:
+        tok = r.json().get("access_token")
+    except ValueError:
+        logger.error("KIS 토큰 JSON 파싱 실패: %s", r.text[:200])
+        sys.exit(1)
+    if not tok:
+        logger.error("KIS access_token 미존재: %s", r.text[:200])
+        sys.exit(1)
+    return tok
+
+
+def kis_daily_call(token: str, iscd: str, d1: str, d2: str) -> list | None:
+    """FHKUP03500100 단일 호출. output2 list 반환 (실패 → None)."""
+    headers = {
+        "content-type": "application/json; charset=utf-8",
+        "authorization": f"Bearer {token}",
+        "appkey": KIS_APP_KEY,
+        "appsecret": KIS_APP_SECRET,
+        "tr_id": TR_ID,
+        "custtype": "P",
+    }
+    params = {
+        "FID_COND_MRKT_DIV_CODE": "U",
+        "FID_INPUT_ISCD": iscd,
+        "FID_INPUT_DATE_1": d1,
+        "FID_INPUT_DATE_2": d2,
+        "FID_PERIOD_DIV_CODE": "D",
+    }
+    try:
+        r = requests.get(
+            f"{DOMAIN}{API_URL}", headers=headers, params=params, timeout=15
+        )
+    except requests.RequestException as e:
+        logger.error("KIS 호출 실패 %s [%s~%s]: %s", iscd, d1, d2, e)
         return None
+    finally:
+        time.sleep(CALL_GAP_SEC)
     if r.status_code != 200:
         logger.error(
-            "KRX HTTP %s %s %s: %s", r.status_code, path, bas_dd, r.text[:200]
+            "KIS HTTP %d %s [%s~%s]: %s", r.status_code, iscd, d1, d2, r.text[:200]
         )
         return None
     try:
-        data = r.json()
+        body = r.json()
     except ValueError:
-        logger.error("KRX JSON 파싱 실패 %s %s", path, bas_dd)
+        logger.error("KIS JSON 파싱 실패 %s [%s~%s]", iscd, d1, d2)
         return None
-    return data.get("OutBlock_1") or []
-
-
-def parse_row(row: dict, index_code: str):
-    """KRX 행 → upsert 바인드 튜플. 키/숫자 변환 실패 시 None."""
-    try:
-        bas_dd = row["BAS_DD"]
-        return (
-            index_code,
-            f"{bas_dd[0:4]}-{bas_dd[4:6]}-{bas_dd[6:8]}",
-            Decimal(row["OPNPRC_IDX"]),
-            Decimal(row["HGPRC_IDX"]),
-            Decimal(row["LWPRC_IDX"]),
-            Decimal(row["CLSPRC_IDX"]),
-            Decimal(row["CMPPREVDD_IDX"]),
-            Decimal(row["FLUC_RT"]),
-            int(row["ACC_TRDVOL"]),
-            int(row["ACC_TRDVAL"]),
+    if body.get("rt_cd") != "0":
+        logger.error(
+            "KIS rt_cd=%s %s [%s~%s]: %s",
+            body.get("rt_cd"), iscd, d1, d2,
+            str(body.get("msg1", ""))[:100],
         )
-    except (KeyError, ValueError, TypeError, InvalidOperation) as e:
-        logger.error("행 변환 실패 (%s): %s — row=%s", index_code, e, row)
+        return None
+    o2 = body.get("output2") or []
+    if not isinstance(o2, list):
+        logger.error("KIS output2 형식 오류 %s [%s~%s]", iscd, d1, d2)
+        return None
+    return o2
+
+
+def parse_bar(raw: dict):
+    """output2 행 → (date_iso, open, high, low, close, volume, value). 무효 시 None."""
+    try:
+        d = raw.get("stck_bsop_date")
+        if not d or len(d) != 8:
+            return None
+        date_iso = f"{d[0:4]}-{d[4:6]}-{d[6:8]}"
+        close = Decimal(str(raw.get("bstp_nmix_prpr")))
+        if close == 0:
+            return None
+        open_ = Decimal(str(raw.get("bstp_nmix_oprc")))
+        high = Decimal(str(raw.get("bstp_nmix_hgpr")))
+        low = Decimal(str(raw.get("bstp_nmix_lwpr")))
+        # 단위 환산 — probe #097 실측: acml_vol=천주, acml_tr_pbmn=백만원.
+        vol_k = int(Decimal(str(raw.get("acml_vol") or "0")))
+        val_m = int(Decimal(str(raw.get("acml_tr_pbmn") or "0")))
+        volume = vol_k * 1_000
+        value = val_m * 1_000_000
+        return (date_iso, open_, high, low, close, volume, value)
+    except (InvalidOperation, ValueError, TypeError) as e:
+        logger.warning("bar parse 실패: %s — raw=%s", e, raw)
         return None
 
 
@@ -142,166 +229,146 @@ UPSERT_SQL = """
 """
 
 
-def fetch_day(conn, cursor, bas_dd: str):
-    """
-    한 날짜 적재. 2 endpoint 호출 → 최대 4개 지수 upsert.
-    반환 (inserted, skipped, errored) — 모두 지수 단위 카운트.
-    """
-    rows_to_upsert: list[tuple] = []
-    skipped = 0
-    errored = 0
+def get_latest_stored(cursor, index_code: str):
+    """(latest_date, latest_close) 반환. 없으면 (None, None)."""
+    cursor.execute(
+        "SELECT base_date, close FROM index_daily_prices "
+        "WHERE index_code = %s ORDER BY base_date DESC LIMIT 1",
+        (index_code,),
+    )
+    row = cursor.fetchone()
+    if row is None:
+        return None, None
+    return row[0], row[1]
 
-    for path, target_names in ENDPOINT_TO_NAMES.items():
-        rows = krx_call(path, bas_dd)
-        if rows is None:
-            errored += len(target_names)
-            continue
-        if not rows:
-            logger.info("빈 응답 %s %s → 휴장으로 간주, skip", path, bas_dd)
-            skipped += len(target_names)
-            continue
 
-        by_name = {r.get("IDX_NM"): r for r in rows}
-        for nm in target_names:
-            src = by_name.get(nm)
-            if src is None:
-                logger.warning("IDX_NM '%s' 미존재 (%s %s)", nm, path, bas_dd)
-                errored += 1
-                continue
-            tup = parse_row(src, IDX_NM_TO_CODE[nm])
-            if tup is None:
-                errored += 1
-                continue
-            rows_to_upsert.append(tup)
-
-    if not rows_to_upsert:
-        return 0, skipped, errored
-
+def upsert_bars(conn, cursor, index_code: str, bars_asc: list, prior_close) -> int:
+    """bars_asc: [(date_iso, o, h, l, c, vol, val), ...] ASC.
+    prior_close 로 change chain 계산 후 executemany upsert. 반환: upsert 행 수."""
+    tuples: list[tuple] = []
+    prev = prior_close
+    for date_iso, o, h, l, c, vol, val in bars_asc:
+        if prev is not None and prev != 0:
+            change = c - Decimal(str(prev))
+            try:
+                change_rate = (change / Decimal(str(prev))) * Decimal("100")
+            except InvalidOperation:
+                change_rate = Decimal("0")
+        else:
+            change = Decimal("0")
+            change_rate = Decimal("0")
+        tuples.append(
+            (index_code, date_iso, o, h, l, c, change, change_rate, vol, val)
+        )
+        prev = c
     try:
-        cursor.executemany(UPSERT_SQL, rows_to_upsert)
+        cursor.executemany(UPSERT_SQL, tuples)
         conn.commit()
     except Exception as e:
-        logger.error("DB upsert 실패 %s: %s", bas_dd, e)
+        logger.error("%s upsert 실패: %s", index_code, e)
         conn.rollback()
-        return 0, skipped, errored + len(rows_to_upsert)
-
-    return len(rows_to_upsert), skipped, errored
-
-
-def daterange(start: date, end: date):
-    d = start
-    while d <= end:
-        yield d
-        d += timedelta(days=1)
+        raise
+    return len(tuples)
 
 
-def run_daily():
-    # KRX Marketplace 는 당일 데이터를 익일 08:00 갱신하므로
-    # 익일 오전 cron 은 "어제"를 조회한다. 주말·휴장 직전일은
-    # KRX 빈 응답으로 graceful skip 되므로 별도 영업일 판정은 두지 않는다.
-    target = datetime.today() - timedelta(days=1)
-    bas_dd = target.strftime("%Y%m%d")
-    logger.info("일일 적재 시작 %s (직전일)", bas_dd)
+def run_one(conn, cursor, token: str, index_code: str, iscd: str, today_kst: date):
+    """지수 1건 처리. 반환: (inserted, skipped_no_new). 예외는 상위에서 격리."""
+    latest_date, latest_close = get_latest_stored(cursor, index_code)
+    if latest_date is None:
+        # 빈 테이블은 백필 스크립트 소관 — 여기서 임의 승격하지 않는다.
+        raise RuntimeError(
+            f"[{index_code}] index_daily_prices 비어있음 — "
+            f"backfill_index_prices.py --backfill START END 로 초기 적재 필요"
+        )
+    d1 = latest_date + timedelta(days=1)
+    if d1 > today_kst:
+        logger.info("[%s] 이미 최신 (latest=%s ≥ today=%s) — no-op", index_code, latest_date, today_kst)
+        return 0, 1
+    gap = (today_kst - latest_date).days
+    if gap > DAILY_GAP_LIMIT_DAYS:
+        # 41봉 상한 초과 우려 — daily 경로에서 처리 금지.
+        raise RuntimeError(
+            f"[{index_code}] gap={gap}일 (latest={latest_date}, today={today_kst}) "
+            f"> {DAILY_GAP_LIMIT_DAYS}일 — 1콜 41봉 상한 초과 우려. "
+            f"backfill_index_prices.py --backfill {latest_date} {today_kst} 사용 필요"
+        )
 
-    conn = get_connection()
-    cursor = conn.cursor()
-    try:
-        ins, skp, err = fetch_day(conn, cursor, bas_dd)
-    finally:
-        cursor.close()
-        conn.close()
+    d1_str = d1.strftime("%Y%m%d")
+    d2_str = today_kst.strftime("%Y%m%d")
+    logger.info("[%s] fetch %s~%s (ISCD=%s)", index_code, d1_str, d2_str, iscd)
+    bars = kis_daily_call(token, iscd, d1_str, d2_str)
+    if bars is None:
+        raise RuntimeError(f"[{index_code}] KIS 호출 실패")
 
-    logger.info("완료 %s: 적재=%d, 스킵=%d, 오류=%d", bas_dd, ins, skp, err)
+    parsed: dict[str, tuple] = {}
+    for raw in bars:
+        p = parse_bar(raw)
+        if p is None:
+            continue
+        d_iso = p[0]
+        # latest_date 이하 필터 (KIS 가 경계 포함해 반환할 수 있음).
+        if datetime.strptime(d_iso, "%Y-%m-%d").date() <= latest_date:
+            continue
+        parsed[d_iso] = p  # dedup
 
+    if not parsed:
+        logger.info("[%s] 신규 봉 없음 (latest=%s, 응답=%d봉)", index_code, latest_date, len(bars))
+        return 0, 1
 
-def run_backfill(start_str: str, end_str: str):
-    try:
-        start = datetime.strptime(start_str, "%Y-%m-%d").date()
-        end = datetime.strptime(end_str, "%Y-%m-%d").date()
-    except ValueError as e:
-        logger.error("--backfill 인자 형식 오류 (YYYY-MM-DD): %s", e)
-        sys.exit(2)
-    if start > end:
-        logger.error("--backfill START(%s) > END(%s) — 범위 오류", start_str, end_str)
-        sys.exit(2)
-
-    weekdays = [d for d in daterange(start, end) if d.weekday() < 5]
+    ordered = [parsed[d] for d in sorted(parsed.keys())]  # ASC
+    ins = upsert_bars(conn, cursor, index_code, ordered, prior_close=latest_close)
     logger.info(
-        "백필 시작 %s ~ %s — 영업일 후보 %d일 "
-        "(주말 사전 스킵, 공휴일은 빈 응답으로 skip)",
-        start_str,
-        end_str,
-        len(weekdays),
+        "[%s] append %d봉 (%s ~ %s), prior_close=%s",
+        index_code, ins, ordered[0][0], ordered[-1][0], latest_close,
     )
+    return ins, 0
+
+
+def main():
+    if not KIS_APP_KEY or not KIS_APP_SECRET:
+        logger.error("KIS_APP_KEY / KIS_APP_SECRET 미설정")
+        sys.exit(1)
+    if not os.getenv("DATABASE_URL"):
+        logger.error("DATABASE_URL 미설정")
+        sys.exit(1)
+
+    today_kst = (datetime.now(timezone.utc) + timedelta(hours=9)).date()
+    logger.info("일일 적재 시작 · today(KST)=%s · 대상=%s", today_kst, list(INDEX_CODE_TO_ISCD))
 
     conn = get_connection()
     cursor = conn.cursor()
-    total_ins = total_skp = total_err = 0
+
     try:
-        for i, d in enumerate(weekdays, 1):
-            bas_dd = d.strftime("%Y%m%d")
+        token = read_token(cursor)
+        if token is None:
+            logger.warning("kis_token 미가용 → 자체 발급 폴백 (issue_kis_token cron 확인 필요)")
+            token = issue_token()
+        else:
+            logger.info("kis_token DB 재사용")
+
+        total_ins = total_noop = total_err = 0
+        for code, iscd in INDEX_CODE_TO_ISCD.items():
             try:
-                ins, skp, err = fetch_day(conn, cursor, bas_dd)
+                ins, noop = run_one(conn, cursor, token, code, iscd, today_kst)
+                total_ins += ins
+                total_noop += noop
             except Exception as e:
-                logger.error("날짜 처리 예외, 다음 날짜로 진행 %s: %s", bas_dd, e)
+                logger.error("%s", e)
+                total_err += 1
                 try:
                     conn.rollback()
                 except Exception:
                     pass
-                # 지수 개수를 하드코딩하지 않고 ENDPOINT_TO_NAMES 에서 파생.
-                ins, skp, err = 0, 0, sum(len(v) for v in ENDPOINT_TO_NAMES.values())
 
-            total_ins += ins
-            total_skp += skp
-            total_err += err
-
-            if i % 20 == 0 or i == len(weekdays):
-                logger.info(
-                    "진행 %d/%d (%s): 누적 적재=%d, 스킵=%d, 오류=%d",
-                    i,
-                    len(weekdays),
-                    bas_dd,
-                    total_ins,
-                    total_skp,
-                    total_err,
-                )
-            time.sleep(BACKFILL_SLEEP_SEC)
+        logger.info(
+            "완료: 적재=%d, no-op=%d, 오류=%d",
+            total_ins, total_noop, total_err,
+        )
+        if total_err:
+            sys.exit(1)
     finally:
         cursor.close()
         conn.close()
-
-    logger.info(
-        "백필 완료: 적재=%d, 스킵=%d, 오류=%d (영업일 후보 %d일)",
-        total_ins,
-        total_skp,
-        total_err,
-        len(weekdays),
-    )
-
-
-def main():
-    if not KRX_KEY:
-        logger.error("KRX_OPEN_API_KEY 미설정 (collector/.env)")
-        sys.exit(1)
-    if not os.getenv("DATABASE_URL"):
-        logger.error("DATABASE_URL 미설정 (collector/.env)")
-        sys.exit(1)
-
-    parser = argparse.ArgumentParser(
-        description="KRX 지수 일봉 → index_daily_prices upsert"
-    )
-    parser.add_argument(
-        "--backfill",
-        nargs=2,
-        metavar=("START", "END"),
-        help="백필 구간 (YYYY-MM-DD YYYY-MM-DD). 미지정 시 당일 적재.",
-    )
-    args = parser.parse_args()
-
-    if args.backfill:
-        run_backfill(args.backfill[0], args.backfill[1])
-    else:
-        run_daily()
 
 
 if __name__ == "__main__":
