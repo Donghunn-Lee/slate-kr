@@ -250,10 +250,47 @@ export const parseDailyMinuteRows = (
     }))
     .filter((b) => !isSentinelBar(b));
 
+type IndexMinuteRow = {
+  stck_bsop_date: string;
+  stck_cntg_hour: string;
+  bstp_nmix_prpr: number;
+  bstp_nmix_oprc: number;
+  bstp_nmix_hgpr: number;
+  bstp_nmix_lwpr: number;
+  cntg_vol: number;
+};
+
+// targetDateYyyymmdd = null 이면 date 필터 스킵 — 라이브 경로는 KIS 응답이 자연스레
+// 최근 세션 위주라 소비측 filter 로 충분. non-null 이면 stck_bsop_date === target
+// 필터로 bleed(응답이 target 전후일 봉도 함께 반환) 방어.
+export const parseIndexMinuteRows = (
+  rows: readonly IndexMinuteRow[],
+  targetDateYyyymmdd: string | null,
+): IndexIntradayBar[] => {
+  const base = rows.filter((r) => !INTRADAY_MARKERS.has(r.stck_cntg_hour));
+  const dateFiltered =
+    targetDateYyyymmdd === null
+      ? base
+      : base.filter((r) => r.stck_bsop_date === targetDateYyyymmdd);
+  return dateFiltered
+    .map((r) => ({
+      timestamp: kstToFakeUtcSec(r.stck_bsop_date, r.stck_cntg_hour),
+      open: r.bstp_nmix_oprc,
+      high: r.bstp_nmix_hgpr,
+      low: r.bstp_nmix_lwpr,
+      close: r.bstp_nmix_prpr,
+      volume: r.cntg_vol,
+    }))
+    .sort((a, b) => a.timestamp - b.timestamp);
+};
+
 // 지수 10분봉 차트. 마커 행 제거, 시간 ASC 정렬.
-// null = 호출 자체 실패, [] = 응답에 데이터 없음(preopen/휴장 등).
+// closed(주말·공휴일)엔 FID_INPUT_DATE_1 로 직전 완결 거래일을 명시 조회 — 이 TR 은
+// date 파라미터를 수용하며(probe 실측) target 전후일 봉을 함께 반환하므로 파싱 단계에서
+// bleed 필터. null = 호출 자체 실패, [] = 응답에 데이터 없음.
 export const fetchIndexIntradayChart = async (
   iscd: string,
+  now: Date = new Date(),
 ): Promise<IndexIntradayBar[] | null> => {
   const tokenResult = await getKisToken();
   if (!tokenResult.ok) {
@@ -268,12 +305,19 @@ export const fetchIndexIntradayChart = async (
     return null;
   }
 
+  const session = getKrxSessionState(now);
+  const targetDate =
+    session === "closed" ? toKisDate(getKrxTradingDate(now)) : null;
+
   const url = new URL(BASE_URL + INDEX_INTRADAY_PATH);
   url.searchParams.set("FID_COND_MRKT_DIV_CODE", "U");
   url.searchParams.set("FID_INPUT_ISCD", iscd);
   url.searchParams.set("FID_INPUT_HOUR_1", INTRADAY_INTERVAL_SEC);
   url.searchParams.set("FID_PW_DATA_INCU_YN", "Y");
   url.searchParams.set("FID_ETC_CLS_CODE", "0");
+  if (targetDate !== null) {
+    url.searchParams.set("FID_INPUT_DATE_1", targetDate);
+  }
 
   try {
     const res = await fetch(url.toString(), {
@@ -308,19 +352,7 @@ export const fetchIndexIntradayChart = async (
       return null;
     }
 
-    const bars: IndexIntradayBar[] = parsed.data.output2
-      .filter((row) => !INTRADAY_MARKERS.has(row.stck_cntg_hour))
-      .map((row) => ({
-        timestamp: kstToFakeUtcSec(row.stck_bsop_date, row.stck_cntg_hour),
-        open: row.bstp_nmix_oprc,
-        high: row.bstp_nmix_hgpr,
-        low: row.bstp_nmix_lwpr,
-        close: row.bstp_nmix_prpr,
-        volume: row.cntg_vol,
-      }))
-      .sort((a, b) => a.timestamp - b.timestamp);
-
-    return bars;
+    return parseIndexMinuteRows(parsed.data.output2, targetDate);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[kis] index intraday fetch failed: ${message}`);

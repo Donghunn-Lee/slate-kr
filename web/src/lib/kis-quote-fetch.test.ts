@@ -4,6 +4,7 @@ import {
   getClosedFallbackMarketDiv,
   mergeAndSortIntradayBars,
   parseDailyMinuteRows,
+  parseIndexMinuteRows,
   toKisDate,
 } from "./kis-quote-fetch";
 import type { ChartBar } from "@/shared/types/quote";
@@ -186,5 +187,94 @@ describe("parseDailyMinuteRows", () => {
       row({ stck_oprc: 0, stck_hgpr: 0, stck_lwpr: 0, stck_prpr: 0, cntg_vol: -1 }),
     );
     expect(parseDailyMinuteRows(rows, "20260724")).toEqual([]);
+  });
+});
+
+// ── parseIndexMinuteRows: closed 경로 target 필터 · 라이브 경로 pass-through ──
+type IndexRow = Parameters<typeof parseIndexMinuteRows>[0][number];
+
+const iRow = (over: Partial<IndexRow> = {}): IndexRow => ({
+  stck_bsop_date: "20260724",
+  stck_cntg_hour: "100000",
+  bstp_nmix_prpr: 6510.5,
+  bstp_nmix_oprc: 6500,
+  bstp_nmix_hgpr: 6520,
+  bstp_nmix_lwpr: 6495,
+  cntg_vol: 1000,
+  ...over,
+});
+
+describe("parseIndexMinuteRows", () => {
+  it("빈 입력 → []", () => {
+    expect(parseIndexMinuteRows([], "20260724")).toEqual([]);
+    expect(parseIndexMinuteRows([], null)).toEqual([]);
+  });
+
+  it("target 지정 → 해당 date 봉만 통과 (bleed 방어)", () => {
+    // FID_INPUT_DATE_1 응답이 target 전후일 봉을 함께 반환하는 관측을 재현.
+    const rows = [
+      iRow({ stck_bsop_date: "20260723", stck_cntg_hour: "153000" }),
+      iRow({ stck_bsop_date: "20260724", stck_cntg_hour: "090000" }),
+      iRow({ stck_bsop_date: "20260724", stck_cntg_hour: "153000" }),
+      iRow({ stck_bsop_date: "20260727", stck_cntg_hour: "090000" }),
+    ];
+    const out = parseIndexMinuteRows(rows, "20260724");
+    expect(out).toHaveLength(2);
+    expect(out[0].timestamp).toBeLessThan(out[1].timestamp);
+  });
+
+  it("target=null → date 필터 스킵 (라이브 경로 · 기존 동작)", () => {
+    const rows = [
+      iRow({ stck_bsop_date: "20260723" }),
+      iRow({ stck_bsop_date: "20260724" }),
+      iRow({ stck_bsop_date: "20260727" }),
+    ];
+    expect(parseIndexMinuteRows(rows, null)).toHaveLength(3);
+  });
+
+  it("마커 hour 제거 (999999 / 888888)", () => {
+    const rows = [
+      iRow({ stck_cntg_hour: "999999" }),
+      iRow({ stck_cntg_hour: "888888" }),
+      iRow({ stck_cntg_hour: "100000" }),
+    ];
+    expect(parseIndexMinuteRows(rows, "20260724")).toHaveLength(1);
+  });
+
+  it("bstp_nmix_* → open/high/low/close 매핑 + KST fake-UTC 초 변환", () => {
+    const rows = [
+      iRow({
+        stck_bsop_date: "20260724",
+        stck_cntg_hour: "153000",
+        bstp_nmix_prpr: 6534.55,
+        bstp_nmix_oprc: 6533,
+        bstp_nmix_hgpr: 6540,
+        bstp_nmix_lwpr: 6530,
+        cntg_vol: 12345,
+      }),
+    ];
+    const out = parseIndexMinuteRows(rows, "20260724");
+    expect(out).toHaveLength(1);
+    const expectedTs = Date.UTC(2026, 6, 24, 15, 30, 0) / 1000;
+    expect(out[0]).toEqual({
+      timestamp: expectedTs,
+      open: 6533,
+      high: 6540,
+      low: 6530,
+      close: 6534.55,
+      volume: 12345,
+    });
+  });
+
+  it("정렬 안 된 입력 → ASC 정렬 결과", () => {
+    const rows = [
+      iRow({ stck_bsop_date: "20260724", stck_cntg_hour: "153000" }),
+      iRow({ stck_bsop_date: "20260724", stck_cntg_hour: "090000" }),
+      iRow({ stck_bsop_date: "20260724", stck_cntg_hour: "120000" }),
+    ];
+    const out = parseIndexMinuteRows(rows, "20260724");
+    expect(out.map((b) => b.timestamp)).toEqual(
+      [...out.map((b) => b.timestamp)].sort((a, b) => a - b),
+    );
   });
 });

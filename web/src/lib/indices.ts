@@ -89,8 +89,9 @@ const queryPrevSessionClose = async (
 // null = fetch 실패 (route 에서 캐시 evict 판정에 사용), [] = 정상 empty.
 export const getIndexIntradayPrices = async (
   indexCode: DomesticIndexCode,
+  now: Date = new Date(),
 ): Promise<IndexIntradaySnapshot[] | null> => {
-  const bars = await fetchIndexIntradayChart(ISCD_BY_INDEX[indexCode]);
+  const bars = await fetchIndexIntradayChart(ISCD_BY_INDEX[indexCode], now);
   if (bars === null) return null;
   const sessionDate =
     bars.length > 0
