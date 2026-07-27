@@ -67,6 +67,15 @@ def compute_expected(today_kst: date) -> date:
     return d
 
 
+def compute_expected_from_now(now_kst: datetime) -> date:
+    """오늘이 KRX 거래일이고 KST ≥ 16:00 이면 오늘, 아니면 직전 거래일.
+    fetch_prices.py / fetch_index_prices.py 의 end 캡과 동일 기준."""
+    today = now_kst.date()
+    if is_trading_day(today) and now_kst.hour >= 16:
+        return today
+    return compute_expected(today - timedelta(days=1))
+
+
 def get_max(cursor, table: str, col: str) -> date | None:
     cursor.execute(f"SELECT MAX({col}) FROM {table}")
     return cursor.fetchone()[0]
@@ -77,7 +86,7 @@ def main() -> None:
         print("verify: DATABASE_URL 미설정", file=sys.stderr)
         sys.exit(1)
 
-    today_kst = (datetime.now(timezone.utc) + timedelta(hours=9)).date()
+    now_kst = datetime.now(timezone.utc) + timedelta(hours=9)
     if _FORCE:
         try:
             expected = datetime.strptime(_FORCE, "%Y-%m-%d").date()
@@ -86,9 +95,9 @@ def main() -> None:
             print(f"verify: VERIFY_FORCE_EXPECTED 형식 오류 '{_FORCE}'", file=sys.stderr)
             sys.exit(2)
     else:
-        expected = compute_expected(today_kst)
+        expected = compute_expected_from_now(now_kst)
 
-    print(f"verify: today(KST)={today_kst}  expected={expected}")
+    print(f"verify: now(KST)={now_kst:%Y-%m-%d %H:%M:%S}  expected={expected}")
 
     conn = psycopg2.connect(os.getenv("DATABASE_URL"))
     try:
