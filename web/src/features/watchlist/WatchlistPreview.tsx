@@ -6,7 +6,7 @@ import { ArrowRight, Star } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { StockPanel } from "@/entities/stock/StockPanel";
 import { PriceChange } from "@/shared/components/PriceChange";
-import { useMultiQuote } from "@/features/multi-quote/useMultiQuote";
+import { LIVE_TICKER_LIMIT, useMultiQuote } from "@/features/multi-quote/useMultiQuote";
 import { useWatchlistStore, type WatchlistItem } from "./store/useWatchlistStore";
 import type { TickerPriceSummary } from "@/app/api/prices/route";
 import {
@@ -77,8 +77,10 @@ export function WatchlistPreview() {
     [pricesQuery.data]
   );
 
+  // /watchlist 페이지와 동일 정책 — 그룹당 최대 100개까지 저장 가능하므로 KIS 멀티 견적
+  // 30개 상한을 초과할 수 있다. 초과분은 EOD 폴백으로만 노출.
   const { quotes: liveQuotes, failed: liveFailed } = useMultiQuote(
-    items.map((p) => p.ticker)
+    items.slice(0, LIVE_TICKER_LIMIT).map((p) => p.ticker)
   );
 
   // 스크롤 오버플로우 감지 — 넘칠 때만 하단 fade 마스크 노출.

@@ -13,6 +13,10 @@ export type MultiQuoteResponse = {
 
 const POLL_INTERVAL_MS = 60_000;
 
+// KIS 멀티 견적 상한(FHKST11300006, 30). route/fetcher 는 초과분을 silent truncate 하므로
+// 라이브 소비측이 명시적으로 slice 해서 EOD 폴백으로 흐르게 한다.
+export const LIVE_TICKER_LIMIT = 30;
+
 // 정렬+중복제거된 join 키. 순서·중복 무관하게 동일 queryKey가 되도록.
 const buildKey = (tickers: string[]): string =>
   [...new Set(tickers)].sort().join(",");

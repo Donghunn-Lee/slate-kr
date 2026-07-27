@@ -12,7 +12,7 @@ import {
   type WatchlistItem,
 } from "@/features/watchlist/store/useWatchlistStore";
 import { useRecentVisitedStore } from "@/features/search/useRecentVisitedStore";
-import { useMultiQuote } from "@/features/multi-quote/useMultiQuote";
+import { LIVE_TICKER_LIMIT, useMultiQuote } from "@/features/multi-quote/useMultiQuote";
 import { WatchlistRow, WatchlistRowSkeleton } from "@/entities/watchlist/WatchlistRow";
 import { StockPanel } from "@/entities/stock/StockPanel";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,6 @@ import { GroupManagementModal } from "@/features/watchlist/GroupManagementModal"
 import { cn } from "@/lib/utils";
 
 const RECENT_TAB = "recent" as const;
-const LIVE_TICKER_LIMIT = 30; // KIS 멀티 호출 상한 — 초과분은 EOD만 표시
 
 const WatchlistPage = () => {
   const groups = useWatchlistStore((s) => s.groups);
