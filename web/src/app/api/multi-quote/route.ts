@@ -1,6 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { fetchMultiQuote } from "@/lib/kis-quote-fetch";
-import { getKrxSessionState } from "@/shared/utils/market";
+import {
+  decideMultiSnapshot,
+  fetchQuoteSnapshots,
+  isSnapshotSession,
+} from "@/lib/quoteSnapshots";
+import { getKrxSessionState, getKrxTradingDate } from "@/shared/utils/market";
 import type { StockQuote } from "@/shared/types/quote";
 
 export const dynamic = "force-dynamic";
@@ -24,21 +29,41 @@ export const GET = async (req: NextRequest) => {
   // 폴링 게이트: 활성 세션(regular/after/pre)만 true. after_close는 1회 호출 후 정지.
   const marketOpen =
     session === "regular" || session === "after" || session === "pre";
+  const date = getKrxTradingDate();
 
   try {
     let quotes: Record<string, StockQuote | null> = {};
     let failed: Record<string, boolean> = {};
     if (tickers.length > 0) {
-      // UN(KRX+NXT 통합) 단일 호출. stock-quote route 와 동일 근거.
-      if (
-        session === "regular" ||
-        session === "after" ||
-        session === "after_close" ||
-        session === "pre"
-      ) {
-        ({ quotes, failed } = await fetchMultiQuote(tickers));
+      // 오프아워(after_close/closed/preopen) 는 quote_snapshots 서빙 우선.
+      // 캡처 실패(date 통째로 없음) 시 기존 KIS 경로로 fallback.
+      // 부분 miss (해당 티커 row 없음, 또는 비NXT nx_eligible=false) 는 quote:null
+      // 로 서빙 — WatchlistRow 는 live 없으면 EOD price 로 자연 폴백.
+      let snapshotServed = false;
+      if (isSnapshotSession(session)) {
+        const { byTicker, dateExists } = await fetchQuoteSnapshots(tickers, date);
+        const decision = decideMultiSnapshot(session, tickers, byTicker, dateExists);
+        if (decision.kind === "serve") {
+          for (const t of tickers) {
+            quotes[t] = decision.byTicker[t] ?? null;
+            failed[t] = false;
+          }
+          snapshotServed = true;
+        }
       }
-      // preopen / closed: KIS 호출 스킵, quotes/failed 모두 {} 유지 (라이브 미시도 → 실패 개념 없음).
+
+      if (!snapshotServed) {
+        // UN(KRX+NXT 통합) 단일 호출. stock-quote route 와 동일 근거.
+        if (
+          session === "regular" ||
+          session === "after" ||
+          session === "after_close" ||
+          session === "pre"
+        ) {
+          ({ quotes, failed } = await fetchMultiQuote(tickers));
+        }
+        // preopen / closed: KIS 호출 스킵, quotes/failed 모두 {} 유지 (라이브 미시도 → 실패 개념 없음).
+      }
     }
 
     return NextResponse.json({ quotes, failed, marketOpen, session });

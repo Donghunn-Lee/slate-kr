@@ -1,5 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { fetchStockQuote } from "@/lib/kis-quote-fetch";
+import {
+  decideSingleSnapshot,
+  fetchQuoteSnapshot,
+  isSnapshotSession,
+} from "@/lib/quoteSnapshots";
 import { getKrxSessionState, getKrxTradingDate } from "@/shared/utils/market";
 import type { StockQuote } from "@/shared/types/quote";
 
@@ -20,6 +25,25 @@ export const GET = async (req: NextRequest) => {
   const date = getKrxTradingDate();
 
   try {
+    // 오프아워(after_close/closed/preopen) 는 quote_snapshots 서빙 우선.
+    // 캡처 실패(date 통째로 없음) 시 기존 KIS 경로로 fallback.
+    // 부분 miss (해당 티커만 없음) 는 quote:null 로 서빙 — StockHeaderLivePrice
+    // 의 isNxtMiss 판정이 live===null 경로에 의존하므로 UI 무변경.
+    if (isSnapshotSession(session)) {
+      const { row, dateExists } = await fetchQuoteSnapshot(ticker, date);
+      const decision = decideSingleSnapshot(session, row, dateExists);
+      if (decision.kind === "serve") {
+        return NextResponse.json({
+          quote: decision.quote,
+          marketOpen,
+          session,
+          date,
+          failed: false,
+        });
+      }
+      // fallback: KIS 경로로 흘림
+    }
+
     // 세션별 J/NX 토글 — StockHeaderLivePrice.isNxtMiss 는 after/after_close/pre/closed 에서
     // NX 응답이 null(비NXT 종목 iscd=null → normalizeStockQuote=null)인 경로에 의존.
     // UN 통합으로 바꾸면 KRX 값이 흘러가 배지가 "장 마감" 대신 "애프터마켓" 으로 회귀.
