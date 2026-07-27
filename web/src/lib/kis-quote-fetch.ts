@@ -5,6 +5,7 @@ import type { ChartBar, IndexQuote, StockQuote } from "@/shared/types/quote";
 import { isSentinelBar } from "@/shared/utils/intradaySentinel";
 import {
   getKrxSessionState,
+  getKrxTradingDate,
   getKstDateAndMinutes,
 } from "@/shared/utils/market";
 
@@ -15,11 +16,16 @@ const INDEX_INTRADAY_PATH =
 const STOCK_PRICE_PATH = "/uapi/domestic-stock/v1/quotations/inquire-price";
 const STOCK_MINUTE_PATH =
   "/uapi/domestic-stock/v1/quotations/inquire-time-itemchartprice";
+// FHKST03010230 (주식일별분봉조회) — date 파라미터 지원. 120봉/콜, 페이지네이션 없음.
+// closed 세션 fallback 에서만 사용 (직전 완결 거래일 조회). #099-2·#099-5 실측 근거.
+const STOCK_DAILY_MINUTE_PATH =
+  "/uapi/domestic-stock/v1/quotations/inquire-time-dailychartprice";
 const MULTI_PRICE_PATH = "/uapi/domestic-stock/v1/quotations/intstock-multprice";
 const TR_ID_INDEX_PRICE = "FHPUP02100000";
 const TR_ID_INDEX_INTRADAY = "FHKUP03500200";
 const TR_ID_STOCK_PRICE = "FHKST01010100";
 const TR_ID_STOCK_MINUTE = "FHKST03010200";
+const TR_ID_STOCK_DAILY_MINUTE = "FHKST03010230";
 const TR_ID_MULTI_PRICE = "FHKST11300006";
 const MULTI_QUOTE_LIMIT = 30; // KIS 공식 상한
 const INTRADAY_INTERVAL_SEC = "600"; // 10분봉
@@ -76,6 +82,57 @@ const STOCK_INTRADAY_ANCHORS_REGULAR: readonly string[] = [
 const NXT_PROBE_ANCHOR = "120000";
 // 확장 세션 상한 (NXT 애프터 종료). 세션 종료 후 anchor 필터 상한으로 사용.
 const AFTER_END_MIN = 20 * 60;
+
+// closed 세션 fallback (FHKST03010230) anchor 세트. 120봉/콜 특성상 라이브 경로
+// (30봉/콜) 대비 anchor 수가 크게 줄어든다 — 액티브 티커 기준 anchor 당 ~2h 커버.
+// NXT: 08:00~20:00 (720분) 커버, 2h 간격 + 90000 프리 헤드 + 200000 애프터 테일.
+// 비NXT: 09:00~15:30 (390분) 커버, 2h 간격 + 153000 마감.
+// 저유동성 종목은 anchor window 가 시각적으로 길어져 target 밖 봉을 포함할 수 있으므로
+// callStockDailyMinuteAnchor 내부에서 stck_bsop_date === target 필터로 bleed 방어.
+const STOCK_INTRADAY_CLOSED_ANCHORS_NXT: readonly string[] = [
+  "090000",
+  "110000",
+  "130000",
+  "150000",
+  "170000",
+  "190000",
+  "200000",
+] as const;
+const STOCK_INTRADAY_CLOSED_ANCHORS_REGULAR: readonly string[] = [
+  "110000",
+  "130000",
+  "153000",
+] as const;
+
+// closed fallback 설정 셀렉터 — NXT 여부로 anchor 세트/마켓코드 선택. 테스트 전용 export.
+export const getClosedFallbackAnchors = (isNxt: boolean): readonly string[] =>
+  isNxt ? STOCK_INTRADAY_CLOSED_ANCHORS_NXT : STOCK_INTRADAY_CLOSED_ANCHORS_REGULAR;
+
+export const getClosedFallbackMarketDiv = (isNxt: boolean): MinuteMarketDiv =>
+  isNxt ? "UN" : "J";
+
+// YYYY-MM-DD → YYYYMMDD. KIS FID_INPUT_DATE_1 파라미터 포맷.
+export const toKisDate = (yyyyMmDd: string): string => yyyyMmDd.replace(/-/g, "");
+
+// 라이브 · closed 경로 공용 병합: anchor 간 time 중복 제거 후 ASC 정렬.
+export const mergeAndSortIntradayBars = (
+  results: readonly (readonly ChartBar[] | null)[],
+): ChartBar[] => {
+  const merged = new Map<number, ChartBar>();
+  for (const rows of results) {
+    if (!rows) continue;
+    for (const bar of rows) {
+      if (typeof bar.time === "number") merged.set(bar.time, bar);
+    }
+  }
+  return Array.from(merged.values()).sort(
+    (a, b) => (a.time as number) - (b.time as number),
+  );
+};
+
+// KST wall-clock now → fake-UTC epoch sec. 라이브 경로의 미래 봉 방어 필터에 사용.
+const nowKstFakeUtcSec = (now: Date): number =>
+  Math.floor((now.getTime() + 9 * 60 * 60 * 1000) / 1000);
 
 const anchorToMinutes = (a: string): number =>
   Number(a.slice(0, 2)) * 60 + Number(a.slice(2, 4));
@@ -159,6 +216,39 @@ const kstToFakeUtcSec = (yyyymmdd: string, hhmmss: string): number =>
       Number(hhmmss.slice(4, 6)),
     ) / 1000,
   );
+
+// 종목 분봉 응답 row 순수 타입 (Zod 파싱 후). parseDailyMinuteRows 입력에 사용.
+type StockMinuteRow = {
+  stck_bsop_date: string;
+  stck_cntg_hour: string;
+  stck_prpr: number;
+  stck_oprc: number;
+  stck_hgpr: number;
+  stck_lwpr: number;
+  cntg_vol: number;
+};
+
+// closed fallback 응답 → ChartBar[] 정규화. 순수 함수 — 테스트 대상.
+// (1) 마커 hour (999999/888888) 제거
+// (2) stck_bsop_date === target 필터 (저유동성 종목 anchor bleed 방어, #099-2 실측)
+// (3) row → ChartBar (KST → fake-UTC 초)
+// (4) sentinel 필터 (OHL=0 · vol<0)
+export const parseDailyMinuteRows = (
+  rows: readonly StockMinuteRow[],
+  targetDateYyyymmdd: string,
+): ChartBar[] =>
+  rows
+    .filter((r) => !INTRADAY_MARKERS.has(r.stck_cntg_hour))
+    .filter((r) => r.stck_bsop_date === targetDateYyyymmdd)
+    .map((r) => ({
+      time: kstToFakeUtcSec(r.stck_bsop_date, r.stck_cntg_hour),
+      open: r.stck_oprc,
+      high: r.stck_hgpr,
+      low: r.stck_lwpr,
+      close: r.stck_prpr,
+      volume: r.cntg_vol,
+    }))
+    .filter((b) => !isSentinelBar(b));
 
 // 지수 10분봉 차트. 마커 행 제거, 시간 ASC 정렬.
 // null = 호출 자체 실패, [] = 응답에 데이터 없음(preopen/휴장 등).
@@ -556,6 +646,71 @@ const callStockMinuteAnchor = async (
   }
 };
 
+// closed 세션 fallback 헬퍼 — FHKST03010230 (date 지정 일별분봉) anchor 1콜.
+// FID_INPUT_DATE_1 로 대상 거래일 명시. FID_FAKE_TICK_INCU_YN=N: 허봉 제외.
+// 응답에서 stck_bsop_date === targetDate 인 행만 보존 (저유동성 종목은 응답 window 가
+// 전일로 bleed 하므로 필수, #099-2 실측).
+const callStockDailyMinuteAnchor = async (
+  ticker: string,
+  targetDateYyyymmdd: string,
+  anchor: string,
+  div: MinuteMarketDiv,
+  token: string,
+  appKey: string,
+  appSecret: string,
+): Promise<ChartBar[] | null> => {
+  const url = new URL(BASE_URL + STOCK_DAILY_MINUTE_PATH);
+  url.searchParams.set("FID_ETC_CLS_CODE", "");
+  url.searchParams.set("FID_COND_MRKT_DIV_CODE", div);
+  url.searchParams.set("FID_INPUT_ISCD", ticker);
+  url.searchParams.set("FID_INPUT_HOUR_1", anchor);
+  url.searchParams.set("FID_INPUT_DATE_1", targetDateYyyymmdd);
+  url.searchParams.set("FID_PW_DATA_INCU_YN", "Y");
+  url.searchParams.set("FID_FAKE_TICK_INCU_YN", "N");
+
+  try {
+    const res = await fetch(url.toString(), {
+      method: "GET",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${token}`,
+        appkey: appKey,
+        appsecret: appSecret,
+        tr_id: TR_ID_STOCK_DAILY_MINUTE,
+        custtype: "P",
+      },
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      console.error(
+        `[kis] stock daily minute anchor=${anchor} div=${div} date=${targetDateYyyymmdd} HTTP ${res.status}`,
+      );
+      return null;
+    }
+    const json: unknown = await res.json();
+    const parsed = KisStockMinuteResponseSchema.safeParse(json);
+    if (!parsed.success) {
+      console.error(
+        `[kis] stock daily minute anchor=${anchor} div=${div} parse failed`,
+      );
+      return null;
+    }
+    if (parsed.data.rt_cd !== "0") {
+      console.error(
+        `[kis] stock daily minute anchor=${anchor} div=${div} rt_cd=${parsed.data.rt_cd} msg=${parsed.data.msg1 ?? ""}`,
+      );
+      return null;
+    }
+    return parseDailyMinuteRows(parsed.data.output2, targetDateYyyymmdd);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(
+      `[kis] stock daily minute anchor=${anchor} div=${div} fetch failed: ${message}`,
+    );
+    return null;
+  }
+};
+
 // NXT 거래가능 판정 — 미들데이 UN anchor 1콜 → sentinel 필터 후 실봉이 남아있으면
 // NXT 종목. KIS 종목 마스터에 NXT 플래그가 없어 데이터 파생으로 감지 (agent 조사 확인).
 // null(요청 실패) → 보수적으로 비NXT 취급 (정규장 J 만 요청, 확장 세션 봉 손실 감수).
@@ -578,13 +733,15 @@ const probeNxtEligibility = async (
 
 // 종목 당일 1분봉. probe → adaptive fan-out → sentinel 필터 → dedupe → ASC.
 // NXT 종목: UN 25 anchor (08:00~20:00, KRX+NXT 통합 vol). 비NXT: J 13 anchor (정규장만).
-// null = 자격/토큰 실패 또는 fan-out 전체 실패, [] = preopen/휴장(봉 없음) 또는
-// anchors 필터가 비었을 때. ChartBar[] = 성공(부분 포함).
-// 비거래일엔 KIS 가 FID_PW_DATA_INCU_YN=Y 로 직전 완결 세션을 반환하므로(2026-07-19
-// 실측), 별도 tradingDate 게이트 없이 그대로 흘려보낸다 — 마지막 세션 표시는
-// 소비측(PriceChart.applyLockedRange 폴백)이 담당.
+// closed(주말·공휴일): FHKST03010230 로 직전 완결 거래일 fallback — NXT 는 UN 확장세션
+// (08:00~20:00), 비NXT 는 J 정규장. target date 는 getKrxTradingDate(now) 로 산출해
+// route metadata date 와 정합. preopen(거래일 새벽): 활성 세션 봉 없음 → 기존 동작 유지.
+// null = 자격/토큰 실패 또는 fan-out 전체 실패, [] = preopen(봉 없음) 또는 anchors 필터가
+// 비었을 때. ChartBar[] = 성공(부분 포함).
+// now 주입 가능 (기본 new Date()) — closed 경로를 장중에도 로컬 테스트할 수 있게 한다.
 export const fetchStockIntradayChart = async (
   ticker: string,
+  now: Date = new Date(),
 ): Promise<ChartBar[] | null> => {
   const tokenResult = await getKisToken();
   if (!tokenResult.ok) {
@@ -598,11 +755,10 @@ export const fetchStockIntradayChart = async (
     return null;
   }
 
-  // preopen/closed 는 활성 시세 없음 → 스킵. 나머지 세션(pre 8:00-8:50 · regular ·
-  // after 15:30-20:00 · after_close 야간/새벽) 은 확장 세션 봉 취득 대상.
-  const { minutes: nowMin } = getKstDateAndMinutes();
-  const session = getKrxSessionState();
-  if (session === "preopen" || session === "closed") return [];
+  const session = getKrxSessionState(now);
+  // preopen(거래일 06:00~08:00 + 08:50~09:00): 정규장 개장 전 · NXT 프리도 아직 → 봉 없음.
+  // 라이브 등락률과 동일하게 초기화 상태 유지.
+  if (session === "preopen") return [];
 
   const isNxt = await probeNxtEligibility(
     ticker,
@@ -610,6 +766,31 @@ export const fetchStockIntradayChart = async (
     appKey,
     appSecret,
   );
+
+  // closed(주말·공휴일): FHKST03010230 fallback. anchor 커버는 라이브 뷰와 동일 범위.
+  if (session === "closed") {
+    const targetDate = toKisDate(getKrxTradingDate(now));
+    const anchors = getClosedFallbackAnchors(isNxt);
+    const div = getClosedFallbackMarketDiv(isNxt);
+    const results = await Promise.all(
+      anchors.map((anchor) =>
+        callStockDailyMinuteAnchor(
+          ticker,
+          targetDate,
+          anchor,
+          div,
+          tokenResult.token,
+          appKey,
+          appSecret,
+        ),
+      ),
+    );
+    if (results.every((rows) => rows === null)) return null;
+    return mergeAndSortIntradayBars(results);
+  }
+
+  // 활성 세션 (pre / regular / after / after_close) — 기존 라이브 경로.
+  const { minutes: nowMin } = getKstDateAndMinutes(now);
   const anchorSet = isNxt
     ? STOCK_INTRADAY_ANCHORS_NXT
     : STOCK_INTRADAY_ANCHORS_REGULAR;
@@ -642,16 +823,11 @@ export const fetchStockIntradayChart = async (
     ),
   );
   if (results.every((rows) => rows === null)) return null;
-  const merged = new Map<number, ChartBar>();
-  for (const rows of results) {
-    if (!rows) continue;
-    for (const bar of rows) merged.set(bar.time as number, bar);
-  }
   // 미래 봉 방어 필터. anchor 창 내에서 현재 시각 이후 봉을 KIS 는 마지막 체결가로 fill-forward
   // 하므로(실측: 13:39 KST 조회 시 13:40~13:59 가 동일 close, 14:00 는 이례적 값) 클라이언트가
   // 정지 화면을 보게 된다. 지금 시각을 KST fake-utc 로 환산해 이후 봉 제거.
-  const nowFakeUtcSec = Math.floor((Date.now() + 9 * 60 * 60 * 1000) / 1000);
-  return Array.from(merged.values())
-    .filter((b) => (b.time as number) <= nowFakeUtcSec)
-    .sort((a, b) => (a.time as number) - (b.time as number));
+  const cutoffFakeUtcSec = nowKstFakeUtcSec(now);
+  return mergeAndSortIntradayBars(results).filter(
+    (b) => (b.time as number) <= cutoffFakeUtcSec,
+  );
 };

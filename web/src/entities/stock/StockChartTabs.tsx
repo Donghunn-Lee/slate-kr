@@ -318,10 +318,9 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
           <span className="ml-1.5 text-xs font-normal text-muted-foreground/70">
             · 기간별 가격 흐름과 거래량
           </span>
-          {isIntradayView && hasIntraday && (
+          {isIntradayView && hasIntraday && intradayQuery.data?.date && (
             <span className="ml-1.5 text-xs font-normal text-muted-foreground/70">
-              ·{" "}
-              {intradayQuery.data?.date}{" "}
+              · {intradayQuery.data.date.slice(5)} 기준{" "}
               {hasExtendedSessionBar ? "· 08–20시 · KRX+NXT" : "· KRX"}
             </span>
           )}
