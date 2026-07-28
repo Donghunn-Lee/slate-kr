@@ -63,6 +63,15 @@ _PREFERRED_ACCOUNTS = {
 
 RECONNECT_EVERY = 500  # period 내 연속 스킵 시 Neon SSL 타임아웃 방지
 
+# 부풀림 sanity 게이트 상수 — |값| 이 이 이상이면 삽입 skip.
+# 실측 정상 최대 신한지주 total_assets ≈ 8.16e14, 관측 최소 부풀림 ≈ 5.8e15
+# (007720 2024 Q3 net_income). DART XBRL unit 오태그는 최소 ×1000 이라
+# 정상 최대치와 최소 부풀림치 사이 경계값 2e15 로 설정.
+ABS_VALUE_CAP = 2e15
+
+# 게이트 검사 대상 컬럼 (5개 재무 수치)
+_GATE_COLS = ("revenue", "operating_profit", "net_income", "total_assets", "total_equity")
+
 _QUARTER_MAP = {"11011": 4, "11012": 2, "11013": 1, "11014": 3}
 _REPORT_TYPE_MAP = {
     "11011": "annual",
@@ -259,7 +268,12 @@ def fetch_financial(corp_code: str, bsns_year: str, reprt_code: str) -> Optional
         return None
 
     result = _parse_financial_list(data["list"])
-    return result if result else None
+    if not result:
+        return None
+    # 게이트 로그용 rcept_no 주입 (SQL 바인딩은 명시 컬럼만 참조하므로 무시됨)
+    items = data.get("list") or []
+    result["_rcept_no"] = items[0].get("rcept_no") if items else None
+    return result
 
 
 def get_shares(cursor, ticker: str) -> Optional[int]:
@@ -271,6 +285,20 @@ def get_shares(cursor, ticker: str) -> Optional[int]:
     return None
 
 
+def _check_value_cap(data: dict) -> Optional[tuple[str, float]]:
+    """수치 컬럼 중 |값| ≥ ABS_VALUE_CAP 인 첫 항목 반환. 없으면 None."""
+    for col in _GATE_COLS:
+        v = data.get(col)
+        if v is None:
+            continue
+        try:
+            if abs(float(v)) >= ABS_VALUE_CAP:
+                return col, float(v)
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
 def insert_financial(
     conn,
     cursor,
@@ -279,12 +307,29 @@ def insert_financial(
     bsns_year: str,
     reprt_code: str,
     data: dict,
-) -> bool:
+) -> str:
     """
     반환값 규약:
-      True  : 적재 성공
-      False : DB 오류
+      "ok"        : 적재 성공
+      "gate_skip" : 부풀림 sanity 게이트로 skip (자동 정정 없음)
+      "error"     : DB 오류
     """
+    # 부풀림 sanity 게이트 — 자동 정정 없음, skip 만.
+    breach = _check_value_cap(data)
+    if breach is not None:
+        col, val = breach
+        logger.warning(
+            "[VALUE_CAP_SKIP] ticker=%s period=%s/%s col=%s value=%s cap=%s rcept_no=%s",
+            ticker,
+            bsns_year,
+            reprt_code,
+            col,
+            f"{val:,.0f}",
+            f"{ABS_VALUE_CAP:,.0f}",
+            data.get("_rcept_no"),
+        )
+        return "gate_skip"
+
     total_equity = data.get("total_equity")
     shares = get_shares(cursor, ticker)
     if total_equity is not None and shares is not None:
@@ -330,9 +375,9 @@ def insert_financial(
     except Exception as e:
         logger.error("DB 적재 실패 %s (%s/%s): %s", ticker, bsns_year, reprt_code, e)
         conn.rollback()
-        return False
+        return "error"
 
-    return True
+    return "ok"
 
 
 def get_all_corps(cursor) -> list[tuple[str, str, str]]:
@@ -366,12 +411,17 @@ def mark_non_filer(conn, cursor, ticker: str, name: str) -> None:
 
 
 def check_unit_suspects(cursor) -> None:
-    """annual / (Q1+Q2+Q3 revenue 합) > 10 인 종목을 WARNING 로그로 출력.
+    """단위 불일치 사후 스캔 (경고 로그만, 자동 정정 없음).
 
-    한국 분기보고서 revenue는 누적값이므로 정상 비율은 ~0.67.
-    비율 > 10은 annual과 분기 간 단위 불일치(원/천원/백만원) 강력 의심.
-    분기 데이터가 3개 미만이면 false positive 방지를 위해 스킵.
+    두 룰을 순차 검사한다:
+      (1) annual / SUM(quarter) revenue 비율 > 10
+          한국 분기 revenue 는 누적값이라 정상 비율 ~0.67. 비율 > 10 은
+          annual 과 분기 간 unit 오태그(원/천원/백만원) 의심.
+      (2) 분기 단독 어떤 수치 컬럼이라도 |값| ≥ ABS_VALUE_CAP
+          insert 게이트가 놓쳤을 기존 DB 잔존 부풀림 검출 (예: 007720
+          2024 Q3, 060310 2022 Q3 등 분기 단독 부풀림 케이스).
     """
+    # (1) annual/qsum 비율
     cursor.execute(
         """
         WITH annual AS (
@@ -395,8 +445,8 @@ def check_unit_suspects(cursor) -> None:
         ORDER BY ratio DESC
         """
     )
-    rows = cursor.fetchall()
-    for ticker, year, q_sum, annual_rev, ratio in rows:
+    ratio_rows = cursor.fetchall()
+    for ticker, year, q_sum, annual_rev, ratio in ratio_rows:
         logger.warning(
             "[UNIT_SUSPECT] ticker=%s year=%d q_sum=%s annual=%s ratio=%.2f",
             ticker,
@@ -405,8 +455,41 @@ def check_unit_suspects(cursor) -> None:
             f"{annual_rev:,}",
             ratio,
         )
-    if rows:
-        logger.info("[UNIT_SUSPECT] 의심 종목 총 %d건", len(rows))
+    if ratio_rows:
+        logger.info("[UNIT_SUSPECT] 비율 의심 %d건", len(ratio_rows))
+
+    # (2) 분기 단독 |값| ≥ CAP (insert 게이트 이전 잔존분 검출)
+    cap_int = int(ABS_VALUE_CAP)
+    cursor.execute(
+        """
+        SELECT ticker, year, quarter, report_type,
+               revenue, operating_profit, net_income, total_assets, total_equity
+        FROM financial_statements
+        WHERE report_type = 'quarter'
+          AND (ABS(revenue::numeric) >= %s
+            OR ABS(operating_profit::numeric) >= %s
+            OR ABS(net_income::numeric) >= %s
+            OR ABS(total_assets::numeric) >= %s
+            OR ABS(total_equity::numeric) >= %s)
+        ORDER BY ticker, year, quarter
+        """,
+        (cap_int, cap_int, cap_int, cap_int, cap_int),
+    )
+    cap_rows = cursor.fetchall()
+    for row in cap_rows:
+        t, y, q, rt, rev, op, ni, ta, te = row
+        logger.warning(
+            "[UNIT_SUSPECT_CAP] ticker=%s %s Q%s rev=%s op=%s ni=%s ta=%s te=%s (cap=%s)",
+            t, y, q,
+            f"{rev:,}" if rev is not None else "NULL",
+            f"{op:,}" if op is not None else "NULL",
+            f"{ni:,}" if ni is not None else "NULL",
+            f"{ta:,}" if ta is not None else "NULL",
+            f"{te:,}" if te is not None else "NULL",
+            f"{ABS_VALUE_CAP:,.0f}",
+        )
+    if cap_rows:
+        logger.info("[UNIT_SUSPECT_CAP] 분기 단독 CAP 위반 %d건", len(cap_rows))
 
 
 def run(
@@ -415,7 +498,8 @@ def run(
     existing_keys: set[tuple],
     force: bool = False,
     ticker_filter: Optional[set] = None,
-):
+) -> int:
+    """반환값: sanity 게이트로 skip 된 건수 (호출측이 exit code 판단에 사용)."""
     conn = get_connection()
     cursor = conn.cursor()
     try:
@@ -424,7 +508,7 @@ def run(
         logger.error("종목 목록 조회 실패 (%s/%s): %s", bsns_year, reprt_code, e)
         cursor.close()
         conn.close()
-        return set()
+        return 0
 
     if ticker_filter is not None:
         corps = [(t, c, n) for t, c, n in corps if t in ticker_filter]
@@ -441,7 +525,7 @@ def run(
         total,
     )
 
-    success, skip, error = 0, 0, 0
+    success, skip, error, cap_skip = 0, 0, 0, 0
 
     for i, (ticker, corp_code, name) in enumerate(corps, 1):
         # period 내부 루프에서 일정 간격마다 커넥션 재생성 (연속 스킵 시 Neon SSL 타임아웃 방지)
@@ -470,36 +554,41 @@ def run(
             skip += 1
             time.sleep(0.05)
         else:
-            ok = insert_financial(
+            result = insert_financial(
                 conn, cursor, ticker, corp_code, bsns_year, reprt_code, data
             )
-            if ok:
+            if result == "ok":
                 existing_keys.add(key)
                 success += 1
-            else:
+            elif result == "gate_skip":
+                cap_skip += 1
+            else:  # "error"
                 error += 1
             time.sleep(0.15)
 
         if i % 100 == 0:
             logger.info(
-                "진행: %d/%d (성공=%d, 스킵=%d, 오류=%d)",
+                "진행: %d/%d (성공=%d, 스킵=%d, 게이트skip=%d, 오류=%d)",
                 i,
                 total,
                 success,
                 skip,
+                cap_skip,
                 error,
             )
 
     logger.info(
-        "완료 %s Q%s: 성공=%d, 스킵=%d, 오류=%d",
+        "완료 %s Q%s: 성공=%d, 스킵=%d, 게이트skip=%d, 오류=%d",
         bsns_year,
         quarter,
         success,
         skip,
+        cap_skip,
         error,
     )
     cursor.close()
     conn.close()
+    return cap_skip
 
 
 def get_available_reports(years_back: int = 5) -> list[tuple[str, str]]:
@@ -583,8 +672,9 @@ if __name__ == "__main__":
         cursor.close()
         conn.close()
         logger.info("기존 적재 키 수: %d", len(existing_keys))
+    total_cap_skip = 0
     for bsns_year, reprt_code in reports:
-        run(
+        total_cap_skip += run(
             bsns_year=bsns_year,
             reprt_code=reprt_code,
             existing_keys=existing_keys,
@@ -597,3 +687,11 @@ if __name__ == "__main__":
     check_unit_suspects(cursor)
     cursor.close()
     conn.close()
+
+    # 게이트 skip 1건 이상이면 워크플로우 실패로 표면화 (자동 정정은 없음, 수동 SQL 정책).
+    if total_cap_skip > 0:
+        logger.error(
+            "[VALUE_CAP_SKIP] 총 %d건 부풀림 skip — 원인 검토 후 수동 정정 SQL 실행 필요",
+            total_cap_skip,
+        )
+        sys.exit(1)

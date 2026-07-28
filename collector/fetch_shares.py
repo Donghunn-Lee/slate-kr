@@ -33,6 +33,10 @@ logger = logging.getLogger(__name__)
 
 DART_API_KEY = os.getenv("DART_API_KEY")
 
+# 발행주식수 상한 클리핑 — 전세계 최대 발행주식수 종목도 100억주 미만.
+# 229640 사례처럼 DART 원본이 ×10^6 오태그로 반환되는 케이스 방어.
+SHARES_CAP = 1e11
+
 
 def get_connection():
     return psycopg2.connect(os.getenv("DATABASE_URL"))
@@ -100,6 +104,16 @@ def main():
             error += 1
             time.sleep(0.2)
             continue
+
+        if amount is not None and amount >= SHARES_CAP:
+            logger.warning(
+                "[SHARES_CAP_SKIP] ticker=%s corp_code=%s raw=%s cap=%s — 미갱신",
+                ticker,
+                corp_code,
+                f"{amount:,}",
+                f"{SHARES_CAP:,.0f}",
+            )
+            amount = None
 
         if amount is not None:
             try:
