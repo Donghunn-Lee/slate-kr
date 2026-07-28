@@ -72,6 +72,12 @@ ABS_VALUE_CAP = 2e15
 # 게이트 검사 대상 컬럼 (5개 재무 수치)
 _GATE_COLS = ("revenue", "operating_profit", "net_income", "total_assets", "total_equity")
 
+# 표시통화 게이트 — DART fnlttSinglAcntAll 은 회사가 신고한 표시통화 그대로
+# thstrm_amount 를 반환한다. IFRS 상 표시통화 변경(예: 241560 두산밥캣이
+# 2023 사업보고서부터 KRW → USD 로 전환) 은 정당하나, 우리 파이프라인은
+# KRW 원 단위 저장 전제. 비-KRW 항목이 하나라도 있으면 skip.
+EXPECTED_CURRENCY = "KRW"
+
 _QUARTER_MAP = {"11011": 4, "11012": 2, "11013": 1, "11014": 3}
 _REPORT_TYPE_MAP = {
     "11011": "annual",
@@ -273,6 +279,15 @@ def fetch_financial(corp_code: str, bsns_year: str, reprt_code: str) -> Optional
     # 게이트 로그용 rcept_no 주입 (SQL 바인딩은 명시 컬럼만 참조하므로 무시됨)
     items = data.get("list") or []
     result["_rcept_no"] = items[0].get("rcept_no") if items else None
+    # 표시통화 검사 — TARGET_ACCOUNTS 매칭 item 중 KRW 가 아닌 것이 있으면 마킹.
+    # insert_financial 에서 게이트로 사용 (자동 정정 없음, skip 만).
+    for it in items:
+        if it.get("account_id") not in TARGET_ACCOUNTS:
+            continue
+        cur = (it.get("currency") or "").strip().upper()
+        if cur and cur != EXPECTED_CURRENCY:
+            result["_non_krw_currency"] = cur
+            break
     return result
 
 
@@ -311,9 +326,22 @@ def insert_financial(
     """
     반환값 규약:
       "ok"        : 적재 성공
-      "gate_skip" : 부풀림 sanity 게이트로 skip (자동 정정 없음)
+      "gate_skip" : sanity 게이트(부풀림·비-KRW 통화) skip (자동 정정 없음)
       "error"     : DB 오류
     """
+    # 표시통화 게이트 — 비-KRW filing 은 skip. KRW 원 단위 저장 전제 위반 방지.
+    non_krw = data.get("_non_krw_currency")
+    if non_krw:
+        logger.warning(
+            "[NON_KRW_SKIP] ticker=%s period=%s/%s currency=%s rcept_no=%s",
+            ticker,
+            bsns_year,
+            reprt_code,
+            non_krw,
+            data.get("_rcept_no"),
+        )
+        return "gate_skip"
+
     # 부풀림 sanity 게이트 — 자동 정정 없음, skip 만.
     breach = _check_value_cap(data)
     if breach is not None:
@@ -691,7 +719,7 @@ if __name__ == "__main__":
     # 게이트 skip 1건 이상이면 워크플로우 실패로 표면화 (자동 정정은 없음, 수동 SQL 정책).
     if total_cap_skip > 0:
         logger.error(
-            "[VALUE_CAP_SKIP] 총 %d건 부풀림 skip — 원인 검토 후 수동 정정 SQL 실행 필요",
+            "[GATE_SKIP] 총 %d건 skip (부풀림·비-KRW 통화) — 원인 검토 후 수동 정정 SQL 실행 필요",
             total_cap_skip,
         )
         sys.exit(1)
