@@ -1,9 +1,5 @@
 import { ExternalLink } from "lucide-react";
-import type {
-  CompanyProfile,
-  StockSummary,
-  StockPriceSnapshot,
-} from "@/shared/types/stock";
+import type { CompanyProfile, StockSummary, StockPriceSnapshot } from "@/shared/types/stock";
 import { getDailyPrices } from "@/lib/prices";
 import { getCorpCode } from "@/lib/stocks";
 import { getCompanyProfile } from "@/lib/dart";
@@ -40,9 +36,7 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
 
   const initialChange = latest && prev ? latest.close - prev.close : null;
   const initialChangeRate =
-    latest && prev && prev.close !== 0
-      ? ((latest.close - prev.close) / prev.close) * 100
-      : null;
+    latest && prev && prev.close !== 0 ? ((latest.close - prev.close) / prev.close) * 100 : null;
 
   if (hasError || !latest) {
     return (
@@ -50,7 +44,7 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
         <div className="flex items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-bold">{stock.name}</h1>
-            <span className="rounded bg-muted px-2 py-0.5 text-sm text-muted-foreground">
+            <span className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
               {ticker}
             </span>
             <span className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
@@ -87,7 +81,7 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
       <div className="flex items-start justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-2xl font-bold">{stock.name}</h1>
-          <span className="rounded bg-muted px-2 py-0.5 text-sm font-mono text-muted-foreground">
+          <span className="rounded bg-muted px-2 py-0.5 text-xs font-mono text-muted-foreground">
             {ticker}
           </span>
           <span className="rounded bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
