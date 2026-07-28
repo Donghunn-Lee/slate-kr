@@ -9,7 +9,7 @@ type StockRow = {
   name: string;
   market: "KOSPI" | "KOSDAQ";
   sector: string | null;
-  shares: bigint | null;
+  shares: number | null;
   listed_at: Date | null;
   is_active: number;
   updated_at: Date;
