@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { StockQuote } from "@/shared/types/quote";
 import type { KrxSession } from "@/shared/utils/market";
-import { getKrxSessionState } from "@/shared/utils/market";
+import { getKrxSessionState, isKrxActiveSession } from "@/shared/utils/market";
 
 export type StockQuoteResponse = {
   quote: StockQuote | null;
@@ -20,10 +20,9 @@ type UseStockQuoteOptions = {
 
 const POLL_INTERVAL_MS = 60_000;
 
-const isActiveSession = () => {
-  const s = getKrxSessionState();
-  return s === "regular" || s === "after" || s === "pre";
-};
+// market.ts 의 isKrxActiveSession 을 클라 시계에 얹은 얇은 어댑터.
+// useStockIntraday(서버 응답 session 을 인자로 넘김)와 동일 술어를 공유.
+const isActiveSession = () => isKrxActiveSession(getKrxSessionState());
 
 // 클라이언트 시계 기준 60초 폴링. 서버 응답의 marketOpen 에 의존하지 않으므로
 // preopen → regular 같은 세션 전환 시에도 페이지 새로고침 없이 자동 재개된다.

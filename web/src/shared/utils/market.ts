@@ -50,6 +50,13 @@ export const getKrxSessionState = (now: Date = new Date()): KrxSession => {
 export const isKrxMarketOpen = (now: Date = new Date()): boolean =>
   getKrxSessionState(now) === "regular";
 
+// 활성 세션 술어 — regular/after/pre 에서 라이브 시세가 흐른다.
+// stock-quote 헤더 폴링(useStockQuote)과 stock-intraday 차트 폴링(useStockIntraday)이
+// 동일한 활성 정의를 공유하도록 순수 술어로 노출. session 문자열을 인자로 받아
+// 서버 응답 session 또는 클라 시계 판정 어느 쪽에서든 재사용 가능.
+export const isKrxActiveSession = (session: KrxSession | undefined): boolean =>
+  session === "regular" || session === "after" || session === "pre";
+
 // preopen 창을 세분화. NXT 프리 존재 가능성이 다르다.
 // 아침(06:00~08:00): NXT 프리 미개시 → 오늘 봉 자체 없음. 전일 스냅샷 fallback 대상.
 // 늦은(08:50~09:00): NXT 종목은 08:00~08:50 봉이 이미 쌓임. 라벨은 붙되 차트는 유지.
