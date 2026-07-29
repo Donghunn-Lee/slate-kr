@@ -7,6 +7,7 @@ import { useStockQuote } from "@/features/stock-quote/useStockQuote";
 import type { ChartBar, IndexDailySnapshot } from "@/shared/types/quote";
 import type { StockPriceSnapshot } from "@/shared/types/stock";
 import { mergeLiveDayBar } from "@/shared/utils/mergeLiveDayBar";
+import { mergeLiveIntradayBar } from "@/shared/utils/mergeLiveIntradayBar";
 import { resampleIntradayBars } from "@/shared/utils/resampleIntradayBars";
 import { resampleToMonthly } from "@/shared/utils/resampleToMonthly";
 import { resampleToWeekly } from "@/shared/utils/resampleToWeekly";
@@ -204,7 +205,20 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
     });
   }, [dayBars]);
 
-  const intradayBars = intradayQuery.data?.bars ?? EMPTY_BARS;
+  const rawIntradayBars = intradayQuery.data?.bars ?? EMPTY_BARS;
+  // 헤더 60s 폴링 quote 로 최신 봉 close 대체 — 서버 캐시 miss 사이 gap 마스킹.
+  // previousDay / date 축 어긋남은 유틸 가드가 처리.
+  const intradayBars = useMemo<ChartBar[]>(
+    () =>
+      mergeLiveIntradayBar(
+        rawIntradayBars,
+        quoteData?.quote ?? null,
+        quoteData?.date,
+        intradayQuery.data?.date,
+        intradayQuery.data?.previousDay ?? false,
+      ),
+    [rawIntradayBars, quoteData, intradayQuery.data?.date, intradayQuery.data?.previousDay],
+  );
   const hasIntraday = intradayBars.length > 0;
   // route 가 완전 fetch 실패 시 true. bars 는 항상 [] 이므로 실패는 empty 를 동반.
   const intradayFailed = intradayQuery.data?.failed ?? false;
@@ -414,7 +428,7 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
                 }
               }}
               className={cn(
-                "h-[26px] w-14 rounded-md border border-subtle bg-elevated px-2 text-xs text-foreground",
+                "h-6.5 w-14 rounded-md border border-subtle bg-elevated px-2 text-xs text-foreground",
                 "focus:border-lavender-border focus:outline-none",
                 "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
                 isIntradayView && "opacity-40",
