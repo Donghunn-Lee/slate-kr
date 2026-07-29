@@ -1,12 +1,7 @@
 name: Collector Quote Snapshots
 
 on:
-  # 평일 KST 20:10 (=11:10 UTC): NXT 애프터마켓 20:00 마감 후 UN 통합 스냅샷.
-  # 정각 회피(정시 트래픽 몰림 방지). fetch_quote_snapshots.py 내부 게이트가
-  # 20:05 미만·휴장일이면 skip 후 정상 종료 — schedule/dispatch 어느 경로여도
-  # end 캡 관례 유지(#098).
-  schedule:
-    - cron: "10 11 * * 1-5"
+  # fetch_quote_snapshots.py 내부 게이트: KST 20:05 미만·휴장일이면 skip 후 정상 종료.
   workflow_dispatch:
 
 jobs:

@@ -1,11 +1,6 @@
 name: Collector Daily
 
 on:
-  schedule:
-    # 평일 KST 16:00 (=07:00 UTC): 국내 EOD + 해외 EOD 전체.
-    - cron: "0 7 * * 1-5"
-    # 토 KST 16:00: 해외 EOD 만 (US 금요일 마감분). 국내는 주말 휴장.
-    - cron: "0 7 * * 6"
   workflow_dispatch:
     inputs:
       mode:
@@ -38,22 +33,19 @@ jobs:
         working-directory: collector
         run: pip install -r requirements.txt
 
-      # 국내 스텝 실행 조건:
-      # - schedule 트리거: 토요일 스케줄('0 7 * * 6')이면 skip, 평일 스케줄이면 실행.
-      #   (schedule 트리거 시 inputs.mode 는 빈 값이라 mode 조건은 항상 통과)
-      # - workflow_dispatch 트리거: inputs.mode 로 제어.
-      #   full(기본값) → 국내+해외 전체 실행 (기존 수동 재-run 거동과 동일).
-      #   overseas-only → 국내 skip, 해외만 실행 (예: 국내는 정상, 해외만 재수집).
+      # 국내 스텝 실행 조건: inputs.mode 로 제어.
+      #   full(기본값) → 국내+해외 전체 실행.
+      #   overseas-only → 국내 skip, 해외만 실행 (예: 국내는 정상, 해외만 재수집 · 토요일 US 금요일 마감분).
       - name: Run fetch_prices
         id: fetch_prices
-        if: ${{ github.event.schedule != '0 7 * * 6' && inputs.mode != 'overseas-only' }}
+        if: ${{ inputs.mode != 'overseas-only' }}
         working-directory: collector
         run: python fetch_prices.py
         continue-on-error: true
 
       - name: Run fetch_index_prices
         id: fetch_index_prices
-        if: ${{ github.event.schedule != '0 7 * * 6' && inputs.mode != 'overseas-only' }}
+        if: ${{ inputs.mode != 'overseas-only' }}
         working-directory: collector
         run: python fetch_index_prices.py
         continue-on-error: true
@@ -66,7 +58,7 @@ jobs:
 
       - name: Verify daily freshness
         id: verify_freshness
-        if: ${{ github.event.schedule != '0 7 * * 6' && inputs.mode != 'overseas-only' }}
+        if: ${{ inputs.mode != 'overseas-only' }}
         working-directory: collector
         run: python verify_daily_freshness.py
         continue-on-error: true

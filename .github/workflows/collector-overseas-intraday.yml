@@ -1,12 +1,8 @@
 name: Collector Overseas Intraday
 
 on:
-  # 30 분 주기 · UTC 13:00~21:30.
-  # EDT 정규장 13:30~20:00 UTC, EST 정규장 14:30~21:00 UTC 를 한 창으로 커버.
   # DST 판정 없음 — 세션 밖 실행은 stale 봉 재-upsert 로 무해(멱등).
   # US 휴장일 캘린더도 없음 — 휴장 시 KIS 응답이 갱신되지 않아 자연 스킵.
-  schedule:
-    - cron: "*/30 13-21 * * 1-5"
   workflow_dispatch:
 
 jobs:
