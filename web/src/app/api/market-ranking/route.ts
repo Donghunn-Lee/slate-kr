@@ -5,9 +5,11 @@ import { fetchRanking } from "@/lib/kis-ranking-fetch";
 import { pool } from "@/lib/db";
 import {
   getKrxSessionState,
+  getKrxTradingDate,
   isKrxMarketOpen,
   type KrxSession,
 } from "@/shared/utils/market";
+import { krxIndexRankingRevalidate } from "@/lib/sessionCache";
 import type {
   Market,
   MarketRankingItem,
@@ -88,29 +90,38 @@ const runFetch = async (
   return enrichWithMarket(r.items);
 };
 
-const cacheTag = (key: string, marketOpen: boolean): string =>
-  `market-ranking-${key}-${marketOpen ? "open" : "closed"}`;
+const cacheTag = (key: string, session: KrxSession): string =>
+  `market-ranking-${key}-${session}`;
 
-// key × session 별 unstable_cache 래퍼 memoize. 장중 60s / 폐장 3600s — index-intraday 통일.
+// key × session × krxDate 별 unstable_cache 래퍼 memoize. 활성 세션(regular) 60s / 그 외 3600s.
+// F41(stock-intraday) 패턴 확장: session + tradingDate 를 key 축으로 넣어 세션·일 경계에서 자동 miss.
+// 이전 open/closed 이분 tag 는 tradingDate 부재로 서버 인스턴스가 다음날까지 살 경우
+// 어제 랭크가 preopen 에 재사용될 여지가 있었다.
 type RankingFetcher = () => Promise<MarketRankingItem[] | null>;
-const openFetchers = new Map<string, RankingFetcher>();
-const closedFetchers = new Map<string, RankingFetcher>();
+const fetchers = new Map<string, RankingFetcher>();
+
+const cacheKeyOf = (
+  key: string,
+  session: KrxSession,
+  tradingDate: string,
+): string => `${key}::${session}::${tradingDate}`;
 
 const getCachedFetcher = (
   kind: MarketRankingKind,
-  marketOpen: boolean,
+  session: KrxSession,
+  tradingDate: string,
 ): { fetcher: RankingFetcher; key: string } => {
   const key = flatKey(kind);
-  const map = marketOpen ? openFetchers : closedFetchers;
-  const cached = map.get(key);
+  const mapKey = cacheKeyOf(key, session, tradingDate);
+  const cached = fetchers.get(mapKey);
   if (cached) return { fetcher: cached, key };
-  const tag = cacheTag(key, marketOpen);
+  const tag = cacheTag(key, session);
   const fresh = unstable_cache(
     () => runFetch(kind),
-    ["market-ranking", key, marketOpen ? "open" : "closed"],
-    { revalidate: marketOpen ? 60 : 3600, tags: [tag] },
+    ["market-ranking", key, session, tradingDate],
+    { revalidate: krxIndexRankingRevalidate(session), tags: [tag] },
   );
-  map.set(key, fresh);
+  fetchers.set(mapKey, fresh);
   return { fetcher: fresh, key };
 };
 
@@ -136,13 +147,14 @@ export const GET = async (req: NextRequest) => {
   // 세션/marketOpen 은 순수 KST 시계 — try 밖에서 계산해 catch 경로에도 그대로 얹는다 (#077).
   const session = getKrxSessionState();
   const marketOpen = isKrxMarketOpen();
+  const tradingDate = getKrxTradingDate();
 
   try {
-    const { fetcher, key } = getCachedFetcher(kind, marketOpen);
+    const { fetcher, key } = getCachedFetcher(kind, session, tradingDate);
     const items = await fetcher();
     if (items === null) {
       // 실패 캐시 오염 방지 (#075) — 세션별 tag 정밀 evict.
-      revalidateTag(cacheTag(key, marketOpen), { expire: 0 });
+      revalidateTag(cacheTag(key, session), { expire: 0 });
       const body: RankingResponse = {
         items: [],
         failed: true,

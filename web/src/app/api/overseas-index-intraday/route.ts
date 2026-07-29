@@ -2,7 +2,13 @@ import { revalidateTag, unstable_cache } from "next/cache";
 import { NextResponse } from "next/server";
 
 import { getOverseasIndexIntradayPrices } from "@/lib/indices";
-import { isUsMarketOpen } from "@/shared/utils/market";
+import {
+  getUsSessionState,
+  getUsTradingDate,
+  isUsMarketOpen,
+  type UsSession,
+} from "@/shared/utils/market";
+import { usOverseasIntradayRevalidate } from "@/lib/sessionCache";
 import {
   OVERSEAS_INTRADAY_CODES,
   type OverseasIntradayCode,
@@ -23,29 +29,38 @@ type OverseasFailedMap = {
   ndx: boolean;
 };
 
-// 코드 × session 별 캐시. 정규장 120s / 폐장 3600s.
-// 국내 60s 보다 완만한 이유: 라이브 자체가 ~15분 지연 피드라 짧은 revalidate 이득 없음.
+// 코드 × usSession × etDate 별 캐시. F41 패턴 확장: session·tradingDate 를 key 축으로.
+// 정규장 120s / closed 3600s. 국내 60s 보다 완만한 이유: 라이브 자체가 ~15분 지연 피드라
+// 짧은 revalidate 이득 없음. ET 거래일이 key 에 있어 세션 경계 자동 miss.
 type OverseasFetcher = () => Promise<IndexIntradaySnapshot[] | null>;
-const openFetchers = new Map<OverseasIntradayCode, OverseasFetcher>();
-const closedFetchers = new Map<OverseasIntradayCode, OverseasFetcher>();
+const fetchers = new Map<string, OverseasFetcher>();
 
-const cacheTag = (code: OverseasIntradayCode, marketOpen: boolean): string =>
-  `overseas-index-intraday-${code.toLowerCase()}-${marketOpen ? "open" : "closed"}`;
+const cacheKeyOf = (
+  code: OverseasIntradayCode,
+  session: UsSession,
+  tradingDate: string,
+): string => `${code}::${session}::${tradingDate}`;
+
+const cacheTagOf = (code: OverseasIntradayCode, session: UsSession): string =>
+  `overseas-index-intraday-${code.toLowerCase()}-${session}`;
 
 const getCachedFetcher = (
   code: OverseasIntradayCode,
-  marketOpen: boolean,
+  session: UsSession,
+  tradingDate: string,
 ): OverseasFetcher => {
-  const map = marketOpen ? openFetchers : closedFetchers;
-  const cached = map.get(code);
+  const key = cacheKeyOf(code, session, tradingDate);
+  const cached = fetchers.get(key);
   if (cached) return cached;
-  const tag = cacheTag(code, marketOpen);
   const fresh = unstable_cache(
     () => getOverseasIndexIntradayPrices(code),
-    ["overseas-index-intraday", code, marketOpen ? "open" : "closed"],
-    { revalidate: marketOpen ? 120 : 3600, tags: [tag] },
+    ["overseas-index-intraday", code, session, tradingDate],
+    {
+      revalidate: usOverseasIntradayRevalidate(session),
+      tags: [cacheTagOf(code, session)],
+    },
   );
-  map.set(code, fresh);
+  fetchers.set(key, fresh);
   return fresh;
 };
 
@@ -56,27 +71,32 @@ type OverseasResolveResult = {
 
 const resolve = (
   code: OverseasIntradayCode,
-  marketOpen: boolean,
+  session: UsSession,
   r: PromiseSettledResult<IndexIntradaySnapshot[] | null>,
 ): OverseasResolveResult => {
   if (r.status !== "fulfilled" || r.value === null) {
-    revalidateTag(cacheTag(code, marketOpen), { expire: 0 });
+    revalidateTag(cacheTagOf(code, session), { expire: 0 });
     return { bars: [], failed: true };
   }
   return { bars: r.value, failed: false };
 };
 
 export const GET = async () => {
+  const session = getUsSessionState();
+  const tradingDate = getUsTradingDate();
   const marketOpen = isUsMarketOpen();
+
   try {
     const results = await Promise.allSettled(
-      OVERSEAS_INTRADAY_CODES.map((code) => getCachedFetcher(code, marketOpen)()),
+      OVERSEAS_INTRADAY_CODES.map((code) =>
+        getCachedFetcher(code, session, tradingDate)(),
+      ),
     );
     const [spx, comp, ndx] = results;
 
-    const spxR = resolve("SPX", marketOpen, spx);
-    const compR = resolve("COMP", marketOpen, comp);
-    const ndxR = resolve("NDX", marketOpen, ndx);
+    const spxR = resolve("SPX", session, spx);
+    const compR = resolve("COMP", session, comp);
+    const ndxR = resolve("NDX", session, ndx);
 
     const quotes: OverseasQuotes = {
       spx: spxR.bars,
