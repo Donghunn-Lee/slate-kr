@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { PriceChart } from "@/entities/chart/PriceChart";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useStockIntraday } from "@/features/stock-intraday/useStockIntraday";
 import { useStockQuote } from "@/features/stock-quote/useStockQuote";
 import type { ChartBar, IndexDailySnapshot } from "@/shared/types/quote";
@@ -146,6 +147,33 @@ const snapshotsToBars = (snaps: IndexDailySnapshot[]): ChartBar[] =>
   }));
 
 const EMPTY_STATE_HEIGHT = 450;
+
+// 시장 구분 뱃지 — 2행 라벨에서 데이터 소스 스코프(KRX 정규장 / KRX+NXT 확장 세션) 를 표시.
+// StockHeaderLivePrice 의 "일시 지연" 배지 스타일 재사용 — 소형 무채 outline.
+type MarketScope = "KRX" | "KRX+NXT";
+
+const MARKET_SCOPE_TOOLTIP: Record<MarketScope, string> = {
+  KRX: "정규장 09:00–15:30 기준",
+  "KRX+NXT": "08:00–20:00 · NXT 프리마켓·애프터마켓 포함",
+};
+
+const MarketScopeBadge = ({ scope }: { scope: MarketScope }) => (
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <span
+        role="button"
+        tabIndex={0}
+        aria-label={`${scope} 시장 구분`}
+        className="inline-flex cursor-help items-center rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-[11px] leading-none text-muted-foreground focus:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+      >
+        {scope}
+      </span>
+    </TooltipTrigger>
+    <TooltipContent side="top" className="text-xs">
+      {MARKET_SCOPE_TOOLTIP[scope]}
+    </TooltipContent>
+  </Tooltip>
+);
 
 export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
   // 기본 full/day: 폐장/장전엔 종목 intraday 응답이 완전히 비어 첫인상에 빈 상태를 보게 되므로,
@@ -325,25 +353,37 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
 
   const groupWrapperCls = "flex gap-0.5 rounded-md border border-subtle bg-elevated p-0.5";
 
+  // 2행 라벨 — 기준 날짜 + 시장 스코프.
+  //   당일 뷰: intraday 응답의 tradingDate. previousDay 이면 "MM-DD 마감 기준", 아니면 "MM-DD 기준".
+  //   전체 뷰: dayBars 마지막 봉 date (mergeLiveDayBar 로 오늘 봉이 얹혔으면 오늘).
+  //   시장 스코프: 당일 + hasExtendedSessionBar 만 KRX+NXT, 나머지는 KRX
+  //   (일봉은 KRX EOD 소스이므로 NXT 종목이어도 KRX).
+  const lastDayBarDate =
+    typeof dayBars[dayBars.length - 1]?.time === "string"
+      ? (dayBars[dayBars.length - 1].time as string)
+      : undefined;
+
+  const chartDateLabel: string | null = (() => {
+    if (isIntradayView) {
+      const d = intradayQuery.data?.date;
+      if (!d || !hasIntraday) return null;
+      return isPreviousDay ? `${d.slice(5)} 마감 기준` : `${d.slice(5)} 기준`;
+    }
+    return lastDayBarDate ? `${lastDayBarDate.slice(5)} 기준` : null;
+  })();
+
+  const marketScope: MarketScope =
+    isIntradayView && hasExtendedSessionBar ? "KRX+NXT" : "KRX";
+
   return (
     <>
-      {/* h2 좌측 유지, 우측에 클러스터 단일 행. 당일/전체와 나머지 클러스터는
-          gap-4 로 벌려 의미 구분(모바일에선 flex-wrap 로 자연 wrap). */}
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+      {/* 1행: 제목 · 설명 + 우측 컨트롤 */}
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-sm font-semibold text-muted-foreground">
           가격 차트
           <span className="ml-1.5 text-xs font-normal text-muted-foreground/70">
             · 기간별 가격 흐름과 거래량
           </span>
-          {isIntradayView && hasIntraday && intradayQuery.data?.date && (
-            <span className="ml-1.5 text-xs font-normal text-muted-foreground/70">
-              {isPreviousDay
-                ? `· 정규장 개장 전 · ${intradayQuery.data.date.slice(5)} 마감 차트`
-                : `· ${intradayQuery.data.date.slice(5)} 기준`}
-              {" "}
-              {hasExtendedSessionBar ? "· 08–20시 · KRX+NXT" : "· KRX"}
-            </span>
-          )}
         </h2>
         <div className="flex flex-wrap items-center justify-end gap-4">
           <div className={groupWrapperCls} role="group" aria-label="차트 뷰">
@@ -437,6 +477,13 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
           </div>
         </div>
       </div>
+      {/* 2행: 기준 날짜 · 시장 뱃지 */}
+      {chartDateLabel && (
+        <div className="mb-3 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground/70">
+          <span>{chartDateLabel}</span>
+          <MarketScopeBadge scope={marketScope} />
+        </div>
+      )}
       {showFailedIntraday ? (
         <div
           className="flex w-full flex-col items-center justify-center gap-4 rounded-md border border-subtle bg-elevated"
