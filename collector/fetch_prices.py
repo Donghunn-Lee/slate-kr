@@ -288,6 +288,25 @@ def run(end: date):
         success, skip, warn, error,
     )
 
+    # 대량 upsert 뒤 planner 통계 갱신. 실패는 데이터 적재 성공을 덮으면 안 되므로
+    # WARNING 후 정상 종료로 흡수.
+    analyze_start = time.monotonic()
+    try:
+        analyze_conn = get_connection()
+        analyze_conn.autocommit = True
+        analyze_cursor = analyze_conn.cursor()
+        try:
+            analyze_cursor.execute("ANALYZE daily_prices")
+        finally:
+            analyze_cursor.close()
+            analyze_conn.close()
+        logger.info(
+            "[ANALYZE] daily_prices done in %.1fs",
+            time.monotonic() - analyze_start,
+        )
+    except Exception as e:
+        logger.warning("[ANALYZE] daily_prices 실패, 무시: %s", e)
+
 
 def main():
     if not KIS_APP_KEY or not KIS_APP_SECRET:
