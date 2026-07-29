@@ -7,6 +7,9 @@ import {
   getKrxSessionState,
   getKrxTradingDate,
   getKstDateAndMinutes,
+  getPreviousKrxTradingDate,
+  isKrxEarlyPreopen,
+  isKrxLatePreopen,
 } from "@/shared/utils/market";
 
 const BASE_URL = "https://openapi.koreainvestment.com:9443";
@@ -763,18 +766,54 @@ const probeNxtEligibility = async (
   return bars !== null && bars.length > 0;
 };
 
-// 종목 당일 1분봉. probe → adaptive fan-out → sentinel 필터 → dedupe → ASC.
-// NXT 종목: UN 25 anchor (08:00~20:00, KRX+NXT 통합 vol). 비NXT: J 13 anchor (정규장만).
-// closed(주말·공휴일): FHKST03010230 로 직전 완결 거래일 fallback — NXT 는 UN 확장세션
-// (08:00~20:00), 비NXT 는 J 정규장. target date 는 getKrxTradingDate(now) 로 산출해
-// route metadata date 와 정합. preopen(거래일 새벽): 활성 세션 봉 없음 → 기존 동작 유지.
-// null = 자격/토큰 실패 또는 fan-out 전체 실패, [] = preopen(봉 없음) 또는 anchors 필터가
-// 비었을 때. ChartBar[] = 성공(부분 포함).
-// now 주입 가능 (기본 new Date()) — closed 경로를 장중에도 로컬 테스트할 수 있게 한다.
+// 전일 스냅샷 fallback — FHKST03010230 anchor 세트로 직전 완결 거래일 분봉을 가져온다.
+// closed(주말·공휴일) 경로와 preopen(아침·늦은 프리오픈에서 오늘 봉이 없는 경우) 경로가
+// 공유. NXT 판정은 호출측에서 넘겨받는다 (route 응답 date 정합을 위해 target 도 인자로).
+const fetchPreviousDaySnapshot = async (
+  ticker: string,
+  targetDateYyyymmdd: string,
+  isNxt: boolean,
+  token: string,
+  appKey: string,
+  appSecret: string,
+): Promise<ChartBar[] | null> => {
+  const anchors = getClosedFallbackAnchors(isNxt);
+  const div = getClosedFallbackMarketDiv(isNxt);
+  const results = await Promise.all(
+    anchors.map((anchor) =>
+      callStockDailyMinuteAnchor(
+        ticker,
+        targetDateYyyymmdd,
+        anchor,
+        div,
+        token,
+        appKey,
+        appSecret,
+      ),
+    ),
+  );
+  if (results.every((rows) => rows === null)) return null;
+  return mergeAndSortIntradayBars(results);
+};
+
+export type StockIntradayChartResult = {
+  bars: ChartBar[];
+  tradingDate: string; // 'YYYY-MM-DD' — bars 가 실제로 속한 KST 거래일
+  previousDay: boolean; // true = 전일 스냅샷 fallback (오늘 봉 부재)
+};
+
+// 종목 분봉 차트. adaptive fan-out + preopen/closed 시 전일 스냅샷 fallback.
+// - 활성 세션 (pre / regular / after / after_close): 라이브 fan-out. NXT UN 25 anchor,
+//   비NXT J 13 anchor. tradingDate = 오늘, previousDay = false.
+// - 늦은 프리오픈 (08:50~09:00): NXT 종목은 라이브 fan-out (08:00~08:50 봉 유지).
+//   비NXT 또는 라이브 결과 [] 인 경우 전일 스냅샷으로 대체 → previousDay = true.
+// - 아침 프리오픈 (06:00~08:00): 오늘 봉 부재 확정 → 즉시 전일 스냅샷.
+// - closed (주말·공휴일): 전일 스냅샷.
+// null = 자격/토큰 실패 또는 fan-out 전체 실패. now 주입 가능 — 로컬 테스트용.
 export const fetchStockIntradayChart = async (
   ticker: string,
   now: Date = new Date(),
-): Promise<ChartBar[] | null> => {
+): Promise<StockIntradayChartResult | null> => {
   const tokenResult = await getKisToken();
   if (!tokenResult.ok) {
     console.error(`[kis] token failed: ${tokenResult.error.kind}`);
@@ -788,9 +827,9 @@ export const fetchStockIntradayChart = async (
   }
 
   const session = getKrxSessionState(now);
-  // preopen(거래일 06:00~08:00 + 08:50~09:00): 정규장 개장 전 · NXT 프리도 아직 → 봉 없음.
-  // 라이브 등락률과 동일하게 초기화 상태 유지.
-  if (session === "preopen") return [];
+  const todayTradingDate = getKrxTradingDate(now); // active 세션이면 오늘, 아니면 직전 거래일
+  const earlyPreopen = isKrxEarlyPreopen(now);
+  const latePreopen = isKrxLatePreopen(now);
 
   const isNxt = await probeNxtEligibility(
     ticker,
@@ -799,45 +838,72 @@ export const fetchStockIntradayChart = async (
     appSecret,
   );
 
-  // closed(주말·공휴일): FHKST03010230 fallback. anchor 커버는 라이브 뷰와 동일 범위.
-  if (session === "closed") {
-    const targetDate = toKisDate(getKrxTradingDate(now));
-    const anchors = getClosedFallbackAnchors(isNxt);
-    const div = getClosedFallbackMarketDiv(isNxt);
-    const results = await Promise.all(
-      anchors.map((anchor) =>
-        callStockDailyMinuteAnchor(
-          ticker,
-          targetDate,
-          anchor,
-          div,
-          tokenResult.token,
-          appKey,
-          appSecret,
-        ),
-      ),
+  // 아침 프리오픈: NXT 프리 미개시 → 오늘 봉 자체 없음. 바로 전일 스냅샷으로.
+  if (earlyPreopen) {
+    const prevDate = getPreviousKrxTradingDate(todayTradingDate);
+    const bars = await fetchPreviousDaySnapshot(
+      ticker,
+      toKisDate(prevDate),
+      isNxt,
+      tokenResult.token,
+      appKey,
+      appSecret,
     );
-    if (results.every((rows) => rows === null)) return null;
-    return mergeAndSortIntradayBars(results);
+    if (bars === null) return null;
+    return { bars, tradingDate: prevDate, previousDay: true };
   }
 
-  // 활성 세션 (pre / regular / after / after_close) — 기존 라이브 경로.
+  // closed (주말·공휴일): 직전 완결 거래일 스냅샷. todayTradingDate 는 이미 직전 거래일.
+  if (session === "closed") {
+    const bars = await fetchPreviousDaySnapshot(
+      ticker,
+      toKisDate(todayTradingDate),
+      isNxt,
+      tokenResult.token,
+      appKey,
+      appSecret,
+    );
+    if (bars === null) return null;
+    return { bars, tradingDate: todayTradingDate, previousDay: true };
+  }
+
+  // 활성 세션 + 늦은 프리오픈 — 라이브 fan-out 경로 진입.
   const { minutes: nowMin } = getKstDateAndMinutes(now);
   const anchorSet = isNxt
     ? STOCK_INTRADAY_ANCHORS_NXT
     : STOCK_INTRADAY_ANCHORS_REGULAR;
   const div: MinuteMarketDiv = isNxt ? "UN" : "J";
 
-  // 활성 세션(pre/regular/after) 중: 현재 시각 + 30분 이내 anchor 만 요청.
+  // 활성 세션(pre/regular/after) + 늦은 프리오픈: 현재 시각 + 30분 이내 anchor.
   // after_close(20:00 이후 야간·새벽): 오늘 확장 세션 이미 완결 → 전 anchor 요청.
   const cutoffMin =
-    session === "pre" || session === "regular" || session === "after"
+    session === "pre" ||
+    session === "regular" ||
+    session === "after" ||
+    latePreopen
       ? nowMin + 30
       : AFTER_END_MIN + 30;
   const anchors = anchorSet.filter(
     (anchor) => anchorToMinutes(anchor) <= cutoffMin,
   );
-  if (anchors.length === 0) return [];
+
+  // 라이브 anchor 가 하나도 안 걸리는 케이스 (늦은 프리오픈 비NXT 등): 전일 스냅샷으로.
+  if (anchors.length === 0) {
+    if (latePreopen) {
+      const prevDate = getPreviousKrxTradingDate(todayTradingDate);
+      const bars = await fetchPreviousDaySnapshot(
+        ticker,
+        toKisDate(prevDate),
+        isNxt,
+        tokenResult.token,
+        appKey,
+        appSecret,
+      );
+      if (bars === null) return null;
+      return { bars, tradingDate: prevDate, previousDay: true };
+    }
+    return { bars: [], tradingDate: todayTradingDate, previousDay: false };
+  }
 
   // 병렬 fan-out. 실패 anchor 는 null → 성공분만 병합.
   // 전체 anchor 가 실패 (모두 null) 인 경우 정상 empty([]) 와 구분하기 위해 null 반환.
@@ -859,7 +925,24 @@ export const fetchStockIntradayChart = async (
   // 하므로(실측: 13:39 KST 조회 시 13:40~13:59 가 동일 close, 14:00 는 이례적 값) 클라이언트가
   // 정지 화면을 보게 된다. 지금 시각을 KST fake-utc 로 환산해 이후 봉 제거.
   const cutoffFakeUtcSec = nowKstFakeUtcSec(now);
-  return mergeAndSortIntradayBars(results).filter(
+  const liveBars = mergeAndSortIntradayBars(results).filter(
     (b) => (b.time as number) <= cutoffFakeUtcSec,
   );
+
+  // 늦은 프리오픈에서 NXT 응답이 실질적으로 비어 있으면 전일 스냅샷으로 대체 (비NXT 안전망).
+  if (liveBars.length === 0 && latePreopen) {
+    const prevDate = getPreviousKrxTradingDate(todayTradingDate);
+    const bars = await fetchPreviousDaySnapshot(
+      ticker,
+      toKisDate(prevDate),
+      isNxt,
+      tokenResult.token,
+      appKey,
+      appSecret,
+    );
+    if (bars === null) return null;
+    return { bars, tradingDate: prevDate, previousDay: true };
+  }
+
+  return { bars: liveBars, tradingDate: todayTradingDate, previousDay: false };
 };

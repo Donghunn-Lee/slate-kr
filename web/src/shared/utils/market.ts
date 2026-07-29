@@ -50,6 +50,21 @@ export const getKrxSessionState = (now: Date = new Date()): KrxSession => {
 export const isKrxMarketOpen = (now: Date = new Date()): boolean =>
   getKrxSessionState(now) === "regular";
 
+// preopen 창을 세분화. NXT 프리 존재 가능성이 다르다.
+// 아침(06:00~08:00): NXT 프리 미개시 → 오늘 봉 자체 없음. 전일 스냅샷 fallback 대상.
+// 늦은(08:50~09:00): NXT 종목은 08:00~08:50 봉이 이미 쌓임. 라벨은 붙되 차트는 유지.
+export const isKrxEarlyPreopen = (now: Date = new Date()): boolean => {
+  if (getKrxSessionState(now) !== "preopen") return false;
+  const { minutes } = toKstParts(now);
+  return minutes < PRE_START_MINUTES;
+};
+
+export const isKrxLatePreopen = (now: Date = new Date()): boolean => {
+  if (getKrxSessionState(now) !== "preopen") return false;
+  const { minutes } = toKstParts(now);
+  return minutes >= PRE_END_MINUTES;
+};
+
 // KST 캘린더 일자와 분(0~1439) — 세션 무관, 순수 KST 파싱만.
 export const getKstDateAndMinutes = (
   now: Date = new Date(),

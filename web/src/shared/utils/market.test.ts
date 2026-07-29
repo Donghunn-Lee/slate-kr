@@ -1,9 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
+  getKrxSessionState,
   getUsSessionState,
   getEtDateAndMinutes,
   getUsTradingDate,
   getPreviousUsTradingDate,
+  isKrxEarlyPreopen,
+  isKrxLatePreopen,
   isUsMarketOpen,
 } from "./market";
 
@@ -122,5 +125,51 @@ describe("getPreviousUsTradingDate", () => {
   });
   it("휴장일 다음날 (7/6 월) → 7/2 목 (7/3 관측 휴장 + 7/4~5 주말 스킵)", () => {
     expect(getPreviousUsTradingDate("2026-07-06")).toBe("2026-07-02");
+  });
+});
+
+// KRX preopen 세분화 — fetchStockIntradayChart 의 fallback 분기 게이트.
+// KST = UTC+9. 06:00 KST = 21:00 UTC 전일.
+const kst = (
+  y: number, m: number, d: number, h: number, min = 0,
+): Date => new Date(Date.UTC(y, m - 1, d, h - 9, min));
+
+describe("isKrxEarlyPreopen", () => {
+  it("06:00 KST 거래일 → true (창 시작 경계 포함)", () => {
+    expect(isKrxEarlyPreopen(kst(2026, 7, 23, 6, 0))).toBe(true);
+  });
+  it("07:59 KST → true", () => {
+    expect(isKrxEarlyPreopen(kst(2026, 7, 23, 7, 59))).toBe(true);
+  });
+  it("08:00 KST → false (pre 세션 진입)", () => {
+    expect(isKrxEarlyPreopen(kst(2026, 7, 23, 8, 0))).toBe(false);
+  });
+  it("08:50 KST → false (늦은 preopen, 아침이 아님)", () => {
+    expect(isKrxEarlyPreopen(kst(2026, 7, 23, 8, 50))).toBe(false);
+  });
+  it("05:00 KST → false (session=after_close, preopen 아님)", () => {
+    expect(getKrxSessionState(kst(2026, 7, 23, 5, 0))).toBe("after_close");
+    expect(isKrxEarlyPreopen(kst(2026, 7, 23, 5, 0))).toBe(false);
+  });
+  it("일요일 07:00 KST → false (주말=closed)", () => {
+    expect(isKrxEarlyPreopen(kst(2026, 7, 26, 7, 0))).toBe(false);
+  });
+});
+
+describe("isKrxLatePreopen", () => {
+  it("08:50 KST → true (창 시작 경계 포함)", () => {
+    expect(isKrxLatePreopen(kst(2026, 7, 23, 8, 50))).toBe(true);
+  });
+  it("08:59 KST → true", () => {
+    expect(isKrxLatePreopen(kst(2026, 7, 23, 8, 59))).toBe(true);
+  });
+  it("09:00 KST → false (정규장 진입)", () => {
+    expect(isKrxLatePreopen(kst(2026, 7, 23, 9, 0))).toBe(false);
+  });
+  it("08:00 KST → false (pre 세션, 늦은 preopen 아님)", () => {
+    expect(isKrxLatePreopen(kst(2026, 7, 23, 8, 0))).toBe(false);
+  });
+  it("07:00 KST → false (아침 preopen 이지 늦은 preopen 아님)", () => {
+    expect(isKrxLatePreopen(kst(2026, 7, 23, 7, 0))).toBe(false);
   });
 });

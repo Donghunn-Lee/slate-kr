@@ -6,7 +6,10 @@ export type StockIntradayResponse = {
   bars: ChartBar[];
   marketOpen: boolean;
   session: KrxSession;
-  date: string; // KST 거래일 'YYYY-MM-DD'
+  date: string; // KST 거래일 'YYYY-MM-DD' — bars 가 실제로 속한 거래일
+  // true = 전일 스냅샷 fallback (preopen 아침·비NXT 늦은 프리오픈·주말·공휴일).
+  // client 는 이 신호로 "정규장 개장 전 · MM-DD 마감 차트" 라벨을 붙이고 baseline 을 비활성.
+  previousDay: boolean;
   // route 가 완전 fetch 실패 시 true. bars 는 항상 [] 로 정규화되므로
   // 실패↔정상 empty(pre/휴장/tradingDate 불일치) 를 client 에서 구분하는 유일한 신호.
   failed: boolean;

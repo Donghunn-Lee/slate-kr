@@ -208,6 +208,8 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
   const hasIntraday = intradayBars.length > 0;
   // route 가 완전 fetch 실패 시 true. bars 는 항상 [] 이므로 실패는 empty 를 동반.
   const intradayFailed = intradayQuery.data?.failed ?? false;
+  // 전일 스냅샷 fallback (preopen · 주말 · 공휴일). 라벨과 baseline 분기에 사용.
+  const isPreviousDay = intradayQuery.data?.previousDay ?? false;
 
   // NXT 확장 세션 유입 판정 — sentinel 필터 후에도 정규장(09:00~15:30) 밖 봉이 하나라도
   // 있으면 NXT 상장 종목. 데이터 파생 — 마스터 플래그 불필요.
@@ -262,13 +264,14 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
 
   // 전일 종가 기준선 — intraday 뷰 한정. LiveQuoteCore.change = "전일 대비" 계약에서
   // price - change 로 역산. 지수 IndexIntradaySnapshot 의 close - change 와 동형.
+  // 전일 스냅샷 fallback 표시 중엔 baseline 대상(오늘 quote) 과 봉(어제) 이 어긋나므로 비활성.
   const intradayBaseline = useMemo<number | undefined>(() => {
-    if (!isIntradayView || !hasIntraday) return undefined;
+    if (!isIntradayView || !hasIntraday || isPreviousDay) return undefined;
     const q = quoteData?.quote;
     if (!q) return undefined;
     const prev = q.price - q.change;
     return prev > 0 ? prev : undefined;
-  }, [isIntradayView, hasIntraday, quoteData]);
+  }, [isIntradayView, hasIntraday, isPreviousDay, quoteData]);
 
   const applyBarCountFromInput = (raw: string) => {
     const trimmed = raw.trim();
@@ -320,7 +323,10 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
           </span>
           {isIntradayView && hasIntraday && intradayQuery.data?.date && (
             <span className="ml-1.5 text-xs font-normal text-muted-foreground/70">
-              · {intradayQuery.data.date.slice(5)} 기준{" "}
+              {isPreviousDay
+                ? `· 정규장 개장 전 · ${intradayQuery.data.date.slice(5)} 마감 차트`
+                : `· ${intradayQuery.data.date.slice(5)} 기준`}
+              {" "}
               {hasExtendedSessionBar ? "· 08–20시 · KRX+NXT" : "· KRX"}
             </span>
           )}
