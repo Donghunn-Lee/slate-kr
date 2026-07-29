@@ -5,6 +5,7 @@ import { IndexSparkline } from "@/entities/index/IndexSparkline";
 import {
   OVERSEAS_INDEX_CODES,
   getIndexMeta,
+  INDEX_LABEL,
   type OverseasIndexCode,
 } from "@/shared/constants/indices";
 import type {
@@ -15,6 +16,7 @@ import {
   useOverseasIndexIntraday,
   type OverseasIndexIntradayResponse,
 } from "@/features/index-quotes/useOverseasIndexIntraday";
+import { buildIndexCell } from "@/shared/utils/buildIndexCell";
 
 type OverseasIndexRowProps = {
   snapshotsByCode: Record<OverseasIndexCode, IndexDailySnapshot | null>;
@@ -46,37 +48,69 @@ const INTRADAY_KEY: Record<OverseasIndexCode, IntradayKey | null> = {
 };
 
 type OverseasCellProps = {
+  code: OverseasIndexCode;
   label: string;
   snapshot: IndexDailySnapshot | null;
   bars: IndexIntradaySnapshot[];
   intradayFailed: boolean;
 };
 
-const OverseasCell = ({ label, snapshot, bars, intradayFailed }: OverseasCellProps) => (
-  <div className="flex flex-1 items-center justify-between gap-3 px-6 py-3">
-    <div className="flex flex-col">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      {snapshot ? (
-        <div className="mt-0.5 flex flex-col items-start gap-0.5">
-          <span className="text-base font-medium tabular-nums">
-            {formatIndexPrice(snapshot.close)}
-          </span>
-          <PriceChange
-            change={snapshot.change}
-            changeRate={snapshot.changeRate}
-            symbol="arrow"
-            size="xs"
-          />
-        </div>
-      ) : (
-        <div className="mt-0.5 text-sm text-muted-foreground">데이터 없음</div>
-      )}
+const OverseasCell = ({
+  code,
+  label,
+  snapshot,
+  bars,
+  intradayFailed,
+}: OverseasCellProps) => {
+  // 최신 분봉이 있으면 텍스트도 라이브(가격·등락·등락률)로 표시. 없거나 .DJI
+  // (intraday 미지원) 는 snapshot(EOD) fallback. buildIndexCell 이 두 경로를 통합.
+  const overseasLatestBar = bars.length > 0 ? bars[bars.length - 1] : null;
+  const cell = buildIndexCell({
+    isDomestic: false,
+    name: INDEX_LABEL[code],
+    domesticCell: undefined,
+    overseasLatestBar,
+    latestDaily: snapshot,
+  });
+  return (
+    <div className="flex flex-1 items-center justify-between gap-3 px-6 py-3">
+      <div className="flex flex-col">
+        <div className="text-xs text-muted-foreground">{label}</div>
+        {cell?.live ? (
+          <div className="mt-0.5 flex flex-col items-start gap-0.5">
+            <span className="text-base font-medium tabular-nums">
+              {formatIndexPrice(cell.live.price)}
+            </span>
+            <PriceChange
+              change={cell.live.change}
+              changeRate={cell.live.changeRate}
+              sign={cell.live.sign}
+              symbol="arrow"
+              size="xs"
+            />
+          </div>
+        ) : cell?.fallback ? (
+          <div className="mt-0.5 flex flex-col items-start gap-0.5">
+            <span className="text-base font-medium tabular-nums">
+              {formatIndexPrice(cell.fallback.close)}
+            </span>
+            <PriceChange
+              change={cell.fallback.change}
+              changeRate={cell.fallback.changeRate}
+              symbol="arrow"
+              size="xs"
+            />
+          </div>
+        ) : (
+          <div className="mt-0.5 text-sm text-muted-foreground">데이터 없음</div>
+        )}
+      </div>
+      <div className="min-w-[110px] flex-1">
+        <IndexSparkline bars={bars} failed={intradayFailed} />
+      </div>
     </div>
-    <div className="min-w-[110px] flex-1">
-      <IndexSparkline bars={bars} failed={intradayFailed} />
-    </div>
-  </div>
-);
+  );
+};
 
 export const OverseasIndexRow = ({ snapshotsByCode }: OverseasIndexRowProps) => {
   const latestDate = pickLatestDate(snapshotsByCode);
@@ -95,6 +129,7 @@ export const OverseasIndexRow = ({ snapshotsByCode }: OverseasIndexRowProps) => 
           return (
             <OverseasCell
               key={code}
+              code={code}
               label={getIndexMeta(code).label}
               snapshot={snapshotsByCode[code]}
               bars={bars}

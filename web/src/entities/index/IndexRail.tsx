@@ -14,14 +14,15 @@ import {
   OVERSEAS_INDEX_CODES,
   INDEX_LABEL,
   getIndexMeta,
+  isOverseasIntradayCode,
   type DomesticIndexCode,
   type IndexCode,
+  type OverseasIntradayCode,
 } from "@/shared/constants/indices";
 import type { IndexDailySnapshot } from "@/shared/types/quote";
-import {
-  useIndexQuotes,
-  type IndexCellData,
-} from "@/features/index-quotes/useIndexQuotes";
+import { useIndexQuotes } from "@/features/index-quotes/useIndexQuotes";
+import { useOverseasIndexIntraday } from "@/features/index-quotes/useOverseasIndexIntraday";
+import { buildIndexCell } from "@/shared/utils/buildIndexCell";
 import { cn } from "@/lib/utils";
 
 type IndexRailProps = {
@@ -42,6 +43,12 @@ const CELL_KEY: Record<
   KOSDAQ150: "kosdaq150",
 };
 
+const OVERSEAS_CELL_KEY: Record<OverseasIntradayCode, "spx" | "comp" | "ndx"> = {
+  SPX: "spx",
+  COMP: "comp",
+  NDX: "ndx",
+};
+
 const SECTIONS: {
   key: SectionKey;
   label: string;
@@ -60,6 +67,9 @@ export const IndexRail = ({
   dailyByIndex,
 }: IndexRailProps) => {
   const { data, isLoading } = useIndexQuotes();
+  // 해외 intraday 폴링. queryKey 는 DetailPane 과 동일 (["overseas-index-intraday"])
+  // 이라 TanStack Query 가 dedup — Rail 추가로 인한 네트워크 비용 없음.
+  const overseasIntradayQuery = useOverseasIndexIntraday();
   // 두 섹션 모두 기본 열림. 사용자가 접으면 그 상태를 유지 — 선택 지수가 있는
   // 섹션을 강제로 다시 열지는 않는다(선택 이동 자체는 하이라이트로 충분).
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>(
@@ -93,11 +103,26 @@ export const IndexRail = ({
                   prices && prices.length > 0
                     ? prices[prices.length - 1]
                     : null;
-                const cell: IndexCellData | undefined = isDomestic
-                  ? data?.quotes[CELL_KEY[code as DomesticIndexCode]]
-                  : latestDaily
-                    ? { live: null, fallback: latestDaily }
-                    : undefined;
+                // 해외 intraday(SPX/COMP): 최신 봉이 있으면 live 셀로 승격.
+                // .DJI 는 isOverseasIntradayCode=false → 항상 EOD fallback (X19).
+                const overseasBars = isOverseasIntradayCode(code)
+                  ? overseasIntradayQuery.data?.quotes[
+                      OVERSEAS_CELL_KEY[code]
+                    ] ?? []
+                  : [];
+                const overseasLatestBar =
+                  overseasBars.length > 0
+                    ? overseasBars[overseasBars.length - 1]
+                    : null;
+                const cell = buildIndexCell({
+                  isDomestic,
+                  name: INDEX_LABEL[code],
+                  domesticCell: isDomestic
+                    ? data?.quotes[CELL_KEY[code as DomesticIndexCode]]
+                    : undefined,
+                  overseasLatestBar,
+                  latestDaily,
+                });
                 const isSelected = selected === code;
                 const showSkeleton = isDomestic && isLoading && !cell;
                 return (

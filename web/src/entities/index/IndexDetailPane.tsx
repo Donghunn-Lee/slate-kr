@@ -13,11 +13,9 @@ import {
 } from "@/shared/constants/indices";
 import type { IndexDailySnapshot } from "@/shared/types/quote";
 import type { PriceStats } from "@/shared/types/stock";
-import {
-  useIndexQuotes,
-  type IndexCellData,
-} from "@/features/index-quotes/useIndexQuotes";
+import { useIndexQuotes } from "@/features/index-quotes/useIndexQuotes";
 import { useOverseasIndexIntraday } from "@/features/index-quotes/useOverseasIndexIntraday";
+import { buildIndexCell } from "@/shared/utils/buildIndexCell";
 import {
   getKrxLastCloseDate,
   getKrxSessionState,
@@ -209,35 +207,16 @@ export const IndexDetailPane = ({
   const overseasLatestBar =
     overseasBars.length > 0 ? overseasBars[overseasBars.length - 1] : null;
 
-  // 국내: 실시간 quote (없으면 서비스가 직전 EOD 로 fallback 채워줌).
-  // 해외 intraday: 최신 봉의 close/change/changeRate → live 로 취급.
-  // .DJI (intraday 미지원): 최신 EOD 봉으로 fallback 합성.
-  const cell: IndexCellData | undefined = isDomestic
-    ? data?.quotes[CELL_KEY[selected as DomesticIndexCode]]
-    : isOverseasIntraday && overseasLatestBar
-      ? {
-          live: {
-            name: INDEX_LABEL[selected],
-            price: overseasLatestBar.close,
-            change: overseasLatestBar.change,
-            changeRate: overseasLatestBar.changeRate,
-            sign:
-              overseasLatestBar.change > 0
-                ? "up"
-                : overseasLatestBar.change < 0
-                  ? "down"
-                  : "flat",
-            open: overseasLatestBar.open,
-            high: overseasLatestBar.high,
-            low: overseasLatestBar.low,
-            advCount: 0,
-            declCount: 0,
-          },
-          fallback: null,
-        }
-      : latestDaily
-        ? { live: null, fallback: latestDaily }
-        : undefined;
+  // 셀 합성 규칙은 buildIndexCell 참조 (Rail·홈과 공용).
+  const cell = buildIndexCell({
+    isDomestic,
+    name: INDEX_LABEL[selected],
+    domesticCell: isDomestic
+      ? data?.quotes[CELL_KEY[selected as DomesticIndexCode]]
+      : undefined,
+    overseasLatestBar,
+    latestDaily,
+  });
 
   // 라벨은 request time 기준: 국내/해외 모두 client clock 으로 세션·기준일 도출.
   const now = useNow();
