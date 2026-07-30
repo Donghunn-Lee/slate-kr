@@ -796,18 +796,54 @@ const fetchPreviousDaySnapshot = async (
   return mergeAndSortIntradayBars(results);
 };
 
+// 전일 세션 마지막 tail (30봉) — 등락률 초기화 이후(pre/regular/after) 오늘 라이브 봉 앞에
+// 컨텍스트 tail 로 prepend. anchor 는 각 세션의 마지막 anchor 1콜만 (FHKST03010230, 120봉/콜)
+// → 시간 ASC 정렬 후 마지막 30봉 slice. 조회 실패는 [] 로 소프트 페일 (본 응답에 치명적 아님).
+const PREVIOUS_DAY_TAIL_BARS = 30;
+const PREVIOUS_DAY_TAIL_ANCHOR_NXT = "200000";
+const PREVIOUS_DAY_TAIL_ANCHOR_REGULAR = "153000";
+
+const fetchPreviousDayTail = async (
+  ticker: string,
+  prevDateYyyymmdd: string,
+  isNxt: boolean,
+  token: string,
+  appKey: string,
+  appSecret: string,
+): Promise<ChartBar[]> => {
+  const anchor = isNxt
+    ? PREVIOUS_DAY_TAIL_ANCHOR_NXT
+    : PREVIOUS_DAY_TAIL_ANCHOR_REGULAR;
+  const div: MinuteMarketDiv = isNxt ? "UN" : "J";
+  const bars = await callStockDailyMinuteAnchor(
+    ticker,
+    prevDateYyyymmdd,
+    anchor,
+    div,
+    token,
+    appKey,
+    appSecret,
+  );
+  if (bars === null) return [];
+  const sorted = [...bars].sort(
+    (a, b) => (a.time as number) - (b.time as number),
+  );
+  return sorted.slice(-PREVIOUS_DAY_TAIL_BARS);
+};
+
 export type StockIntradayChartResult = {
   bars: ChartBar[];
   tradingDate: string; // 'YYYY-MM-DD' — bars 가 실제로 속한 KST 거래일
   previousDay: boolean; // true = 전일 스냅샷 fallback (오늘 봉 부재)
 };
 
-// 종목 분봉 차트. adaptive fan-out + preopen/closed 시 전일 스냅샷 fallback.
-// - 활성 세션 (pre / regular / after / after_close): 라이브 fan-out. NXT UN 25 anchor,
-//   비NXT J 13 anchor. tradingDate = 오늘, previousDay = false.
-// - 늦은 프리오픈 (08:50~09:00): NXT 종목은 라이브 fan-out (08:00~08:50 봉 유지).
-//   비NXT 또는 라이브 결과 [] 인 경우 전일 스냅샷으로 대체 → previousDay = true.
-// - 아침 프리오픈 (06:00~08:00): 오늘 봉 부재 확정 → 즉시 전일 스냅샷.
+// 종목 분봉 차트. adaptive fan-out + preopen/closed 시 전일 스냅샷 fallback + 등락률
+// 초기화 이후엔 전일 tail 30봉 prepend (연속 컨텍스트).
+// - 활성 세션 (pre / regular / after) + latePreopen (08:50~09:00): 라이브 fan-out +
+//   전일 tail 30봉 prepend. tradingDate = 오늘 KST 캘린더 (latePreopen 도 오늘).
+//   비NXT pre / latePreopen 은 라이브 anchor 미매치 → tail 만 반환.
+// - after_close (20:00~06:00): 라이브 fan-out 만 (오늘 확장 세션 완결 · tail 불필요).
+// - 아침 프리오픈 (06:00~08:00): 오늘 봉 부재 확정 → 즉시 전일 스냅샷 (등락률 초기화 전).
 // - closed (주말·공휴일): 전일 스냅샷.
 // null = 자격/토큰 실패 또는 fan-out 전체 실패. now 주입 가능 — 로컬 테스트용.
 export const fetchStockIntradayChart = async (
@@ -867,82 +903,89 @@ export const fetchStockIntradayChart = async (
     return { bars, tradingDate: todayTradingDate, previousDay: true };
   }
 
-  // 활성 세션 + 늦은 프리오픈 — 라이브 fan-out 경로 진입.
-  const { minutes: nowMin } = getKstDateAndMinutes(now);
+  // 활성 세션 + latePreopen + after_close — 라이브 fan-out 경로 진입.
+  const { minutes: nowMin, date: nowKstDate } = getKstDateAndMinutes(now);
   const anchorSet = isNxt
     ? STOCK_INTRADAY_ANCHORS_NXT
     : STOCK_INTRADAY_ANCHORS_REGULAR;
   const div: MinuteMarketDiv = isNxt ? "UN" : "J";
 
-  // 활성 세션(pre/regular/after) + 늦은 프리오픈: 현재 시각 + 30분 이내 anchor.
+  // 활성 세션(pre/regular/after) + latePreopen: 현재 시각 + 30분 이내 anchor.
   // after_close(20:00 이후 야간·새벽): 오늘 확장 세션 이미 완결 → 전 anchor 요청.
-  const cutoffMin =
+  const isActiveOrLatePreopen =
     session === "pre" ||
     session === "regular" ||
     session === "after" ||
-    latePreopen
-      ? nowMin + 30
-      : AFTER_END_MIN + 30;
+    latePreopen;
+  const cutoffMin = isActiveOrLatePreopen ? nowMin + 30 : AFTER_END_MIN + 30;
   const anchors = anchorSet.filter(
     (anchor) => anchorToMinutes(anchor) <= cutoffMin,
   );
 
-  // 라이브 anchor 가 하나도 안 걸리는 케이스 (늦은 프리오픈 비NXT 등): 전일 스냅샷으로.
-  if (anchors.length === 0) {
-    if (latePreopen) {
-      const prevDate = getPreviousKrxTradingDate(todayTradingDate);
-      const bars = await fetchPreviousDaySnapshot(
-        ticker,
-        toKisDate(prevDate),
-        isNxt,
-        tokenResult.token,
-        appKey,
-        appSecret,
-      );
-      if (bars === null) return null;
-      return { bars, tradingDate: prevDate, previousDay: true };
-    }
-    return { bars: [], tradingDate: todayTradingDate, previousDay: false };
-  }
+  // 라이브 봉이 붙는 KST 거래일. 활성 세션 + latePreopen 은 오늘 KST 캘린더 (latePreopen 도
+  // 오늘 08:00~08:50 pre 봉과 quote 축 정합화 위해 오늘로 통일 — getKrxTradingDate 는
+  // preopen 을 전일로 리포트하므로 재계산). after_close 는 completed session 그대로.
+  const barsDate = isActiveOrLatePreopen ? nowKstDate : todayTradingDate;
 
-  // 병렬 fan-out. 실패 anchor 는 null → 성공분만 병합.
-  // 전체 anchor 가 실패 (모두 null) 인 경우 정상 empty([]) 와 구분하기 위해 null 반환.
-  // 부분 성공은 기존대로 merged 결과 반환 (성공분만 노출).
-  const results = await Promise.all(
-    anchors.map((anchor) =>
-      callStockMinuteAnchor(
-        ticker,
-        anchor,
-        div,
-        tokenResult.token,
-        appKey,
-        appSecret,
+  // 전일 tail source date. 등락률 초기화(08:00) ~ 애프터 마감(20:00) 동안 "어제 마감 → 오늘"
+  // 연속 컨텍스트 30봉 prepend. after_close 는 오늘 완결본 그대로 (tail 없음).
+  const tailSourceDate = isActiveOrLatePreopen
+    ? getPreviousKrxTradingDate(barsDate)
+    : null;
+
+  // 라이브 fan-out + 전일 tail 병렬 fetch — 지연 최소화.
+  // 실패 anchor 는 null → 성공분만 병합. tail 실패는 [] 로 소프트 페일.
+  const [liveResults, tailBars] = await Promise.all([
+    Promise.all(
+      anchors.map((anchor) =>
+        callStockMinuteAnchor(
+          ticker,
+          anchor,
+          div,
+          tokenResult.token,
+          appKey,
+          appSecret,
+        ),
       ),
     ),
-  );
-  if (results.every((rows) => rows === null)) return null;
+    tailSourceDate === null
+      ? Promise.resolve<ChartBar[]>([])
+      : fetchPreviousDayTail(
+          ticker,
+          toKisDate(tailSourceDate),
+          isNxt,
+          tokenResult.token,
+          appKey,
+          appSecret,
+        ),
+  ]);
+
+  // 라이브 anchor 가 하나도 안 걸리는 케이스 (pre 비NXT · latePreopen 비NXT): tail 만 반환.
+  // tail 조차 [] 이면 empty 응답 → client 가 "정규장 개장 전" 안내로 자연 폴백.
+  if (anchors.length === 0) {
+    return { bars: tailBars, tradingDate: barsDate, previousDay: false };
+  }
+
+  // 전체 anchor 가 실패 (모두 null) 인 경우 정상 empty([]) 와 구분하기 위해 null 반환.
+  // 부분 성공은 기존대로 merged 결과 반환 (성공분만 노출).
+  if (liveResults.every((rows) => rows === null)) return null;
+
   // 미래 봉 방어 필터. anchor 창 내에서 현재 시각 이후 봉을 KIS 는 마지막 체결가로 fill-forward
   // 하므로(실측: 13:39 KST 조회 시 13:40~13:59 가 동일 close, 14:00 는 이례적 값) 클라이언트가
   // 정지 화면을 보게 된다. 지금 시각을 KST fake-utc 로 환산해 이후 봉 제거.
   const cutoffFakeUtcSec = nowKstFakeUtcSec(now);
-  const liveBars = mergeAndSortIntradayBars(results).filter(
+  const liveBars = mergeAndSortIntradayBars(liveResults).filter(
     (b) => (b.time as number) <= cutoffFakeUtcSec,
   );
 
-  // 늦은 프리오픈에서 NXT 응답이 실질적으로 비어 있으면 전일 스냅샷으로 대체 (비NXT 안전망).
-  if (liveBars.length === 0 && latePreopen) {
-    const prevDate = getPreviousKrxTradingDate(todayTradingDate);
-    const bars = await fetchPreviousDaySnapshot(
-      ticker,
-      toKisDate(prevDate),
-      isNxt,
-      tokenResult.token,
-      appKey,
-      appSecret,
-    );
-    if (bars === null) return null;
-    return { bars, tradingDate: prevDate, previousDay: true };
-  }
+  // tail + live 병합 — KIS 라이브 anchor 는 트레이딩 없는 창(NXT "080000" 의 (07:30, 08:00]
+  // 등) 을 전일 후반 봉으로 backfill 하는 실측 패턴 → tail 과 time 중복 발생.
+  // mergeAndSortIntradayBars 로 time key dedup + ASC 정렬 (lightweight-charts 요구조건).
+  const combined = mergeAndSortIntradayBars([tailBars, liveBars]);
 
-  return { bars: liveBars, tradingDate: todayTradingDate, previousDay: false };
+  return {
+    bars: combined,
+    tradingDate: barsDate,
+    previousDay: false,
+  };
 };
