@@ -34,8 +34,10 @@ type PriceChartProps = {
   timeVisible?: boolean; // intraday만 true
   height?: number;
   interactive?: boolean;
-  // 잠금 뷰: 스크롤/줌 차단 + 최신 봉 자동 추적. intraday 전용.
-  locked?: boolean;
+  // intraday 뷰 플래그. 초기 표시 창을 applyLockedRange (전일 tail + 오늘) 로 세팅하고,
+  // 사용자가 조작 안 한 상태(idle) 에서만 새 봉 도착 시 auto-follow. 조작 후엔 뷰 유지.
+  // pan/zoom 은 interactive 만 따르므로 이 플래그로 잠기지 않는다.
+  intraday?: boolean;
   // 이 값 미만 time 을 가진 봉을 흐린 색으로 렌더 (전일 세션 dim).
   dimBefore?: number;
   // 하단 20% overlay 로 거래량 histogram 을 함께 렌더. bars[i].volume 이 없는 봉은 스킵.
@@ -54,11 +56,10 @@ type PriceChartProps = {
   baseline?: number;
   // 최근 N봉만 보이도록 시계축 논리 범위를 제어. null/undefined = 전체 표시.
   // 데이터를 자르지 않고 표시 창만 조정 → 툴바 조작 시 계산/네트워크 비용 없이 즉시 반영.
-  // locked=true(intraday) 뷰에서는 무시 (applyLockedRange 가 우선).
+  // intraday 뷰에서는 무시 (applyLockedRange 가 초기 창을 잡고 이후 사용자 조작 존중).
   visibleBars?: number | null;
   // 사용자 휠/팬으로 표시 창이 바뀌었을 때 새 봉 개수를 알려주는 콜백.
-  // 상위 상태(barCount input) 와 양방향 동기화용. locked 뷰에서는 구독 자체를 안 건다.
-  // 값이 전체 근사면 null 을 전달 (프리셋의 "전체" 와 대응).
+  // 상위 상태(barCount input) 와 양방향 동기화용. 값이 전체 근사면 null 을 전달.
   onVisibleBarsChange?: (n: number | null) => void;
 };
 
@@ -333,7 +334,7 @@ export const PriceChart = ({
   timeVisible = false,
   height = DEFAULT_HEIGHT,
   interactive = true,
-  locked = false,
+  intraday = false,
   dimBefore,
   showVolume = false,
   maPeriods,
@@ -364,6 +365,11 @@ export const PriceChart = ({
   const applyRangeRef = useRef<((n: number | null | undefined) => void) | null>(
     null,
   );
+  // intraday auto-range 적용 함수 — applyingRangeRef 로 감싸 subscribe 콜백이 programmatic
+  // 변경을 사용자 스크롤로 오인식하지 않게 한다.
+  const runLockedRangeRef = useRef<
+    ((bars: ChartBar[], dim: number | undefined) => void) | null
+  >(null);
   // programmatic setVisibleLogicalRange 로 인한 subscribe 콜백을 무시하기 위한 재진입 가드.
   // rAF 이후 해제 — 라이트웨이트차트가 range 변경을 큐잉하므로 동일 tick 내엔 유지.
   const applyingRangeRef = useRef(false);
@@ -375,8 +381,11 @@ export const PriceChart = ({
   const reportTimerRef = useRef<number | null>(null);
   // 팬 clamp 에서 참조 — subscribe 콜백이 config effect 재구독 사이의 잔여 이벤트를 처리할 수도 있어
   // 최신값이 필요. 구독 재설정 자체가 있지만 방어적으로 ref 로 안정화.
-  const lockedRef = useRef(locked);
+  const intradayRef = useRef(intraday);
   const interactiveRef = useRef(interactive);
+  // 사용자가 pan/zoom 을 한 번이라도 했는지. auto-follow(intraday) 를 idle 상태에서만 발동시키기 위한 gate.
+  // config effect 재실행(= chart 재생성) 시 false 로 초기화.
+  const userScrolledRef = useRef(false);
   // legend DOM refs + hover 여부 (bars 갱신 시 미호버면 최신봉으로 refresh).
   const legendRef = useRef<HTMLDivElement>(null);
   const maLegendRef = useRef<HTMLDivElement>(null);
@@ -407,20 +416,22 @@ export const PriceChart = ({
   }, [onVisibleBarsChange]);
 
   useEffect(() => {
-    lockedRef.current = locked;
-  }, [locked]);
+    intradayRef.current = intraday;
+  }, [intraday]);
 
   useEffect(() => {
     interactiveRef.current = interactive;
   }, [interactive]);
 
-  // 차트/시리즈는 config(테마·precision·timeVisible·interactive·locked·dimBefore) 변경 시에만
+  // 차트/시리즈는 config(테마·precision·timeVisible·interactive·intraday·dimBefore) 변경 시에만
   // 재생성. bars-only 갱신은 아래 데이터 effect가 처리해 사용자 줌 상태를 유지한다.
   useEffect(() => {
     if (!containerRef.current) return;
 
+    // 재생성 시 user scroll 상태 리셋 — 뷰 전환/테마 변경 등은 fresh follow 로 시작.
+    userScrolledRef.current = false;
+
     const c = resolvedTheme === "dark" ? CHART_THEME.dark : CHART_THEME.light;
-    const scrollScale = interactive && !locked;
 
     const chart = createChart(containerRef.current, {
       autoSize: true,
@@ -441,7 +452,7 @@ export const PriceChart = ({
         borderColor: c.border,
         timeVisible,
         secondsVisible: false,
-        // 여백은 setVisibleLogicalRange 의 to 값이 전담 (locked=applyLockedRange,
+        // 여백은 setVisibleLogicalRange 의 to 값이 전담 (intraday=applyLockedRange 초기,
         // EOD=applyVisibleRange). rightOffset 은 auto-fit/shift 경로만 관여하므로 0.
         rightOffset: 0,
         // 첫 봉보다 더 왼쪽으로 팬 금지 — 네이티브 옵션이 whitespace 를 그대로 처리해준다.
@@ -452,8 +463,8 @@ export const PriceChart = ({
         ...(!timeVisible ? { tickMarkFormatter: chartTickFormatter } : {}),
       },
       rightPriceScale: { borderColor: c.border },
-      handleScroll: scrollScale,
-      handleScale: scrollScale,
+      handleScroll: interactive,
+      handleScale: interactive,
     });
 
     // candle=OHLC / line+baseline=BaselineSeries 2색 / line only=AreaSeries 무채색 fallback.
@@ -563,38 +574,42 @@ export const PriceChart = ({
     };
     applyRangeRef.current = applyVisibleRange;
 
-    // 휠/팬으로 표시 창이 바뀌면 봉 개수를 역산해 상위에 보고 (locked 뷰는 구독 안 함).
-    // 매 이벤트마다 setState 하면 폭주하므로 80ms debounce. 값이 이전 보고와 같으면 skip.
-    // 미래쪽 팬 clamp 는 여기서 즉시 실행 — barCount 역반영보다 먼저 뷰를 되돌린다.
+    // 휠/팬으로 표시 창이 바뀌면 (1) 미래쪽 clamp (2) userScrolled 플래그 (3) 봉 개수 역산 보고.
+    // 매 이벤트마다 setState 하면 폭주하므로 (3) 은 80ms debounce.
+    // interactive=false 는 조작 없음 → 구독 자체 skip.
     let logicalRangeHandler: ((range: LogicalRange | null) => void) | null =
       null;
-    if (!locked) {
+    if (interactive) {
       logicalRangeHandler = (incoming) => {
         if (applyingRangeRef.current || !incoming) return;
         const len = barsRef.current.length;
         if (len === 0) return;
+
+        // 사용자 유래 range 변화 — intraday auto-follow gate 해제.
+        userScrolledRef.current = true;
 
         // 미래쪽 clamp — RIGHT_MARGIN_RATIO 만큼의 우측 여백은 허용, 그 이상은 되돌린다.
         // tolerance 0.5 (봉 절반) 로 rubber-band/부동소수 오차 흡수해 잦은 재설정 방지.
         // LogicalRange 는 branded 라 raw number 로 풀어서 다룬다.
         let from: number = incoming.from;
         let to: number = incoming.to;
-        if (interactiveRef.current && !lockedRef.current) {
-          const width = to - from;
-          const maxTo = len - 1 + width * RIGHT_MARGIN_RATIO;
-          if (to > maxTo + 0.5) {
-            to = maxTo;
-            from = maxTo - width;
-            applyingRangeRef.current = true;
-            chartRef.current
-              ?.timeScale()
-              .setVisibleLogicalRange({ from, to });
-            requestAnimationFrame(() => {
-              applyingRangeRef.current = false;
-            });
-          }
+        const width = to - from;
+        const maxTo = len - 1 + width * RIGHT_MARGIN_RATIO;
+        if (to > maxTo + 0.5) {
+          to = maxTo;
+          from = maxTo - width;
+          applyingRangeRef.current = true;
+          chartRef.current
+            ?.timeScale()
+            .setVisibleLogicalRange({ from, to });
+          requestAnimationFrame(() => {
+            applyingRangeRef.current = false;
+          });
         }
 
+        // barCount 역반영 — intraday 는 상위에서 visibleBars/onVisibleBarsChange 를 안 넘기므로
+        // 콜백 미존재로 자연 skip. EOD 만 실제 동기화.
+        if (!onVisibleBarsChangeRef.current) return;
         const right = Math.min(to, len - 1);
         const left = Math.max(from, 0);
         const visible = Math.round(right - left) + 1;
@@ -614,6 +629,17 @@ export const PriceChart = ({
       chart.timeScale().subscribeVisibleLogicalRangeChange(logicalRangeHandler);
     }
 
+    // applyLockedRange 를 applyingRangeRef 로 감싸 subscribe 콜백이 userScrolled 로 오인식하지
+    // 않게 한다. 초기 세팅·auto-follow 두 경로가 이 헬퍼를 공유.
+    const runLockedRange = (barsForRange: ChartBar[], dim: number | undefined) => {
+      applyingRangeRef.current = true;
+      applyLockedRange(chart, barsForRange, dim);
+      requestAnimationFrame(() => {
+        applyingRangeRef.current = false;
+      });
+    };
+    runLockedRangeRef.current = runLockedRange;
+
     if (initial.length > 0) {
       if (seriesKind === "line") {
         (series as ISeriesApi<"Area" | "Baseline">).setData(initial.map(mapLine));
@@ -631,8 +657,8 @@ export const PriceChart = ({
       for (const { period, series: lineSeries } of maSeriesList) {
         lineSeries.setData(computeSma(initial, period));
       }
-      if (locked) {
-        applyLockedRange(chart, initial, dimBefore);
+      if (intraday) {
+        runLockedRange(initial, dimBefore);
       } else {
         applyVisibleRange(visibleBarsRef.current);
       }
@@ -740,10 +766,11 @@ export const PriceChart = ({
       prevBarsRef.current = null;
       isHoveringRef.current = false;
       applyRangeRef.current = null;
+      runLockedRangeRef.current = null;
     };
     // maPeriodsKey 로 배열 값 변화를 감지 (참조 대신 값 비교).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [precision, timeVisible, interactive, resolvedTheme, locked, dimBefore, showVolume, maPeriodsKey, showLegend, seriesKind, hasBaseline]);
+  }, [precision, timeVisible, interactive, resolvedTheme, intraday, dimBefore, showVolume, maPeriodsKey, showLegend, seriesKind, hasBaseline]);
 
   // baseline 값만 바뀌면 baseValue 만 갱신 — 시리즈 재생성 회피. Baseline 시리즈가 아니면 no-op.
   useEffect(() => {
@@ -756,7 +783,7 @@ export const PriceChart = ({
   }, [baseline, seriesKind]);
 
   // bars-only 갱신. 첫 봉 time 동일 + length 동일/+1 → series.update 로 줌 유지.
-  // 그 외(탭 전환 등 데이터셋 자체 변경) → setData + (locked: applyLockedRange, else: fitContent).
+  // 그 외(탭 전환 등 데이터셋 자체 변경) → setData + (intraday idle: applyLockedRange, EOD: 표시창 재적용).
   // volume series 는 candle 과 동일 setData/update 경로에 편입 (인덱스 정합 유지).
   useEffect(() => {
     const series = seriesRef.current;
@@ -829,14 +856,15 @@ export const PriceChart = ({
       for (const { period, series: lineSeries } of maSeriesList) {
         lineSeries.setData(computeSma(bars, period));
       }
-      if (!locked) {
+      if (!intraday) {
         // 툴바 조작(granularity/tab 등) 으로 데이터셋이 통째 갈릴 때 사용자가 지정한 표시 창을
         // 그대로 재적용. fitContent 로 매번 fit 하면 barCount 프리셋/휠 조작이 무시된다.
         applyRangeRef.current?.(visibleBarsRef.current);
       }
     }
-    if (locked && chartRef.current) {
-      applyLockedRange(chartRef.current, bars, dimBefore);
+    // intraday idle 상태에서만 새 봉 창으로 auto-follow. 한 번 조작 후엔 그 뷰 유지.
+    if (intraday && !userScrolledRef.current) {
+      runLockedRangeRef.current?.(bars, dimBefore);
     }
     prevBarsRef.current = bars;
 
@@ -847,17 +875,17 @@ export const PriceChart = ({
       const prev = bars.length >= 2 ? bars[bars.length - 2].close : null;
       paintLegend(legendRef.current, last, prev, c, precision, seriesKind);
     }
-  }, [bars, locked, dimBefore, resolvedTheme, showLegend, precision, seriesKind]);
+  }, [bars, intraday, dimBefore, resolvedTheme, showLegend, precision, seriesKind]);
 
   // visibleBars prop 변경 → 표시 창 재적용. 데이터 배열은 그대로, 시계축 논리 범위만 이동.
   // config effect 재실행/데이터 effect 와 별개로 툴바 조작(프리셋·입력) 반영 경로.
   // 휠에서 역산돼 올라간 값(prop === lastReportedRef.current) 은 이미 그 창을 보고 있으니
   // 재적용하면 반올림 오차로 미세하게 튐 → skip.
-  // locked 뷰(당일)에서는 applyLockedRange 가 시간축 범위를 잡으므로 논리 범위 재적용을
-  // 스킵한다 — 이 가드가 없으면 EOD→당일 전환 시 visibleBars(N→undefined) 이 여기서
-  // 전체 논리 범위로 override 해 applyLockedRange 결과를 덮어썼다.
+  // intraday 뷰에서는 applyLockedRange 가 초기 창을 잡고 이후 사용자 조작 존중 —
+  // 이 가드가 없으면 EOD→당일 전환 시 visibleBars(N→undefined) 이 여기서 전체 논리 범위로
+  // override 해 applyLockedRange 결과를 덮어썼다.
   useEffect(() => {
-    if (lockedRef.current) return;
+    if (intradayRef.current) return;
     if (visibleBars === lastReportedRef.current) return;
     applyRangeRef.current?.(visibleBars);
   }, [visibleBars]);

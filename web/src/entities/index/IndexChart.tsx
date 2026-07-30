@@ -535,7 +535,7 @@ export const IndexChart = ({
           timeVisible={renderIntraday}
           height={EMPTY_STATE_HEIGHT}
           interactive={interactive}
-          locked={renderIntraday}
+          intraday={renderIntraday}
           dimBefore={renderIntraday ? todayStartSec : undefined}
           showVolume
           showLegend

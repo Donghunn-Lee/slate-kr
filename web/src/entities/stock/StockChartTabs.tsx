@@ -533,7 +533,7 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
           precision={0}
           timeVisible={isIntradayView}
           height={EMPTY_STATE_HEIGHT}
-          locked={isIntradayView}
+          intraday={isIntradayView}
           showVolume
           showLegend
           maPeriods={effectiveMaPeriods}
