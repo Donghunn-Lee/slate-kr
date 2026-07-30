@@ -23,6 +23,9 @@ const POLL_INTERVAL_MS = 60_000;
 // 응답 session 이 활성(regular/after/pre)이면 60초 폴링. 그 외 정지.
 // isKrxActiveSession 을 useStockQuote(헤더 폴링) 와 공유해 두 훅이 동일 리듬으로 움직인다.
 // enabled=false 로 탭 미활성 상태의 백그라운드 폴링을 차단.
+//
+// staleTime:0 + refetchOnMount:'always' — 인트라데이는 초 단위 신선도가 계약이라
+// 전역 staleTime(60s) 로컬 override. 재접속 시 캐시된 옛 봉 서빙 차단.
 export const useStockIntraday = (
   ticker: string,
   options: UseStockIntradayOptions = {},
@@ -30,6 +33,8 @@ export const useStockIntraday = (
   useQuery<StockIntradayResponse>({
     queryKey: ["stock-intraday", ticker],
     enabled: options.enabled ?? true,
+    staleTime: 0,
+    refetchOnMount: "always",
     queryFn: async () => {
       const res = await fetch(
         `/api/stock-intraday?ticker=${encodeURIComponent(ticker)}`,

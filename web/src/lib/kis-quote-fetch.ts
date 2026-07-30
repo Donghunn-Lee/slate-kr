@@ -766,6 +766,28 @@ const probeNxtEligibility = async (
   return bars !== null && bars.length > 0;
 };
 
+// NXT 판정은 tradingDate 내 불변 (상장/해지가 아닌 이상) — 종목당 하루 1회 probe 로 충분.
+// 종목당 {tradingDate,value} 하나만 유지. 서버 인스턴스가 다음날까지 살아도 date
+// 미스매치로 자동 재조회. Map 크기는 유니크 티커 수로 상한.
+const nxtEligibilityByTicker = new Map<
+  string,
+  { tradingDate: string; value: boolean }
+>();
+
+const probeNxtEligibilityMemoized = async (
+  ticker: string,
+  tradingDate: string,
+  token: string,
+  appKey: string,
+  appSecret: string,
+): Promise<boolean> => {
+  const cached = nxtEligibilityByTicker.get(ticker);
+  if (cached && cached.tradingDate === tradingDate) return cached.value;
+  const value = await probeNxtEligibility(ticker, token, appKey, appSecret);
+  nxtEligibilityByTicker.set(ticker, { tradingDate, value });
+  return value;
+};
+
 // 전일 스냅샷 fallback — FHKST03010230 anchor 세트로 직전 완결 거래일 분봉을 가져온다.
 // closed(주말·공휴일) 경로와 preopen(아침·늦은 프리오픈에서 오늘 봉이 없는 경우) 경로가
 // 공유. NXT 판정은 호출측에서 넘겨받는다 (route 응답 date 정합을 위해 target 도 인자로).
@@ -867,8 +889,9 @@ export const fetchStockIntradayChart = async (
   const earlyPreopen = isKrxEarlyPreopen(now);
   const latePreopen = isKrxLatePreopen(now);
 
-  const isNxt = await probeNxtEligibility(
+  const isNxt = await probeNxtEligibilityMemoized(
     ticker,
+    todayTradingDate,
     tokenResult.token,
     appKey,
     appSecret,
