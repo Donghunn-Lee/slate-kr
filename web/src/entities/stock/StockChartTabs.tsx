@@ -5,6 +5,7 @@ import { PriceChart } from "@/entities/chart/PriceChart";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useStockIntraday } from "@/features/stock-intraday/useStockIntraday";
 import { useStockQuote } from "@/features/stock-quote/useStockQuote";
+import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import type { ChartBar, IndexDailySnapshot } from "@/shared/types/quote";
 import type { StockPriceSnapshot } from "@/shared/types/stock";
 import { mergeLiveDayBar } from "@/shared/utils/mergeLiveDayBar";
@@ -146,7 +147,9 @@ const snapshotsToBars = (snaps: IndexDailySnapshot[]): ChartBar[] =>
     close: s.close,
   }));
 
-const EMPTY_STATE_HEIGHT = 450;
+// 차트 탭 고정 높이 — 잠정치, 실물 확인 후 조정 여지. empty/failed 상태 컨테이너도 동일 값 사용.
+const CHART_HEIGHT_MOBILE = 320;
+const CHART_HEIGHT_DESKTOP = 450;
 
 // 시장 구분 뱃지 — 2행 라벨에서 데이터 소스 스코프(KRX 정규장 / KRX+NXT 확장 세션) 를 표시.
 // StockHeaderLivePrice 의 "일시 지연" 배지 스타일 재사용 — 소형 무채 outline.
@@ -164,18 +167,20 @@ const MarketScopeBadge = ({ scope }: { scope: MarketScope }) => (
         role="button"
         tabIndex={0}
         aria-label={`${scope} 시장 구분`}
-        className="inline-flex cursor-help items-center rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-[11px] leading-none text-muted-foreground focus:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        className="inline-flex cursor-help items-center rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-micro leading-none text-muted-foreground focus:outline-none focus-visible:ring-1 focus-visible:ring-ring"
       >
         {scope}
       </span>
     </TooltipTrigger>
-    <TooltipContent side="top" className="text-xs">
+    <TooltipContent side="top" className="text-caption">
       {MARKET_SCOPE_TOOLTIP[scope]}
     </TooltipContent>
   </Tooltip>
 );
 
 export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
+  const isMobile = useIsMobile();
+  const chartHeight = isMobile ? CHART_HEIGHT_MOBILE : CHART_HEIGHT_DESKTOP;
   // 기본 full/day: 폐장/장전엔 종목 intraday 응답이 완전히 비어 첫인상에 빈 상태를 보게 되므로,
   // 사용자가 명시적으로 "당일" 선택했을 때만 intraday 로드/폴링. IndexChart(intraday 기본
   // + silent fallback) 와 정책이 다르지만, 종목 intraday 는 전일 데이터 없이 오늘만 반환하는
@@ -333,8 +338,8 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
   if (prices.length === 0 && !hasIntraday) {
     return (
       <>
-        <h2 className="mb-3 text-sm font-semibold text-muted-foreground">가격 차트</h2>
-        <p className="text-sm text-muted-foreground">가격 데이터 없음</p>
+        <h2 className="mb-3 text-body font-semibold text-muted-foreground">가격 차트</h2>
+        <p className="text-body text-muted-foreground">가격 데이터 없음</p>
       </>
     );
   }
@@ -343,7 +348,7 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
   // (styleguide 상 차트=lavender 계열). 비선택은 muted, disabled 는 opacity 로 흐림.
   const toolbarButtonCls = (active: boolean, disabled = false) =>
     cn(
-      "rounded-sm px-2 py-1 text-xs transition-colors",
+      "rounded-sm px-2 py-1 text-caption transition-colors",
       active
         ? "bg-lavender-bg text-lavender-accent font-medium"
         : "text-muted-foreground",
@@ -378,10 +383,10 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
   return (
     <>
       {/* 1행: 제목 · 설명 + 우측 컨트롤 */}
-      <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold text-muted-foreground">
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-2 sm:gap-3">
+        <h2 className="text-body font-semibold text-muted-foreground">
           가격 차트
-          <span className="ml-1.5 text-xs font-normal text-muted-foreground/70">
+          <span className="ml-1.5 text-caption font-normal text-muted-foreground/70">
             · 기간별 가격 흐름과 거래량
           </span>
         </h2>
@@ -468,7 +473,7 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
                 }
               }}
               className={cn(
-                "h-6.5 w-14 rounded-md border border-subtle bg-elevated px-2 text-xs text-foreground",
+                "h-6.5 w-14 rounded-md border border-subtle bg-elevated px-2 text-caption text-foreground",
                 "focus:border-lavender-border focus:outline-none",
                 "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
                 isIntradayView && "opacity-40",
@@ -479,7 +484,7 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
       </div>
       {/* 2행: 기준 날짜 · 시장 뱃지 */}
       {chartDateLabel && (
-        <div className="mb-3 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground/70">
+        <div className="mb-3 flex flex-wrap items-center gap-1.5 text-caption text-muted-foreground/70">
           <span>{chartDateLabel}</span>
           <MarketScopeBadge scope={marketScope} />
         </div>
@@ -487,7 +492,7 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
       {showFailedIntraday ? (
         <div
           className="flex w-full flex-col items-center justify-center gap-4 rounded-md border border-subtle bg-elevated"
-          style={{ height: EMPTY_STATE_HEIGHT }}
+          style={{ height: chartHeight }}
         >
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-background">
             <WifiOff
@@ -497,10 +502,10 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
             />
           </div>
           <div className="flex flex-col items-center gap-1 text-center">
-            <p className="text-sm font-medium text-foreground">
+            <p className="text-body font-medium text-foreground">
               당일 차트를 일시적으로 불러오지 못했어요
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-caption text-muted-foreground">
               잠시 후 다시 시도해 주세요
             </p>
           </div>
@@ -508,7 +513,7 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
             type="button"
             onClick={() => intradayQuery.refetch()}
             disabled={intradayQuery.isFetching}
-            className="inline-flex items-center gap-1.5 rounded-md border border-subtle bg-background px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-border hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-subtle disabled:hover:text-muted-foreground"
+            className="inline-flex items-center gap-1.5 rounded-md border border-subtle bg-background px-3 py-1.5 text-caption text-muted-foreground transition-colors hover:border-border hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-subtle disabled:hover:text-muted-foreground"
           >
             <RefreshCw
               className={cn("h-3 w-3", intradayQuery.isFetching && "animate-spin")}
@@ -519,8 +524,8 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
         </div>
       ) : showEmptyIntraday ? (
         <div
-          className="flex w-full items-center justify-center rounded-md text-sm text-muted-foreground"
-          style={{ height: EMPTY_STATE_HEIGHT }}
+          className="flex w-full items-center justify-center rounded-md text-body text-muted-foreground"
+          style={{ height: chartHeight }}
         >
           {intradayQuery.data?.session === "pre" ||
           intradayQuery.data?.session === "preopen"
@@ -532,7 +537,7 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
           bars={bars}
           precision={0}
           timeVisible={isIntradayView}
-          height={EMPTY_STATE_HEIGHT}
+          height={chartHeight}
           intraday={isIntradayView}
           showVolume
           showLegend

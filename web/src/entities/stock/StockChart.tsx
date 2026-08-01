@@ -4,9 +4,14 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { PriceChart } from "@/entities/chart/PriceChart";
 import { useStockQuote } from "@/features/stock-quote/useStockQuote";
+import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { mergeLiveDayBar } from "@/shared/utils/mergeLiveDayBar";
 import type { ChartBar } from "@/shared/types/quote";
 import type { StockPriceSnapshot } from "@/shared/types/stock";
+
+// 미니차트(종합정보 탭) 고정 높이 — 잠정치, 실물 확인 후 조정 여지.
+const MINI_CHART_HEIGHT_MOBILE = 170;
+const MINI_CHART_HEIGHT_DESKTOP = 300;
 
 type StockChartProps = {
   prices: StockPriceSnapshot[];
@@ -38,6 +43,7 @@ export const StockChart = ({
 }: StockChartProps) => {
   // 헤더가 이미 폴링 중이므로 subscribeOnly 로 캐시만 구독 → 네트워크 추가 0.
   const { data } = useStockQuote(ticker, { subscribeOnly: true });
+  const isMobile = useIsMobile();
 
   const bars = useMemo<ChartBar[]>(
     () => mergeLiveDayBar(toBars(prices), data?.quote ?? null, data?.date),
@@ -47,8 +53,8 @@ export const StockChart = ({
   if (prices.length === 0) {
     return (
       <>
-        <h2 className="mb-3 text-sm font-semibold text-muted-foreground">가격 차트</h2>
-        <p className="text-sm text-muted-foreground">가격 데이터 없음</p>
+        <h2 className="mb-3 text-body font-semibold text-muted-foreground">가격 차트</h2>
+        <p className="text-body text-muted-foreground">가격 데이터 없음</p>
       </>
     );
   }
@@ -56,19 +62,25 @@ export const StockChart = ({
   return (
     <>
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-muted-foreground">
+        <h2 className="text-body font-semibold text-muted-foreground">
           가격 차트
           {label && (
-            <span className="ml-1.5 text-xs font-normal text-muted-foreground/70">· {label}</span>
+            <span className="ml-1.5 text-caption font-normal text-muted-foreground/70">· {label}</span>
           )}
         </h2>
         {viewAllHref && (
-          <Link href={viewAllHref} className="text-xs text-muted-foreground hover:underline">
+          <Link href={viewAllHref} className="text-caption text-muted-foreground hover:underline">
             전체 보기 →
           </Link>
         )}
       </div>
-      <PriceChart bars={bars} precision={0} interactive={interactive} showVolume />
+      <PriceChart
+        bars={bars}
+        precision={0}
+        interactive={interactive}
+        showVolume
+        height={isMobile ? MINI_CHART_HEIGHT_MOBILE : MINI_CHART_HEIGHT_DESKTOP}
+      />
     </>
   );
 };

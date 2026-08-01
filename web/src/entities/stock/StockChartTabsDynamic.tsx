@@ -7,7 +7,11 @@ const StockChartTabsInner = dynamic(
   () => import("./StockChartTabs").then((m) => ({ default: m.StockChartTabs })),
   {
     ssr: false,
-    loading: () => <div className="h-[498px] rounded-xl border bg-elevated" />,
+    // 툴바(랩되면 2행) + 차트 높이(mobile 320 / desktop 450) 근사.
+    // StockChartTabs 내부 상수 변경 시 여기도 함께 조정 — 레이아웃 점프 방지 목적.
+    loading: () => (
+      <div className="h-[400px] rounded-xl border bg-elevated sm:h-[498px]" />
+    ),
   },
 );
 
