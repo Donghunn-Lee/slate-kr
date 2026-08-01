@@ -28,7 +28,7 @@ export const StockPanel = ({
   const { bg, border } = PANEL_VARIANT_CLASSES[variant];
   return (
     <div
-      className={cn("rounded-lg shadow-slate p-6", bg, !noBorder && `border ${border}`, className)}
+      className={cn("rounded-lg shadow-slate p-4 sm:p-6", bg, !noBorder && `border ${border}`, className)}
     >
       {children}
     </div>
