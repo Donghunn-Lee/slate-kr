@@ -13,8 +13,8 @@ type MetricItemProps = {
 
 const MetricItem = ({ label, value }: MetricItemProps) => (
   <div className="space-y-1">
-    <p className="text-xs font-medium text-muted-foreground">{label}</p>
-    <p className="text-lg font-semibold">{value}</p>
+    <p className="text-caption font-medium text-muted-foreground">{label}</p>
+    <p className="text-value font-semibold">{value}</p>
   </div>
 );
 
@@ -66,18 +66,18 @@ export const StockMetrics = async ({ ticker }: StockMetricsProps) => {
   return (
     <StockPanel variant="peach">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-muted-foreground">
+        <h2 className="text-body font-semibold text-muted-foreground">
           핵심 지표
           {sourceLabel && <span className="ml-2 font-normal">({sourceLabel})</span>}
         </h2>
         <StockMetricsFormulaTooltip source={ttm.source} />
       </div>
       {hasError ? (
-        <p className="text-sm text-muted-foreground">지표 데이터를 불러오지 못했습니다</p>
+        <p className="text-body text-muted-foreground">지표 데이터를 불러오지 못했습니다</p>
       ) : !hasData ? (
-        <p className="text-sm text-muted-foreground">지표 데이터 없음</p>
+        <p className="text-body text-muted-foreground">지표 데이터 없음</p>
       ) : (
-        <div className="grid grid-cols-2 gap-x-8 gap-y-5">
+        <div className="grid grid-cols-2 gap-x-8 gap-y-5 sm:grid-cols-4">
           <MetricItem label="PER" value={formatRatio(per)} />
           <MetricItem label="PBR" value={formatRatio(pbr)} />
           <MetricItem label="EPS" value={formatEps(displayEps)} />

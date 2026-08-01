@@ -166,10 +166,10 @@ const DisclosureItem = ({
         </div>
         <div className="flex min-w-0 flex-col gap-0.5 md:contents">
           <div className="flex items-center gap-1.5 overflow-hidden">
-            <div className="hidden min-w-0 truncate text-[11px] text-muted-foreground md:block">
+            <div className="hidden min-w-0 truncate text-micro text-muted-foreground md:block">
               {disclosure.corpName}
             </div>
-            <span className="shrink-0 text-[11px] text-muted-foreground md:hidden">
+            <span className="shrink-0 text-micro text-muted-foreground md:hidden">
               {formatDartDate(disclosure.rcptDt)}
             </span>
             <div className="flex shrink-0 items-center md:hidden">
@@ -180,26 +180,26 @@ const DisclosureItem = ({
             href={dartUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="truncate text-xs font-medium hover:underline"
+            className="truncate text-caption font-medium hover:underline"
             title={disclosure.disclosureNm}
           >
             {disclosure.disclosureNm}
           </a>
         </div>
         <div className="hidden md:contents">
-          <div className="truncate text-xs text-muted-foreground" title={disclosure.flrNm}>
+          <div className="truncate text-caption text-muted-foreground" title={disclosure.flrNm}>
             {disclosure.flrNm}
           </div>
-          <div className="text-xs text-muted-foreground md:text-center">
+          <div className="text-caption text-muted-foreground md:text-center">
             {formatDartDate(disclosure.rcptDt)}
           </div>
         </div>
-        <div className="hidden text-xs text-muted-foreground md:flex md:flex-wrap md:items-center md:justify-center md:gap-0.5">
+        <div className="hidden text-caption text-muted-foreground md:flex md:flex-wrap md:items-center md:justify-center md:gap-0.5">
           {disclosure.rmk &&
             [...disclosure.rmk].map((ch, i) => (
               <span
                 key={`${i}-${ch}`}
-                className="inline-flex size-[18px] items-center justify-center rounded border border-border/60 bg-secondary text-[11px] leading-none"
+                className="inline-flex size-[18px] items-center justify-center rounded border border-border/60 bg-secondary text-micro leading-none"
               >
                 {ch}
               </span>
@@ -210,7 +210,7 @@ const DisclosureItem = ({
             <button
               type="button"
               className={cn(
-                "w-full rounded border border-sky-border bg-elevated px-0.5 py-0.5 text-[11px] font-medium whitespace-nowrap cursor-pointer",
+                "w-full rounded border border-sky-border bg-elevated px-0.5 py-0.5 text-micro font-medium whitespace-nowrap cursor-pointer",
                 isExpanded
                   ? "text-muted-foreground hover:text-foreground"
                   : "text-sky-accent hover:bg-sky-bg"
@@ -275,7 +275,7 @@ const DisclosureItem = ({
               )}
 
               {summaryState.kind === "blocked" && (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-body text-muted-foreground">
                   {summaryState.reason === "file_not_found"
                     ? "원문이 보관되지 않은 공시입니다. 요약을 제공할 수 없습니다."
                     : "정기보고서는 요약 대상이 아닙니다. 분량이 매우 커 별도 처리가 필요합니다."}
@@ -284,7 +284,7 @@ const DisclosureItem = ({
 
               {summaryState.kind === "error" && (
                 <div className="space-y-3">
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-body text-muted-foreground">
                     {summaryState.errorKind === "safety_blocked"
                       ? "이 공시는 자동 요약에서 제외되었습니다."
                       : summaryState.errorKind === "invalid_request"
@@ -358,14 +358,14 @@ export const DisclosuresSection = ({
     <>
       <header className="-mx-6 mb-3 border-sky-border/50 px-6 pb-4">
         <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
-          <h2 className="text-sm font-semibold">
+          <h2 className="text-body font-semibold">
             공시 목록
-            <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+            <span className="ml-1.5 text-caption font-normal text-muted-foreground">
               · 주요 공시와 AI 요약으로 빠르게
             </span>
           </h2>
           {!noApiKey && !hasError && totalCount > 0 && (
-            <p className="text-xs text-muted-foreground">총 {totalCount.toLocaleString()}건</p>
+            <p className="text-caption text-muted-foreground">총 {totalCount.toLocaleString()}건</p>
           )}
         </div>
 
@@ -380,20 +380,20 @@ export const DisclosuresSection = ({
       </header>
 
       {noApiKey ? (
-        <p className="py-2 text-sm text-muted-foreground">
+        <p className="py-2 text-body text-muted-foreground">
           DART API 키 미설정 — 공시 데이터를 불러올 수 없습니다
         </p>
       ) : hasError ? (
-        <p className="py-2 text-sm text-muted-foreground">공시를 불러오지 못했습니다</p>
+        <p className="py-2 text-body text-muted-foreground">공시를 불러오지 못했습니다</p>
       ) : disclosures.length === 0 ? (
-        <p className="py-6 text-sm text-muted-foreground">{emptyMessage}</p>
+        <p className="py-6 text-body text-muted-foreground">{emptyMessage}</p>
       ) : (
         <>
           <div
             className={cn(
               "hidden md:grid",
               GRID_COLS,
-              "border-b border-sky-border/50 pt-1 pb-2 text-center text-[11px] font-medium text-muted-foreground"
+              "border-b border-sky-border/50 pt-1 pb-2 text-center text-micro font-medium text-muted-foreground"
             )}
           >
             <div>유형</div>
@@ -439,7 +439,7 @@ export const DisclosuresSection = ({
                       <dt className="font-semibold">철</dt>
                       <dd>철회공시</dd>
                     </dl>
-                    <p className="border-t border-primary-foreground/20 dark:border-white/15 pt-1.5 text-[11px] text-primary-foreground/80 dark:text-white/70">
+                    <p className="border-t border-primary-foreground/20 dark:border-white/15 pt-1.5 text-micro text-primary-foreground/80 dark:text-white/70">
                       두 코드가 함께 붙기도 합니다 (예: 코정 = 코스닥 · 정정공시).
                     </p>
                   </div>
@@ -474,7 +474,7 @@ export const DisclosuresSection = ({
             query={query}
             types={types}
           />
-          <p className="text-xs text-tertiary">출처: DART 전자공시시스템</p>
+          <p className="text-caption text-tertiary">출처: DART 전자공시시스템</p>
         </footer>
       )}
     </>

@@ -35,22 +35,22 @@ export const StockDisclosuresPreview = async ({ ticker }: StockDisclosuresPrevie
   return (
     <StockPanel variant="sky">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-muted-foreground">최근 공시</h2>
+        <h2 className="text-body font-semibold text-muted-foreground">최근 공시</h2>
         <Link
           href={`/stocks/${ticker}/disclosures`}
-          className="text-xs text-muted-foreground hover:underline"
+          className="text-caption text-muted-foreground hover:underline"
         >
           전체 보기 →
         </Link>
       </div>
       {noApiKey ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-body text-muted-foreground">
           DART API 키 미설정 — 공시 데이터를 불러올 수 없습니다
         </p>
       ) : hasError ? (
-        <p className="text-sm text-muted-foreground">공시를 불러오지 못했습니다</p>
+        <p className="text-body text-muted-foreground">공시를 불러오지 못했습니다</p>
       ) : disclosures.length === 0 ? (
-        <p className="text-sm text-muted-foreground">최근 공시 없음</p>
+        <p className="text-body text-muted-foreground">최근 공시 없음</p>
       ) : (
         <ul>
           {disclosures.map((d) => {
@@ -68,9 +68,9 @@ export const StockDisclosuresPreview = async ({ ticker }: StockDisclosuresPrevie
                     className="flex min-w-0 flex-1 items-start gap-2"
                   >
                     {type && <CheckpointBadge type={type} />}
-                    <p className="text-xs self-center font-medium">{d.disclosureNm}</p>
+                    <p className="text-caption self-center font-medium">{d.disclosureNm}</p>
                   </a>
-                  <p className="shrink-0 text-xs text-muted-foreground">
+                  <p className="shrink-0 text-caption text-muted-foreground">
                     {formatDartDate(d.rcptDt)}
                   </p>
                 </div>

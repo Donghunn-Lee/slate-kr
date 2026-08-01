@@ -18,9 +18,9 @@ const SIGN_CLASS: Record<PriceSign, string> = {
 };
 
 const SIZE_CLASS = {
-  lg: "text-lg font-medium",
-  sm: "text-[13px] tabular-nums",
-  xs: "text-xs font-medium tabular-nums",
+  lg: "text-value font-medium",
+  sm: "text-body-sm tabular-nums",
+  xs: "text-caption font-medium tabular-nums",
 } as const;
 
 const ARROW: Record<PriceSign, string> = {

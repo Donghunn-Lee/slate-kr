@@ -25,16 +25,16 @@ export const PriceStatsCard = ({ stats }: PriceStatsCardProps) => {
 
   return (
     <StockPanel variant="sage">
-      <h2 className="mb-3 text-sm font-semibold text-muted-foreground">가격 통계</h2>
+      <h2 className="mb-3 text-body font-semibold text-muted-foreground">가격 통계</h2>
       {isEmpty ? (
-        <p className="text-sm text-muted-foreground">가격 통계 데이터 없음</p>
+        <p className="text-body text-muted-foreground">가격 통계 데이터 없음</p>
       ) : (
         <div className="space-y-5">
           {range52w !== null ? (
             <div className="space-y-3">
               <div className="flex items-baseline gap-2">
-                <span className="text-xs font-medium text-muted-foreground">52주 레인지</span>
-                <span className="text-lg font-semibold">{formatPrice(range52w.current)}</span>
+                <span className="text-caption font-medium text-muted-foreground">52주 레인지</span>
+                <span className="text-value font-semibold">{formatPrice(range52w.current)}</span>
               </div>
               <div className="space-y-1.5">
                 <div className="relative py-1.5">
@@ -44,23 +44,23 @@ export const PriceStatsCard = ({ stats }: PriceStatsCardProps) => {
                     style={{ left: `${range52w.position * 100}%` }}
                   />
                 </div>
-                <div className="flex justify-between text-xs text-muted-foreground">
+                <div className="flex justify-between text-caption text-muted-foreground">
                   <span>{formatPrice(range52w.low)}</span>
                   <span>{formatPrice(range52w.high)}</span>
                 </div>
               </div>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">52주 레인지 없음</p>
+            <p className="text-body text-muted-foreground">52주 레인지 없음</p>
           )}
 
           <div>
-            <p className="mb-2 text-xs font-medium text-muted-foreground">기간 수익률</p>
+            <p className="mb-2 text-caption font-medium text-muted-foreground">기간 수익률</p>
             <div className="grid grid-cols-3 gap-2 text-center">
               {returns.map(({ period, value }) => (
                 <div key={period} className="space-y-1">
-                  <p className="text-xs text-muted-foreground">{period}</p>
-                  <p className={cn("text-sm font-semibold", returnColorClass(value))}>
+                  <p className="text-caption text-muted-foreground">{period}</p>
+                  <p className={cn("text-body font-semibold", returnColorClass(value))}>
                     {value === null ? "—" : formatReturn(value)}
                   </p>
                 </div>

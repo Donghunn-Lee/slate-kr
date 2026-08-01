@@ -101,7 +101,7 @@ export const StockHeaderLivePrice = ({
 
   return (
     <div className="mt-4 flex flex-wrap items-end gap-3">
-      <span className="text-4xl font-bold tracking-tight">
+      <span className="text-display font-bold tracking-tight">
         <PriceCountUp from={initialPrice} to={displayPrice} />원
       </span>
       {displayChange !== null && displayChangeRate !== null && (
@@ -115,7 +115,7 @@ export const StockHeaderLivePrice = ({
         />
       )}
       {session && (
-        <span className="mb-1.5 inline-flex items-center gap-1.5 text-[13px] text-muted-foreground">
+        <span className="mb-1.5 inline-flex items-center gap-1.5 text-body-sm text-muted-foreground">
           {timeText && <span className="tabular-nums">{timeText}</span>}
           {timeText && <span aria-hidden>·</span>}
           {session === "regular" && !isFailedQuote && (
@@ -123,7 +123,7 @@ export const StockHeaderLivePrice = ({
           )}
           <span>{labelText}</span>
           {isFailedQuote && (
-            <span className="rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-[11px] leading-none text-muted-foreground">
+            <span className="rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-micro leading-none text-muted-foreground">
               일시 지연
             </span>
           )}
