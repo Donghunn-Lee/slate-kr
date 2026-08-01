@@ -224,7 +224,9 @@ const paintLegend = (
       `<span class="${labelCls}">거</span> ${formatLegendVolume(bar.volume)}`,
     );
   }
-  el.innerHTML = parts.join('<span class="inline-block w-3"></span>');
+  // 실제 공백을 품은 span 으로 join — 컨테이너 폭 초과 시 브라우저가 이 지점에서 wrap.
+  // margin 은 시각적 gap 유지용. inline-block/w-* 는 wrap candidate 를 제거하므로 회피.
+  el.innerHTML = parts.join('<span class="mx-1"> </span>');
 };
 
 // MA 범례 — 좌측 "이동평균" 라벨(muted) 뒤에 period 숫자만 표시(라인색).
@@ -897,9 +899,9 @@ export const PriceChart = ({
     >
       <div ref={containerRef} className="absolute inset-0" />
       {showLegend && (
-        <div className="pointer-events-none absolute left-3 top-2 z-10 flex flex-col gap-0.5">
-          <div ref={legendRef} className="text-xs tabular-nums" />
-          <div ref={maLegendRef} className="text-[11px] font-medium" />
+        <div className="pointer-events-none absolute left-3 top-2 z-10 flex max-w-[calc(100%-1.5rem)] flex-col gap-0.5">
+          <div ref={legendRef} className="text-caption tabular-nums" />
+          <div ref={maLegendRef} className="text-micro font-medium" />
         </div>
       )}
     </div>
