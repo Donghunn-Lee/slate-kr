@@ -346,9 +346,11 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
 
   // 선택 상태 색은 차트 섹션(무채색 원칙) 의 예외 — 툴바 강조에 한해 lavender 사용
   // (styleguide 상 차트=lavender 계열). 비선택은 muted, disabled 는 opacity 로 흐림.
+  // 높이는 wrapper(h-6 sm:h-7) 가 통제하고 버튼은 items-stretch 로 채운다 —
+  // py-* 로 컨텐츠 기반 높이 잡으면 아이콘/텍스트 버튼 사이 미세 차이 발생.
   const toolbarButtonCls = (active: boolean, disabled = false) =>
     cn(
-      "rounded-sm px-2 py-1 text-caption transition-colors",
+      "inline-flex items-center justify-center rounded-sm px-2 text-caption transition-colors",
       active
         ? "bg-lavender-bg text-lavender-accent font-medium"
         : "text-muted-foreground",
@@ -356,7 +358,10 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
       disabled && "opacity-40",
     );
 
-  const groupWrapperCls = "flex gap-0.5 rounded-md border border-subtle bg-elevated p-0.5";
+  // 모든 컨트롤(그룹 wrapper·input) 은 동일 고정 높이를 공유 — 툴바 요소들이
+  // 콘텐츠 폭·구성과 무관하게 시각적으로 정렬되게 한다.
+  const groupWrapperCls =
+    "inline-flex h-6 sm:h-7 items-stretch gap-0.5 rounded-md border border-subtle bg-elevated p-0.5";
 
   // 2행 라벨 — 기준 날짜 + 시장 스코프.
   //   당일 뷰: intraday 응답의 tradingDate. previousDay 이면 "MM-DD 마감 기준", 아니면 "MM-DD 기준".
@@ -390,7 +395,10 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
             · 기간별 가격 흐름과 거래량
           </span>
         </h2>
-        <div className="flex flex-wrap items-center justify-end gap-4">
+        {/* ml-auto: 부모가 flex-wrap 이라 h2 와 컨트롤이 서로 다른 행에 놓일 때
+            justify-between 이 각 행 단독 아이템에는 효과가 없어 컨트롤이 좌정렬됨.
+            ml-auto 로 컨트롤 블록 자체를 항상 오른쪽으로 밀어낸다. */}
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2 sm:gap-4">
           <div className={groupWrapperCls} role="group" aria-label="차트 뷰">
             {VIEW_MODE_BUTTONS.map(({ value, label: btnLabel }) => (
               <button
@@ -473,7 +481,7 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
                 }
               }}
               className={cn(
-                "h-6.5 w-14 rounded-md border border-subtle bg-elevated px-2 text-caption text-foreground",
+                "h-6 sm:h-7 w-14 rounded-md border border-subtle bg-elevated px-2 text-caption text-foreground",
                 "focus:border-lavender-border focus:outline-none",
                 "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
                 isIntradayView && "opacity-40",
