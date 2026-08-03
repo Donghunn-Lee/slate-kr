@@ -137,7 +137,7 @@ export const ServiceCardCarousel = () => {
                 >
                   <StockPanel
                     variant={card.variant}
-                    className="flex h-full flex-col p-5"
+                    className="flex h-full flex-col p-4 sm:p-5"
                   >
                     <div className="flex items-center gap-3">
                       <span
@@ -145,12 +145,12 @@ export const ServiceCardCarousel = () => {
                       >
                         <card.icon className="h-4 w-4" />
                       </span>
-                      <p className="text-sm font-semibold">{card.title}</p>
+                      <p className="text-body font-semibold">{card.title}</p>
                     </div>
-                    <p className="mt-2 text-xs text-muted-foreground">
+                    <p className="mt-2 text-caption text-muted-foreground">
                       {card.description}
                     </p>
-                    <div className="mt-4 flex h-16 items-center">
+                    <div className="mt-4 flex h-14 items-center sm:h-16">
                       <Preview
                         key={isActive ? `play-${activationSeq}` : "idle"}
                         play={isActive}

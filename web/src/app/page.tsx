@@ -36,12 +36,12 @@ async function HomePage() {
   const overseasByCode = await fetchOverseasSnapshots();
 
   return (
-    <main className="mx-auto w-full max-w-4xl space-y-8 px-4 pb-12">
+    <main className="mx-auto w-full max-w-4xl space-y-6 px-4 pb-12 sm:space-y-8">
       <HomeHero />
       <IndexSlate
         overseasSlot={<OverseasIndexRow snapshotsByCode={overseasByCode} />}
       />
-      <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-8">
         <MarketRankingSlate />
         <WatchlistPreview />
       </div>
