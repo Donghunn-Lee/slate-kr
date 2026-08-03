@@ -41,7 +41,7 @@ type RowProps = {
 const Row = ({ item, secondary }: RowProps) => (
   <li className="group relative -mx-6 bg-transparent px-6 transition-colors hover:bg-muted/40">
     <div className="flex items-stretch gap-3 border-b border-subtle py-1.5 group-last:border-b-0">
-      <span className="flex w-7 shrink-0 items-center justify-center font-mono text-sm tabular-nums text-muted-foreground">
+      <span className="flex w-7 shrink-0 items-center justify-center font-mono text-body tabular-nums text-muted-foreground">
         {item.rank}
       </span>
       <div className="min-w-0 flex-1">
@@ -52,11 +52,11 @@ const Row = ({ item, secondary }: RowProps) => (
           </div>
         )}
         <div className="flex items-baseline justify-between gap-2">
-          <span className="min-w-0 truncate text-sm font-semibold text-foreground">
+          <span className="min-w-0 truncate text-body font-semibold text-foreground">
             {item.name}
           </span>
           <div className="flex shrink-0 items-baseline gap-2">
-            <span className="text-sm font-bold leading-none tabular-nums text-foreground">
+            <span className="text-body font-bold leading-none tabular-nums text-foreground">
               {item.price.toLocaleString("ko-KR")}원
             </span>
             <PriceChange
@@ -154,17 +154,17 @@ export const MarketRankingSlate = () => {
   return (
     <section>
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold text-foreground">시장 순위</h2>
+        <h2 className="text-value font-semibold text-foreground">시장 순위</h2>
         <div className="flex items-center gap-3">
           {/* rows 는 있지만 route 가 부분 실패 — 표시값이 stale 임을 알리는 유일한 신호. */}
           {failed && rows.length > 0 && (
-            <span className="rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-[11px] leading-none text-muted-foreground">
+            <span className="rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-micro leading-none text-muted-foreground">
               일시 지연
             </span>
           )}
           <Link
             href={toRankingHref(tab, direction, by, market)}
-            className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            className="flex items-center gap-1 text-caption text-muted-foreground transition-colors hover:text-foreground"
           >
             전체 보기 <ArrowRight className="h-3 w-3" />
           </Link>
@@ -229,11 +229,11 @@ export const MarketRankingSlate = () => {
         {isLoading ? (
           <SkeletonRows />
         ) : showError ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">
+          <p className="py-6 text-center text-body text-muted-foreground">
             데이터를 일시적으로 불러오지 못했습니다
           </p>
         ) : showEmpty ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">
+          <p className="py-6 text-center text-body text-muted-foreground">
             표시할 순위가 없습니다
           </p>
         ) : (

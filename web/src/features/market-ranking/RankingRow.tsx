@@ -90,7 +90,7 @@ export const RankingHeader = ({ kind }: RankingHeaderProps) => {
     <div
       className={cn(
         GRID_CLASS,
-        "-mx-4 whitespace-nowrap border-b border-subtle px-4 pb-2 pt-1 text-[10px] font-medium text-muted-foreground sm:text-[11px] md:-mx-6 md:px-6",
+        "-mx-4 whitespace-nowrap border-b border-subtle px-4 pb-2 pt-1 text-micro font-medium text-muted-foreground md:-mx-6 md:px-6",
       )}
     >
       <span className="justify-self-center">순위</span>
@@ -136,7 +136,7 @@ export const RankingRow = ({ item, disclosure, kind }: RankingRowProps) => {
         <span className="min-w-0 truncate text-xs font-semibold text-foreground sm:text-sm">
           {item.name}
         </span>
-        <span className="hidden font-mono text-[11px] text-muted-foreground md:block">
+        <span className="hidden font-mono text-micro text-muted-foreground md:block">
           {item.market ?? ""}
         </span>
         <span className="justify-self-end text-xs font-bold tabular-nums text-foreground sm:text-sm">
@@ -166,7 +166,7 @@ export const RankingRow = ({ item, disclosure, kind }: RankingRowProps) => {
           <span className="sm:hidden">{volTexts.mobile}</span>
           <span className="hidden sm:inline">{volTexts.desktop}</span>
         </span>
-        <span className="hidden justify-self-end text-xs tabular-nums text-amber-accent sm:block">
+        <span className="hidden justify-self-end text-caption tabular-nums text-amber-accent sm:block">
           {disclosureText}
         </span>
       </Link>

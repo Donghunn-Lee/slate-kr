@@ -104,12 +104,12 @@ export function WatchlistPreview() {
     return (
       <section>
         <StockPanel>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-body text-muted-foreground">
             저장한 관심종목을 여기서 모아 볼 수 있어요
           </p>
           <Link
             href="/watchlist"
-            className="mt-3 inline-flex items-center gap-1 text-sm font-medium transition-opacity hover:opacity-70"
+            className="mt-3 inline-flex items-center gap-1 text-body font-medium transition-opacity hover:opacity-70"
           >
             관심종목 둘러보기 <ArrowRight className="h-3.5 w-3.5" />
           </Link>
@@ -123,10 +123,10 @@ export function WatchlistPreview() {
   return (
     <section className="flex h-full flex-col">
       <div className="mb-4 flex items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold text-foreground">내 관심종목</h2>
+        <h2 className="text-value font-semibold text-foreground">내 관심종목</h2>
         <Link
           href="/watchlist"
-          className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          className="flex shrink-0 items-center gap-1 text-caption text-muted-foreground transition-colors hover:text-foreground"
         >
           전체 보기 <ArrowRight className="h-3 w-3" />
         </Link>
@@ -161,12 +161,12 @@ export function WatchlistPreview() {
         {items.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center">
             <Star className="size-5 text-muted-foreground/60" />
-            <p className="mt-2 text-sm text-muted-foreground">
+            <p className="mt-2 text-body text-muted-foreground">
               이 그룹에 저장된 종목이 없어요
             </p>
             <Link
               href="/watchlist"
-              className="mt-3 inline-flex items-center gap-1 text-sm font-medium transition-opacity hover:opacity-70"
+              className="mt-3 inline-flex items-center gap-1 text-body font-medium transition-opacity hover:opacity-70"
             >
               관심종목 추가하기 <ArrowRight className="h-3.5 w-3.5" />
             </Link>
@@ -174,7 +174,7 @@ export function WatchlistPreview() {
         ) : (
           <>
             {pricesQuery.isError && (
-              <p className="mb-2 text-sm text-muted-foreground">
+              <p className="mb-2 text-body text-muted-foreground">
                 관심종목 데이터를 불러오지 못했습니다
               </p>
             )}
@@ -209,13 +209,13 @@ export function WatchlistPreview() {
                             )}
                           </div>
                           <div className="flex items-baseline justify-between gap-2">
-                            <span className="min-w-0 truncate text-sm font-semibold text-foreground">
+                            <span className="min-w-0 truncate text-body font-semibold text-foreground">
                               {item.name}
                             </span>
                             <div className="flex shrink-0 items-baseline gap-2">
                               {displayPrice !== null ? (
                                 <>
-                                  <span className="text-sm font-bold leading-none tabular-nums text-foreground">
+                                  <span className="text-body font-bold leading-none tabular-nums text-foreground">
                                     {formatClose(displayPrice)}
                                   </span>
                                   {displayChange !== null && displayChangeRate !== null && (
@@ -231,7 +231,7 @@ export function WatchlistPreview() {
                                   )}
                                 </>
                               ) : (
-                                <span className="text-xs text-muted-foreground">—</span>
+                                <span className="text-caption text-muted-foreground">—</span>
                               )}
                             </div>
                           </div>

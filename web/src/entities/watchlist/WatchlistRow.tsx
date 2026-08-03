@@ -52,7 +52,7 @@ export const WatchlistRow = ({
             </span>
             <div className="ml-auto flex shrink-0 items-center gap-2">
               {isLiveFailed && (
-                <span className="rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-[11px] leading-none text-muted-foreground">
+                <span className="rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-micro leading-none text-muted-foreground">
                   일시 지연
                 </span>
               )}

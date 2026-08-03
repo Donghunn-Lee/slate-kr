@@ -7,7 +7,7 @@ import { ChevronDown, X } from "lucide-react";
 import { useRecentVisitedStore } from "@/features/search/useRecentVisitedStore";
 import { cn } from "@/lib/utils";
 
-// 접힘 시 max-height. text-xs(1line ≈ 16px) + X 버튼 p-1(4px)로 실제 row 20px.
+// 접힘 시 max-height. text-caption(모바일 11 / 데스크톱 12, lh 1.4 → ≈16px) + X 버튼 p-1(4px) 로 실제 row 20px.
 const COLLAPSED_HEIGHT_PX = 20;
 
 // 헤더 하단에 매달린 패널. items=0 이면 미렌더.
@@ -56,7 +56,7 @@ export const RecentVisitedBar = () => {
           className="grid cursor-pointer grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3 px-3 py-1.5 select-none"
         >
           <div className="flex items-center gap-3 pt-0.5">
-            <span className="text-[11px] font-semibold tracking-wide text-muted-foreground/70">
+            <span className="text-micro font-semibold tracking-wide text-muted-foreground/70">
               최근 조회
             </span>
             <span aria-hidden className="block h-3 w-px bg-border" />
@@ -70,7 +70,7 @@ export const RecentVisitedBar = () => {
           >
             <div
               ref={chipsRef}
-              className="flex flex-wrap content-start gap-x-1.5 gap-y-1 text-xs"
+              className="flex flex-wrap content-start gap-x-1.5 gap-y-1 text-caption"
             >
               {items.map((s) => (
                 <span key={s.ticker} className="flex items-center">

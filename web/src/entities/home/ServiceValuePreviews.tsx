@@ -192,7 +192,7 @@ const MetricValue = ({
   return (
     <div className="flex flex-col">
       <span className="text-[10px] text-muted-foreground/80">{metric.label}</span>
-      <span className="tabular-nums text-sm font-semibold text-foreground">
+      <span className="tabular-nums text-body font-semibold text-foreground">
         {metric.format(value)}
       </span>
     </div>

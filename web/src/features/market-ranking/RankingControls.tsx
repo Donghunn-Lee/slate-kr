@@ -13,7 +13,7 @@ export const TabButton = ({ active, onClick, children }: TabButtonProps) => (
     type="button"
     onClick={onClick}
     className={cn(
-      "border-b-2 pb-2 text-sm transition-colors",
+      "border-b-2 pb-2 text-body transition-colors",
       active
         ? "border-foreground font-medium text-foreground"
         : "border-transparent text-muted-foreground hover:text-foreground",
@@ -35,7 +35,7 @@ export const Pill = ({ active, onClick, children }: PillProps) => (
     type="button"
     onClick={onClick}
     className={cn(
-      "rounded-sm px-2.5 py-1 text-xs transition-colors",
+      "rounded-sm px-2.5 py-1 text-caption transition-colors",
       active
         ? "bg-muted text-foreground"
         : "text-muted-foreground hover:text-foreground",
