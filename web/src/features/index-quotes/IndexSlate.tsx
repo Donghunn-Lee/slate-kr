@@ -45,14 +45,14 @@ type IndexCellProps = {
 };
 
 const IndexCell = ({ label, cell, bars, intradayFailed }: IndexCellProps) => (
-  <div className="flex flex-col gap-2 px-4 py-3 sm:px-6 sm:py-4">
+  <div className="flex flex-col gap-2 px-4 py-3 sm:gap-3 sm:px-6 sm:py-4">
     <div>
       <div className="text-body font-bold text-muted-foreground">{label}</div>
       {cell.live ? (
-        <div className="mt-1 flex flex-wrap items-start gap-x-2 gap-y-1">
+        <div className="mt-1 flex flex-wrap items-start gap-x-2 gap-y-1 sm:items-baseline">
           <span
             className={cn(
-              "text-value font-semibold tabular-nums",
+              "text-value font-semibold tabular-nums sm:text-headline sm:font-medium",
               PRICE_SIGN_CLASS[cell.live.sign],
             )}
           >
@@ -65,14 +65,14 @@ const IndexCell = ({ label, cell, bars, intradayFailed }: IndexCellProps) => (
             symbol="arrow"
             size="xs"
             stacked
-            className="text-micro sm:text-caption"
+            className="text-micro sm:text-body-sm sm:font-normal"
           />
         </div>
       ) : cell.fallback ? (
-        <div className="mt-1 flex flex-wrap items-start gap-x-2 gap-y-1">
+        <div className="mt-1 flex flex-wrap items-start gap-x-2 gap-y-1 sm:items-baseline">
           <span
             className={cn(
-              "text-value font-semibold tabular-nums",
+              "text-value font-semibold tabular-nums sm:text-headline sm:font-medium",
               PRICE_SIGN_CLASS[signOfChange(cell.fallback.change)],
             )}
           >
@@ -84,13 +84,13 @@ const IndexCell = ({ label, cell, bars, intradayFailed }: IndexCellProps) => (
             symbol="arrow"
             size="xs"
             stacked
-            className="text-micro sm:text-caption"
+            className="text-micro sm:text-body-sm sm:font-normal"
           />
           <span className="text-micro text-muted-foreground">직전 거래일</span>
         </div>
       ) : (
         <div className="mt-1 flex items-baseline gap-2">
-          <span className="text-value font-semibold tabular-nums text-muted-foreground">—</span>
+          <span className="text-value font-semibold tabular-nums text-muted-foreground sm:text-headline sm:font-medium">—</span>
           <span className="text-body-sm text-muted-foreground">데이터 없음</span>
         </div>
       )}
@@ -210,6 +210,7 @@ export const IndexSlate = ({ overseasSlot }: IndexSlateProps = {}) => {
                     intradayFailed={intraday?.failed.kospi200 ?? false}
                     formatPrice={formatKrw}
                     renderLiveValue={renderDomesticLive}
+                    priceClassName="sm:text-xl sm:font-medium"
                   />
                   <MiniIndexCell
                     label="코스닥150"
@@ -218,6 +219,7 @@ export const IndexSlate = ({ overseasSlot }: IndexSlateProps = {}) => {
                     intradayFailed={intraday?.failed.kosdaq150 ?? false}
                     formatPrice={formatKrw}
                     renderLiveValue={renderDomesticLive}
+                    priceClassName="sm:text-xl sm:font-medium"
                   />
                 </div>
               </div>
@@ -245,6 +247,7 @@ export const IndexSlate = ({ overseasSlot }: IndexSlateProps = {}) => {
                     intradayFailed={intraday?.failed.kospi200 ?? false}
                     formatPrice={formatKrw}
                     renderLiveValue={renderDomesticLive}
+                    priceClassName="sm:text-xl sm:font-medium"
                   />
                   <MiniIndexCell
                     label="코스닥150"
@@ -253,6 +256,7 @@ export const IndexSlate = ({ overseasSlot }: IndexSlateProps = {}) => {
                     intradayFailed={intraday?.failed.kosdaq150 ?? false}
                     formatPrice={formatKrw}
                     renderLiveValue={renderDomesticLive}
+                    priceClassName="sm:text-xl sm:font-medium"
                   />
                 </div>
               </div>

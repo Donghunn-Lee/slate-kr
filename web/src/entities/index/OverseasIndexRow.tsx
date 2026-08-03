@@ -25,6 +25,11 @@ type OverseasIndexRowProps = {
 const formatIndexPrice = (v: number): string =>
   v.toLocaleString("ko-KR", { maximumFractionDigits: 2 });
 
+// 해외 셀 PC(sm+) 스타일: 라벨 text-xs(12) · 가격 text-base(16) medium.
+// MiniIndexCell 의 모바일 기본(text-value semibold / text-body bold) 을 sm 에서 override.
+const OVERSEAS_LABEL_SM = "sm:text-caption";
+const OVERSEAS_PRICE_SM = "sm:text-base sm:font-medium";
+
 // 최신 base_date 라벨은 성공한 스냅샷 중 가장 큰 것으로 도출. 3지수 모두 같은 collector 라
 // 보통 동일하지만, 부분 실패가 나올 수 있으니 max 로 안전 처리.
 const pickLatestDate = (
@@ -89,6 +94,8 @@ export const OverseasIndexRow = ({ snapshotsByCode }: OverseasIndexRowProps) => 
             bars={bars}
             intradayFailed={intradayFailed}
             formatPrice={formatIndexPrice}
+            labelClassName={OVERSEAS_LABEL_SM}
+            priceClassName={OVERSEAS_PRICE_SM}
           />
         ))}
       </div>
@@ -102,6 +109,8 @@ export const OverseasIndexRow = ({ snapshotsByCode }: OverseasIndexRowProps) => 
             bars={cells[0].bars}
             intradayFailed={cells[0].intradayFailed}
             formatPrice={formatIndexPrice}
+            labelClassName={OVERSEAS_LABEL_SM}
+            priceClassName={OVERSEAS_PRICE_SM}
           />
           <MiniIndexCell
             label={cells[1].label}
@@ -109,6 +118,8 @@ export const OverseasIndexRow = ({ snapshotsByCode }: OverseasIndexRowProps) => 
             bars={cells[1].bars}
             intradayFailed={cells[1].intradayFailed}
             formatPrice={formatIndexPrice}
+            labelClassName={OVERSEAS_LABEL_SM}
+            priceClassName={OVERSEAS_PRICE_SM}
           />
         </div>
         <div className="grid grid-cols-2 divide-x divide-border/60">
@@ -118,6 +129,8 @@ export const OverseasIndexRow = ({ snapshotsByCode }: OverseasIndexRowProps) => 
             bars={cells[2].bars}
             intradayFailed={cells[2].intradayFailed}
             formatPrice={formatIndexPrice}
+            labelClassName={OVERSEAS_LABEL_SM}
+            priceClassName={OVERSEAS_PRICE_SM}
           />
           <div aria-hidden />
         </div>

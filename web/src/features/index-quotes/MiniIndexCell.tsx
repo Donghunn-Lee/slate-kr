@@ -28,6 +28,10 @@ type MiniIndexCellProps = {
   // 라이브 값 렌더 방식 — 국내는 카운트업 애니메이션 노드, 해외는 formatPrice 결과 텍스트.
   // undefined 이면 formatPrice(cell.live.price) 로 fallback.
   renderLiveValue?: (price: number) => ReactNode;
+  // 라벨/가격 className — 국내와 해외의 PC(sm+) 스타일이 달라 호출부에서
+  // sm: 반응형 override 를 주입한다. 모바일 기본은 컴포넌트가 통일.
+  labelClassName?: string;
+  priceClassName?: string;
   className?: string;
 };
 
@@ -40,6 +44,8 @@ export const MiniIndexCell = ({
   intradayFailed,
   formatPrice,
   renderLiveValue,
+  labelClassName,
+  priceClassName,
   className,
 }: MiniIndexCellProps) => (
   <div
@@ -49,13 +55,16 @@ export const MiniIndexCell = ({
     )}
   >
     <div className="flex min-w-0 flex-col">
-      <div className="text-body font-bold text-muted-foreground">{label}</div>
+      <div className={cn("text-body font-bold text-muted-foreground", labelClassName)}>
+        {label}
+      </div>
       {cell?.live ? (
         <div className="mt-0.5 flex flex-col items-start gap-0.5">
           <span
             className={cn(
               "text-value font-semibold tabular-nums",
               PRICE_SIGN_CLASS[cell.live.sign],
+              priceClassName,
             )}
           >
             {renderLiveValue
@@ -78,6 +87,7 @@ export const MiniIndexCell = ({
             className={cn(
               "text-value font-semibold tabular-nums",
               PRICE_SIGN_CLASS[signOfChange(cell.fallback.change)],
+              priceClassName,
             )}
           >
             {formatPrice(cell.fallback.close)}
