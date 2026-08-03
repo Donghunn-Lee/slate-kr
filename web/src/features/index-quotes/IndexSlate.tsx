@@ -49,7 +49,7 @@ const IndexCell = ({ label, cell, bars, intradayFailed }: IndexCellProps) => (
     <div>
       <div className="text-body font-bold text-muted-foreground">{label}</div>
       {cell.live ? (
-        <div className="mt-1 flex flex-wrap items-start gap-x-2 gap-y-1 sm:items-baseline">
+        <div className="mt-1 flex flex-wrap items-start gap-x-2 gap-y-1">
           <span
             className={cn(
               "text-value font-semibold tabular-nums sm:text-headline sm:font-medium",
@@ -69,7 +69,7 @@ const IndexCell = ({ label, cell, bars, intradayFailed }: IndexCellProps) => (
           />
         </div>
       ) : cell.fallback ? (
-        <div className="mt-1 flex flex-wrap items-start gap-x-2 gap-y-1 sm:items-baseline">
+        <div className="mt-1 flex flex-wrap items-start gap-x-2 gap-y-1">
           <span
             className={cn(
               "text-value font-semibold tabular-nums sm:text-headline sm:font-medium",
