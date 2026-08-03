@@ -8,6 +8,9 @@ type PriceChangeProps = {
   symbol?: "sign" | "arrow";
   unit?: string;
   size?: "lg" | "sm" | "xs";
+  // 변동폭(위) / 등락률(아래) 2단 세로 스택 렌더. 등락률 괄호 제거.
+  // false(기본): 기존 인라인 "변동폭 (등락률%)" 렌더.
+  stacked?: boolean;
   className?: string;
 };
 
@@ -49,6 +52,7 @@ export const PriceChange = ({
   symbol = "sign",
   unit,
   size = "sm",
+  stacked = false,
   className,
 }: PriceChangeProps) => {
   const resolved = resolveSign(change, sign);
@@ -58,10 +62,27 @@ export const PriceChange = ({
       ? `${ARROW[resolved]} ${Math.abs(change).toLocaleString("ko-KR")}${unit ?? ""}`
       : `${prefix(change, resolved)}${change.toLocaleString("ko-KR")}${unit ?? ""}`;
 
+  const rateText = `${prefix(changeRate, resolved)}${changeRate.toFixed(2)}%`;
+
+  if (stacked) {
+    return (
+      <span
+        className={cn(
+          "inline-flex flex-col items-start leading-tight whitespace-nowrap",
+          SIZE_CLASS[size],
+          SIGN_CLASS[resolved],
+          className,
+        )}
+      >
+        <span>{changeText}</span>
+        <span>{rateText}</span>
+      </span>
+    );
+  }
+
   return (
-    <span className={cn(SIZE_CLASS[size], SIGN_CLASS[resolved], className)}>
-      {changeText} ({prefix(changeRate, resolved)}
-      {changeRate.toFixed(2)}%)
+    <span className={cn("whitespace-nowrap", SIZE_CLASS[size], SIGN_CLASS[resolved], className)}>
+      {changeText} ({rateText})
     </span>
   );
 };
