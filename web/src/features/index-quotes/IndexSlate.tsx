@@ -8,9 +8,21 @@ import { PriceCountUp } from "@/entities/stock/PriceCountUp";
 import { PriceChange } from "@/shared/components/PriceChange";
 import { IndexMiniChart } from "@/entities/index/IndexMiniChart";
 import { IndexSparkline } from "@/entities/index/IndexSparkline";
-import type { IndexIntradaySnapshot } from "@/shared/types/quote";
+import type { IndexIntradaySnapshot, PriceSign } from "@/shared/types/quote";
+import { cn } from "@/lib/utils";
 import { useIndexQuotes, type IndexCellData } from "./useIndexQuotes";
 import { useIndexIntraday } from "./useIndexIntraday";
+
+// 가격 span 등락색. flat 은 default foreground 유지 (색 없음) — 무채로 두어
+// "값 색상은 상승/하락 유의 신호" 인 의미를 보존.
+const PRICE_SIGN_CLASS: Record<PriceSign, string> = {
+  up: "text-price-up",
+  down: "text-price-down",
+  flat: "",
+};
+
+const signOfChange = (change: number): PriceSign =>
+  change > 0 ? "up" : change < 0 ? "down" : "flat";
 
 type IndexSlateProps = {
   // 해외 EOD 행을 서버에서 SSR 해서 넘긴다. client인 이 컴포넌트가 server child 를 감싸는 정형 패턴.
@@ -25,12 +37,17 @@ type IndexCellProps = {
 };
 
 const IndexCell = ({ label, cell, bars, intradayFailed }: IndexCellProps) => (
-  <div className="flex flex-col gap-3 px-6 py-4">
+  <div className="flex flex-col gap-3 px-4 py-3 sm:px-6 sm:py-4">
     <div>
-      <div className="text-sm text-muted-foreground">{label}</div>
+      <div className="text-body font-bold text-muted-foreground">{label}</div>
       {cell.live ? (
         <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          <span className="text-2xl font-medium tabular-nums">
+          <span
+            className={cn(
+              "text-headline font-semibold tabular-nums",
+              PRICE_SIGN_CLASS[cell.live.sign],
+            )}
+          >
             <PriceCountUp from={cell.live.price} to={cell.live.price} />
           </span>
           <PriceChange
@@ -39,11 +56,17 @@ const IndexCell = ({ label, cell, bars, intradayFailed }: IndexCellProps) => (
             sign={cell.live.sign}
             symbol="arrow"
             size="sm"
+            stacked
           />
         </div>
       ) : cell.fallback ? (
         <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          <span className="text-2xl font-medium tabular-nums">
+          <span
+            className={cn(
+              "text-headline font-semibold tabular-nums",
+              PRICE_SIGN_CLASS[signOfChange(cell.fallback.change)],
+            )}
+          >
             {cell.fallback.close.toLocaleString("ko-KR")}
           </span>
           <PriceChange
@@ -51,13 +74,14 @@ const IndexCell = ({ label, cell, bars, intradayFailed }: IndexCellProps) => (
             changeRate={cell.fallback.changeRate}
             symbol="arrow"
             size="sm"
+            stacked
           />
-          <span className="text-[11px] text-muted-foreground">직전 거래일</span>
+          <span className="text-micro text-muted-foreground">직전 거래일</span>
         </div>
       ) : (
         <div className="mt-1 flex items-baseline gap-2">
-          <span className="text-2xl font-medium tabular-nums text-muted-foreground">—</span>
-          <span className="text-[13px] text-muted-foreground">데이터 없음</span>
+          <span className="text-headline font-semibold tabular-nums text-muted-foreground">—</span>
+          <span className="text-body-sm text-muted-foreground">데이터 없음</span>
         </div>
       )}
     </div>
@@ -74,13 +98,20 @@ type MiniIndexCellProps = {
   intradayFailed: boolean;
 };
 
+// 이름 위, 값·등락 아래, 스파크라인 우측. 모바일 2×2 페어 그리드에서 각 셀이 반폭이
+// 되므로 sparkline min-w 를 낮추고 PriceChange 는 mobile 한정 한 단계 축소해 한 줄 유지.
 const MiniIndexCell = ({ label, cell, bars, intradayFailed }: MiniIndexCellProps) => (
-  <div className="flex flex-1 items-center justify-between gap-3 px-6 py-3">
-    <div className="flex flex-col">
-      <div className="text-sm text-muted-foreground">{label}</div>
+  <div className="flex flex-1 items-center justify-between gap-2 px-3 py-2.5 sm:gap-3 sm:px-6 sm:py-3">
+    <div className="flex min-w-0 flex-col">
+      <div className="text-body font-bold text-muted-foreground">{label}</div>
       {cell.live ? (
         <div className="mt-0.5 flex flex-col items-start gap-0.5">
-          <span className="text-xl font-medium tabular-nums">
+          <span
+            className={cn(
+              "text-value font-semibold tabular-nums",
+              PRICE_SIGN_CLASS[cell.live.sign],
+            )}
+          >
             <PriceCountUp from={cell.live.price} to={cell.live.price} />
           </span>
           <PriceChange
@@ -89,11 +120,18 @@ const MiniIndexCell = ({ label, cell, bars, intradayFailed }: MiniIndexCellProps
             sign={cell.live.sign}
             symbol="arrow"
             size="xs"
+            stacked
+            className="text-micro sm:text-caption"
           />
         </div>
       ) : cell.fallback ? (
         <div className="mt-0.5 flex flex-col items-start gap-0.5">
-          <span className="text-xl font-medium tabular-nums">
+          <span
+            className={cn(
+              "text-value font-semibold tabular-nums",
+              PRICE_SIGN_CLASS[signOfChange(cell.fallback.change)],
+            )}
+          >
             {cell.fallback.close.toLocaleString("ko-KR")}
           </span>
           <PriceChange
@@ -101,33 +139,40 @@ const MiniIndexCell = ({ label, cell, bars, intradayFailed }: MiniIndexCellProps
             changeRate={cell.fallback.changeRate}
             symbol="arrow"
             size="xs"
+            stacked
+            className="text-micro sm:text-caption"
           />
         </div>
       ) : (
-        <div className="mt-0.5 text-sm text-muted-foreground">데이터 없음</div>
+        <div className="mt-0.5 text-body-sm text-muted-foreground">데이터 없음</div>
       )}
     </div>
-    <div className="min-w-[110px] flex-1">
+    <div className="min-w-[50px] flex-1 sm:min-w-[110px]">
       <IndexSparkline bars={bars} failed={intradayFailed} />
     </div>
   </div>
 );
 
 const CellSkeleton = ({ label }: { label: string }) => (
-  <div className="px-6 py-4">
-    <div className="text-sm text-muted-foreground">{label}</div>
+  <div className="px-4 py-3 sm:px-6 sm:py-4">
+    <div className="text-body font-bold text-muted-foreground">{label}</div>
     <div className="mt-2 h-7 w-24 animate-pulse rounded bg-muted" />
     <div className="mt-2 h-4 w-32 animate-pulse rounded bg-muted" />
   </div>
 );
 
+// MiniIndexCell 카드형과 동일한 좌 텍스트 + 우 스파크라인 자리. 모바일은 sparkline 자리 축소.
 const MiniCellSkeleton = ({ label }: { label: string }) => (
-  <div className="flex flex-1 flex-col justify-center px-6 py-3">
-    <div className="text-sm text-muted-foreground">{label}</div>
-    <div className="mt-1 h-5 w-20 animate-pulse rounded bg-muted" />
+  <div className="flex flex-1 items-center justify-between gap-2 px-3 py-2.5 sm:gap-3 sm:px-6 sm:py-3">
+    <div className="flex flex-col">
+      <div className="text-body font-bold text-muted-foreground">{label}</div>
+      <div className="mt-1 h-5 w-20 animate-pulse rounded bg-muted" />
+    </div>
+    <div className="min-w-[50px] flex-1 sm:min-w-[110px]" aria-hidden />
   </div>
 );
 
+// sm+ 3-col grid 의 3번째 컬럼(미니 스택) 전용 스켈레톤.
 const MiniCellStackSkeleton = () => (
   <div className="flex flex-col divide-y divide-border/60">
     <MiniCellSkeleton label="코스피200" />
@@ -135,20 +180,35 @@ const MiniCellStackSkeleton = () => (
   </div>
 );
 
+// 모바일 2×2 페어 그리드 전용 스켈레톤 — 대형 셀 2 + 미니 셀 2.
+const MobilePairSkeleton = () => (
+  <div className="divide-y divide-border/60 sm:hidden">
+    <div className="grid grid-cols-2 divide-x divide-border/60">
+      <CellSkeleton label="코스피" />
+      <CellSkeleton label="코스닥" />
+    </div>
+    <div className="grid grid-cols-2 divide-x divide-border/60">
+      <MiniCellSkeleton label="코스피200" />
+      <MiniCellSkeleton label="코스닥150" />
+    </div>
+  </div>
+);
+
 const MarketStatus = ({ marketOpen, date }: { marketOpen: boolean; date?: string }) =>
   marketOpen ? (
-    <div className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
+    <div className="flex items-center gap-1.5 text-body-sm text-muted-foreground">
       <span className="inline-block size-1.5 rounded-full bg-emerald-500" aria-hidden />
       실시간
     </div>
   ) : (
-    <div className="text-[13px] text-muted-foreground">
+    <div className="text-body-sm text-muted-foreground">
       15:30 장 마감{date ? ` · 기준일 ${date}` : ""}
     </div>
   );
 
-const GRID_CLASS =
-  "grid grid-cols-1 divide-y divide-border/60 sm:grid-cols-3 sm:divide-x sm:divide-y-0";
+// 데스크톱: 3열 grid (코스피 | 코스닥 | 미니스택). 모바일은 별도 2×2 페어 그리드로 렌더.
+const DESKTOP_GRID_CLASS =
+  "hidden sm:grid sm:grid-cols-3 sm:divide-x sm:divide-border/60";
 
 const EMPTY_BARS: IndexIntradaySnapshot[] = [];
 
@@ -160,7 +220,7 @@ export const IndexSlate = ({ overseasSlot }: IndexSlateProps = {}) => {
     <section>
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-end gap-3">
-          <h2 className="text-lg font-semibold text-foreground">주요 지수</h2>
+          <h2 className="text-value font-semibold text-foreground">주요 지수</h2>
           {data ? (
             <MarketStatus
               marketOpen={data.marketOpen}
@@ -170,51 +230,88 @@ export const IndexSlate = ({ overseasSlot }: IndexSlateProps = {}) => {
         </div>
         <Link
           href="/stocks/indices"
-          className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          className="flex items-center gap-1 text-caption text-muted-foreground transition-colors hover:text-foreground"
         >
           전체 보기 <ArrowRight className="h-3 w-3" />
         </Link>
       </div>
       <StockPanel className="p-0">
         {isError && !data ? (
-          <div className="px-6 py-6 text-sm text-muted-foreground">
+          <div className="px-6 py-6 text-body text-muted-foreground">
             지수 시세를 불러오지 못했습니다
           </div>
         ) : isLoading || !data ? (
-          <div className={GRID_CLASS}>
-            <CellSkeleton label="코스피" />
-            <CellSkeleton label="코스닥" />
-            <MiniCellStackSkeleton />
-          </div>
-        ) : (
-          <div className={GRID_CLASS}>
-            <IndexCell
-              label="코스피"
-              cell={data.quotes.kospi}
-              bars={intraday?.quotes.kospi ?? EMPTY_BARS}
-              intradayFailed={intraday?.failed.kospi ?? false}
-            />
-            <IndexCell
-              label="코스닥"
-              cell={data.quotes.kosdaq}
-              bars={intraday?.quotes.kosdaq ?? EMPTY_BARS}
-              intradayFailed={intraday?.failed.kosdaq ?? false}
-            />
-            <div className="flex flex-col divide-y divide-border/60">
-              <MiniIndexCell
-                label="코스피200"
-                cell={data.quotes.kospi200}
-                bars={intraday?.quotes.kospi200 ?? EMPTY_BARS}
-                intradayFailed={intraday?.failed.kospi200 ?? false}
-              />
-              <MiniIndexCell
-                label="코스닥150"
-                cell={data.quotes.kosdaq150}
-                bars={intraday?.quotes.kosdaq150 ?? EMPTY_BARS}
-                intradayFailed={intraday?.failed.kosdaq150 ?? false}
-              />
+          <>
+            <div className={DESKTOP_GRID_CLASS}>
+              <CellSkeleton label="코스피" />
+              <CellSkeleton label="코스닥" />
+              <MiniCellStackSkeleton />
             </div>
-          </div>
+            <MobilePairSkeleton />
+          </>
+        ) : (
+          <>
+            {/* 데스크톱: 3열 (대형 · 대형 · 미니스택) */}
+            <div className={DESKTOP_GRID_CLASS}>
+              <IndexCell
+                label="코스피"
+                cell={data.quotes.kospi}
+                bars={intraday?.quotes.kospi ?? EMPTY_BARS}
+                intradayFailed={intraday?.failed.kospi ?? false}
+              />
+              <IndexCell
+                label="코스닥"
+                cell={data.quotes.kosdaq}
+                bars={intraday?.quotes.kosdaq ?? EMPTY_BARS}
+                intradayFailed={intraday?.failed.kosdaq ?? false}
+              />
+              <div className="flex flex-col divide-y divide-border/60">
+                <MiniIndexCell
+                  label="코스피200"
+                  cell={data.quotes.kospi200}
+                  bars={intraday?.quotes.kospi200 ?? EMPTY_BARS}
+                  intradayFailed={intraday?.failed.kospi200 ?? false}
+                />
+                <MiniIndexCell
+                  label="코스닥150"
+                  cell={data.quotes.kosdaq150}
+                  bars={intraday?.quotes.kosdaq150 ?? EMPTY_BARS}
+                  intradayFailed={intraday?.failed.kosdaq150 ?? false}
+                />
+              </div>
+            </div>
+            {/* 모바일: 2×2 페어 그리드 (대형 페어 위, 미니 페어 아래). */}
+            <div className="divide-y divide-border/60 sm:hidden">
+              <div className="grid grid-cols-2 divide-x divide-border/60">
+                <IndexCell
+                  label="코스피"
+                  cell={data.quotes.kospi}
+                  bars={intraday?.quotes.kospi ?? EMPTY_BARS}
+                  intradayFailed={intraday?.failed.kospi ?? false}
+                />
+                <IndexCell
+                  label="코스닥"
+                  cell={data.quotes.kosdaq}
+                  bars={intraday?.quotes.kosdaq ?? EMPTY_BARS}
+                  intradayFailed={intraday?.failed.kosdaq ?? false}
+                />
+              </div>
+              <div className="grid grid-cols-2 divide-x divide-border/60">
+                <MiniIndexCell
+                  label="코스피200"
+                  cell={data.quotes.kospi200}
+                  bars={intraday?.quotes.kospi200 ?? EMPTY_BARS}
+                  intradayFailed={intraday?.failed.kospi200 ?? false}
+                />
+                <MiniIndexCell
+                  label="코스닥150"
+                  cell={data.quotes.kosdaq150}
+                  bars={intraday?.quotes.kosdaq150 ?? EMPTY_BARS}
+                  intradayFailed={intraday?.failed.kosdaq150 ?? false}
+                />
+              </div>
+            </div>
+          </>
         )}
         {overseasSlot && (
           <div className="border-t border-border/60 pb-2">{overseasSlot}</div>

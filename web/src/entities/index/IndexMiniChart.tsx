@@ -11,6 +11,7 @@ import {
   type UTCTimestamp,
 } from "lightweight-charts";
 import { crosshairLocalization } from "@/shared/constants/chart";
+import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import type { IndexIntradaySnapshot } from "@/shared/types/quote";
 
 type IndexMiniChartProps = {
@@ -53,7 +54,10 @@ const DARK: BaselinePalette = {
 const PREV_CLOSE_LINE_LIGHT = "rgba(0,0,0,0.28)";
 const PREV_CLOSE_LINE_DARK = "rgba(255,255,255,0.28)";
 
-const HEIGHT_PX = 140;
+// 데스크톱 대비 모바일 차트 높이·폰트 잠정 축소 — 반폭 셀에서 축 라벨의 플롯 잠식 최소화.
+const HEIGHT_PX_DESKTOP = 140;
+const HEIGHT_PX_MOBILE = 95;
+const FONT_SIZE_MOBILE = 10;
 
 // timestamp는 KST를 UTC로 위장한 epoch 초이므로 getUTC* 가 원래 KST 컴포넌트를 돌려준다.
 const kstDateKey = (ts: number): string => {
@@ -64,6 +68,8 @@ const kstDateKey = (ts: number): string => {
 export const IndexMiniChart = ({ bars, failed }: IndexMiniChartProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { resolvedTheme } = useTheme();
+  const isMobile = useIsMobile();
+  const height = isMobile ? HEIGHT_PX_MOBILE : HEIGHT_PX_DESKTOP;
 
   // 미니는 한 세션(09:00–15:30)만. KIS가 직전 영업일 데이터까지 섞어 보내는 경우 마지막 bar 의
   // 날짜로 잘라낸다 — 장중엔 오늘, 장 마감 후엔 가장 최근 영업일 세션이 잡힌다.
@@ -90,6 +96,8 @@ export const IndexMiniChart = ({ bars, failed }: IndexMiniChartProps) => {
         background: { color: palette.bg },
         textColor: palette.text,
         fontFamily: "SUIT Variable, sans-serif",
+        // 모바일 반폭 셀에서 가격축·시간축 라벨 폭·높이 축소.
+        ...(isMobile ? { fontSize: FONT_SIZE_MOBILE } : {}),
         attributionLogo: false,
       },
       grid: {
@@ -171,13 +179,13 @@ export const IndexMiniChart = ({ bars, failed }: IndexMiniChartProps) => {
     return () => {
       chart.remove();
     };
-  }, [sessionBars, resolvedTheme]);
+  }, [sessionBars, resolvedTheme, isMobile]);
 
   if (bars.length === 0) {
     return (
       <div
-        className="flex items-center justify-center text-[11px] text-muted-foreground"
-        style={{ height: HEIGHT_PX }}
+        className="flex items-center justify-center text-micro text-muted-foreground"
+        style={{ height }}
       >
         {failed ? "차트를 불러오지 못했어요" : "장중 데이터 없음"}
       </div>
@@ -188,7 +196,7 @@ export const IndexMiniChart = ({ bars, failed }: IndexMiniChartProps) => {
     <div
       ref={containerRef}
       className="w-full overflow-hidden"
-      style={{ height: HEIGHT_PX }}
+      style={{ height }}
     />
   );
 };

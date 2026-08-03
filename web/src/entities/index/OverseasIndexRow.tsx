@@ -11,12 +11,24 @@ import {
 import type {
   IndexDailySnapshot,
   IndexIntradaySnapshot,
+  PriceSign,
 } from "@/shared/types/quote";
 import {
   useOverseasIndexIntraday,
   type OverseasIndexIntradayResponse,
 } from "@/features/index-quotes/useOverseasIndexIntraday";
 import { buildIndexCell } from "@/shared/utils/buildIndexCell";
+import { cn } from "@/lib/utils";
+
+// IndexSlate 의 가격 등락색 규칙과 동일. flat 은 default foreground 유지.
+const PRICE_SIGN_CLASS: Record<PriceSign, string> = {
+  up: "text-price-up",
+  down: "text-price-down",
+  flat: "",
+};
+
+const signOfChange = (change: number): PriceSign =>
+  change > 0 ? "up" : change < 0 ? "down" : "flat";
 
 type OverseasIndexRowProps = {
   snapshotsByCode: Record<OverseasIndexCode, IndexDailySnapshot | null>;
@@ -73,12 +85,17 @@ const OverseasCell = ({
     latestDaily: snapshot,
   });
   return (
-    <div className="flex flex-1 items-center justify-between gap-3 px-6 py-3">
-      <div className="flex flex-col">
-        <div className="text-xs text-muted-foreground">{label}</div>
+    <div className="flex flex-1 items-center justify-between gap-2 px-3 py-2.5 sm:gap-3 sm:px-6 sm:py-3">
+      <div className="flex min-w-0 flex-col">
+        <div className="text-body font-bold text-muted-foreground">{label}</div>
         {cell?.live ? (
           <div className="mt-0.5 flex flex-col items-start gap-0.5">
-            <span className="text-base font-medium tabular-nums">
+            <span
+              className={cn(
+                "text-value font-semibold tabular-nums",
+                PRICE_SIGN_CLASS[cell.live.sign],
+              )}
+            >
               {formatIndexPrice(cell.live.price)}
             </span>
             <PriceChange
@@ -87,11 +104,18 @@ const OverseasCell = ({
               sign={cell.live.sign}
               symbol="arrow"
               size="xs"
+              stacked
+              className="text-micro sm:text-caption"
             />
           </div>
         ) : cell?.fallback ? (
           <div className="mt-0.5 flex flex-col items-start gap-0.5">
-            <span className="text-base font-medium tabular-nums">
+            <span
+              className={cn(
+                "text-value font-semibold tabular-nums",
+                PRICE_SIGN_CLASS[signOfChange(cell.fallback.change)],
+              )}
+            >
               {formatIndexPrice(cell.fallback.close)}
             </span>
             <PriceChange
@@ -99,13 +123,15 @@ const OverseasCell = ({
               changeRate={cell.fallback.changeRate}
               symbol="arrow"
               size="xs"
+              stacked
+              className="text-micro sm:text-caption"
             />
           </div>
         ) : (
-          <div className="mt-0.5 text-sm text-muted-foreground">데이터 없음</div>
+          <div className="mt-0.5 text-body-sm text-muted-foreground">데이터 없음</div>
         )}
       </div>
-      <div className="min-w-[110px] flex-1">
+      <div className="min-w-[50px] flex-1 sm:min-w-[110px]">
         <IndexSparkline bars={bars} failed={intradayFailed} />
       </div>
     </div>
@@ -117,7 +143,7 @@ export const OverseasIndexRow = ({ snapshotsByCode }: OverseasIndexRowProps) => 
   const { data: intraday } = useOverseasIndexIntraday();
   return (
     <div>
-      <div className="flex items-baseline gap-1.5 px-6 pt-3 pb-1 text-[11px] uppercase tracking-widest text-muted-foreground">
+      <div className="flex items-baseline gap-1.5 px-4 pt-3 pb-1 text-micro uppercase tracking-widest text-muted-foreground sm:px-6">
         <span>해외 · 미국</span>
         {latestDate && <span>· 기준일 {latestDate.slice(5)}</span>}
       </div>
