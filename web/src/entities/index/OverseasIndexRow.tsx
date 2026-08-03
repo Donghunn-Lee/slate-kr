@@ -1,7 +1,5 @@
 "use client";
 
-import { PriceChange } from "@/shared/components/PriceChange";
-import { IndexSparkline } from "@/entities/index/IndexSparkline";
 import {
   OVERSEAS_INDEX_CODES,
   getIndexMeta,
@@ -11,29 +9,19 @@ import {
 import type {
   IndexDailySnapshot,
   IndexIntradaySnapshot,
-  PriceSign,
 } from "@/shared/types/quote";
 import {
   useOverseasIndexIntraday,
   type OverseasIndexIntradayResponse,
 } from "@/features/index-quotes/useOverseasIndexIntraday";
+import { MiniIndexCell } from "@/features/index-quotes/MiniIndexCell";
 import { buildIndexCell } from "@/shared/utils/buildIndexCell";
-import { cn } from "@/lib/utils";
-
-// IndexSlate 의 가격 등락색 규칙과 동일. flat 은 default foreground 유지.
-const PRICE_SIGN_CLASS: Record<PriceSign, string> = {
-  up: "text-price-up",
-  down: "text-price-down",
-  flat: "",
-};
-
-const signOfChange = (change: number): PriceSign =>
-  change > 0 ? "up" : change < 0 ? "down" : "flat";
 
 type OverseasIndexRowProps = {
   snapshotsByCode: Record<OverseasIndexCode, IndexDailySnapshot | null>;
 };
 
+// 해외 지수 값 포맷 — 소숫점 최대 2자리. 국내(KRW 콤마)와 다른 규칙.
 const formatIndexPrice = (v: number): string =>
   v.toLocaleString("ko-KR", { maximumFractionDigits: 2 });
 
@@ -59,110 +47,80 @@ const INTRADAY_KEY: Record<OverseasIndexCode, IntradayKey | null> = {
   COMP: "comp",
 };
 
-type OverseasCellProps = {
-  code: OverseasIndexCode;
-  label: string;
-  snapshot: IndexDailySnapshot | null;
-  bars: IndexIntradaySnapshot[];
-  intradayFailed: boolean;
-};
-
-const OverseasCell = ({
-  code,
-  label,
-  snapshot,
-  bars,
-  intradayFailed,
-}: OverseasCellProps) => {
-  // 최신 분봉이 있으면 텍스트도 라이브(가격·등락·등락률)로 표시. 없거나 .DJI
-  // (intraday 미지원) 는 snapshot(EOD) fallback. buildIndexCell 이 두 경로를 통합.
-  const overseasLatestBar = bars.length > 0 ? bars[bars.length - 1] : null;
-  const cell = buildIndexCell({
-    isDomestic: false,
-    name: INDEX_LABEL[code],
-    domesticCell: undefined,
-    overseasLatestBar,
-    latestDaily: snapshot,
-  });
-  return (
-    <div className="flex flex-1 items-center justify-between gap-2 px-3 py-2.5 sm:gap-3 sm:px-6 sm:py-3">
-      <div className="flex min-w-0 flex-col">
-        <div className="text-body font-bold text-muted-foreground">{label}</div>
-        {cell?.live ? (
-          <div className="mt-0.5 flex flex-col items-start gap-0.5">
-            <span
-              className={cn(
-                "text-value font-semibold tabular-nums",
-                PRICE_SIGN_CLASS[cell.live.sign],
-              )}
-            >
-              {formatIndexPrice(cell.live.price)}
-            </span>
-            <PriceChange
-              change={cell.live.change}
-              changeRate={cell.live.changeRate}
-              sign={cell.live.sign}
-              symbol="arrow"
-              size="xs"
-              stacked
-              className="text-micro sm:text-caption"
-            />
-          </div>
-        ) : cell?.fallback ? (
-          <div className="mt-0.5 flex flex-col items-start gap-0.5">
-            <span
-              className={cn(
-                "text-value font-semibold tabular-nums",
-                PRICE_SIGN_CLASS[signOfChange(cell.fallback.change)],
-              )}
-            >
-              {formatIndexPrice(cell.fallback.close)}
-            </span>
-            <PriceChange
-              change={cell.fallback.change}
-              changeRate={cell.fallback.changeRate}
-              symbol="arrow"
-              size="xs"
-              stacked
-              className="text-micro sm:text-caption"
-            />
-          </div>
-        ) : (
-          <div className="mt-0.5 text-body-sm text-muted-foreground">데이터 없음</div>
-        )}
-      </div>
-      <div className="min-w-[50px] flex-1 sm:min-w-[110px]">
-        <IndexSparkline bars={bars} failed={intradayFailed} />
-      </div>
-    </div>
-  );
-};
-
 export const OverseasIndexRow = ({ snapshotsByCode }: OverseasIndexRowProps) => {
   const latestDate = pickLatestDate(snapshotsByCode);
   const { data: intraday } = useOverseasIndexIntraday();
+
+  // 코드별 프리컴퓨트 — 데스크톱/모바일 두 그리드에서 동일 참조로 재사용.
+  const cells = OVERSEAS_INDEX_CODES.map((code) => {
+    const key = INTRADAY_KEY[code];
+    const bars = key ? intraday?.quotes[key] ?? EMPTY_BARS : EMPTY_BARS;
+    const intradayFailed = key ? intraday?.failed[key] ?? false : false;
+    const overseasLatestBar = bars.length > 0 ? bars[bars.length - 1] : null;
+    const cell = buildIndexCell({
+      isDomestic: false,
+      name: INDEX_LABEL[code],
+      domesticCell: undefined,
+      overseasLatestBar,
+      latestDaily: snapshotsByCode[code],
+    });
+    return {
+      code,
+      label: getIndexMeta(code).label,
+      cell,
+      bars,
+      intradayFailed,
+    };
+  });
+
   return (
     <div>
       <div className="flex items-baseline gap-1.5 px-4 pt-3 pb-1 text-micro uppercase tracking-widest text-muted-foreground sm:px-6">
         <span>해외 · 미국</span>
         {latestDate && <span>· 기준일 {latestDate.slice(5)}</span>}
       </div>
-      <div className="grid grid-cols-1 divide-y divide-border/60 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-        {OVERSEAS_INDEX_CODES.map((code) => {
-          const key = INTRADAY_KEY[code];
-          const bars = key ? intraday?.quotes[key] ?? EMPTY_BARS : EMPTY_BARS;
-          const intradayFailed = key ? intraday?.failed[key] ?? false : false;
-          return (
-            <OverseasCell
-              key={code}
-              code={code}
-              label={getIndexMeta(code).label}
-              snapshot={snapshotsByCode[code]}
-              bars={bars}
-              intradayFailed={intradayFailed}
-            />
-          );
-        })}
+      {/* 데스크톱: 기존 3열 유지. */}
+      <div className="hidden grid-cols-3 divide-x divide-border/60 sm:grid">
+        {cells.map(({ code, label, cell, bars, intradayFailed }) => (
+          <MiniIndexCell
+            key={code}
+            label={label}
+            cell={cell}
+            bars={bars}
+            intradayFailed={intradayFailed}
+            formatPrice={formatIndexPrice}
+          />
+        ))}
+      </div>
+      {/* 모바일: 2열 그리드 — 1행 SPX | .DJI, 2행 COMP 좌측 한 칸 + 우측 빈 셀
+          (divide-x 세로선을 상단 행과 정렬 유지). */}
+      <div className="divide-y divide-border/60 sm:hidden">
+        <div className="grid grid-cols-2 divide-x divide-border/60">
+          <MiniIndexCell
+            label={cells[0].label}
+            cell={cells[0].cell}
+            bars={cells[0].bars}
+            intradayFailed={cells[0].intradayFailed}
+            formatPrice={formatIndexPrice}
+          />
+          <MiniIndexCell
+            label={cells[1].label}
+            cell={cells[1].cell}
+            bars={cells[1].bars}
+            intradayFailed={cells[1].intradayFailed}
+            formatPrice={formatIndexPrice}
+          />
+        </div>
+        <div className="grid grid-cols-2 divide-x divide-border/60">
+          <MiniIndexCell
+            label={cells[2].label}
+            cell={cells[2].cell}
+            bars={cells[2].bars}
+            intradayFailed={cells[2].intradayFailed}
+            formatPrice={formatIndexPrice}
+          />
+          <div aria-hidden />
+        </div>
       </div>
     </div>
   );

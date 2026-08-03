@@ -68,7 +68,7 @@ export const PriceChange = ({
     return (
       <span
         className={cn(
-          "inline-flex flex-col items-start leading-tight whitespace-nowrap",
+          "inline-flex flex-col items-end leading-tight whitespace-nowrap",
           SIZE_CLASS[size],
           SIGN_CLASS[resolved],
           className,
