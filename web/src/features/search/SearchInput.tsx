@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Search } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useStockSearch } from "./useStockSearch";
 
@@ -17,8 +17,6 @@ type SearchInputProps = {
   onNavigate?: () => void;
   disabled?: boolean;
   size?: "sm" | "default" | "lg";
-  showPreview?: boolean;
-  showButton?: boolean;
   placeholder?: string;
   autoFocus?: boolean;
 };
@@ -30,8 +28,6 @@ export const SearchInput = ({
   onNavigate,
   disabled,
   size = "default",
-  showPreview = true,
-  showButton = true,
   placeholder = DEFAULT_PLACEHOLDER,
   autoFocus = false,
 }: SearchInputProps) => {
@@ -40,7 +36,7 @@ export const SearchInput = ({
   const [closedByUser, setClosedByUser] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
 
-  const isOpen = showPreview && !closedByUser && !error && (isLoading || results.length > 0);
+  const isOpen = !closedByUser && !error && (isLoading || results.length > 0);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -75,6 +71,7 @@ export const SearchInput = ({
   const handleSearchNavigate = () => {
     const trimmed = value.trim();
     if (!trimmed) return;
+    setClosedByUser(true);
     router.push(`/search?q=${encodeURIComponent(trimmed)}`);
     onNavigate?.();
   };
@@ -111,7 +108,7 @@ export const SearchInput = ({
   };
 
   return (
-    <div ref={containerRef} className={cn("relative flex", showButton && "gap-2")}>
+    <div ref={containerRef} className="relative flex">
       <div className="relative flex-1">
         <Input
           type="text"
@@ -121,13 +118,28 @@ export const SearchInput = ({
           onKeyDown={handleKeyDown}
           disabled={disabled}
           className={cn(
-            "w-full",
+            "w-full pr-9",
             size === "sm" && "h-8 text-sm md:text-sm",
             size === "lg" && "h-12 text-base md:text-base"
           )}
           autoComplete="off"
           autoFocus={autoFocus}
         />
+        <button
+          type="button"
+          onClick={handleSearchNavigate}
+          disabled={disabled || !value.trim()}
+          aria-label="검색"
+          className={cn(
+            "absolute right-1 top-1/2 flex -translate-y-1/2 items-center justify-center rounded",
+            "text-muted-foreground transition-colors hover:text-foreground",
+            "disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-muted-foreground",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            size === "sm" ? "size-6" : "size-7"
+          )}
+        >
+          <Search className={size === "sm" ? "size-3.5" : "size-4"} aria-hidden />
+        </button>
         {isOpen && (
           <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-md border bg-popover shadow-md">
             {isLoading && <div className="px-4 py-3 text-sm text-muted-foreground">검색 중...</div>}
@@ -166,15 +178,6 @@ export const SearchInput = ({
           </div>
         )}
       </div>
-      {showButton && (
-        <Button
-          onClick={handleSearchNavigate}
-          disabled={disabled}
-          className={cn(size === "lg" && "h-12 px-6 text-base")}
-        >
-          검색
-        </Button>
-      )}
     </div>
   );
 };
