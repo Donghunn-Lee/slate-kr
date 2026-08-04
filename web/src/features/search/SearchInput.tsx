@@ -39,6 +39,7 @@ export const SearchInput = ({
   const isOpen = !closedByUser && !error && (isLoading || results.length > 0);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -64,6 +65,7 @@ export const SearchInput = ({
     setClosedByUser(true);
     setActiveIndex(-1);
     onSelect?.(ticker, name);
+    inputRef.current?.blur();
     router.push(`/stocks/${ticker}`);
     onNavigate?.();
   };
@@ -72,6 +74,7 @@ export const SearchInput = ({
     const trimmed = value.trim();
     if (!trimmed) return;
     setClosedByUser(true);
+    inputRef.current?.blur();
     router.push(`/search?q=${encodeURIComponent(trimmed)}`);
     onNavigate?.();
   };
@@ -111,6 +114,7 @@ export const SearchInput = ({
     <div ref={containerRef} className="relative flex">
       <div className="relative flex-1">
         <Input
+          ref={inputRef}
           type="text"
           placeholder={placeholder}
           value={value}
