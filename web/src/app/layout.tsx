@@ -6,6 +6,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { BottomTabBar } from "@/components/layout/BottomTabBar";
 import { RecentVisitedBar } from "@/components/layout/RecentVisitedBar";
 import { Footer } from "@/components/layout/Footer";
+import { IosInputZoomFix } from "@/shared/components/IosInputZoomFix";
 
 const suit = localFont({
   src: "../../public/fonts/SUIT-Variable.woff2",
@@ -44,6 +45,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="ko" suppressHydrationWarning className={suit.variable}>
       <body className="flex min-h-screen flex-col pb-[calc(3.5rem+env(safe-area-inset-bottom))] font-sans antialiased md:pb-0">
         <Providers>
+          <IosInputZoomFix />
           <Navbar />
           <RecentVisitedBar />
           <div className="flex-1">{children}</div>
