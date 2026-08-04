@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { Providers } from "./providers";
 import { Navbar } from "@/components/layout/Navbar";
+import { BottomTabBar } from "@/components/layout/BottomTabBar";
 import { RecentVisitedBar } from "@/components/layout/RecentVisitedBar";
 import { Footer } from "@/components/layout/Footer";
 
@@ -12,6 +13,12 @@ const suit = localFont({
   display: "swap",
   weight: "100 900",
 });
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000"),
@@ -35,12 +42,13 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko" suppressHydrationWarning className={suit.variable}>
-      <body className="flex min-h-screen flex-col font-sans antialiased">
+      <body className="flex min-h-screen flex-col pb-[calc(3.5rem+env(safe-area-inset-bottom))] font-sans antialiased md:pb-0">
         <Providers>
           <Navbar />
           <RecentVisitedBar />
           <div className="flex-1">{children}</div>
           <Footer />
+          <BottomTabBar />
         </Providers>
       </body>
     </html>

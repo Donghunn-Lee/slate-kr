@@ -41,7 +41,7 @@ export const ScrollToTopButton = () => {
         className={cn(
           "fixed right-4 z-40 flex size-11 items-center justify-center rounded-full",
           "bg-elevated border border-default shadow-slate text-foreground",
-          "bottom-[max(1rem,env(safe-area-inset-bottom))]",
+          "bottom-[calc(3.5rem+env(safe-area-inset-bottom)+1rem)] md:bottom-[max(1rem,env(safe-area-inset-bottom))]",
           "hover:shadow-slate-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           visible ? "opacity-100" : "pointer-events-none opacity-0"
         )}
