@@ -16,6 +16,16 @@ export const Footer = () => (
         </Link>
       </p>
       <p>이 서비스는 투자 참고용이며, 투자 권유 또는 종목 추천이 아닙니다.</p>
+      <p>
+        <Link
+          href="https://github.com/Donghunn-Lee/slate-kr"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:underline"
+        >
+          GitHub
+        </Link>
+      </p>
     </div>
   </footer>
 );

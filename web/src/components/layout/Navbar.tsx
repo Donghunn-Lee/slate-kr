@@ -14,17 +14,23 @@ export function Navbar() {
           <NavbarSearch />
         </div>
         <nav className="flex items-center gap-3 text-sm text-muted-foreground md:gap-5">
-          <Link href="/ranking" className="transition-colors hover:text-foreground">
+          <Link
+            href="/ranking"
+            className="hidden transition-colors hover:text-foreground md:inline"
+          >
             시장 순위
           </Link>
-          <Link href="/watchlist" className="transition-colors hover:text-foreground">
+          <Link
+            href="/watchlist"
+            className="hidden transition-colors hover:text-foreground md:inline"
+          >
             관심종목
           </Link>
           <a
             href="https://github.com/Donghunn-Lee/slate-kr"
             target="_blank"
             rel="noopener noreferrer"
-            className="transition-colors hover:text-foreground"
+            className="hidden transition-colors hover:text-foreground md:inline"
           >
             GitHub
           </a>
