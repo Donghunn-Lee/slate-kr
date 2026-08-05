@@ -113,7 +113,7 @@ export const RankingView = ({ initialKind }: RankingViewProps) => {
 
   return (
     <StockPanel className="p-4 md:p-6">
-      <div className="mb-3 flex flex-wrap items-center gap-1">
+      <div className="mb-2 flex flex-wrap items-center gap-1 sm:mb-3">
         {MARKETS.map((m) => (
           <Pill
             key={m}
@@ -124,7 +124,7 @@ export const RankingView = ({ initialKind }: RankingViewProps) => {
           </Pill>
         ))}
       </div>
-      <div className="mb-4 flex items-end justify-between gap-3 border-b border-border/60">
+      <div className="mb-3 flex items-end justify-between gap-3 border-b border-border/60 sm:mb-4">
         <div className="flex items-center gap-5">
           <TabButton
             active={kind.kind === "fluctuation"}

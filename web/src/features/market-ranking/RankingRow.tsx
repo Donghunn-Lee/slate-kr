@@ -97,7 +97,7 @@ export const RankingHeader = ({ kind }: RankingHeaderProps) => {
       <span>종목명</span>
       <span className="hidden md:block">시장</span>
       <span className="justify-self-end">현재가</span>
-      <span className="justify-self-end sm:hidden">등락률</span>
+      <span className="justify-self-center sm:hidden">등락률</span>
       <span className="hidden justify-self-end sm:block">등락</span>
       <span className="justify-self-end">
         <span className="sm:hidden">{labels.mobile}</span>
@@ -127,19 +127,19 @@ export const RankingRow = ({ item, disclosure, kind }: RankingRowProps) => {
         aria-label={`${item.name} 상세 보기`}
         className={cn(
           GRID_CLASS,
-          "px-4 py-2 transition-colors hover:bg-muted/40 md:px-6",
+          "px-4 py-1.5 transition-colors hover:bg-muted/40 sm:py-2 md:px-6",
         )}
       >
         <span className="justify-self-center font-mono text-xs tabular-nums text-muted-foreground sm:text-sm">
           {item.rank}
         </span>
-        <span className="min-w-0 truncate text-xs font-semibold text-foreground sm:text-sm">
+        <span className="min-w-0 truncate text-xs font-normal text-foreground sm:text-sm sm:font-semibold">
           {item.name}
         </span>
         <span className="hidden font-mono text-micro text-muted-foreground md:block">
           {item.market ?? ""}
         </span>
-        <span className="justify-self-end text-xs font-bold tabular-nums text-foreground sm:text-sm">
+        <span className="justify-self-end text-xs font-medium tabular-nums text-foreground sm:text-sm sm:font-bold">
           {item.price.toLocaleString("ko-KR")}
           <span className="hidden md:inline">원</span>
         </span>
@@ -176,7 +176,7 @@ export const RankingRow = ({ item, disclosure, kind }: RankingRowProps) => {
 
 export const RankingRowSkeleton = () => (
   <li className="-mx-4 border-b border-subtle last:border-b-0 md:-mx-6">
-    <div className={cn(GRID_CLASS, "animate-pulse px-4 py-2 md:px-6")}>
+    <div className={cn(GRID_CLASS, "animate-pulse px-4 py-1.5 sm:py-2 md:px-6")}>
       <div className="mx-auto h-3 w-3 rounded bg-muted sm:h-3.5" />
       <div className="h-3.5 w-24 rounded bg-muted sm:h-4" />
       <div className="hidden h-3 w-10 rounded bg-muted md:block" />
