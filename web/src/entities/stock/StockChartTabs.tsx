@@ -346,7 +346,7 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
 
   // 선택 상태 색은 차트 섹션(무채색 원칙) 의 예외 — 툴바 강조에 한해 lavender 사용
   // (styleguide 상 차트=lavender 계열). 비선택은 muted, disabled 는 opacity 로 흐림.
-  // 높이는 wrapper(h-6 sm:h-7) 가 통제하고 버튼은 items-stretch 로 채운다 —
+  // 높이는 wrapper(h-7) 가 통제하고 버튼은 items-stretch 로 채운다 —
   // py-* 로 컨텐츠 기반 높이 잡으면 아이콘/텍스트 버튼 사이 미세 차이 발생.
   const toolbarButtonCls = (active: boolean, disabled = false) =>
     cn(
@@ -361,7 +361,7 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
   // 모든 컨트롤(그룹 wrapper·input) 은 동일 고정 높이를 공유 — 툴바 요소들이
   // 콘텐츠 폭·구성과 무관하게 시각적으로 정렬되게 한다.
   const groupWrapperCls =
-    "inline-flex h-6 sm:h-7 items-stretch gap-0.5 rounded-md border border-subtle bg-elevated p-0.5";
+    "inline-flex h-7 items-stretch gap-0.5 rounded-md border border-subtle bg-elevated p-0.5";
 
   // 2행 라벨 — 기준 날짜 + 시장 스코프.
   //   당일 뷰: intraday 응답의 tradingDate. previousDay 이면 "MM-DD 마감 기준", 아니면 "MM-DD 기준".
@@ -481,7 +481,7 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
                 }
               }}
               className={cn(
-                "h-6 sm:h-7 w-14 rounded-md border border-subtle bg-elevated px-2 text-caption text-foreground",
+                "h-7 w-14 rounded-md border border-subtle bg-elevated px-2 text-caption text-foreground",
                 "focus:border-lavender-border focus:outline-none",
                 "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
                 isIntradayView && "opacity-40",
