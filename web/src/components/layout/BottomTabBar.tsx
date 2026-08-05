@@ -44,7 +44,9 @@ export const BottomTabBar = () => {
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "flex h-full flex-col items-center justify-center gap-0.5 transition-colors",
-                  active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+                  active
+                    ? "text-foreground font-medium"
+                    : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 <Icon className="size-5" aria-hidden />
