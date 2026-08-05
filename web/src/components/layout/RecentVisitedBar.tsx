@@ -5,10 +5,15 @@ import { useRouter } from "next/navigation";
 import { ChevronDown, X } from "lucide-react";
 
 import { useRecentVisitedStore } from "@/features/search/useRecentVisitedStore";
+import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { cn } from "@/lib/utils";
 
 // 접힘 시 max-height. text-caption(모바일 11 / 데스크톱 12, lh 1.4 → ≈16px) + X 버튼 p-1(4px) 로 실제 row 20px.
 const COLLAPSED_HEIGHT_PX = 20;
+
+// 모바일 펼침 최대 높이. 칩 행(≈20px) + gap-y(4px) 기준 2행 완전 노출(44px) + 3행 상단 ≈8px peek
+// → 스크롤 단서 확보. 실기기 렌더 폰트 메트릭에 따라 미세 조정 여지.
+const EXPANDED_CAP_MOBILE_PX = 56;
 
 // 헤더 하단에 매달린 패널. items=0 이면 미렌더.
 // 레이아웃: [라벨 | chip 영역 | chevron] 3열 grid, items-start 로 라벨·chevron 은 상단 고정.
@@ -19,9 +24,12 @@ export const RecentVisitedBar = () => {
   const removeRecent = useRecentVisitedStore((s) => s.remove);
   const open = useRecentVisitedStore((s) => s.barOpen);
   const toggle = useRecentVisitedStore((s) => s.toggleBar);
+  const isMobile = useIsMobile();
 
   // 실제 chip 영역 자연 높이. max-height 전환의 target 값.
   const chipsRef = useRef<HTMLDivElement>(null);
+  // 모바일 캡으로 인해 내부 스크롤이 생기는 컨테이너. 닫힘 시 scrollTop 리셋 대상.
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [naturalHeight, setNaturalHeight] = useState(0);
 
   useEffect(() => {
@@ -33,6 +41,15 @@ export const RecentVisitedBar = () => {
     ro.observe(el);
     return () => ro.disconnect();
   }, [items]);
+
+  // 닫힘 전환 시 내부 스크롤 위치 리셋 — 재열림 시 첫 행부터 노출 보장.
+  // 접힘 애니메이션(200ms) 개시 직전 동기 리셋: overflow-hidden 으로 클리핑되기 전
+  // 스크롤이 원위치라야 접힘 20px 창이 최상단 라벨 라인을 보여준다.
+  useEffect(() => {
+    if (!open && scrollRef.current) {
+      scrollRef.current.scrollTop = 0;
+    }
+  }, [open]);
 
   if (items.length === 0) return null;
 
@@ -63,14 +80,24 @@ export const RecentVisitedBar = () => {
           </div>
           <div
             id="recent-visited-list"
-            className="overflow-hidden transition-[max-height] duration-200 ease-out motion-reduce:transition-none"
+            ref={scrollRef}
+            className={cn(
+              "transition-[max-height] duration-200 ease-out motion-reduce:transition-none",
+              open && isMobile
+                ? "overflow-y-auto overscroll-contain"
+                : "overflow-hidden",
+            )}
             style={{
-              maxHeight: open ? naturalHeight : COLLAPSED_HEIGHT_PX,
+              maxHeight: open
+                ? isMobile
+                  ? Math.min(naturalHeight, EXPANDED_CAP_MOBILE_PX)
+                  : naturalHeight
+                : COLLAPSED_HEIGHT_PX,
             }}
           >
             <div
               ref={chipsRef}
-              className="flex flex-wrap content-start gap-x-1.5 gap-y-1 text-caption"
+              className="flex flex-wrap content-start gap-x-1 gap-y-1 text-micro sm:gap-x-1.5 sm:text-caption"
             >
               {items.map((s) => (
                 <span key={s.ticker} className="flex items-center">
@@ -95,11 +122,11 @@ export const RecentVisitedBar = () => {
                     }}
                     aria-label={`${s.name} 최근 조회 삭제`}
                     className={cn(
-                      "cursor-pointer p-1 text-muted-foreground/40 transition-opacity hover:text-foreground",
+                      "-ml-1 inline-flex cursor-pointer items-center justify-center p-[5px] text-muted-foreground/40 transition-opacity hover:text-foreground sm:ml-0 sm:p-1",
                       !open && "pointer-events-none opacity-0",
                     )}
                   >
-                    <X className="h-3 w-3" />
+                    <X className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                   </button>
                 </span>
               ))}
