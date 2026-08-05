@@ -123,8 +123,8 @@ const WatchlistPage = () => {
   const emptyMessage = isRecentTab ? "최근 조회한 종목이 없습니다" : "이 그룹에 종목이 없습니다";
 
   return (
-    <main className="container mx-auto max-w-4xl space-y-4 px-4 py-8">
-      <h1 className="text-2xl font-bold">관심종목</h1>
+    <main className="container mx-auto max-w-4xl space-y-3 px-4 py-5 sm:space-y-4 sm:py-8">
+      <h1 className="text-xl font-bold sm:text-2xl">관심종목</h1>
 
       <nav aria-label="관심종목 그룹" className="flex items-center gap-1 overflow-x-auto md:hidden">
         {tabs.map((t) => (
