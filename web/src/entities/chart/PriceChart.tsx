@@ -899,7 +899,7 @@ export const PriceChart = ({
     >
       <div ref={containerRef} className="absolute inset-0" />
       {showLegend && (
-        <div className="pointer-events-none absolute left-3 top-2 z-10 flex max-w-[calc(100%-1.5rem)] flex-col gap-0.5">
+        <div className="pointer-events-none absolute left-3 right-14 top-2 z-10 flex flex-col gap-0.5">
           <div ref={legendRef} className="text-caption tabular-nums" />
           <div ref={maLegendRef} className="text-micro font-medium" />
         </div>
