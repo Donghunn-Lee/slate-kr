@@ -73,7 +73,7 @@ export default async function IndicesPage({ searchParams }: PageProps) {
   ) as Record<IndexCode, number | null>;
 
   return (
-    <main className="container mx-auto max-w-6xl space-y-4 px-4 py-8">
+    <main className="container mx-auto max-w-6xl space-y-3 px-4 py-5 sm:space-y-4 sm:py-8">
       <IndicesView
         dailyByIndex={dailyByIndex}
         statsByIndex={statsByIndex}

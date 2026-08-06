@@ -17,9 +17,7 @@ export const IndicesView = ({
   initialSelected,
 }: IndicesViewProps) => (
   <>
-    <h1 className="text-lg font-semibold tracking-tight text-foreground">
-      지수
-    </h1>
+    <h1 className="text-xl font-bold sm:text-2xl">지수</h1>
     <IndexBoard
       dailyByIndex={dailyByIndex}
       statsByIndex={statsByIndex}

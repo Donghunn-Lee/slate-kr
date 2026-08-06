@@ -119,14 +119,20 @@ const useNow = (): Date | null => {
 type StatCellProps = {
   label: string;
   children: ReactNode;
+  className?: string;
 };
 
-const StatCell = ({ label, children }: StatCellProps) => (
-  <div className="flex flex-col gap-0.5">
-    <span className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
+const StatCell = ({ label, children, className }: StatCellProps) => (
+  <div
+    className={cn(
+      "flex flex-row items-baseline gap-1.5 sm:flex-col sm:gap-0.5",
+      className,
+    )}
+  >
+    <span className="text-micro font-medium uppercase tracking-widest text-muted-foreground">
       {label}
     </span>
-    <div className="text-sm tabular-nums">{children}</div>
+    <div className="text-body-sm tabular-nums">{children}</div>
   </div>
 );
 
@@ -142,8 +148,8 @@ const StatsBlock = ({ stats, isDomestic, volume, refDate }: StatsBlockProps) => 
   // flex-wrap 은 항목 수가 가변인 stats 행에 media-query grid 보다 견고 —
   // 넓은 pane 에선 한 줄, 좁은 pane 이나 모바일에선 자연 reflow.
   return (
-    <div className="flex flex-wrap gap-x-6 gap-y-3">
-      <StatCell label="52주">
+    <div className="flex flex-wrap gap-x-4 gap-y-1.5 sm:gap-x-6 sm:gap-y-3">
+      <StatCell label="52주" className="w-full sm:w-auto">
         {range52w !== null ? (
           <div className="flex items-baseline gap-3 whitespace-nowrap">
             <span>
@@ -166,18 +172,26 @@ const StatsBlock = ({ stats, isDomestic, volume, refDate }: StatsBlockProps) => 
           </span>
         </StatCell>
       ))}
+      {/* 모바일에선 거래량/기준일 셀 숨김:
+          국내 거래량은 가격 블록 아래 풀 숫자 행으로 이관, 해외 기준일은 헤더
+          referenceLabel 이 이미 노출하므로 중복. sm:contents 로 데스크톱 flex-wrap
+          참여를 유지. */}
       {isDomestic ? (
-        <StatCell label="거래량">
-          {volume !== null ? (
-            formatIndexVolume(volume)
-          ) : (
-            <span className="text-muted-foreground">—</span>
-          )}
-        </StatCell>
+        <div className="hidden sm:contents">
+          <StatCell label="거래량">
+            {volume !== null ? (
+              formatIndexVolume(volume)
+            ) : (
+              <span className="text-muted-foreground">—</span>
+            )}
+          </StatCell>
+        </div>
       ) : (
-        <StatCell label="기준일">
-          {refDate ?? <span className="text-muted-foreground">—</span>}
-        </StatCell>
+        <div className="hidden sm:contents">
+          <StatCell label="기준일">
+            {refDate ?? <span className="text-muted-foreground">—</span>}
+          </StatCell>
+        </div>
       )}
     </div>
   );
@@ -254,14 +268,14 @@ export const IndexDetailPane = ({
 
   return (
     <StockPanel variant="lavender" className="overflow-hidden p-0">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-b border-lavender-border/60 px-6 py-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-b border-lavender-border/60 px-4 py-3 sm:px-6 sm:py-4">
         <div className="flex items-baseline gap-3">
-          <span className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+          <span className="text-caption font-medium uppercase tracking-widest text-muted-foreground">
             {meta.overline}
           </span>
-          <h2 className="text-lg font-medium">{INDEX_LABEL[selected]}</h2>
+          <h2 className="text-value font-medium">{INDEX_LABEL[selected]}</h2>
         </div>
-        <div className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
+        <div className="flex items-center gap-1.5 text-body-sm text-muted-foreground">
           {(isKrxRegular || isUsRegular) && (
             <span
               className="inline-block size-1.5 rounded-full bg-emerald-500"
@@ -271,7 +285,7 @@ export const IndexDetailPane = ({
           <span>{referenceLabel}</span>
           {isUsRegular && (
             <span
-              className="ml-1 rounded-sm border border-subtle bg-elevated px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
+              className="ml-1 rounded-sm border border-subtle bg-elevated px-1.5 py-0.5 text-micro font-medium uppercase tracking-wide text-muted-foreground"
               aria-label="약 15분 지연 시세"
             >
               지연
@@ -280,13 +294,13 @@ export const IndexDetailPane = ({
         </div>
       </div>
 
-      <div className="space-y-5 px-6 py-5">
+      <div className="space-y-4 px-4 py-4 sm:space-y-5 sm:px-6 sm:py-5">
         <div>
           {isDomestic && isLoading && !cell ? (
             <div className="h-8 w-56 animate-pulse rounded bg-muted" />
           ) : cell?.live ? (
-            <div className="flex items-baseline gap-3">
-              <span className="text-2xl font-semibold tabular-nums">
+            <div className="flex flex-wrap items-baseline gap-3">
+              <span className="text-headline font-semibold tabular-nums">
                 <PriceCountUp from={cell.live.price} to={cell.live.price} />
               </span>
               <PriceChange
@@ -298,8 +312,8 @@ export const IndexDetailPane = ({
               />
             </div>
           ) : cell?.fallback ? (
-            <div className="flex items-baseline gap-3">
-              <span className="text-2xl font-semibold tabular-nums">
+            <div className="flex flex-wrap items-baseline gap-3">
+              <span className="text-headline font-semibold tabular-nums">
                 {formatIndexPrice(cell.fallback.close)}
               </span>
               <PriceChange
@@ -310,9 +324,23 @@ export const IndexDetailPane = ({
               />
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">데이터 없음</p>
+            <p className="text-body text-muted-foreground">데이터 없음</p>
           )}
         </div>
+
+        {/* 모바일 전용 거래량 풀 숫자 행. 스탯 열의 "2.8억" 축약과 달리 raw
+            volume.toLocaleString() 그대로 노출 — 정보량 손실 없이 헤더 직후 위치.
+            데스크톱은 StatsBlock 의 축약값이 담당 → 여기선 미렌더. */}
+        {isDomestic && volume !== null && (
+          <div className="flex items-baseline gap-1.5 sm:hidden">
+            <span className="text-micro font-medium uppercase tracking-widest text-muted-foreground">
+              거래량
+            </span>
+            <span className="text-micro tabular-nums">
+              {volume.toLocaleString("ko-KR")}
+            </span>
+          </div>
+        )}
 
         {stats && (
           <StatsBlock

@@ -86,7 +86,7 @@ export const IndexRail = ({
             setOpenSections((s) => ({ ...s, [key]: o }))
           }
         >
-          <CollapsibleTrigger className="group flex w-full items-center gap-1.5 px-1 py-2 text-left text-xs font-medium uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground">
+          <CollapsibleTrigger className="group flex w-full items-center gap-1.5 px-1 py-2 text-left text-caption font-medium uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground">
             <ChevronRight
               className="size-3 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-90"
               aria-hidden
@@ -141,17 +141,17 @@ export const IndexRail = ({
                           : "border-subtle bg-elevated shadow-slate hover:bg-lavender-bg/50",
                       )}
                     >
-                      <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
+                      <span className="text-micro font-medium uppercase tracking-widest text-muted-foreground">
                         {meta.overline}
                       </span>
-                      <span className="text-sm font-medium">
+                      <span className="text-body font-medium">
                         {INDEX_LABEL[code]}
                       </span>
                       {showSkeleton ? (
                         <div className="mt-0.5 h-4 w-24 animate-pulse rounded bg-muted" />
                       ) : cell?.live ? (
                         <div className="flex items-baseline gap-2">
-                          <span className="text-sm tabular-nums">
+                          <span className="text-body tabular-nums">
                             <PriceCountUp
                               from={cell.live.price}
                               to={cell.live.price}
@@ -167,7 +167,7 @@ export const IndexRail = ({
                         </div>
                       ) : cell?.fallback ? (
                         <div className="flex items-baseline gap-2">
-                          <span className="text-sm tabular-nums">
+                          <span className="text-body tabular-nums">
                             {formatIndexPrice(cell.fallback.close)}
                           </span>
                           <PriceChange
@@ -178,7 +178,7 @@ export const IndexRail = ({
                           />
                         </div>
                       ) : (
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-caption text-muted-foreground">
                           데이터 없음
                         </span>
                       )}
