@@ -24,6 +24,7 @@ import {
   type IndexCode,
   type OverseasIntradayCode,
 } from "@/shared/constants/indices";
+import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import type {
   ChartBar,
   IndexDailySnapshot,
@@ -86,7 +87,9 @@ const GRANULARITY_DEFAULT_BARS: Record<Granularity, number> = {
   month: 12,
 };
 
-const EMPTY_STATE_HEIGHT = 450;
+// 차트 높이 — StockChartTabs 와 동일 축. failed/empty 상태 컨테이너와 PriceChart height 공용.
+const CHART_HEIGHT_MOBILE = 320;
+const CHART_HEIGHT_DESKTOP = 450;
 
 // intraday bar time 은 kis-quote-fetch 의 kstToFakeUtcSec 로 인코딩된 fake-UTC epoch 초.
 // KST 00:00 을 같은 규칙으로 인코딩하면 세션 경계 epoch 를 얻는다.
@@ -178,6 +181,8 @@ export const IndexChart = ({
   );
   const [inputRevertNonce, setInputRevertNonce] = useState(0);
   const isIntradayView = intradayEnabled && viewMode === "intraday";
+  const isMobile = useIsMobile();
+  const chartHeight = isMobile ? CHART_HEIGHT_MOBILE : CHART_HEIGHT_DESKTOP;
 
   // granularity 전환 시 표시 창을 해당 기본값으로 재설정 — StockChartTabs 와 대칭.
   useEffect(() => {
@@ -456,7 +461,7 @@ export const IndexChart = ({
       {showFailedIntraday ? (
         <div
           className="flex w-full flex-col items-center justify-center gap-4 rounded-md border border-subtle bg-elevated"
-          style={{ height: EMPTY_STATE_HEIGHT }}
+          style={{ height: chartHeight }}
         >
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-background">
             <WifiOff
@@ -489,7 +494,7 @@ export const IndexChart = ({
       ) : showEmptyIntraday ? (
         <div
           className="flex w-full items-center justify-center rounded-md text-body text-muted-foreground"
-          style={{ height: EMPTY_STATE_HEIGHT }}
+          style={{ height: chartHeight }}
         >
           당일 인트라데이 데이터 없음
         </div>
@@ -498,7 +503,7 @@ export const IndexChart = ({
           bars={bars}
           precision={2}
           timeVisible={renderIntraday}
-          height={EMPTY_STATE_HEIGHT}
+          height={chartHeight}
           interactive={interactive}
           intraday={renderIntraday}
           dimBefore={renderIntraday ? todayStartSec : undefined}
