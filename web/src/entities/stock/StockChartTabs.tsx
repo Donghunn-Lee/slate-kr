@@ -353,18 +353,24 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
 
   return (
     <>
-      {/* 1행: 제목 · 설명 + 우측 컨트롤 */}
-      <div className="mb-1 flex flex-wrap items-center justify-between gap-2 sm:gap-3">
+      {/* 헤더 래퍼: 제목 → 기준일 → 툴바 순으로 3행 스택.
+          제목·기준일은 mt-1(4px) 로 밀착, 툴바는 mt-3(12px) 로 벌려
+          툴바↔차트(mb-3) 와 동일 간격. mb-3 로 차트와의 간격은
+          chartDateLabel 유무와 무관하게 유지. */}
+      <div className="mb-3">
         <h2 className="text-body font-semibold text-muted-foreground">
           가격 차트
           <span className="ml-1.5 text-caption font-normal text-muted-foreground/70">
             · 기간별 가격 흐름과 거래량
           </span>
         </h2>
-        {/* ml-auto: 부모가 flex-wrap 이라 h2 와 컨트롤이 서로 다른 행에 놓일 때
-            justify-between 이 각 행 단독 아이템에는 효과가 없어 컨트롤이 좌정렬됨.
-            ml-auto 로 컨트롤 블록 자체를 항상 오른쪽으로 밀어낸다. */}
-        <div className="ml-auto flex flex-wrap items-center justify-end gap-2 sm:gap-4">
+        {chartDateLabel && (
+          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-caption text-muted-foreground/70">
+            <span>{chartDateLabel}</span>
+            <MarketScopeBadge scope={marketScope} />
+          </div>
+        )}
+        <div className="mt-3 flex flex-wrap items-center justify-end gap-2 sm:gap-4">
           <div className={TOOLBAR_GROUP_CLS} role="group" aria-label="차트 뷰">
             {VIEW_MODE_BUTTONS.map(({ value, label: btnLabel }) => (
               <button
@@ -451,13 +457,6 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
           </div>
         </div>
       </div>
-      {/* 2행: 기준 날짜 · 시장 뱃지 */}
-      {chartDateLabel && (
-        <div className="mb-3 flex flex-wrap items-center gap-1.5 text-caption text-muted-foreground/70">
-          <span>{chartDateLabel}</span>
-          <MarketScopeBadge scope={marketScope} />
-        </div>
-      )}
       {showFailedIntraday ? (
         <div
           className="flex w-full flex-col items-center justify-center gap-4 rounded-md border border-subtle bg-elevated"
