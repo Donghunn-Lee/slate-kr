@@ -1,15 +1,20 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  CandlestickChart,
-  LineChart,
-  RefreshCw,
-  WifiOff,
-  type LucideIcon,
-} from "lucide-react";
+import { RefreshCw, WifiOff } from "lucide-react";
 import { parseISO, startOfWeek, format } from "date-fns";
 import { PriceChart } from "@/entities/chart/PriceChart";
+import {
+  GRANULARITY_BUTTONS,
+  SERIES_KIND_BUTTONS,
+  TOOLBAR_BUTTON_CLS,
+  TOOLBAR_GROUP_CLS,
+  TOOLBAR_INPUT_CLS,
+  VIEW_MODE_BUTTONS,
+  type Granularity,
+  type SeriesKind,
+  type ViewMode,
+} from "@/entities/chart/chartToolbar";
 import { useIndexIntraday } from "@/features/index-quotes/useIndexIntraday";
 import { useIndexQuotes } from "@/features/index-quotes/useIndexQuotes";
 import { useOverseasIndexIntraday } from "@/features/index-quotes/useOverseasIndexIntraday";
@@ -32,10 +37,6 @@ import { mergeLiveDayBar, type LiveQuoteForMerge } from "@/shared/utils/mergeLiv
 import { resampleToMonthly } from "@/shared/utils/resampleToMonthly";
 import { resampleToWeekly } from "@/shared/utils/resampleToWeekly";
 import { cn } from "@/lib/utils";
-
-type ViewMode = "intraday" | "full";
-type Granularity = "day" | "week" | "month";
-type SeriesKind = "candle" | "line";
 
 type IndexChartProps = {
   indexCode: IndexCode;
@@ -71,22 +72,6 @@ const fakeUtcSecToLocalDate = (sec: number): string => {
   const dd = String(d.getUTCDate()).padStart(2, "0");
   return `${y}-${m}-${dd}`;
 };
-
-const VIEW_MODE_BUTTONS: { value: ViewMode; label: string }[] = [
-  { value: "intraday", label: "당일" },
-  { value: "full", label: "전체" },
-];
-
-const GRANULARITY_BUTTONS: { value: Granularity; label: string }[] = [
-  { value: "day", label: "일" },
-  { value: "week", label: "주" },
-  { value: "month", label: "월" },
-];
-
-const SERIES_KIND_BUTTONS: { value: SeriesKind; label: string; Icon: LucideIcon }[] = [
-  { value: "candle", label: "캔들", Icon: CandlestickChart },
-  { value: "line", label: "선", Icon: LineChart },
-];
 
 // MA period 상수 — StockChartTabs 컨벤션 동일.
 const DAY_MA_PERIODS: number[] = [5, 20, 60, 120];
@@ -392,101 +377,81 @@ export const IndexChart = ({
   };
 
   if (prices.length === 0 && !intradayHasData) {
-    return <p className="text-sm text-muted-foreground">차트 데이터 없음</p>;
+    return <p className="text-body text-muted-foreground">차트 데이터 없음</p>;
   }
-
-  const toolbarButtonCls = (active: boolean, disabled = false) =>
-    cn(
-      "rounded-sm px-2 py-1 text-xs transition-colors",
-      active
-        ? "bg-lavender-bg text-lavender-accent font-medium"
-        : "text-muted-foreground",
-      !disabled && !active && "hover:text-foreground",
-      disabled && "opacity-40",
-    );
-
-  const groupWrapperCls =
-    "flex gap-0.5 rounded-md border border-subtle bg-elevated p-0.5";
 
   return (
     <>
-      {/* 우측 정렬 단일 행. 당일/전체 그룹과 나머지 클러스터를 gap-4 로 벌려
-          의미 구분(모바일에선 flex-wrap 로 두 그룹이 두 줄로 나뉨). */}
-      <div className="mb-3 flex flex-wrap items-center justify-end gap-4">
+      {/* 우측 정렬 단일 행. 모든 그룹이 래퍼 직계 자식 — wrap 단위 = 개별 그룹.
+          모바일 gap-2 로 좁혀 1행 성립을 노리고, sm+ 는 gap-4 로 여백 확보. */}
+      <div className="mb-3 flex flex-wrap items-center justify-end gap-2 sm:gap-4">
         {intradayEnabled && (
-          <div className={groupWrapperCls} role="group" aria-label="차트 뷰">
+          <div className={TOOLBAR_GROUP_CLS} role="group" aria-label="차트 뷰">
             {VIEW_MODE_BUTTONS.map(({ value, label: btnLabel }) => (
               <button
                 key={value}
                 type="button"
                 aria-pressed={viewMode === value}
                 onClick={() => setViewMode(value)}
-                className={toolbarButtonCls(viewMode === value)}
+                className={TOOLBAR_BUTTON_CLS(viewMode === value)}
               >
                 {btnLabel}
               </button>
             ))}
           </div>
         )}
-        <div className="flex flex-wrap items-center gap-1.5">
-          <div className={groupWrapperCls} role="group" aria-label="차트 종류">
-            {SERIES_KIND_BUTTONS.map(({ value, label: btnLabel, Icon }) => {
-              const active = seriesKind === value;
-              return (
-                <button
-                  key={value}
-                  type="button"
-                  aria-label={btnLabel}
-                  aria-pressed={active}
-                  onClick={() => setSeriesKind(value)}
-                  className={toolbarButtonCls(active)}
-                >
-                  <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-                </button>
-              );
-            })}
-          </div>
-          <div className={groupWrapperCls} role="group" aria-label="차트 주기">
-            {GRANULARITY_BUTTONS.map(({ value, label: btnLabel }) => {
-              const active = granularity === value;
-              return (
-                <button
-                  key={value}
-                  type="button"
-                  aria-pressed={active}
-                  aria-disabled={isIntradayView}
-                  disabled={isIntradayView}
-                  onClick={() => setGranularity(value)}
-                  className={toolbarButtonCls(active, isIntradayView)}
-                >
-                  {btnLabel}
-                </button>
-              );
-            })}
-          </div>
-          <input
-            key={`bc-${barCount ?? "all"}-${inputRevertNonce}`}
-            type="number"
-            inputMode="numeric"
-            min={1}
-            aria-label="표시 봉 개수"
-            aria-disabled={isIntradayView}
-            disabled={isIntradayView}
-            defaultValue={barCount === null ? "" : String(barCount)}
-            onBlur={(e) => applyBarCountFromInput(e.currentTarget.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.currentTarget.blur();
-              }
-            }}
-            className={cn(
-              "h-[26px] w-14 rounded-md border border-subtle bg-elevated px-2 text-xs text-foreground",
-              "focus:border-lavender-border focus:outline-none",
-              "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
-              isIntradayView && "opacity-40",
-            )}
-          />
+        <div className={TOOLBAR_GROUP_CLS} role="group" aria-label="차트 종류">
+          {SERIES_KIND_BUTTONS.map(({ value, label: btnLabel, Icon }) => {
+            const active = seriesKind === value;
+            return (
+              <button
+                key={value}
+                type="button"
+                aria-label={btnLabel}
+                aria-pressed={active}
+                onClick={() => setSeriesKind(value)}
+                className={TOOLBAR_BUTTON_CLS(active)}
+              >
+                <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
+            );
+          })}
         </div>
+        <div className={TOOLBAR_GROUP_CLS} role="group" aria-label="차트 주기">
+          {GRANULARITY_BUTTONS.map(({ value, label: btnLabel }) => {
+            const active = granularity === value;
+            return (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={active}
+                aria-disabled={isIntradayView}
+                disabled={isIntradayView}
+                onClick={() => setGranularity(value)}
+                className={TOOLBAR_BUTTON_CLS(active, isIntradayView)}
+              >
+                {btnLabel}
+              </button>
+            );
+          })}
+        </div>
+        <input
+          key={`bc-${barCount ?? "all"}-${inputRevertNonce}`}
+          type="number"
+          inputMode="numeric"
+          min={1}
+          aria-label="표시 봉 개수"
+          aria-disabled={isIntradayView}
+          disabled={isIntradayView}
+          defaultValue={barCount === null ? "" : String(barCount)}
+          onBlur={(e) => applyBarCountFromInput(e.currentTarget.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.currentTarget.blur();
+            }
+          }}
+          className={cn(TOOLBAR_INPUT_CLS, isIntradayView && "opacity-40")}
+        />
       </div>
       {showFailedIntraday ? (
         <div
@@ -501,10 +466,10 @@ export const IndexChart = ({
             />
           </div>
           <div className="flex flex-col items-center gap-1 text-center">
-            <p className="text-sm font-medium text-foreground">
+            <p className="text-body font-medium text-foreground">
               당일 차트를 일시적으로 불러오지 못했어요
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-caption text-muted-foreground">
               잠시 후 다시 시도해 주세요
             </p>
           </div>
@@ -512,7 +477,7 @@ export const IndexChart = ({
             type="button"
             onClick={() => intradayQuery.refetch()}
             disabled={intradayQuery.isFetching}
-            className="inline-flex items-center gap-1.5 rounded-md border border-subtle bg-background px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-border hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-subtle disabled:hover:text-muted-foreground"
+            className="inline-flex items-center gap-1.5 rounded-md border border-subtle bg-background px-3 py-1.5 text-caption text-muted-foreground transition-colors hover:border-border hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-subtle disabled:hover:text-muted-foreground"
           >
             <RefreshCw
               className={cn("h-3 w-3", intradayQuery.isFetching && "animate-spin")}
@@ -523,7 +488,7 @@ export const IndexChart = ({
         </div>
       ) : showEmptyIntraday ? (
         <div
-          className="flex w-full items-center justify-center rounded-md text-sm text-muted-foreground"
+          className="flex w-full items-center justify-center rounded-md text-body text-muted-foreground"
           style={{ height: EMPTY_STATE_HEIGHT }}
         >
           당일 인트라데이 데이터 없음
