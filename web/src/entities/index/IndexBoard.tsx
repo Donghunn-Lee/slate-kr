@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import type { IndexDailySnapshot } from "@/shared/types/quote";
 import type { IndexCode } from "@/shared/constants/indices";
 import type { PriceStats } from "@/shared/types/stock";
+import { IndexChipStrip } from "./IndexChipStrip";
 import { IndexRail } from "./IndexRail";
 import { IndexDetailPane } from "./IndexDetailPane";
 
@@ -38,6 +39,12 @@ export const IndexBoard = ({
 
   return (
     <div className="flex flex-col gap-4 md:flex-row md:items-start md:gap-6">
+      <IndexChipStrip
+        className="md:hidden"
+        selected={selected}
+        onSelect={handleSelect}
+        dailyByIndex={dailyByIndex}
+      />
       <div
         ref={detailRef}
         className="order-1 min-w-0 flex-1 md:order-2"
@@ -49,7 +56,7 @@ export const IndexBoard = ({
           volumeByIndex={volumeByIndex}
         />
       </div>
-      <aside className="order-2 md:order-1 md:w-[260px] md:shrink-0">
+      <aside className="order-2 hidden md:order-1 md:block md:w-[260px] md:shrink-0">
         <IndexRail
           selected={selected}
           onSelect={handleSelect}
