@@ -132,7 +132,7 @@ const StatCell = ({ label, children, className }: StatCellProps) => (
     <span className="text-micro font-medium uppercase tracking-widest text-muted-foreground">
       {label}
     </span>
-    <div className="text-body-sm tabular-nums">{children}</div>
+    <div className="text-micro tabular-nums sm:text-body-sm">{children}</div>
   </div>
 );
 
@@ -148,17 +148,15 @@ const StatsBlock = ({ stats, isDomestic, volume, refDate }: StatsBlockProps) => 
   // flex-wrap 은 항목 수가 가변인 stats 행에 media-query grid 보다 견고 —
   // 넓은 pane 에선 한 줄, 좁은 pane 이나 모바일에선 자연 reflow.
   return (
-    <div className="flex flex-wrap gap-x-4 gap-y-1.5 sm:gap-x-6 sm:gap-y-3">
+    <div className="flex flex-wrap gap-x-4 gap-y-1 sm:gap-x-6 sm:gap-y-3">
       <StatCell label="52주" className="w-full sm:w-auto">
         {range52w !== null ? (
-          <div className="flex items-baseline gap-3 whitespace-nowrap">
-            <span>
-              <span className="text-muted-foreground/70">저 </span>
-              {formatIndexPrice(range52w.low)}
+          <div className="flex items-baseline gap-3 whitespace-nowrap font-medium">
+            <span className="text-price-down">
+              저 {formatIndexPrice(range52w.low)}
             </span>
-            <span>
-              <span className="text-muted-foreground/70">고 </span>
-              {formatIndexPrice(range52w.high)}
+            <span className="text-price-up">
+              고 {formatIndexPrice(range52w.high)}
             </span>
           </div>
         ) : (
@@ -294,7 +292,7 @@ export const IndexDetailPane = ({
         </div>
       </div>
 
-      <div className="space-y-4 px-4 py-4 sm:space-y-5 sm:px-6 sm:py-5">
+      <div className="px-4 py-4 sm:px-6 sm:py-5">
         <div>
           {isDomestic && isLoading && !cell ? (
             <div className="h-8 w-56 animate-pulse rounded bg-muted" />
@@ -332,7 +330,7 @@ export const IndexDetailPane = ({
             volume.toLocaleString() 그대로 노출 — 정보량 손실 없이 헤더 직후 위치.
             데스크톱은 StatsBlock 의 축약값이 담당 → 여기선 미렌더. */}
         {isDomestic && volume !== null && (
-          <div className="flex items-baseline gap-1.5 sm:hidden">
+          <div className="mt-1 flex items-baseline gap-1.5 sm:hidden">
             <span className="text-micro font-medium uppercase tracking-widest text-muted-foreground">
               거래량
             </span>
@@ -343,12 +341,14 @@ export const IndexDetailPane = ({
         )}
 
         {stats && (
-          <StatsBlock
-            stats={stats}
-            isDomestic={isDomestic}
-            volume={volume}
-            refDate={overseasLatestDate}
-          />
+          <div className="mt-2 sm:mt-5">
+            <StatsBlock
+              stats={stats}
+              isDomestic={isDomestic}
+              volume={volume}
+              refDate={overseasLatestDate}
+            />
+          </div>
         )}
       </div>
 
