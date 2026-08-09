@@ -140,10 +140,17 @@ type StatsBlockProps = {
   stats: PriceStats;
   isDomestic: boolean;
   volume: number | null;
+  volumeAsOf: string | null;
   refDate: string | null;
 };
 
-const StatsBlock = ({ stats, isDomestic, volume, refDate }: StatsBlockProps) => {
+const StatsBlock = ({
+  stats,
+  isDomestic,
+  volume,
+  volumeAsOf,
+  refDate,
+}: StatsBlockProps) => {
   const { range52w, returns } = stats;
   // flex-wrap 은 항목 수가 가변인 stats 행에 media-query grid 보다 견고 —
   // 넓은 pane 에선 한 줄, 좁은 pane 이나 모바일에선 자연 reflow.
@@ -176,7 +183,7 @@ const StatsBlock = ({ stats, isDomestic, volume, refDate }: StatsBlockProps) => 
           참여를 유지. */}
       {isDomestic ? (
         <div className="hidden sm:contents">
-          <StatCell label="거래량">
+          <StatCell label={volumeAsOf ? `거래량 (${volumeAsOf})` : "거래량"}>
             {volume !== null ? (
               formatIndexVolume(volume)
             ) : (
@@ -251,6 +258,8 @@ export const IndexDetailPane = ({
 
   const stats = statsByIndex[selected];
   const volume = isDomestic ? volumeByIndex[selected] : null;
+  // 국내 거래량은 EOD 값 — 최신 봉 date 를 셀 밀도 고려해 MM-DD 로 병기.
+  const domesticVolumeAsOf = isDomestic ? latestDaily?.date.slice(5) ?? null : null;
 
   const referenceLabel = isDomestic
     ? now === null
@@ -332,7 +341,7 @@ export const IndexDetailPane = ({
         {isDomestic && volume !== null && (
           <div className="mt-1 flex items-baseline gap-1.5 sm:hidden">
             <span className="text-micro font-medium uppercase tracking-widest text-muted-foreground">
-              거래량
+              {domesticVolumeAsOf ? `거래량 (${domesticVolumeAsOf})` : "거래량"}
             </span>
             <span className="text-micro tabular-nums">
               {volume.toLocaleString("ko-KR")}
@@ -346,6 +355,7 @@ export const IndexDetailPane = ({
               stats={stats}
               isDomestic={isDomestic}
               volume={volume}
+              volumeAsOf={domesticVolumeAsOf}
               refDate={overseasLatestDate}
             />
           </div>
