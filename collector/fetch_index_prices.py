@@ -39,10 +39,10 @@ import time
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 
-import psycopg2
 import requests
 from dotenv import load_dotenv
 
+from db import get_connection
 from kis_token import get_token
 
 load_dotenv()
@@ -84,10 +84,6 @@ logging.basicConfig(
     ],
 )
 logger = logging.getLogger(__name__)
-
-
-def get_connection():
-    return psycopg2.connect(os.getenv("DATABASE_URL"))
 
 
 def kis_daily_call(token: str, iscd: str, d1: str, d2: str) -> list | None:

@@ -37,10 +37,10 @@ import sys
 import time
 from datetime import date, datetime, timedelta, timezone
 
-import psycopg2
 import requests
 from dotenv import load_dotenv
 
+from db import get_connection
 from kis_token import get_token
 from verify_daily_freshness import compute_expected_from_now
 
@@ -71,10 +71,6 @@ logging.basicConfig(
     ],
 )
 logger = logging.getLogger(__name__)
-
-
-def get_connection():
-    return psycopg2.connect(os.getenv("DATABASE_URL"))
 
 
 def kis_daily_call(token: str, ticker: str, d1: str, d2: str) -> list | None:

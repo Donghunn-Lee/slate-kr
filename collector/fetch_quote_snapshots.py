@@ -39,10 +39,10 @@ import sys
 import time
 from datetime import date, datetime, timedelta, timezone
 
-import psycopg2
 import requests
 from dotenv import load_dotenv
 
+from db import get_connection
 from kis_token import get_token
 from verify_daily_freshness import is_trading_day
 
@@ -78,8 +78,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def get_connection():
-    return psycopg2.connect(os.getenv("DATABASE_URL"))
 
 
 # ── 게이트 (pure function — 테스트 시 mock now 주입) ─────────────────

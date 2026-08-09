@@ -1,9 +1,10 @@
 import logging
 import os
 import requests
-import psycopg2
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
+
+from db import get_connection
 
 load_dotenv()
 
@@ -25,10 +26,6 @@ logger = logging.getLogger(__name__)
 FSS_API_KEY = os.getenv("FSS_API_KEY")
 
 
-def get_connection():
-    return psycopg2.connect(os.getenv("DATABASE_URL"))
-
-
 def fetch_stock_list() -> list[dict]:
     biz_date = get_latest_biz_date()
     logger.info("기준일자: %s", biz_date)
@@ -48,6 +45,7 @@ def fetch_stock_list() -> list[dict]:
                 "pageNo": page,
                 "basDt": biz_date,
             },
+            timeout=(5, 30),
         )
         res.raise_for_status()
         data = res.json()

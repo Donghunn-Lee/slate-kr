@@ -19,8 +19,9 @@ import os
 import sys
 from datetime import date, datetime, timedelta, timezone
 
-import psycopg2
 from dotenv import load_dotenv
+
+from db import get_connection
 
 load_dotenv()
 
@@ -99,7 +100,7 @@ def main() -> None:
 
     print(f"verify: now(KST)={now_kst:%Y-%m-%d %H:%M:%S}  expected={expected}")
 
-    conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+    conn = get_connection()
     try:
         cur = conn.cursor()
         checks = [

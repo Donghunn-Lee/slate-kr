@@ -16,9 +16,10 @@ import zipfile
 from datetime import datetime
 from typing import Optional
 
-import psycopg2
 import requests
 from dotenv import load_dotenv
+
+from db import get_connection
 
 load_dotenv()
 
@@ -40,10 +41,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 DART_API_KEY = os.getenv("DART_API_KEY")
-
-
-def get_connection():
-    return psycopg2.connect(os.getenv("DATABASE_URL"))
 
 
 def fetch_corp_codes() -> dict[str, str]:

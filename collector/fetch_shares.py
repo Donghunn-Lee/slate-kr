@@ -10,9 +10,10 @@ import os
 import time
 from datetime import datetime
 import requests
-import psycopg2
 from dotenv import load_dotenv
 from typing import Optional
+
+from db import get_connection
 
 load_dotenv()
 
@@ -36,10 +37,6 @@ DART_API_KEY = os.getenv("DART_API_KEY")
 # 발행주식수 상한 클리핑 — 전세계 최대 발행주식수 종목도 100억주 미만.
 # 229640 사례처럼 DART 원본이 ×10^6 오태그로 반환되는 케이스 방어.
 SHARES_CAP = 1e11
-
-
-def get_connection():
-    return psycopg2.connect(os.getenv("DATABASE_URL"))
 
 
 def get_latest_bsns_year() -> str:

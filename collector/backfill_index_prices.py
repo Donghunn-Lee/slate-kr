@@ -27,9 +27,10 @@ import time
 from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
-import psycopg2
 import requests
 from dotenv import load_dotenv
+
+from db import get_connection
 
 load_dotenv()
 
@@ -69,10 +70,6 @@ ENDPOINT_TO_NAMES: dict[str, tuple[str, ...]] = {
 }
 
 BACKFILL_SLEEP_SEC = 0.3
-
-
-def get_connection():
-    return psycopg2.connect(os.getenv("DATABASE_URL"))
 
 
 def krx_call(path: str, bas_dd: str):

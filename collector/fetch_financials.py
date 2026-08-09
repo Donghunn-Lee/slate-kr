@@ -7,8 +7,9 @@ from datetime import datetime
 from dotenv import load_dotenv
 from typing import Optional
 import requests
-import psycopg2
 import time
+
+from db import get_connection
 
 load_dotenv()
 
@@ -166,10 +167,6 @@ def _eps_fallback(items: list) -> tuple:
         return best_val, f"Tier3 account_nm='{best_nm}'"
 
     return None, ""
-
-
-def get_connection():
-    return psycopg2.connect(os.getenv("DATABASE_URL"))
 
 
 def get_existing_keys(cursor) -> set[tuple]:

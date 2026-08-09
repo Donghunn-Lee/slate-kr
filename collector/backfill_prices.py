@@ -25,9 +25,10 @@ import sys
 import time
 from datetime import datetime
 
-import psycopg2
 from dotenv import load_dotenv
 from pykrx import stock as krx
+
+from db import get_connection
 
 load_dotenv()
 
@@ -50,10 +51,6 @@ logger = logging.getLogger(__name__)
 
 BATCH_SIZE = 200
 PYKRX_GAP_SEC = 0.3
-
-
-def get_connection():
-    return psycopg2.connect(os.getenv("DATABASE_URL"))
 
 
 def get_all_active_tickers(cursor) -> list[str]:

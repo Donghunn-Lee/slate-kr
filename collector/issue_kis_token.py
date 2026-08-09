@@ -15,9 +15,9 @@ import sys
 import time
 from datetime import datetime
 
-import psycopg2
 from dotenv import load_dotenv
 
+from db import get_connection
 from kis_token import request_token, upsert_token
 
 load_dotenv()
@@ -55,7 +55,7 @@ def main() -> None:
         timespec="seconds"
     )
 
-    conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+    conn = get_connection()
     try:
         upsert_token(conn, token, expires_at_ms)
     finally:
