@@ -70,7 +70,10 @@ export const StockMetrics = async ({ ticker }: StockMetricsProps) => {
           핵심 지표
           {sourceLabel && <span className="ml-2 font-normal">({sourceLabel})</span>}
         </h2>
-        <StockMetricsFormulaTooltip source={ttm.source} />
+        <StockMetricsFormulaTooltip
+          source={ttm.source}
+          bpsYear={displayBps !== null ? latestAnnual?.year ?? null : null}
+        />
       </div>
       {hasError ? (
         <p className="text-body text-muted-foreground">지표 데이터를 불러오지 못했습니다</p>

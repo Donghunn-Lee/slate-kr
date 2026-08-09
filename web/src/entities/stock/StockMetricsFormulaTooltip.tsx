@@ -19,9 +19,13 @@ const PER_CASES: PerCase[] = [
 
 type StockMetricsFormulaTooltipProps = {
   source: TtmEpsSource;
+  bpsYear: number | null;
 };
 
-export const StockMetricsFormulaTooltip = ({ source }: StockMetricsFormulaTooltipProps) => (
+export const StockMetricsFormulaTooltip = ({
+  source,
+  bpsYear,
+}: StockMetricsFormulaTooltipProps) => (
   <Tooltip>
     <TooltipTrigger asChild>
       <button
@@ -71,6 +75,12 @@ export const StockMetricsFormulaTooltip = ({ source }: StockMetricsFormulaToolti
             <span className="font-semibold">BPS</span> = 지배주주지분 ÷ 발행주식총수
             (자기주식 미차감)
           </p>
+          {bpsYear !== null && (
+            <p>
+              <span className="font-semibold">BPS 출처</span>: {bpsYear}년 연간
+              사업보고서 기준
+            </p>
+          )}
         </section>
         <section className="space-y-1 border-t border-primary-foreground/20 dark:border-white/15 pt-1.5 text-micro text-primary-foreground/80 dark:text-white/70">
           <p>붉은색으로 표시된 기준이 이 종목에 적용된 산식입니다.</p>

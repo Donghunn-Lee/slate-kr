@@ -88,6 +88,7 @@ const FinancialsTable = ({ periods, mode, compact }: FinancialsTableProps) => {
 
   const ordered = [...periods].reverse();
   const rows = compact ? METRIC_ROWS.filter((r) => SUMMARY_LABELS.has(r.label)) : METRIC_ROWS;
+  const hasQ4 = mode === "quarterly" && ordered.some((p) => p.quarter === 4);
 
   return (
     <div className={compact ? undefined : "overflow-x-auto"}>
@@ -133,6 +134,11 @@ const FinancialsTable = ({ periods, mode, compact }: FinancialsTableProps) => {
           ))}
         </tbody>
       </table>
+      {hasQ4 && (
+        <p className={`${compact ? "mt-2" : "mt-3"} text-caption text-muted-foreground`}>
+          Q4는 연간 실적에서 Q1–Q3 누계를 차감해 산출한 값입니다
+        </p>
+      )}
     </div>
   );
 };
