@@ -14,6 +14,8 @@ on:
 jobs:
   collect:
     runs-on: ubuntu-latest
+    # 최후 상한 — 어떤 스텝이 상한을 뚫어도 job-level cancel 대신 여기서 종료.
+    timeout-minutes: 60
 
     env:
       DATABASE_URL: ${{ secrets.NEON_DIRECT_URL }}
@@ -36,12 +38,15 @@ jobs:
       # 국내 스텝 실행 조건: inputs.mode 로 제어.
       #   full(기본값) → 국내+해외 전체 실행.
       #   overseas-only → 국내 skip, 해외만 실행 (예: 국내는 정상, 해외만 재수집 · 토요일 US 금요일 마감분).
+      # step-level timeout-minutes 는 초과 시 step *failure* 로 처리 → continue-on-error
+      # 가 실제로 작동 (후속 step skip 방지). job-level cancel 도달 자체를 막는 게 목적.
       - name: Run fetch_prices
         id: fetch_prices
         if: ${{ inputs.mode != 'overseas-only' }}
         working-directory: collector
         run: python fetch_prices.py
         continue-on-error: true
+        timeout-minutes: 30
 
       - name: Run fetch_index_prices
         id: fetch_index_prices
@@ -49,12 +54,14 @@ jobs:
         working-directory: collector
         run: python fetch_index_prices.py
         continue-on-error: true
+        timeout-minutes: 10
 
       - name: Run fetch_overseas_indices
         id: fetch_overseas_indices
         working-directory: collector
         run: python fetch_overseas_indices.py
         continue-on-error: true
+        timeout-minutes: 10
 
       - name: Verify daily freshness
         id: verify_freshness
@@ -62,23 +69,50 @@ jobs:
         working-directory: collector
         run: python verify_daily_freshness.py
         continue-on-error: true
+        timeout-minutes: 5
 
-      # Gate: 위 스텝 중 하나라도 실패면 워크플로우 실패로 만든다.
-      # continue-on-error 로 개별 실패를 격리하되, silent success 는 허용하지 않는다.
+      # Gate: silent green 방지. 위 스텝 중 하나라도 실패·취소·의도치 않은 skip 이면
+      # 워크플로우 실패로 만든다.
+      #   failure/cancelled → 항상 실패로 판정
+      #   skipped           → 해당 step 이 이 mode 에서 실행 예정이었는지 기준으로 판정
+      #                       (mode=overseas-only 일 때 domestic 3종 skip 은 정상)
+      # 배경: #107 사고 — fetch_prices cancelled 후 나머지 skip 됐는데 gate 가
+      # failure 만 체크해서 silent green 종료. cancelled/skipped 도 잡아야 함.
       - name: Aggregate failure gate
         if: always()
+        env:
+          MODE: ${{ inputs.mode || 'full' }}
         run: |
           fail=0
-          for outcome in \
-            "${{ steps.fetch_prices.outcome }}" \
-            "${{ steps.fetch_index_prices.outcome }}" \
-            "${{ steps.fetch_overseas_indices.outcome }}" \
-            "${{ steps.verify_freshness.outcome }}"; do
-            if [ "$outcome" = "failure" ]; then
-              fail=1
-            fi
-          done
+          check() {
+            name=$1; outcome=$2; expected_to_run=$3
+            case "$outcome" in
+              success) ;;
+              failure|cancelled)
+                echo "::error::step '$name' outcome=$outcome"
+                fail=1
+                ;;
+              skipped)
+                if [ "$expected_to_run" = "yes" ]; then
+                  echo "::error::step '$name' unexpectedly skipped (mode=$MODE) — likely upstream cancellation"
+                  fail=1
+                fi
+                ;;
+              *)
+                echo "::error::step '$name' unknown outcome=$outcome"
+                fail=1
+                ;;
+            esac
+          }
+          if [ "$MODE" = "overseas-only" ]; then
+            domestic_expected=no
+          else
+            domestic_expected=yes
+          fi
+          check fetch_prices           "${{ steps.fetch_prices.outcome }}"           "$domestic_expected"
+          check fetch_index_prices     "${{ steps.fetch_index_prices.outcome }}"     "$domestic_expected"
+          check fetch_overseas_indices "${{ steps.fetch_overseas_indices.outcome }}" yes
+          check verify_freshness       "${{ steps.verify_freshness.outcome }}"       "$domestic_expected"
           if [ "$fail" = "1" ]; then
-            echo "::error::One or more collector steps failed (see individual step logs)."
             exit 1
           fi
