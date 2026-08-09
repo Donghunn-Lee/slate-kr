@@ -64,6 +64,31 @@ describe("getPriceStats", () => {
       const prices = [mkSnap({ date: "2026-01-01", high: 100, low: 100, close: 100 })];
       expect(getPriceStats(prices).range52w?.position).toBe(0);
     });
+
+    it("365일 밖 극값은 무시 — 마지막 봉 기준 창 안에서만 max/min", () => {
+      // 마지막 봉 2026-01-01 기준 cutoff = 2025-01-01.
+      // 2024-06-01 봉의 초고가/초저가는 창 밖 → 제외돼야 함.
+      const prices = [
+        mkSnap({ date: "2024-06-01", high: 9999, low: 1, close: 500 }),
+        mkSnap({ date: "2025-03-01", high: 150, low: 80, close: 120 }),
+        mkSnap({ date: "2025-09-01", high: 180, low: 90, close: 160 }),
+        mkSnap({ date: "2026-01-01", high: 170, low: 100, close: 140 }),
+      ];
+      const result = getPriceStats(prices);
+      expect(result.range52w?.high).toBe(180);
+      expect(result.range52w?.low).toBe(80);
+    });
+
+    it("이력 365일 미만: 전체 봉에서 극값 산출 (기존 동작)", () => {
+      const prices = [
+        mkSnap({ date: "2025-11-01", high: 120, low: 90, close: 100 }),
+        mkSnap({ date: "2025-12-01", high: 150, low: 100, close: 130 }),
+        mkSnap({ date: "2026-01-01", high: 140, low: 110, close: 125 }),
+      ];
+      const result = getPriceStats(prices);
+      expect(result.range52w?.high).toBe(150);
+      expect(result.range52w?.low).toBe(90);
+    });
   });
 
   describe("calcReturn: 기간 커버 여부", () => {

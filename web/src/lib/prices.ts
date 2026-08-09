@@ -153,14 +153,17 @@ export const getPriceStats = (prices: PriceStatsInput[]): PriceStats => {
   const current = last.close;
   const lastDate = parseISO(last.date);
 
-  const high52 = Math.max(...prices.map((p) => p.high));
-  const low52 = Math.min(...prices.map((p) => p.low));
-  const position = high52 === low52 ? 0 : (current - low52) / (high52 - low52);
-
   const oldestDate = prices[0].date;
   const cutoff1M = format(subMonths(lastDate, 1), "yyyy-MM-dd");
   const cutoff3M = format(subMonths(lastDate, 3), "yyyy-MM-dd");
   const cutoff1Y = format(subYears(lastDate, 1), "yyyy-MM-dd");
+
+  // 52주 극값은 fetch 창(종목 13개월 / 지수 최대 1000일)이 아닌 실제 365일 창에서만 산출.
+  // cutoff 는 오늘이 아니라 마지막 봉 date 기준 (결정적·테스트 용이).
+  const range52wSource = prices.filter((p) => p.date >= cutoff1Y);
+  const high52 = Math.max(...range52wSource.map((p) => p.high));
+  const low52 = Math.min(...range52wSource.map((p) => p.low));
+  const position = high52 === low52 ? 0 : (current - low52) / (high52 - low52);
 
   // 기간 시작일 이전 데이터가 없으면 폴백하지 않고 null 반환 (상장 1년 미만 종목 대응)
   const calcReturn = (cutoff: string): number | null => {
