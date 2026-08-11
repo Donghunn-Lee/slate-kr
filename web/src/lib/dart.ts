@@ -58,6 +58,7 @@ export const getDisclosures = cache(
     url.searchParams.set("corp_code", corpCode);
     url.searchParams.set("page_no", String(pageNo));
     url.searchParams.set("page_count", String(pageCount));
+    url.searchParams.set("last_reprt_at", "Y");
     if (bgnDate) url.searchParams.set("bgn_de", toYyyymmdd(bgnDate));
     if (endDate) url.searchParams.set("end_de", toYyyymmdd(endDate));
 
