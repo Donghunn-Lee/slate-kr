@@ -6,10 +6,16 @@ import sys
 from datetime import datetime
 from dotenv import load_dotenv
 from typing import Optional
+import psycopg2
 import requests
 import time
 
 from db import get_connection
+
+# 재시도 대상 DB 예외 — connection 절단·소켓 종료류.
+# insert_financial/mark_non_filer 내부의 광범위 `except Exception` 이 이걸
+# 삼키지 않도록 별도로 잡아 raise 시킨다 (아래 두 함수의 handler 참고).
+_DB_RETRY_EXC = (psycopg2.OperationalError, psycopg2.InterfaceError)
 
 load_dotenv()
 
@@ -397,6 +403,10 @@ def insert_financial(
             ),
         )
         conn.commit()
+    except _DB_RETRY_EXC:
+        # connection 절단류 — caller 가 재연결·재시도 결정. rollback 시도하지 않음
+        # (죽은 conn 에서 rollback 이 새 예외를 유발할 수 있음).
+        raise
     except Exception as e:
         logger.error("DB 적재 실패 %s (%s/%s): %s", ticker, bsns_year, reprt_code, e)
         conn.rollback()
@@ -430,6 +440,8 @@ def mark_non_filer(conn, cursor, ticker: str, name: str) -> None:
         logger.info(
             "[MARK] %s (%s) → is_financial_filer=false (DART 미공시 확인)", ticker, name
         )
+    except _DB_RETRY_EXC:
+        raise
     except Exception as e:
         logger.error("is_financial_filer 업데이트 실패 %s: %s", ticker, e)
         conn.rollback()
@@ -575,13 +587,57 @@ def run(
                 "DART 응답 없음 (공시 미존재): %s %s/%s", ticker, bsns_year, reprt_code
             )
             if not force and ticker not in filed_tickers:
-                mark_non_filer(conn, cursor, ticker, name)
+                try:
+                    mark_non_filer(conn, cursor, ticker, name)
+                except _DB_RETRY_EXC:
+                    # 연결 절단 감지 → 재연결 후 이 종목 1회 재시도.
+                    # get_connection 이 다시 실패하면 raise 로 스크립트 중단.
+                    logger.warning("[WARN] DB 재연결 후 재시도: %s", ticker)
+                    try:
+                        cursor.close()
+                    except Exception:
+                        pass
+                    try:
+                        conn.close()
+                    except Exception:
+                        pass
+                    conn = get_connection()
+                    cursor = conn.cursor()
+                    try:
+                        mark_non_filer(conn, cursor, ticker, name)
+                    except _DB_RETRY_EXC as e2:
+                        logger.error("[%s] DB 재시도 실패, 스킵: %s", ticker, e2)
+                        error += 1
+                        time.sleep(0.05)
+                        continue
             skip += 1
             time.sleep(0.05)
         else:
-            result = insert_financial(
-                conn, cursor, ticker, corp_code, bsns_year, reprt_code, data
-            )
+            try:
+                result = insert_financial(
+                    conn, cursor, ticker, corp_code, bsns_year, reprt_code, data
+                )
+            except _DB_RETRY_EXC:
+                logger.warning("[WARN] DB 재연결 후 재시도: %s", ticker)
+                try:
+                    cursor.close()
+                except Exception:
+                    pass
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+                conn = get_connection()
+                cursor = conn.cursor()
+                try:
+                    result = insert_financial(
+                        conn, cursor, ticker, corp_code, bsns_year, reprt_code, data
+                    )
+                except _DB_RETRY_EXC as e2:
+                    logger.error("[%s] DB 재시도 실패, 스킵: %s", ticker, e2)
+                    error += 1
+                    time.sleep(0.15)
+                    continue
             if result == "ok":
                 existing_keys.add(key)
                 success += 1
