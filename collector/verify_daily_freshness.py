@@ -54,6 +54,11 @@ KRX_HOLIDAYS_2026: frozenset[str] = frozenset([
 # 프로덕션 워크플로우에선 미설정. fail 경로 로컬 검증용.
 _FORCE = os.getenv("VERIFY_FORCE_EXPECTED")
 
+# 종목 커버리지 하한 — expected 날짜 row 수가 직전 거래일의 이 비율 미만이면 FAIL.
+# #108 fetch_prices 30분 timeout 으로 1579/2647 = 59.7% 부분 적재가 MAX(date) 검사만
+# 통과해 silent PASS 된 사고 대응. 신규 DB(직전 baseline 부재) 는 WARN + skip.
+ROW_COUNT_FLOOR_RATIO = 0.9
+
 
 def is_trading_day(d: date) -> bool:
     if d.weekday() >= 5:  # 5=토, 6=일
@@ -80,6 +85,42 @@ def compute_expected_from_now(now_kst: datetime) -> date:
 def get_max(cursor, table: str, col: str) -> date | None:
     cursor.execute(f"SELECT MAX({col}) FROM {table}")
     return cursor.fetchone()[0]
+
+
+def check_row_count_floor(cursor, expected: date) -> str | None:
+    """daily_prices expected 날짜 row 수가 직전 거래일의 ROW_COUNT_FLOOR_RATIO 미만이면
+    실패 사유 문자열 반환. OK/WARN 경로는 None + stdout 로그."""
+    cursor.execute("SELECT COUNT(*) FROM daily_prices WHERE date = %s", (expected,))
+    (cur_cnt,) = cursor.fetchone()
+    cursor.execute(
+        "SELECT MAX(date) FROM daily_prices WHERE date < %s", (expected,)
+    )
+    (prev_date,) = cursor.fetchone()
+    if prev_date is None:
+        print(
+            f"  ?? daily_prices rows {cur_cnt} — 직전 baseline 없음, 하한 검사 skip"
+        )
+        return None
+    cursor.execute("SELECT COUNT(*) FROM daily_prices WHERE date = %s", (prev_date,))
+    (prev_cnt,) = cursor.fetchone()
+    if prev_cnt == 0:
+        print(
+            f"  ?? daily_prices rows {cur_cnt} — 직전({prev_date}) count=0, 하한 검사 skip"
+        )
+        return None
+    ratio = cur_cnt / prev_cnt
+    floor_pct = int(ROW_COUNT_FLOOR_RATIO * 100)
+    if ratio >= ROW_COUNT_FLOOR_RATIO:
+        print(
+            f"  OK daily_prices rows {cur_cnt}/{prev_cnt} (floor {floor_pct}%)"
+        )
+        return None
+    print(
+        f"  !! daily_prices rows {cur_cnt}/{prev_cnt} = {ratio * 100:.1f}% < {floor_pct}%"
+    )
+    return (
+        f"daily_prices rows {cur_cnt}/{prev_cnt} = {ratio * 100:.1f}% < {floor_pct}%"
+    )
 
 
 def main() -> None:
@@ -115,6 +156,9 @@ def main() -> None:
             print(f"  {mark}{table}.MAX({col}) = {mx}  (expected {expected})")
             if not ok:
                 failures.append(f"{table}.MAX({col})={mx} != expected {expected}")
+        floor_fail = check_row_count_floor(cur, expected)
+        if floor_fail:
+            failures.append(floor_fail)
         cur.close()
     finally:
         conn.close()
