@@ -14,8 +14,6 @@ on:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    # 최후 상한 — 어떤 스텝이 상한을 뚫어도 job-level cancel 대신 여기서 종료.
-    timeout-minutes: 60
 
     env:
       DATABASE_URL: ${{ secrets.NEON_DIRECT_URL }}
@@ -38,15 +36,12 @@ jobs:
       # 국내 스텝 실행 조건: inputs.mode 로 제어.
       #   full(기본값) → 국내+해외 전체 실행.
       #   overseas-only → 국내 skip, 해외만 실행 (예: 국내는 정상, 해외만 재수집 · 토요일 US 금요일 마감분).
-      # step-level timeout-minutes 는 초과 시 step *failure* 로 처리 → continue-on-error
-      # 가 실제로 작동 (후속 step skip 방지). job-level cancel 도달 자체를 막는 게 목적.
       - name: Run fetch_prices
         id: fetch_prices
         if: ${{ inputs.mode != 'overseas-only' }}
         working-directory: collector
         run: python fetch_prices.py
         continue-on-error: true
-        timeout-minutes: 30
 
       - name: Run fetch_index_prices
         id: fetch_index_prices
@@ -54,14 +49,12 @@ jobs:
         working-directory: collector
         run: python fetch_index_prices.py
         continue-on-error: true
-        timeout-minutes: 10
 
       - name: Run fetch_overseas_indices
         id: fetch_overseas_indices
         working-directory: collector
         run: python fetch_overseas_indices.py
         continue-on-error: true
-        timeout-minutes: 10
 
       - name: Verify daily freshness
         id: verify_freshness
@@ -69,7 +62,6 @@ jobs:
         working-directory: collector
         run: python verify_daily_freshness.py
         continue-on-error: true
-        timeout-minutes: 5
 
       # Gate: silent green 방지. 위 스텝 중 하나라도 실패·취소·의도치 않은 skip 이면
       # 워크플로우 실패로 만든다.
