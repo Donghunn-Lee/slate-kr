@@ -6,6 +6,10 @@ on:
 jobs:
   collect:
     runs-on: ubuntu-latest
+    # Job-level 단일 캡. step-level timeout은 사용하지 않는다 (step timeout +
+    # continue-on-error 조합은 cancelled outcome을 gate가 감지해야 하는 구조인
+    # 반면, job timeout은 run 자체를 fail시켜 gate 의존이 없음). 실측 대비 ~2배 여유.
+    timeout-minutes: 180
 
     env:
       DATABASE_URL: ${{ secrets.NEON_DIRECT_URL }}
@@ -47,23 +51,25 @@ jobs:
         run: python fetch_financials.py --periods 1
         continue-on-error: true
 
-      # Gate: 위 스텝 중 하나라도 실패면 워크플로우 실패로 만든다.
-      # continue-on-error 로 첫 실패가 이후 스텝을 계단식 스킵시키는 것을 막되,
-      # silent success 는 허용하지 않는다.
+      # Gate: silent green 방지. success 가 아닌 모든 outcome(failure·cancelled·
+      # skipped·기타)을 실패로 판정한다. weekly 는 daily 와 달리 mode/skip 조건이
+      # 없으므로 skipped 는 무조건 비정상(상류 취소 징후) — daily 식 조건부 skipped
+      # 분기는 불필요하고 catch-all 이 맞다.
       - name: Aggregate failure gate
         if: always()
         run: |
           fail=0
-          for outcome in \
-            "${{ steps.fetch_stocks.outcome }}" \
-            "${{ steps.update_corp_codes.outcome }}" \
-            "${{ steps.fetch_shares.outcome }}" \
-            "${{ steps.fetch_financials.outcome }}"; do
-            if [ "$outcome" = "failure" ]; then
+          check() {
+            name=$1; outcome=$2
+            if [ "$outcome" != "success" ]; then
+              echo "::error::step '$name' outcome=$outcome"
               fail=1
             fi
-          done
+          }
+          check fetch_stocks       "${{ steps.fetch_stocks.outcome }}"
+          check update_corp_codes  "${{ steps.update_corp_codes.outcome }}"
+          check fetch_shares       "${{ steps.fetch_shares.outcome }}"
+          check fetch_financials   "${{ steps.fetch_financials.outcome }}"
           if [ "$fail" = "1" ]; then
-            echo "::error::One or more weekly collector steps failed (see individual step logs)."
             exit 1
           fi
