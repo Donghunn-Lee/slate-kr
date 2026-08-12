@@ -14,6 +14,10 @@ on:
 jobs:
   collect:
     runs-on: ubuntu-latest
+    # Job-level 단일 캡. step-level timeout은 사용하지 않는다 (step timeout +
+    # continue-on-error 조합은 cancelled outcome을 gate가 감지해야 하는 구조인
+    # 반면, job timeout은 run 자체를 fail시켜 gate 의존이 없음). 실측 대비 ~2배 여유.
+    timeout-minutes: 120
 
     env:
       DATABASE_URL: ${{ secrets.NEON_DIRECT_URL }}
