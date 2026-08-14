@@ -5,12 +5,20 @@ KIS 해외지수 일봉 → index_daily_prices idempotent upsert.
   (인자 없음)              최신 100봉 창(=1콜)으로 저장된 최신일 이후만 append.
                            비어있는 지수는 자동으로 3년 백필로 승격(첫 실행).
   --backfill [--years N]   전 코드에 대해 N년(기본 3) 과거까지 walk 백필.
+                           * KIS 하한까지 대량 백필은 backfill_overseas_index_prices.py 사용.
 
-대상 지수 (US 4종 · OVERSEAS_CODES 실체 기준)
+대상 지수 (8종 · DOMAIN_TO_ISCD 기준)
   SPX      S&P 500
   .DJI     다우존스
   COMP     나스닥종합
   NDX      나스닥 100
+  NI225    닛케이 225        (KIS iscd = JP#NI225)
+  HSI      항셍               (KIS iscd = HK#HS)
+  SHCOMP   상해종합           (KIS iscd = SHANG)
+  DAX      DAX                (KIS iscd = GR#DAX)
+
+도메인 index_code 는 정규화 표기 (indices.ts 정합). KIS 심볼(#, alnum) 은
+DOMAIN_TO_ISCD 로 격리 — DB / 웹은 도메인 코드, KIS 호출부만 iscd 사용.
 
 호출
   GET /uapi/overseas-price/v1/quotations/inquire-daily-chartprice  tr_id=FHKST03030100
@@ -55,7 +63,19 @@ DEFAULT_BACKFILL_YEARS = 3
 # 100봉 하드캡 대비 안전 창 — 트레이딩일 100개 ≈ 140 캘린더일. 여유를 둬 200.
 DAILY_WINDOW_DAYS = 200
 
-OVERSEAS_CODES = ("SPX", ".DJI", "COMP", "NDX")
+# 도메인 index_code → KIS iscd. 기존 4종은 identity, 신규 4종은 KIS 심볼 매핑.
+# backfill_overseas_index_prices.py 의 DOMAIN_TO_ISCD 와 정합.
+DOMAIN_TO_ISCD: dict[str, str] = {
+    "SPX":    "SPX",
+    ".DJI":   ".DJI",
+    "COMP":   "COMP",
+    "NDX":    "NDX",
+    "NI225":  "JP#NI225",
+    "HSI":    "HK#HS",
+    "SHCOMP": "SHANG",
+    "DAX":    "GR#DAX",
+}
+OVERSEAS_CODES = tuple(DOMAIN_TO_ISCD.keys())
 
 # ── 로깅 (fetch_index_prices.py 와 동일 형태) ─────────────────
 _log_dir = os.path.join(os.path.dirname(__file__), "logs")
@@ -288,8 +308,9 @@ def run_backfill(years: int):
     total_ins = total_err = 0
     try:
         for code in OVERSEAS_CODES:
+            iscd = DOMAIN_TO_ISCD[code]
             try:
-                bars = fetch_range(token, code, start, end)
+                bars = fetch_range(token, iscd, start, end)
                 # 전체 백필은 chain 시작 이전 close 가 없으므로 None → 첫 봉 change=0.
                 ins, err = upsert_bars(conn, cursor, code, bars, prior_close=None)
                 logger.info("[%s] 백필 완료: 적재=%d 오류=%d", code, ins, err)
@@ -318,6 +339,7 @@ def run_daily():
     total_ins = total_skp = total_err = 0
     try:
         for code in OVERSEAS_CODES:
+            iscd = DOMAIN_TO_ISCD[code]
             try:
                 latest_date, latest_close = get_latest_stored(cursor, code)
                 if latest_date is None:
@@ -326,11 +348,11 @@ def run_daily():
                         code, DEFAULT_BACKFILL_YEARS,
                     )
                     start = end - timedelta(days=int(DEFAULT_BACKFILL_YEARS * 365.25))
-                    bars = fetch_range(token, code, start, end)
+                    bars = fetch_range(token, iscd, start, end)
                     ins, err = upsert_bars(conn, cursor, code, bars, prior_close=None)
                 else:
                     # 최신일 다음 날부터. 100봉 창 하나면 대부분 커버.
-                    bars = fetch_range(token, code, latest_date, end)
+                    bars = fetch_range(token, iscd, latest_date, end)
                     # latest_date 이하는 제거 (중복 방지) — chain 은 latest_close 로 이음.
                     filtered = {
                         d: v for d, v in bars.items()
