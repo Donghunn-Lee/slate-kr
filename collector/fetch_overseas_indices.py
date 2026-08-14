@@ -37,12 +37,14 @@ prior_close 는 DB 최신 종가를 이어붙여 chain 을 잇는다.
 logs/{prefix}_{YYYYMMDD}.log / ON CONFLICT DO UPDATE / per-code 에러 격리.
 """
 
+from __future__ import annotations
+
 import argparse
 import logging
 import os
 import sys
 import time
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 
 import requests
@@ -76,6 +78,8 @@ DOMAIN_TO_ISCD: dict[str, str] = {
     "DAX":    "GR#DAX",
 }
 OVERSEAS_CODES = tuple(DOMAIN_TO_ISCD.keys())
+
+KST = timezone(timedelta(hours=9))
 
 # ── 로깅 (fetch_index_prices.py 와 동일 형태) ─────────────────
 _log_dir = os.path.join(os.path.dirname(__file__), "logs")
@@ -244,16 +248,58 @@ UPSERT_SQL = """
 
 
 def get_latest_stored(cursor, index_code: str):
-    """(latest_date, latest_close) or (None, None)."""
+    """(latest_date, latest_close, latest_ohlc) or (None, None, None).
+    latest_ohlc 는 (open, high, low, close) 튜플 — carry 봉 판정용."""
     cursor.execute(
-        "SELECT base_date, close FROM index_daily_prices "
+        "SELECT base_date, open, high, low, close FROM index_daily_prices "
         "WHERE index_code = %s ORDER BY base_date DESC LIMIT 1",
         (index_code,),
     )
     row = cursor.fetchone()
     if row is None:
-        return None, None
-    return row[0], row[1]
+        return None, None, None
+    d, o, h, l, c = row
+    return d, c, (o, h, l, c)
+
+
+def is_carry_bar(curr_ohlc, prev_ohlc) -> str | None:
+    """KIS 휴장일 자리채움(carry) 봉 판정.
+
+    시그니처 2종:
+      (a) OHLC 4값이 직전 봉과 완전 동일       → 'OHLC=prev'
+      (b) O=H=L=C 이고 close 가 직전 close 와 동일 → 'flat=prev_c'
+    prev_ohlc 가 None 이면 판정 불가 → None (drop 안 함).
+
+    반환: 시그니처명 (drop 대상) 또는 None (정상 봉).
+    정상 보합(종가만 동일하고 H≠L)은 어느 시그니처도 만족하지 않아 kept.
+    """
+    if prev_ohlc is None:
+        return None
+    o, h, l, c = curr_ohlc
+    po, ph, pl, pc = prev_ohlc
+    if o == po and h == ph and l == pl and c == pc:
+        return "OHLC=prev"
+    if o == h == l == c and c == pc:
+        return "flat=prev_c"
+    return None
+
+
+def drop_carry_bars(bars_by_date: dict, latest_ohlc, log_prefix: str) -> dict:
+    """정렬된 후보에 대해 순차적으로 carry 봉 drop. 첫 봉의 prev 는 DB latest_ohlc.
+    drop 시 로그 1줄. 반환: 필터링된 dict {date_iso: (o,h,l,c,v)}."""
+    if not bars_by_date:
+        return bars_by_date
+    kept: dict = {}
+    prev_ohlc = latest_ohlc
+    for di in sorted(bars_by_date):
+        o, h, l, c, v = bars_by_date[di]
+        sig = is_carry_bar((o, h, l, c), prev_ohlc)
+        if sig is not None:
+            logger.info("%s carry drop %s (%s)", log_prefix, di, sig)
+            continue
+        kept[di] = (o, h, l, c, v)
+        prev_ohlc = (o, h, l, c)
+    return kept
 
 
 def upsert_bars(conn, cursor, index_code: str, bars_by_date: dict, prior_close):
@@ -300,6 +346,10 @@ def upsert_bars(conn, cursor, index_code: str, bars_by_date: dict, prior_close):
 def run_backfill(years: int):
     end = datetime.today().date()
     start = end - timedelta(days=int(years * 365.25))
+    # KIS FHKST03030100 은 장중 요청 시 당일 진행 중 봉을 반환 (probe 실측).
+    # 실행 시각(16:00 KST)에 아시아·유럽은 장중이므로 과거 날짜 봉만 확정치로
+    # 수용. 당일 확정 봉은 다음 run(주말 포함)에 적재.
+    today_kst = datetime.now(KST).date()
     logger.info("백필 시작 %s ~ %s (%d년) · 코드=%s", start, end, years, OVERSEAS_CODES)
 
     conn = get_connection()
@@ -311,6 +361,11 @@ def run_backfill(years: int):
             iscd = DOMAIN_TO_ISCD[code]
             try:
                 bars = fetch_range(token, iscd, start, end)
+                bars = {
+                    d: v for d, v in bars.items()
+                    if datetime.strptime(d, "%Y-%m-%d").date() < today_kst
+                }
+                bars = drop_carry_bars(bars, latest_ohlc=None, log_prefix=f"[{code}]")
                 # 전체 백필은 chain 시작 이전 close 가 없으므로 None → 첫 봉 change=0.
                 ins, err = upsert_bars(conn, cursor, code, bars, prior_close=None)
                 logger.info("[%s] 백필 완료: 적재=%d 오류=%d", code, ins, err)
@@ -331,7 +386,11 @@ def run_backfill(years: int):
 
 def run_daily():
     end = datetime.today().date()
-    logger.info("일일 append 시작 · 대상=%s", OVERSEAS_CODES)
+    # KIS FHKST03030100 은 장중 요청 시 당일 진행 중 봉을 반환 (probe 실측).
+    # 실행 시각(16:00 KST)에 아시아·유럽은 장중이므로 과거 날짜 봉만 확정치로
+    # 수용. 당일 확정 봉은 다음 run(주말 포함)에 적재. today_kst 는 엄격 상한.
+    today_kst = datetime.now(KST).date()
+    logger.info("일일 append 시작 · 대상=%s · today(KST)=%s", OVERSEAS_CODES, today_kst)
 
     conn = get_connection()
     token = get_token(conn)
@@ -341,7 +400,7 @@ def run_daily():
         for code in OVERSEAS_CODES:
             iscd = DOMAIN_TO_ISCD[code]
             try:
-                latest_date, latest_close = get_latest_stored(cursor, code)
+                latest_date, latest_close, latest_ohlc = get_latest_stored(cursor, code)
                 if latest_date is None:
                     logger.info(
                         "[%s] 저장 데이터 없음 → 첫 실행: 백필로 승격 (%d년)",
@@ -349,17 +408,35 @@ def run_daily():
                     )
                     start = end - timedelta(days=int(DEFAULT_BACKFILL_YEARS * 365.25))
                     bars = fetch_range(token, iscd, start, end)
+                    bars = {
+                        d: v for d, v in bars.items()
+                        if datetime.strptime(d, "%Y-%m-%d").date() < today_kst
+                    }
+                    bars = drop_carry_bars(bars, latest_ohlc=None, log_prefix=f"[{code}]")
                     ins, err = upsert_bars(conn, cursor, code, bars, prior_close=None)
                 else:
-                    # 최신일 다음 날부터. 100봉 창 하나면 대부분 커버.
+                    # 최신일 다음 날부터, 실행일(KST) 미만까지. 100봉 창 하나면 대부분 커버.
                     bars = fetch_range(token, iscd, latest_date, end)
-                    # latest_date 이하는 제거 (중복 방지) — chain 은 latest_close 로 이음.
+                    # latest_date 이하 제거 (중복 방지) + today_kst 이상 제거 (진행 중 봉 차단).
+                    # chain 은 latest_close 로 이음.
                     filtered = {
                         d: v for d, v in bars.items()
-                        if datetime.strptime(d, "%Y-%m-%d").date() > latest_date
+                        if latest_date < datetime.strptime(d, "%Y-%m-%d").date() < today_kst
                     }
                     if not filtered:
-                        logger.info("[%s] 신규 봉 없음 (최신=%s)", code, latest_date)
+                        logger.info(
+                            "[%s] 신규 확정 봉 없음 (최신=%s, today=%s)",
+                            code, latest_date, today_kst,
+                        )
+                        total_skp += 1
+                        continue
+                    filtered = drop_carry_bars(
+                        filtered, latest_ohlc=latest_ohlc, log_prefix=f"[{code}]",
+                    )
+                    if not filtered:
+                        logger.info(
+                            "[%s] carry drop 후 신규 봉 0 (최신=%s)", code, latest_date,
+                        )
                         total_skp += 1
                         continue
                     ins, err = upsert_bars(
