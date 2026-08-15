@@ -25,8 +25,12 @@ const PRICE_SIGN_CLASS: Record<PriceSign, string> = {
 const signOfChange = (change: number): PriceSign =>
   change > 0 ? "up" : change < 0 ? "down" : "flat";
 
+// 소수 2자리 고정 — 정수 지수도 47,000.00 으로 표시해 자릿수 흔들림 없이 열 정렬.
 const formatIndexPrice = (v: number): string =>
-  v.toLocaleString("ko-KR", { maximumFractionDigits: 2 });
+  v.toLocaleString("ko-KR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 
 // 해외 지수 리스트 — 8행. useOverseasIndexQuotes 라이브 우선, null 이면 SSR EOD fallback.
 // 스파크라인 없음 (텍스트만). 지연 라벨은 헤더에 1개.
@@ -59,13 +63,13 @@ export const OverseasIndexList = ({
             <li key={code}>
               <Link
                 href={`/stocks/indices?index=${encodeURIComponent(code)}`}
-                className="flex items-center justify-between gap-2 px-4 py-2 transition-colors hover:bg-lavender-bg/50 sm:px-6"
+                className="flex items-center justify-between gap-2 px-4 py-1.5 transition-colors hover:bg-lavender-bg/50 sm:px-6 sm:py-2"
               >
                 <span className="min-w-0 flex-1 truncate text-body-sm font-medium">
                   {meta.label}
                 </span>
                 {price !== null && change !== null && changeRate !== null ? (
-                  <div className="flex items-baseline gap-2">
+                  <div className="flex shrink-0 items-baseline gap-1.5 sm:gap-2">
                     <span
                       className={cn(
                         "text-body-sm font-semibold tabular-nums",
@@ -74,6 +78,16 @@ export const OverseasIndexList = ({
                     >
                       {formatIndexPrice(price)}
                     </span>
+                    {/* 라벨(truncate) → 숫자블록(shrink-0) 순서로 폭 부족 시 라벨이 먼저 잘림. */}
+                    <PriceChange
+                      change={change}
+                      changeRate={changeRate}
+                      sign={sign}
+                      symbol="arrow"
+                      size="xs"
+                      fractionDigits={2}
+                      className="text-micro sm:hidden"
+                    />
                     <PriceChange
                       change={change}
                       changeRate={changeRate}
@@ -81,7 +95,8 @@ export const OverseasIndexList = ({
                       symbol="arrow"
                       size="xs"
                       stacked
-                      className="text-micro"
+                      fractionDigits={2}
+                      className="hidden text-micro sm:inline-flex"
                     />
                   </div>
                 ) : (

@@ -11,6 +11,8 @@ type PriceChangeProps = {
   // 변동폭(위) / 등락률(아래) 2단 세로 스택 렌더. 등락률 괄호 제거.
   // false(기본): 기존 인라인 "변동폭 (등락률%)" 렌더.
   stacked?: boolean;
+  // 변동폭 소수 자리수 고정 (minimum=maximum). 미지정 시 콤마 포맷만.
+  fractionDigits?: number;
   className?: string;
 };
 
@@ -53,14 +55,20 @@ export const PriceChange = ({
   unit,
   size = "sm",
   stacked = false,
+  fractionDigits,
   className,
 }: PriceChangeProps) => {
   const resolved = resolveSign(change, sign);
 
+  const numberOpts: Intl.NumberFormatOptions | undefined =
+    fractionDigits !== undefined
+      ? { minimumFractionDigits: fractionDigits, maximumFractionDigits: fractionDigits }
+      : undefined;
+
   const changeText =
     symbol === "arrow"
-      ? `${ARROW[resolved]} ${Math.abs(change).toLocaleString("ko-KR")}${unit ?? ""}`
-      : `${prefix(change, resolved)}${change.toLocaleString("ko-KR")}${unit ?? ""}`;
+      ? `${ARROW[resolved]} ${Math.abs(change).toLocaleString("ko-KR", numberOpts)}${unit ?? ""}`
+      : `${prefix(change, resolved)}${change.toLocaleString("ko-KR", numberOpts)}${unit ?? ""}`;
 
   const rateText = `${prefix(changeRate, resolved)}${changeRate.toFixed(2)}%`;
 

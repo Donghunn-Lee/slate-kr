@@ -111,8 +111,14 @@ export const IndexMiniChart = ({ bars, failed }: IndexMiniChartProps) => {
         borderColor: palette.border,
         timeVisible: true,
         secondsVisible: false,
+        // 모바일 반폭 셀에서 마지막 tick(15:30) 이 우측 여백 부족으로 렌더 스킵되어 소폭 여백 확보.
+        ...(isMobile ? { rightOffset: 2 } : {}),
       },
-      rightPriceScale: { borderColor: palette.border },
+      // 모바일 반폭 셀은 가격축 라벨이 값과 시각적으로 인접해 혼선 유발 → 축 숨김.
+      // 현재가는 셀 상단 텍스트로 이미 표시.
+      rightPriceScale: isMobile
+        ? { visible: false }
+        : { borderColor: palette.border },
       handleScroll: false,
       handleScale: false,
     });
