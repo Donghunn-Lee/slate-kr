@@ -217,3 +217,25 @@ export const getUsTradingDate = (now: Date = new Date()): string => {
 // fromDate 직전 US 거래일. intraday 이전 세션 경계 계산용.
 export const getPreviousUsTradingDate = (fromDate: string): string =>
   findRecentUsTradingDay(shiftUsDate(fromDate, -1));
+
+// ── 글로벌 해외지수 coarse 세션 ─────────────────
+// KST 05:00~09:00 은 전 세계 주요 시장(US/EU/아시아) 공통 휴지 구간 → 폴링 중단.
+// 시장별 세션·휴장 캘린더는 만들지 않는다 — 마감 시장은 KIS 가 종가를 반환하므로
+// 값 표시는 성립.
+const GLOBAL_OVERSEAS_IDLE_START_MINUTES = 5 * 60; // 05:00 KST
+const GLOBAL_OVERSEAS_IDLE_END_MINUTES = 9 * 60; // 09:00 KST
+
+export type GlobalOverseasSession = "active" | "idle";
+
+export const getGlobalOverseasSessionState = (
+  now: Date = new Date(),
+): GlobalOverseasSession => {
+  const { minutes } = toKstParts(now);
+  return minutes >= GLOBAL_OVERSEAS_IDLE_START_MINUTES &&
+    minutes < GLOBAL_OVERSEAS_IDLE_END_MINUTES
+    ? "idle"
+    : "active";
+};
+
+export const isGlobalOverseasActive = (now: Date = new Date()): boolean =>
+  getGlobalOverseasSessionState(now) === "active";

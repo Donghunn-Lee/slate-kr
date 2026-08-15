@@ -20,6 +20,11 @@ export const INDEX_REGISTRY = [
   { code: "SPX", label: "S&P 500", region: "overseas", overline: "S&P 500" },
   { code: ".DJI", label: "다우존스", region: "overseas", overline: "DOW JONES" },
   { code: "COMP", label: "나스닥종합", region: "overseas", overline: "NASDAQ COMP" },
+  { code: "NDX", label: "나스닥100", region: "overseas", overline: "NASDAQ 100" },
+  { code: "NI225", label: "니케이225", region: "overseas", overline: "NIKKEI 225" },
+  { code: "HSI", label: "항셍", region: "overseas", overline: "HANG SENG" },
+  { code: "SHCOMP", label: "상해종합", region: "overseas", overline: "SSE COMPOSITE" },
+  { code: "DAX", label: "DAX", region: "overseas", overline: "DAX" },
 ] as const satisfies readonly IndexMeta[];
 
 type IndexEntry = (typeof INDEX_REGISTRY)[number];

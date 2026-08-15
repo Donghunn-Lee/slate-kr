@@ -1,4 +1,8 @@
-import type { KrxSession, UsSession } from "@/shared/utils/market";
+import type {
+  GlobalOverseasSession,
+  KrxSession,
+  UsSession,
+} from "@/shared/utils/market";
 
 // 지수·랭킹 route 공통 TTL. session·tradingDate 를 cache key 축으로 넣어
 // 세션·일 경계에서 자동 miss 를 보장한 다음, TTL 은 최소한만 남긴다.
@@ -12,3 +16,9 @@ export const krxIndexRankingRevalidate = (session: KrxSession): number =>
 // closed 는 국내와 동일한 3600s.
 export const usOverseasIntradayRevalidate = (session: UsSession): number =>
   session === "regular" ? 120 : 3600;
+
+// 해외 지수 quote (8종 폴링) TTL. 클라 폴링 60s 와 정렬. idle(KST 05:00~09:00)
+// 은 폴링 중단 창이라 3600s 로 KIS 부담 최소화.
+export const globalOverseasQuoteRevalidate = (
+  session: GlobalOverseasSession,
+): number => (session === "active" ? 60 : 3600);

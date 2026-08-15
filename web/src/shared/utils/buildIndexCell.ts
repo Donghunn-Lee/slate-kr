@@ -16,7 +16,8 @@ export type BuildIndexCellInput = {
   latestDaily: IndexDailySnapshot | null;
 };
 
-// 세 소비 지점(IndexDetailPane / IndexRail 해외 분기 / OverseasIndexRow) 공용.
+// IndexDetailPane / IndexRail 해외 분기 공용. 해외 라이브(quote)는 IndexSlate 가 직접
+// useOverseasIndexQuotes 결과를 소비하므로 이 헬퍼를 거치지 않는다.
 // 우선순위:
 //   1. 국내 → /api/index-quotes 셀 그대로 (해당 응답이 이미 live+fallback 합성).
 //   2. 해외 intraday 봉 존재 → 최신 봉의 close/change/changeRate 를 live 로 승격.
