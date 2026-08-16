@@ -72,8 +72,6 @@ jobs:
       #   failure/cancelled → 항상 실패로 판정
       #   skipped           → 해당 step 이 이 mode 에서 실행 예정이었는지 기준으로 판정
       #                       (mode=overseas-only 일 때 domestic 3종 skip 은 정상)
-      # 배경: #107 사고 — fetch_prices cancelled 후 나머지 skip 됐는데 gate 가
-      # failure 만 체크해서 silent green 종료. cancelled/skipped 도 잡아야 함.
       - name: Aggregate failure gate
         if: always()
         env:

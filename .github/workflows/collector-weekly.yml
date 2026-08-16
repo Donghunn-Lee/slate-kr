@@ -8,8 +8,10 @@ jobs:
     runs-on: ubuntu-latest
     # Job-level 단일 캡. step-level timeout은 사용하지 않는다 (step timeout +
     # continue-on-error 조합은 cancelled outcome을 gate가 감지해야 하는 구조인
-    # 반면, job timeout은 run 자체를 fail시켜 gate 의존이 없음). 실측 대비 ~2배 여유.
-    timeout-minutes: 180
+    # 반면, job timeout은 run 자체를 fail시켜 gate 의존이 없음).
+    # 비피크 ~1.5h·분기보고서 피크 ~4.6h 실측 기준, 피크 커버 + hard limit(6h)
+    # 전 차단 여유.
+    timeout-minutes: 330  # 분기보고서 마감 피크(2·5·8·11월) 실측 ~4.6h 기준, hosted runner 상한 6h 이내
 
     env:
       DATABASE_URL: ${{ secrets.NEON_DIRECT_URL }}
