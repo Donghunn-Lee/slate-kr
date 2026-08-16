@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import type { DomesticIndexCode } from "@/shared/constants/indices";
 import type { IndexDailySnapshot, IndexQuote } from "@/shared/types/quote";
 
 export type IndexCellData = {
@@ -7,12 +8,7 @@ export type IndexCellData = {
 };
 
 export type IndexQuotesResponse = {
-  quotes: {
-    kospi: IndexCellData;
-    kosdaq: IndexCellData;
-    kospi200: IndexCellData;
-    kosdaq150: IndexCellData;
-  };
+  quotes: Record<DomesticIndexCode, IndexCellData>;
   marketOpen: boolean;
   date: string; // KST 거래일 'YYYY-MM-DD' (당일 봉 병합용)
 };

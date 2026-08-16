@@ -11,7 +11,6 @@ import {
   isOverseasIntradayCode,
   type DomesticIndexCode,
   type IndexCode,
-  type OverseasIntradayCode,
 } from "@/shared/constants/indices";
 import type { IndexDailySnapshot } from "@/shared/types/quote";
 import { useIndexQuotes } from "@/features/index-quotes/useIndexQuotes";
@@ -24,22 +23,6 @@ type IndexChipStripProps = {
   onSelect: (code: IndexCode) => void;
   dailyByIndex: Record<IndexCode, IndexDailySnapshot[] | null>;
   className?: string;
-};
-
-const CELL_KEY: Record<
-  DomesticIndexCode,
-  "kospi" | "kosdaq" | "kospi200" | "kosdaq150"
-> = {
-  KOSPI: "kospi",
-  KOSDAQ: "kosdaq",
-  KOSPI200: "kospi200",
-  KOSDAQ150: "kosdaq150",
-};
-
-const OVERSEAS_CELL_KEY: Record<OverseasIntradayCode, "spx" | "comp" | "ndx"> = {
-  SPX: "spx",
-  COMP: "comp",
-  NDX: "ndx",
 };
 
 const formatIndexPrice = (v: number): string =>
@@ -72,7 +55,7 @@ export const IndexChipStrip = ({
     const latestDaily =
       prices && prices.length > 0 ? prices[prices.length - 1] : null;
     const overseasBars = isOverseasIntradayCode(code)
-      ? overseasIntradayQuery.data?.quotes[OVERSEAS_CELL_KEY[code]] ?? []
+      ? overseasIntradayQuery.data?.quotes[code] ?? []
       : [];
     const overseasLatestBar =
       overseasBars.length > 0 ? overseasBars[overseasBars.length - 1] : null;
@@ -80,7 +63,7 @@ export const IndexChipStrip = ({
       isDomestic,
       name: INDEX_LABEL[code],
       domesticCell: isDomestic
-        ? data?.quotes[CELL_KEY[code as DomesticIndexCode]]
+        ? data?.quotes[code as DomesticIndexCode]
         : undefined,
       overseasLatestBar,
       latestDaily,

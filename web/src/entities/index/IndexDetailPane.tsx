@@ -10,6 +10,7 @@ import {
   isOverseasIntradayCode,
   type DomesticIndexCode,
   type IndexCode,
+  type OverseasIntradayCode,
 } from "@/shared/constants/indices";
 import type { IndexDailySnapshot } from "@/shared/types/quote";
 import type { PriceStats } from "@/shared/types/stock";
@@ -30,22 +31,6 @@ type IndexDetailPaneProps = {
   dailyByIndex: Record<IndexCode, IndexDailySnapshot[] | null>;
   statsByIndex: Record<IndexCode, PriceStats | null>;
   volumeByIndex: Record<IndexCode, number | null>;
-};
-
-const CELL_KEY: Record<
-  DomesticIndexCode,
-  "kospi" | "kosdaq" | "kospi200" | "kosdaq150"
-> = {
-  KOSPI: "kospi",
-  KOSDAQ: "kosdaq",
-  KOSPI200: "kospi200",
-  KOSDAQ150: "kosdaq150",
-};
-
-const OVERSEAS_CELL_KEY: Record<"SPX" | "COMP" | "NDX", "spx" | "comp" | "ndx"> = {
-  SPX: "spx",
-  COMP: "comp",
-  NDX: "ndx",
 };
 
 // fake-UTC 초 → 시각 라벨 "HH:MM" (ET). 인코딩 대칭 — Date.UTC 로 위장했으므로
@@ -219,9 +204,7 @@ export const IndexDetailPane = ({
 
   // 해외 intraday 지수(SPX/COMP/NDX): 최신 봉으로 라이브 셀 파생. NULL 이면 EOD fallback.
   const overseasBars = isOverseasIntraday
-    ? overseasIntradayQuery.data?.quotes[
-        OVERSEAS_CELL_KEY[selected as "SPX" | "COMP" | "NDX"]
-      ] ?? []
+    ? overseasIntradayQuery.data?.quotes[selected as OverseasIntradayCode] ?? []
     : [];
   const overseasLatestBar =
     overseasBars.length > 0 ? overseasBars[overseasBars.length - 1] : null;
@@ -231,7 +214,7 @@ export const IndexDetailPane = ({
     isDomestic,
     name: INDEX_LABEL[selected],
     domesticCell: isDomestic
-      ? data?.quotes[CELL_KEY[selected as DomesticIndexCode]]
+      ? data?.quotes[selected as DomesticIndexCode]
       : undefined,
     overseasLatestBar,
     latestDaily,

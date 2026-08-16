@@ -166,7 +166,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
           {data ? (
             <MarketStatus
               marketOpen={data.marketOpen}
-              date={data.quotes.kospi.fallback?.date}
+              date={data.quotes.KOSPI.fallback?.date}
             />
           ) : null}
         </div>
@@ -192,15 +192,15 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                 <div className="flex flex-col divide-y divide-border/60">
                   <IndexCell
                     label="코스피"
-                    cell={data.quotes.kospi}
-                    bars={intraday?.quotes.kospi ?? EMPTY_BARS}
-                    intradayFailed={intraday?.failed.kospi ?? false}
+                    cell={data.quotes.KOSPI}
+                    bars={intraday?.quotes.KOSPI ?? EMPTY_BARS}
+                    intradayFailed={intraday?.failed.KOSPI ?? false}
                   />
                   <MiniIndexCell
                     label="코스피200"
-                    cell={data.quotes.kospi200}
-                    bars={intraday?.quotes.kospi200 ?? EMPTY_BARS}
-                    intradayFailed={intraday?.failed.kospi200 ?? false}
+                    cell={data.quotes.KOSPI200}
+                    bars={intraday?.quotes.KOSPI200 ?? EMPTY_BARS}
+                    intradayFailed={intraday?.failed.KOSPI200 ?? false}
                     formatPrice={formatKrw}
                     renderLiveValue={renderDomesticLive}
                     priceClassName="sm:text-xl sm:font-medium"
@@ -209,15 +209,15 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                 <div className="flex flex-col divide-y divide-border/60">
                   <IndexCell
                     label="코스닥"
-                    cell={data.quotes.kosdaq}
-                    bars={intraday?.quotes.kosdaq ?? EMPTY_BARS}
-                    intradayFailed={intraday?.failed.kosdaq ?? false}
+                    cell={data.quotes.KOSDAQ}
+                    bars={intraday?.quotes.KOSDAQ ?? EMPTY_BARS}
+                    intradayFailed={intraday?.failed.KOSDAQ ?? false}
                   />
                   <MiniIndexCell
                     label="코스닥150"
-                    cell={data.quotes.kosdaq150}
-                    bars={intraday?.quotes.kosdaq150 ?? EMPTY_BARS}
-                    intradayFailed={intraday?.failed.kosdaq150 ?? false}
+                    cell={data.quotes.KOSDAQ150}
+                    bars={intraday?.quotes.KOSDAQ150 ?? EMPTY_BARS}
+                    intradayFailed={intraday?.failed.KOSDAQ150 ?? false}
                     formatPrice={formatKrw}
                     renderLiveValue={renderDomesticLive}
                     priceClassName="sm:text-xl sm:font-medium"
@@ -241,32 +241,32 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
               <div className="grid grid-cols-2 divide-x divide-border/60">
                 <IndexCell
                   label="코스피"
-                  cell={data.quotes.kospi}
-                  bars={intraday?.quotes.kospi ?? EMPTY_BARS}
-                  intradayFailed={intraday?.failed.kospi ?? false}
+                  cell={data.quotes.KOSPI}
+                  bars={intraday?.quotes.KOSPI ?? EMPTY_BARS}
+                  intradayFailed={intraday?.failed.KOSPI ?? false}
                 />
                 <IndexCell
                   label="코스닥"
-                  cell={data.quotes.kosdaq}
-                  bars={intraday?.quotes.kosdaq ?? EMPTY_BARS}
-                  intradayFailed={intraday?.failed.kosdaq ?? false}
+                  cell={data.quotes.KOSDAQ}
+                  bars={intraday?.quotes.KOSDAQ ?? EMPTY_BARS}
+                  intradayFailed={intraday?.failed.KOSDAQ ?? false}
                 />
               </div>
               <div className="grid grid-cols-2 divide-x divide-border/60">
                 <MiniIndexCell
                   label="코스피200"
-                  cell={data.quotes.kospi200}
-                  bars={intraday?.quotes.kospi200 ?? EMPTY_BARS}
-                  intradayFailed={intraday?.failed.kospi200 ?? false}
+                  cell={data.quotes.KOSPI200}
+                  bars={intraday?.quotes.KOSPI200 ?? EMPTY_BARS}
+                  intradayFailed={intraday?.failed.KOSPI200 ?? false}
                   formatPrice={formatKrw}
                   renderLiveValue={renderDomesticLive}
                   priceClassName="sm:text-xl sm:font-medium"
                 />
                 <MiniIndexCell
                   label="코스닥150"
-                  cell={data.quotes.kosdaq150}
-                  bars={intraday?.quotes.kosdaq150 ?? EMPTY_BARS}
-                  intradayFailed={intraday?.failed.kosdaq150 ?? false}
+                  cell={data.quotes.KOSDAQ150}
+                  bars={intraday?.quotes.KOSDAQ150 ?? EMPTY_BARS}
+                  intradayFailed={intraday?.failed.KOSDAQ150 ?? false}
                   formatPrice={formatKrw}
                   renderLiveValue={renderDomesticLive}
                   priceClassName="sm:text-xl sm:font-medium"

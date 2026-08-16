@@ -1,19 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
+import type { OverseasIntradayCode } from "@/shared/constants/indices";
 import type { IndexIntradaySnapshot } from "@/shared/types/quote";
 
 export type OverseasIndexIntradayResponse = {
-  quotes: {
-    spx: IndexIntradaySnapshot[];
-    comp: IndexIntradaySnapshot[];
-    ndx: IndexIntradaySnapshot[];
-  };
+  quotes: Record<OverseasIntradayCode, IndexIntradaySnapshot[]>;
   marketOpen: boolean; // US 정규장 여부. 폴링 게이트.
   // route 완전 fetch 실패 시 해당 코드 true. bars 는 항상 [] 이므로 실패↔정상 empty 구분.
-  failed: {
-    spx: boolean;
-    comp: boolean;
-    ndx: boolean;
-  };
+  failed: Record<OverseasIntradayCode, boolean>;
 };
 
 // 국내 60s 보다 완만 — 라이브 자체가 ~15분 지연 피드라 짧은 폴링 이득 없음.

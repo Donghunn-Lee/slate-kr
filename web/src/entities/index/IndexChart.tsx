@@ -48,22 +48,6 @@ type IndexChartProps = {
   intradayEnabled?: boolean;
 };
 
-const CELL_KEY: Record<
-  DomesticIndexCode,
-  "kospi" | "kosdaq" | "kospi200" | "kosdaq150"
-> = {
-  KOSPI: "kospi",
-  KOSDAQ: "kosdaq",
-  KOSPI200: "kospi200",
-  KOSDAQ150: "kosdaq150",
-};
-
-const OVERSEAS_CELL_KEY: Record<OverseasIntradayCode, "spx" | "comp" | "ndx"> = {
-  SPX: "spx",
-  COMP: "comp",
-  NDX: "ndx",
-};
-
 // fake-UTC 초 → ET 로컬 캘린더 날짜(YYYY-MM-DD). 인코딩 대칭 — Date.UTC 로 위장했으므로
 // getUTC* 가 원래 ET 컴포넌트를 돌려준다.
 const fakeUtcSecToLocalDate = (sec: number): string => {
@@ -201,21 +185,21 @@ export const IndexChart = ({
     ? overseasIntradayQuery
     : domesticIntradayQuery;
 
-  const domesticCellKey =
+  const domesticCode: DomesticIndexCode | null =
     intradayEnabled && !isOverseasIntraday
-      ? CELL_KEY[indexCode as DomesticIndexCode]
+      ? (indexCode as DomesticIndexCode)
       : null;
-  const overseasCellKey =
+  const overseasCode: OverseasIntradayCode | null =
     intradayEnabled && isOverseasIntraday
-      ? OVERSEAS_CELL_KEY[indexCode as OverseasIntradayCode]
+      ? (indexCode as OverseasIntradayCode)
       : null;
 
   const rawIntraday: IndexIntradaySnapshot[] | null = isOverseasIntraday
-    ? overseasCellKey !== null
-      ? overseasIntradayQuery.data?.quotes[overseasCellKey] ?? null
+    ? overseasCode !== null
+      ? overseasIntradayQuery.data?.quotes[overseasCode] ?? null
       : null
-    : domesticCellKey !== null
-      ? domesticIntradayQuery.data?.quotes[domesticCellKey] ?? null
+    : domesticCode !== null
+      ? domesticIntradayQuery.data?.quotes[domesticCode] ?? null
       : null;
 
   // 오늘 세션 date — 리전별 소스:
@@ -254,8 +238,8 @@ export const IndexChart = ({
   // (open=첫봉 open, high/low=max/min, price=마지막 봉 close) 로 합성. 이렇게 하면
   // mergeLiveDayBar 가 EOD 마지막 봉을 today-bar 로 replace 할 때 국내와 동일 계약.
   const domesticLiveQuote =
-    domesticCellKey !== null
-      ? quotesData?.quotes[domesticCellKey].live ?? null
+    domesticCode !== null
+      ? quotesData?.quotes[domesticCode].live ?? null
       : null;
   const overseasLiveQuote: LiveQuoteForMerge | null = useMemo(() => {
     if (!isOverseasIntraday || !rawIntraday || !overseasLatestDate) return null;
@@ -284,11 +268,11 @@ export const IndexChart = ({
   const renderIntraday = isIntradayView && intradayHasData;
   // route 가 완전 fetch 실패 시 해당 지수 true. bars 는 항상 [] 이므로 실패는 empty 를 동반.
   const intradayFailed = isOverseasIntraday
-    ? overseasCellKey !== null
-      ? overseasIntradayQuery.data?.failed?.[overseasCellKey] ?? false
+    ? overseasCode !== null
+      ? overseasIntradayQuery.data?.failed?.[overseasCode] ?? false
       : false
-    : domesticCellKey !== null
-      ? domesticIntradayQuery.data?.failed?.[domesticCellKey] ?? false
+    : domesticCode !== null
+      ? domesticIntradayQuery.data?.failed?.[domesticCode] ?? false
       : false;
   // 실패는 항상 empty 를 동반하므로 failed 로 분기 우선순위 결정 — 두 분기는 상호 배타.
   const showFailedIntraday =

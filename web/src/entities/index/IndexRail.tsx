@@ -17,7 +17,6 @@ import {
   isOverseasIntradayCode,
   type DomesticIndexCode,
   type IndexCode,
-  type OverseasIntradayCode,
 } from "@/shared/constants/indices";
 import type { IndexDailySnapshot } from "@/shared/types/quote";
 import { useIndexQuotes } from "@/features/index-quotes/useIndexQuotes";
@@ -32,22 +31,6 @@ type IndexRailProps = {
 };
 
 type SectionKey = "domestic" | "overseas";
-
-const CELL_KEY: Record<
-  DomesticIndexCode,
-  "kospi" | "kosdaq" | "kospi200" | "kosdaq150"
-> = {
-  KOSPI: "kospi",
-  KOSDAQ: "kosdaq",
-  KOSPI200: "kospi200",
-  KOSDAQ150: "kosdaq150",
-};
-
-const OVERSEAS_CELL_KEY: Record<OverseasIntradayCode, "spx" | "comp" | "ndx"> = {
-  SPX: "spx",
-  COMP: "comp",
-  NDX: "ndx",
-};
 
 const SECTIONS: {
   key: SectionKey;
@@ -103,12 +86,10 @@ export const IndexRail = ({
                   prices && prices.length > 0
                     ? prices[prices.length - 1]
                     : null;
-                // 해외 intraday(SPX/COMP): 최신 봉이 있으면 live 셀로 승격.
-                // .DJI 는 isOverseasIntradayCode=false → 항상 EOD fallback (X19).
+                // 해외 intraday(SPX/COMP/NDX): 최신 봉이 있으면 live 셀로 승격.
+                // 그 외 해외 지수는 isOverseasIntradayCode=false → 항상 EOD fallback.
                 const overseasBars = isOverseasIntradayCode(code)
-                  ? overseasIntradayQuery.data?.quotes[
-                      OVERSEAS_CELL_KEY[code]
-                    ] ?? []
+                  ? overseasIntradayQuery.data?.quotes[code] ?? []
                   : [];
                 const overseasLatestBar =
                   overseasBars.length > 0
@@ -118,7 +99,7 @@ export const IndexRail = ({
                   isDomestic,
                   name: INDEX_LABEL[code],
                   domesticCell: isDomestic
-                    ? data?.quotes[CELL_KEY[code as DomesticIndexCode]]
+                    ? data?.quotes[code as DomesticIndexCode]
                     : undefined,
                   overseasLatestBar,
                   latestDaily,

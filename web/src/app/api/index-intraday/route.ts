@@ -14,24 +14,9 @@ import type { IndexIntradaySnapshot } from "@/shared/types/quote";
 
 export const dynamic = "force-dynamic";
 
-type IndexQuotes = {
-  kospi: IndexIntradaySnapshot[];
-  kosdaq: IndexIntradaySnapshot[];
-  kospi200: IndexIntradaySnapshot[];
-  kosdaq150: IndexIntradaySnapshot[];
-};
-
-type IndexFailedMap = {
-  kospi: boolean;
-  kosdaq: boolean;
-  kospi200: boolean;
-  kosdaq150: boolean;
-};
-
 // 지수 코드 × session × krxDate 별 unstable_cache 래퍼 memoize.
-// F41(stock-intraday) 패턴 확장: 기존 open/closed 이분 tag 는 after(15:30~20:00) 를
-// 3600s 로 묶어 stale 유발했고 tradingDate 부재로 preopen 진입 시 어제 봉 재사용 위험.
-// 키에 session + tradingDate 를 넣어 세션·일 경계에서 자동 miss 를 보장한다.
+// session·tradingDate 를 key 축에 두어 세션·일 경계에서 자동 miss 를 보장한다
+// (미포함 시 preopen 진입 때 어제 봉이 stale 로 재사용될 수 있음).
 // TTL: 활성 세션(regular) 60s / 그 외 3600s.
 type IndexFetcher = () => Promise<IndexIntradaySnapshot[] | null>;
 const fetchers = new Map<string, IndexFetcher>();
@@ -66,8 +51,8 @@ const getCachedFetcher = (
 };
 
 // PromiseSettledResult + null 실패 신호를 합쳐서 정규화. null 이면 evict + failed=true.
-// bars 는 항상 배열로 collapse (클라 계약 유지: quotes.<code>: IndexIntradaySnapshot[]).
-// failed 는 stock-intraday route 와 대칭으로 실패↔정상 empty 구분 신호를 클라이언트로 넘긴다.
+// bars 는 항상 배열로 collapse (클라 계약 유지: quotes[code]: IndexIntradaySnapshot[]).
+// failed 는 실패↔정상 empty(preopen/휴장) 를 클라이언트에서 구분하는 신호.
 type IndexResolveResult = {
   bars: IndexIntradaySnapshot[];
   failed: boolean;
@@ -85,6 +70,18 @@ const resolve = (
   return { bars: r.value, failed: false };
 };
 
+// 전체 예외 시 계약 유지용 empty. Record 로 조립.
+const emptyQuotes = (): Record<DomesticIndexCode, IndexIntradaySnapshot[]> =>
+  Object.fromEntries(
+    DOMESTIC_INDEX_CODES.map((c) => [c, [] as IndexIntradaySnapshot[]]),
+  ) as Record<DomesticIndexCode, IndexIntradaySnapshot[]>;
+
+const allFailed = (): Record<DomesticIndexCode, boolean> =>
+  Object.fromEntries(DOMESTIC_INDEX_CODES.map((c) => [c, true])) as Record<
+    DomesticIndexCode,
+    boolean
+  >;
+
 export const GET = async () => {
   const session = getKrxSessionState();
   const tradingDate = getKrxTradingDate();
@@ -96,25 +93,16 @@ export const GET = async () => {
         getCachedFetcher(code, session, tradingDate)(),
       ),
     );
-    const [kospi, kosdaq, kospi200, kosdaq150] = results;
+    const resolved = DOMESTIC_INDEX_CODES.map(
+      (code, i) => [code, resolve(code, session, results[i])] as const,
+    );
 
-    const kospiR = resolve("KOSPI", session, kospi);
-    const kosdaqR = resolve("KOSDAQ", session, kosdaq);
-    const kospi200R = resolve("KOSPI200", session, kospi200);
-    const kosdaq150R = resolve("KOSDAQ150", session, kosdaq150);
-
-    const quotes: IndexQuotes = {
-      kospi: kospiR.bars,
-      kosdaq: kosdaqR.bars,
-      kospi200: kospi200R.bars,
-      kosdaq150: kosdaq150R.bars,
-    };
-    const failed: IndexFailedMap = {
-      kospi: kospiR.failed,
-      kosdaq: kosdaqR.failed,
-      kospi200: kospi200R.failed,
-      kosdaq150: kosdaq150R.failed,
-    };
+    const quotes = Object.fromEntries(
+      resolved.map(([code, r]) => [code, r.bars]),
+    ) as Record<DomesticIndexCode, IndexIntradaySnapshot[]>;
+    const failed = Object.fromEntries(
+      resolved.map(([code, r]) => [code, r.failed]),
+    ) as Record<DomesticIndexCode, boolean>;
 
     return NextResponse.json({ quotes, marketOpen, failed });
   } catch (err: unknown) {
@@ -122,9 +110,9 @@ export const GET = async () => {
     console.error(`[index-intraday] ${message}`);
     return NextResponse.json(
       {
-        quotes: { kospi: [], kosdaq: [], kospi200: [], kosdaq150: [] },
+        quotes: emptyQuotes(),
         marketOpen: false,
-        failed: { kospi: true, kosdaq: true, kospi200: true, kosdaq150: true },
+        failed: allFailed(),
       },
       { status: 200 },
     );

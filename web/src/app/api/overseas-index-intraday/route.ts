@@ -17,21 +17,9 @@ import type { IndexIntradaySnapshot } from "@/shared/types/quote";
 
 export const dynamic = "force-dynamic";
 
-type OverseasQuotes = {
-  spx: IndexIntradaySnapshot[];
-  comp: IndexIntradaySnapshot[];
-  ndx: IndexIntradaySnapshot[];
-};
-
-type OverseasFailedMap = {
-  spx: boolean;
-  comp: boolean;
-  ndx: boolean;
-};
-
-// 코드 × usSession × etDate 별 캐시. F41 패턴 확장: session·tradingDate 를 key 축으로.
-// 정규장 120s / closed 3600s. 국내 60s 보다 완만한 이유: 라이브 자체가 ~15분 지연 피드라
-// 짧은 revalidate 이득 없음. ET 거래일이 key 에 있어 세션 경계 자동 miss.
+// 코드 × usSession × etDate 별 캐시. session·tradingDate 를 key 축에 두어
+// ET 세션 경계에서 자동 miss. 정규장 120s / closed 3600s.
+// 국내 60s 보다 완만한 이유: 라이브 자체가 ~15분 지연 피드라 짧은 revalidate 이득 없음.
 type OverseasFetcher = () => Promise<IndexIntradaySnapshot[] | null>;
 const fetchers = new Map<string, OverseasFetcher>();
 
@@ -81,6 +69,18 @@ const resolve = (
   return { bars: r.value, failed: false };
 };
 
+// 전체 예외 시 계약 유지용 empty. Record 로 조립.
+const emptyQuotes = (): Record<OverseasIntradayCode, IndexIntradaySnapshot[]> =>
+  Object.fromEntries(
+    OVERSEAS_INTRADAY_CODES.map((c) => [c, [] as IndexIntradaySnapshot[]]),
+  ) as Record<OverseasIntradayCode, IndexIntradaySnapshot[]>;
+
+const allFailed = (): Record<OverseasIntradayCode, boolean> =>
+  Object.fromEntries(OVERSEAS_INTRADAY_CODES.map((c) => [c, true])) as Record<
+    OverseasIntradayCode,
+    boolean
+  >;
+
 export const GET = async () => {
   const session = getUsSessionState();
   const tradingDate = getUsTradingDate();
@@ -92,22 +92,16 @@ export const GET = async () => {
         getCachedFetcher(code, session, tradingDate)(),
       ),
     );
-    const [spx, comp, ndx] = results;
+    const resolved = OVERSEAS_INTRADAY_CODES.map(
+      (code, i) => [code, resolve(code, session, results[i])] as const,
+    );
 
-    const spxR = resolve("SPX", session, spx);
-    const compR = resolve("COMP", session, comp);
-    const ndxR = resolve("NDX", session, ndx);
-
-    const quotes: OverseasQuotes = {
-      spx: spxR.bars,
-      comp: compR.bars,
-      ndx: ndxR.bars,
-    };
-    const failed: OverseasFailedMap = {
-      spx: spxR.failed,
-      comp: compR.failed,
-      ndx: ndxR.failed,
-    };
+    const quotes = Object.fromEntries(
+      resolved.map(([code, r]) => [code, r.bars]),
+    ) as Record<OverseasIntradayCode, IndexIntradaySnapshot[]>;
+    const failed = Object.fromEntries(
+      resolved.map(([code, r]) => [code, r.failed]),
+    ) as Record<OverseasIntradayCode, boolean>;
 
     return NextResponse.json({ quotes, marketOpen, failed });
   } catch (err: unknown) {
@@ -115,9 +109,9 @@ export const GET = async () => {
     console.error(`[overseas-index-intraday] ${message}`);
     return NextResponse.json(
       {
-        quotes: { spx: [], comp: [], ndx: [] },
+        quotes: emptyQuotes(),
         marketOpen: false,
-        failed: { spx: true, comp: true, ndx: true },
+        failed: allFailed(),
       },
       { status: 200 },
     );
