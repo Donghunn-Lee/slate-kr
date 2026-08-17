@@ -102,7 +102,7 @@ export const StockHeaderLivePrice = ({
   return (
     <div className="mt-4 flex flex-wrap items-end gap-3">
       <span className="text-display font-bold tracking-tight">
-        <PriceCountUp from={initialPrice} to={displayPrice} />원
+        <PriceCountUp value={displayPrice} />원
       </span>
       {displayChange !== null && displayChangeRate !== null && (
         <PriceChange

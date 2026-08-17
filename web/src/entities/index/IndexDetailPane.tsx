@@ -291,7 +291,7 @@ export const IndexDetailPane = ({
           ) : cell?.live ? (
             <div className="flex flex-wrap items-baseline gap-3">
               <span className="text-headline font-semibold tabular-nums">
-                <PriceCountUp from={cell.live.price} to={cell.live.price} />
+                <PriceCountUp key={selected} value={cell.live.price} />
               </span>
               <PriceChange
                 change={cell.live.change}

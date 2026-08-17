@@ -35,7 +35,7 @@ const formatKrw = (v: number): string => v.toLocaleString("ko-KR");
 
 // 국내 live 값 렌더 — 카운트업 애니메이션. 해외는 별도 리스트에서 애니 없이 텍스트로 렌더.
 const renderDomesticLive = (price: number): ReactNode => (
-  <PriceCountUp from={price} to={price} />
+  <PriceCountUp value={price} />
 );
 
 type IndexSlateProps = {
@@ -61,7 +61,7 @@ const IndexCell = ({ label, cell, bars, intradayFailed }: IndexCellProps) => (
               PRICE_SIGN_CLASS[cell.live.sign],
             )}
           >
-            <PriceCountUp from={cell.live.price} to={cell.live.price} />
+            <PriceCountUp value={cell.live.price} />
           </span>
           <PriceChange
             change={cell.live.change}

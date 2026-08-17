@@ -133,10 +133,7 @@ export const IndexRail = ({
                       ) : cell?.live ? (
                         <div className="flex items-baseline gap-2">
                           <span className="text-body tabular-nums">
-                            <PriceCountUp
-                              from={cell.live.price}
-                              to={cell.live.price}
-                            />
+                            <PriceCountUp value={cell.live.price} />
                           </span>
                           <PriceChange
                             change={cell.live.change}

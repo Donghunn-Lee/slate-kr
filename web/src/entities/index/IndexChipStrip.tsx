@@ -91,7 +91,7 @@ export const IndexChipStrip = ({
         ) : cell?.live ? (
           <div className="flex items-baseline gap-1.5">
             <span className="text-caption tabular-nums">
-              <PriceCountUp from={cell.live.price} to={cell.live.price} />
+              <PriceCountUp value={cell.live.price} />
             </span>
             <PriceChange
               change={cell.live.change}
