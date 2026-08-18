@@ -5,6 +5,7 @@ import {
   getEtDateAndMinutes,
   getUsTradingDate,
   getPreviousUsTradingDate,
+  isKrxBeforeMarketOpen,
   isKrxEarlyPreopen,
   isKrxLatePreopen,
   isUsMarketOpen,
@@ -171,5 +172,29 @@ describe("isKrxLatePreopen", () => {
   });
   it("07:00 KST → false (아침 preopen 이지 늦은 preopen 아님)", () => {
     expect(isKrxLatePreopen(kst(2026, 7, 23, 7, 0))).toBe(false);
+  });
+});
+
+describe("isKrxBeforeMarketOpen", () => {
+  it("pre → true (NXT 프리마켓 실봉 유입 차단 대상)", () => {
+    expect(isKrxBeforeMarketOpen("pre")).toBe(true);
+  });
+  it("preopen → true (스냅샷 자연 차단이지만 의도 문서화)", () => {
+    expect(isKrxBeforeMarketOpen("preopen")).toBe(true);
+  });
+  it("regular → false (정상 today-bar merge)", () => {
+    expect(isKrxBeforeMarketOpen("regular")).toBe(false);
+  });
+  it("after → false (F41 별도 항목, 여기서 게이트 안 함)", () => {
+    expect(isKrxBeforeMarketOpen("after")).toBe(false);
+  });
+  it("after_close → false", () => {
+    expect(isKrxBeforeMarketOpen("after_close")).toBe(false);
+  });
+  it("closed → false (주말·공휴일 스냅샷 EOD 유지)", () => {
+    expect(isKrxBeforeMarketOpen("closed")).toBe(false);
+  });
+  it("undefined → false (초기 로드 스켈레톤 · 게이트 오작동 방지)", () => {
+    expect(isKrxBeforeMarketOpen(undefined)).toBe(false);
   });
 });

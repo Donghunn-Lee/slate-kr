@@ -8,6 +8,7 @@ import { useStockQuote } from "@/features/stock-quote/useStockQuote";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import type { ChartBar, IndexDailySnapshot } from "@/shared/types/quote";
 import type { StockPriceSnapshot } from "@/shared/types/stock";
+import { isKrxBeforeMarketOpen } from "@/shared/utils/market";
 import { mergeLiveDayBar } from "@/shared/utils/mergeLiveDayBar";
 import { mergeLiveIntradayBar } from "@/shared/utils/mergeLiveIntradayBar";
 import { resampleIntradayBars } from "@/shared/utils/resampleIntradayBars";
@@ -199,7 +200,12 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
 
   const dayBars = useMemo<ChartBar[]>(() => {
     const eod = stockPricesToBars(prices);
-    return mergeLiveDayBar(eod, quoteData?.quote ?? null, quoteData?.date);
+    // 정규장 개장 전(pre · preopen)엔 quote를 null로 게이트 — NXT 프리마켓 실봉이
+    // KRX 라벨 일봉에 당일 캔들로 유입되는 것 차단.
+    const gatedQuote = isKrxBeforeMarketOpen(quoteData?.session)
+      ? null
+      : quoteData?.quote ?? null;
+    return mergeLiveDayBar(eod, gatedQuote, quoteData?.date);
   }, [prices, quoteData]);
 
   const weekBars = useMemo<ChartBar[]>(() => {

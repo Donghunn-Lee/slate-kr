@@ -112,6 +112,7 @@ export const GET = async () => {
     return NextResponse.json({
       quotes,
       marketOpen: isKrxMarketOpen(),
+      session,
       date: tradingDate,
     });
   } catch {

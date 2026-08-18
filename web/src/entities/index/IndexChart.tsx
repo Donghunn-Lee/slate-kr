@@ -33,6 +33,7 @@ import type {
 import {
   getPreviousKrxTradingDate,
   getPreviousUsTradingDate,
+  isKrxBeforeMarketOpen,
 } from "@/shared/utils/market";
 import { mergeLiveDayBar, type LiveQuoteForMerge } from "@/shared/utils/mergeLiveDayBar";
 import { resampleToMonthly } from "@/shared/utils/resampleToMonthly";
@@ -237,8 +238,10 @@ export const IndexChart = ({
   // 국내: /api/index-quotes 의 live. 해외: 오늘 intraday 봉을 세션 전체 aggregate
   // (open=첫봉 open, high/low=max/min, price=마지막 봉 close) 로 합성. 이렇게 하면
   // mergeLiveDayBar 가 EOD 마지막 봉을 today-bar 로 replace 할 때 국내와 동일 계약.
+  // 정규장 개장 전(pre · preopen)엔 domestic quote 를 null 로 게이트 — 개장 전 당일
+  // 지수봉이 EOD 축에 유입되는 것 차단 (StockChartTabs 와 동형).
   const domesticLiveQuote =
-    domesticCode !== null
+    domesticCode !== null && !isKrxBeforeMarketOpen(quotesData?.session)
       ? quotesData?.quotes[domesticCode].live ?? null
       : null;
   const overseasLiveQuote: LiveQuoteForMerge | null = useMemo(() => {

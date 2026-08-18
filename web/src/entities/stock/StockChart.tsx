@@ -5,6 +5,7 @@ import Link from "next/link";
 import { PriceChart } from "@/entities/chart/PriceChart";
 import { useStockQuote } from "@/features/stock-quote/useStockQuote";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
+import { isKrxBeforeMarketOpen } from "@/shared/utils/market";
 import { mergeLiveDayBar } from "@/shared/utils/mergeLiveDayBar";
 import type { ChartBar } from "@/shared/types/quote";
 import type { StockPriceSnapshot } from "@/shared/types/stock";
@@ -45,10 +46,13 @@ export const StockChart = ({
   const { data } = useStockQuote(ticker, { subscribeOnly: true });
   const isMobile = useIsMobile();
 
-  const bars = useMemo<ChartBar[]>(
-    () => mergeLiveDayBar(toBars(prices), data?.quote ?? null, data?.date),
-    [prices, data],
-  );
+  const bars = useMemo<ChartBar[]>(() => {
+    // 정규장 개장 전(pre · preopen)엔 quote를 null로 게이트 — StockChartTabs 와 동형.
+    const gatedQuote = isKrxBeforeMarketOpen(data?.session)
+      ? null
+      : data?.quote ?? null;
+    return mergeLiveDayBar(toBars(prices), gatedQuote, data?.date);
+  }, [prices, data]);
 
   if (prices.length === 0) {
     return (

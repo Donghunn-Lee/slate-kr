@@ -72,6 +72,15 @@ export const isKrxLatePreopen = (now: Date = new Date()): boolean => {
   return minutes >= PRE_END_MINUTES;
 };
 
+// 정규장 개장 전(pre · preopen) 세션 술어. 일봉 today-bar live merge 게이트에 사용.
+// preopen 은 스냅샷 OHL=0 + date 가 전일로 반환되어 mergeLiveDayBar 자체에서 자연 차단되지만
+// 술어에 포함시켜 "정규장 개장 전엔 당일 봉을 얹지 않는다"는 의도를 문서화한다.
+// pre(08:00~08:50) 는 NXT 프리마켓 실봉이 KRX 라벨 일봉 축에 유입되는 것을 명시 차단.
+// regular/after/after_close/closed 는 무변경 (애프터 정합은 F41 별도).
+export const isKrxBeforeMarketOpen = (
+  session: KrxSession | undefined,
+): boolean => session === "pre" || session === "preopen";
+
 // KST 캘린더 일자와 분(0~1439) — 세션 무관, 순수 KST 파싱만.
 export const getKstDateAndMinutes = (
   now: Date = new Date(),
