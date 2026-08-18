@@ -2,7 +2,10 @@ import { z } from "zod";
 import { getKisToken } from "@/lib/kis-token";
 import { normalizeIndexQuote, normalizeMultiQuote, normalizeStockQuote } from "@/lib/kis-quote";
 import type { ChartBar, IndexQuote, StockQuote } from "@/shared/types/quote";
-import { isSentinelBar } from "@/shared/utils/intradaySentinel";
+import {
+  isDomesticSessionGapFill,
+  isSentinelBar,
+} from "@/shared/utils/intradaySentinel";
 import {
   getKrxSessionState,
   getKrxTradingDate,
@@ -234,8 +237,9 @@ type StockMinuteRow = {
 // closed fallback 응답 → ChartBar[] 정규화. 순수 함수 — 테스트 대상.
 // (1) 마커 hour (999999/888888) 제거
 // (2) stck_bsop_date === target 필터 (저유동성 종목 anchor bleed 방어, #099-2 실측)
-// (3) row → ChartBar (KST → fake-UTC 초)
-// (4) sentinel 필터 (OHL=0 · vol<0)
+// (3) 세션 갭 fill 봉 제거 (KIS 응답이 세션 갭 구간을 O=H=L=C+vol=0 으로 채움)
+// (4) row → ChartBar (KST → fake-UTC 초)
+// (5) sentinel 필터 (OHL=0 · vol<0)
 export const parseDailyMinuteRows = (
   rows: readonly StockMinuteRow[],
   targetDateYyyymmdd: string,
@@ -243,6 +247,7 @@ export const parseDailyMinuteRows = (
   rows
     .filter((r) => !INTRADAY_MARKERS.has(r.stck_cntg_hour))
     .filter((r) => r.stck_bsop_date === targetDateYyyymmdd)
+    .filter((r) => !isDomesticSessionGapFill(r.stck_cntg_hour, r.cntg_vol))
     .map((r) => ({
       time: kstToFakeUtcSec(r.stck_bsop_date, r.stck_cntg_hour),
       open: r.stck_oprc,
@@ -663,6 +668,7 @@ const callStockMinuteAnchor = async (
     }
     return parsed.data.output2
       .filter((r) => !INTRADAY_MARKERS.has(r.stck_cntg_hour))
+      .filter((r) => !isDomesticSessionGapFill(r.stck_cntg_hour, r.cntg_vol))
       .map((r) => ({
         time: kstToFakeUtcSec(r.stck_bsop_date, r.stck_cntg_hour),
         open: r.stck_oprc,

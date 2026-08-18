@@ -21,3 +21,29 @@ const isAllZeroOhl = (b: {
 
 export const isSentinelBar = (b: ChartBar): boolean =>
   isNegativeVolume(b.volume) || isAllZeroOhl(b);
+
+// 국내 종목 세션 갭 창 — 이 구간엔 체결 가능한 시장이 없다.
+// KIS UN(KRX+NXT 통합) · J(KRX only) 응답이 이 공백을 O=H=L=C=직전 실체결가 ·
+// vol=0 · acml_tr_pbmn 정지로 fill-forward 하여 보낸다 (2026-08-18 000660 raw 캡처).
+// stck_cntg_hour 라벨(HHMMSS) = 해당 분 00~59초 체결이므로 "0850" = 08:50:00~08:50:59.
+//   - 0850~0859: NXT 프리마감(08:50) ~ KRX 개장(09:00). UN 응답에만 fill row 존재
+//     (J 응답은 09:00 이전 봉 자체 없음).
+//   - 1520~1529: KRX 마감 동시호가 접수 창. 15:30 실체결(단일가) 봉은 창 밖.
+//     UN·J 응답 모두 fill row 존재.
+const DOMESTIC_SESSION_GAP_WINDOWS: readonly (readonly [string, string])[] = [
+  ["0850", "0859"],
+  ["1520", "1529"],
+];
+
+const isWithinGapWindow = (hhmm: string): boolean =>
+  DOMESTIC_SESSION_GAP_WINDOWS.some(
+    ([start, end]) => hhmm >= start && hhmm <= end,
+  );
+
+// KIS 종목분봉 raw row(HHMMSS 라벨 + cntg_vol) 기준 갭 fill 판정.
+// vol===0 조건을 반드시 함께 요구 — 창 정의 오류·KIS 발행 규칙 변경으로 실체결
+// 봉이 들어와도 살아남도록 안전 마진. isSentinelBar 는 ChartBar 시그니처 유지.
+export const isDomesticSessionGapFill = (
+  hhmmss: string,
+  volume: number,
+): boolean => volume === 0 && isWithinGapWindow(hhmmss.slice(0, 4));

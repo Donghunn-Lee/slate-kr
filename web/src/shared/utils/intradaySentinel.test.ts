@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { ChartBar } from "@/shared/types/quote";
-import { isSentinelBar } from "./intradaySentinel";
+import { isDomesticSessionGapFill, isSentinelBar } from "./intradaySentinel";
 
 const bar = (over: Partial<ChartBar> = {}): ChartBar => ({
   time: 1_700_000_000,
@@ -52,5 +52,59 @@ describe("isSentinelBar", () => {
     expect(
       isSentinelBar(bar({ open: 0, high: 0, low: 0, close: 0, volume: 500 })),
     ).toBe(true);
+  });
+});
+
+describe("isDomesticSessionGapFill", () => {
+  it("08:50 vol=0 → 컷 (창 시작 경계)", () => {
+    expect(isDomesticSessionGapFill("085000", 0)).toBe(true);
+  });
+
+  it("08:59 vol=0 → 컷 (창 종료 경계)", () => {
+    expect(isDomesticSessionGapFill("085900", 0)).toBe(true);
+  });
+
+  it("08:55 vol=0 → 컷 (창 내부)", () => {
+    expect(isDomesticSessionGapFill("085500", 0)).toBe(true);
+  });
+
+  it("08:55 vol>0 → 보존 (실체결 봉이 들어오면 안전 조건이 살림)", () => {
+    expect(isDomesticSessionGapFill("085500", 1)).toBe(false);
+  });
+
+  it("08:49 vol>0 → 보존 (창 직전 NXT 프리 실체결)", () => {
+    expect(isDomesticSessionGapFill("084900", 9961)).toBe(false);
+  });
+
+  it("09:00 vol>0 → 보존 (창 직후 KRX 개장 실체결)", () => {
+    expect(isDomesticSessionGapFill("090000", 266531)).toBe(false);
+  });
+
+  it("10:23 vol=0 → 보존 (창 밖 저활동 봉)", () => {
+    expect(isDomesticSessionGapFill("102300", 0)).toBe(false);
+  });
+
+  it("15:20 vol=0 → 컷 (마감 창 시작 경계)", () => {
+    expect(isDomesticSessionGapFill("152000", 0)).toBe(true);
+  });
+
+  it("15:29 vol=0 → 컷 (마감 창 종료 경계)", () => {
+    expect(isDomesticSessionGapFill("152900", 0)).toBe(true);
+  });
+
+  it("15:25 vol=0 → 컷 (마감 창 내부)", () => {
+    expect(isDomesticSessionGapFill("152500", 0)).toBe(true);
+  });
+
+  it("15:25 vol>0 → 보존 (실체결 봉이 들어오면 안전 조건이 살림)", () => {
+    expect(isDomesticSessionGapFill("152500", 1)).toBe(false);
+  });
+
+  it("15:19 vol=0 → 보존 (마감 창 직전 · 정규 매매 시간대)", () => {
+    expect(isDomesticSessionGapFill("151900", 0)).toBe(false);
+  });
+
+  it("15:30 vol>0 → 보존 (마감 단일가 실체결 봉은 창 밖)", () => {
+    expect(isDomesticSessionGapFill("153000", 10409)).toBe(false);
   });
 });
