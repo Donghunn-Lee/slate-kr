@@ -30,9 +30,14 @@ export const isSentinelBar = (b: ChartBar): boolean =>
 //     (J 응답은 09:00 이전 봉 자체 없음).
 //   - 1520~1529: KRX 마감 동시호가 접수 창. 15:30 실체결(단일가) 봉은 창 밖.
 //     UN·J 응답 모두 fill row 존재.
+//   - 1531~1539: KRX 마감 단일가(15:30) 종료 ~ 시간외 종가매매·NXT 애프터(15:40)
+//     개시 사이 제도적 무체결 갭. 3경로(000660 UN/J · 031330 J) 실측상 전 봉
+//     O=H=L=C · vol=0 · pbmn 정지. 1520~1529 와 병합하면 15:30 마감 단일가
+//     실체결 봉이 창 내부에 포함되어 "체결 불가능 구간만" 원칙이 깨지므로 분리 유지.
 const DOMESTIC_SESSION_GAP_WINDOWS: readonly (readonly [string, string])[] = [
   ["0850", "0859"],
   ["1520", "1529"],
+  ["1531", "1539"],
 ];
 
 const isWithinGapWindow = (hhmm: string): boolean =>

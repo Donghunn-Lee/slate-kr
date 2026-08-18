@@ -107,4 +107,24 @@ describe("isDomesticSessionGapFill", () => {
   it("15:30 vol>0 → 보존 (마감 단일가 실체결 봉은 창 밖)", () => {
     expect(isDomesticSessionGapFill("153000", 10409)).toBe(false);
   });
+
+  it("15:31 vol=0 → 컷 (post-close 갭 시작 경계)", () => {
+    expect(isDomesticSessionGapFill("153100", 0)).toBe(true);
+  });
+
+  it("15:35 vol=0 → 컷 (post-close 갭 내부)", () => {
+    expect(isDomesticSessionGapFill("153500", 0)).toBe(true);
+  });
+
+  it("15:39 vol=0 → 컷 (post-close 갭 종료 경계)", () => {
+    expect(isDomesticSessionGapFill("153900", 0)).toBe(true);
+  });
+
+  it("15:35 vol>0 → 보존 (NXT 애프터 조기 체결이 있으면 안전 조건이 살림)", () => {
+    expect(isDomesticSessionGapFill("153500", 1)).toBe(false);
+  });
+
+  it("15:40 vol=0 → 보존 (시간외/NXT 애프터 개시 · 창 밖)", () => {
+    expect(isDomesticSessionGapFill("154000", 0)).toBe(false);
+  });
 });
