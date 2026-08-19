@@ -10,13 +10,16 @@ import {
   isOverseasIntradayCode,
   type DomesticIndexCode,
   type IndexCode,
+  type OverseasIndexCode,
   type OverseasIntradayCode,
 } from "@/shared/constants/indices";
 import type { IndexDailySnapshot } from "@/shared/types/quote";
 import type { PriceStats } from "@/shared/types/stock";
 import { useIndexQuotes } from "@/features/index-quotes/useIndexQuotes";
 import { useOverseasIndexIntraday } from "@/features/index-quotes/useOverseasIndexIntraday";
+import { useOverseasIndexQuotes } from "@/features/index-quotes/useOverseasIndexQuotes";
 import { buildIndexCell } from "@/shared/utils/buildIndexCell";
+import { formatOverseasQuoteTime } from "@/shared/utils/formatOverseasQuoteTime";
 import {
   getKrxLastCloseDate,
   getKrxSessionState,
@@ -31,23 +34,6 @@ type IndexDetailPaneProps = {
   dailyByIndex: Record<IndexCode, IndexDailySnapshot[] | null>;
   statsByIndex: Record<IndexCode, PriceStats | null>;
   volumeByIndex: Record<IndexCode, number | null>;
-};
-
-// fake-UTC 초 → 시각 라벨 "HH:MM" (ET). 인코딩 대칭 — Date.UTC 로 위장했으므로
-// getUTC* 가 원래 ET 컴포넌트를 돌려준다.
-const formatEtClock = (sec: number): string => {
-  const d = new Date(sec * 1000);
-  const h = String(d.getUTCHours()).padStart(2, "0");
-  const m = String(d.getUTCMinutes()).padStart(2, "0");
-  return `${h}:${m}`;
-};
-
-const formatEtDate = (sec: number): string => {
-  const d = new Date(sec * 1000);
-  const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(d.getUTCDate()).padStart(2, "0");
-  return `${y}-${m}-${dd}`;
 };
 
 const formatIndexPrice = (v: number): string =>
@@ -198,16 +184,21 @@ export const IndexDetailPane = ({
   const isOverseasIntraday = isOverseasIntradayCode(selected);
   const { data, isLoading } = useIndexQuotes();
   const overseasIntradayQuery = useOverseasIndexIntraday();
+  const overseasQuotesQuery = useOverseasIndexQuotes();
   const prices = dailyByIndex[selected];
   const latestDaily =
     prices && prices.length > 0 ? prices[prices.length - 1] : null;
 
-  // 해외 intraday 지수(SPX/COMP/NDX): 최신 봉으로 라이브 셀 파생. NULL 이면 EOD fallback.
+  // 해외 intraday 지수(SPX/COMP/NDX): 최신 봉. quote 부재 시 fallback.
   const overseasBars = isOverseasIntraday
     ? overseasIntradayQuery.data?.quotes[selected as OverseasIntradayCode] ?? []
     : [];
   const overseasLatestBar =
     overseasBars.length > 0 ? overseasBars[overseasBars.length - 1] : null;
+  // 해외 quote — 8종 전부 커버. 상세 헤더의 라이브 소스는 quote 우선.
+  const overseasQuote = isDomestic
+    ? null
+    : overseasQuotesQuery.data?.quotes[selected as OverseasIndexCode] ?? null;
 
   // 셀 합성 규칙은 buildIndexCell 참조 (Rail·홈과 공용).
   const cell = buildIndexCell({
@@ -216,28 +207,30 @@ export const IndexDetailPane = ({
     domesticCell: isDomestic
       ? data?.quotes[selected as DomesticIndexCode]
       : undefined,
+    overseasQuote,
     overseasLatestBar,
     latestDaily,
   });
 
-  // 라벨은 request time 기준: 국내/해외 모두 client clock 으로 세션·기준일 도출.
+  // 라벨은 request time 기준: 국내는 client clock 으로 세션 판정, 해외는 quote.time 우선.
   const now = useNow();
   const isKrxRegular = isDomestic && now !== null && getKrxSessionState(now) === "regular";
-  const isUsRegular =
-    isOverseasIntraday && now !== null && getUsSessionState(now) === "regular";
+  // .DJI 는 quote.time 이 없어 (KIS output2=[]) 세션 템플릿으로 폴백. 나머지 해외는 시각 라벨.
+  const isDji = selected === ".DJI";
+  const isUsRegularForDji =
+    isDji && now !== null && getUsSessionState(now) === "regular";
   const domesticDate = now
     ? isKrxRegular
       ? getKstDateAndMinutes(now).date
       : getKrxLastCloseDate(now)
     : null;
-  // 해외 라벨 시각: client clock 대신 최신 봉의 ET 시각 (~15분 지연 피드가 언제까지
-  // 들어왔는지 정직히 노출).
-  const overseasLatestClock = overseasLatestBar
-    ? formatEtClock(overseasLatestBar.timestamp)
+
+  // 해외 quote 체결시각 → "MM-DD HH:mm (현지)". null 이면 세션 템플릿 폴백.
+  const overseasTimeLabel = overseasQuote
+    ? formatOverseasQuoteTime(overseasQuote.time)
     : null;
-  const overseasLatestDate = overseasLatestBar
-    ? formatEtDate(overseasLatestBar.timestamp)
-    : latestDaily?.date ?? null;
+  // 해외 stats 기준일 — 라이브/EOD 어느 소스든 daily 스냅샷 date 유지 (52주·수익률 계산 기준).
+  const overseasRefDate = latestDaily?.date ?? null;
 
   const stats = statsByIndex[selected];
   const volume = isDomestic ? volumeByIndex[selected] : null;
@@ -250,11 +243,11 @@ export const IndexDetailPane = ({
       : isKrxRegular
         ? `실시간 · ${domesticDate} ${formatClock(now)}`
         : `정규장 마감 · ${domesticDate} 15:30`
-    : isOverseasIntraday
-      ? isUsRegular
-        ? `미국 · ~15분 지연${overseasLatestDate && overseasLatestClock ? ` · ${overseasLatestDate} ${overseasLatestClock} ET` : ""}`
-        : `미국 · 정규장 마감${overseasLatestDate ? ` · 기준일 ${overseasLatestDate}` : ""}`
-      : `미국 · 정규장 마감${latestDaily?.date ? ` · 기준일 ${latestDaily.date}` : ""}`;
+    : overseasTimeLabel !== null
+      ? overseasTimeLabel
+      : isUsRegularForDji
+        ? `미국 · ~15분 지연${overseasRefDate ? ` · 기준일 ${overseasRefDate}` : ""}`
+        : `미국 · 정규장 마감${overseasRefDate ? ` · 기준일 ${overseasRefDate}` : ""}`;
 
   return (
     <StockPanel variant="lavender" className="overflow-hidden p-0">
@@ -266,14 +259,16 @@ export const IndexDetailPane = ({
           <h2 className="text-value font-medium">{INDEX_LABEL[selected]}</h2>
         </div>
         <div className="flex items-center gap-1.5 text-body-sm text-muted-foreground">
-          {(isKrxRegular || isUsRegular) && (
+          {/* emerald dot 은 국내 정규장 라이브 신호 전용. 해외는 quote.time 이 신선도를
+              스스로 전달하므로 별도 dot 없음 (.DJI 지연 배지가 그 역할 대체). */}
+          {isKrxRegular && (
             <span
               className="inline-block size-1.5 rounded-full bg-emerald-500"
               aria-hidden
             />
           )}
           <span>{referenceLabel}</span>
-          {isUsRegular && (
+          {isUsRegularForDji && (
             <span
               className="ml-1 rounded-sm border border-subtle bg-elevated px-1.5 py-0.5 text-micro font-medium uppercase tracking-wide text-muted-foreground"
               aria-label="약 15분 지연 시세"
@@ -339,7 +334,7 @@ export const IndexDetailPane = ({
               isDomestic={isDomestic}
               volume={volume}
               volumeAsOf={domesticVolumeAsOf}
-              refDate={overseasLatestDate}
+              refDate={overseasRefDate}
             />
           </div>
         )}

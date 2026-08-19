@@ -90,5 +90,7 @@ export const normalizeIndexQuote = (raw: unknown, name: string): IndexQuote | nu
     low: Number(d.bstp_nmix_lwpr),
     advCount: Number(d.ascn_issu_cnt),
     declCount: Number(d.down_issu_cnt),
+    // 국내 지수 quote 응답에는 체결시각 필드 없음 — 라벨은 클라 시계로 조립.
+    time: null,
   };
 };

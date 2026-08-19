@@ -162,10 +162,32 @@ const KisOverseasIndexQuoteSummarySchema = z.object({
   ovrs_prod_lwpr: z.coerce.number(),
 });
 
+// output2 head 1건에서 체결시각·일자만 추출. 나머지 봉 필드(optn_*)는 소비 안 함.
+// 시각은 거래소 현지 로컬 (probe 실측) — 문자열 그대로 전달, 타임존 변환 금지.
+// 마커 hour(999999/888888) 는 head 로 나올 가능성 낮으나 방어적으로 걸러 IndexQuote.time=null.
+const KisOverseasIndexQuoteHeadSchema = z.object({
+  stck_bsop_date: z.string(),
+  stck_cntg_hour: z.string(),
+});
+
+const HEAD_TIME_MARKERS = new Set(["999999", "888888"]);
+
+// output2 배열의 head(index 0) 만 검증 — 봉 전량 파싱 불필요.
+export const parseHeadTime = (
+  output2: unknown,
+): { date: string; hour: string } | null => {
+  if (!Array.isArray(output2) || output2.length === 0) return null;
+  const head = KisOverseasIndexQuoteHeadSchema.safeParse(output2[0]);
+  if (!head.success) return null;
+  if (HEAD_TIME_MARKERS.has(head.data.stck_cntg_hour)) return null;
+  return { date: head.data.stck_bsop_date, hour: head.data.stck_cntg_hour };
+};
+
 const KisOverseasQuoteResponseSchema = z.object({
   rt_cd: z.string(),
   msg1: z.string().optional(),
   output1: z.unknown(),
+  output2: z.unknown().optional(),
 });
 
 const toSign = (code: string): PriceSign =>
@@ -255,6 +277,7 @@ export const fetchOverseasIndexQuote = async (
       low: d.ovrs_prod_lwpr,
       advCount: 0,
       declCount: 0,
+      time: parseHeadTime(envelope.data.output2),
     };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);

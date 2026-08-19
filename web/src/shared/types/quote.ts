@@ -19,6 +19,8 @@ export type IndexQuote = LiveQuoteCore & {
   name: string; // "코스피" | "코스닥" | "코스피200" (호출 측 주입)
   advCount: number; // 상승 종목수
   declCount: number; // 하락 종목수
+  // 해외 지수 체결시각(거래소 현지 로컬, 문자열 그대로). 국내·output2 부재(.DJI) 는 null.
+  time: { date: string; hour: string } | null;
 };
 
 export type IndexDailySnapshot = {

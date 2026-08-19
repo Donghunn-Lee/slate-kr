@@ -21,6 +21,7 @@ import {
 import type { IndexDailySnapshot } from "@/shared/types/quote";
 import { useIndexQuotes } from "@/features/index-quotes/useIndexQuotes";
 import { useOverseasIndexIntraday } from "@/features/index-quotes/useOverseasIndexIntraday";
+import { useOverseasIndexQuotes } from "@/features/index-quotes/useOverseasIndexQuotes";
 import { buildIndexCell } from "@/shared/utils/buildIndexCell";
 import { cn } from "@/lib/utils";
 
@@ -53,6 +54,8 @@ export const IndexRail = ({
   // 해외 intraday 폴링. queryKey 는 DetailPane 과 동일 (["overseas-index-intraday"])
   // 이라 TanStack Query 가 dedup — Rail 추가로 인한 네트워크 비용 없음.
   const overseasIntradayQuery = useOverseasIndexIntraday();
+  // 해외 quote 폴링 (8종 라이브). DetailPane·홈 IndexChipStrip 과 queryKey 공유 → dedup.
+  const overseasQuotesQuery = useOverseasIndexQuotes();
   // 두 섹션 모두 기본 열림. 사용자가 접으면 그 상태를 유지 — 선택 지수가 있는
   // 섹션을 강제로 다시 열지는 않는다(선택 이동 자체는 하이라이트로 충분).
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>(
@@ -101,6 +104,11 @@ export const IndexRail = ({
                   domesticCell: isDomestic
                     ? data?.quotes[code as DomesticIndexCode]
                     : undefined,
+                  overseasQuote: isDomestic
+                    ? null
+                    : overseasQuotesQuery.data?.quotes[
+                        code as Exclude<IndexCode, DomesticIndexCode>
+                      ] ?? null,
                   overseasLatestBar,
                   latestDaily,
                 });

@@ -15,6 +15,7 @@ import {
 import type { IndexDailySnapshot } from "@/shared/types/quote";
 import { useIndexQuotes } from "@/features/index-quotes/useIndexQuotes";
 import { useOverseasIndexIntraday } from "@/features/index-quotes/useOverseasIndexIntraday";
+import { useOverseasIndexQuotes } from "@/features/index-quotes/useOverseasIndexQuotes";
 import { buildIndexCell } from "@/shared/utils/buildIndexCell";
 import { cn } from "@/lib/utils";
 
@@ -36,6 +37,7 @@ export const IndexChipStrip = ({
 }: IndexChipStripProps) => {
   const { data, isLoading } = useIndexQuotes();
   const overseasIntradayQuery = useOverseasIndexIntraday();
+  const overseasQuotesQuery = useOverseasIndexQuotes();
   const selectedRef = useRef<HTMLButtonElement | null>(null);
 
   // 초기 마운트 및 selected 변경 시 선택 칩을 가시 영역으로. inline: "nearest" +
@@ -65,6 +67,11 @@ export const IndexChipStrip = ({
       domesticCell: isDomestic
         ? data?.quotes[code as DomesticIndexCode]
         : undefined,
+      overseasQuote: isDomestic
+        ? null
+        : overseasQuotesQuery.data?.quotes[
+            code as Exclude<IndexCode, DomesticIndexCode>
+          ] ?? null,
       overseasLatestBar,
       latestDaily,
     });
