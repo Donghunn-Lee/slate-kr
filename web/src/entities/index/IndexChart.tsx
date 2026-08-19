@@ -18,10 +18,13 @@ import {
 import { useIndexIntraday } from "@/features/index-quotes/useIndexIntraday";
 import { useIndexQuotes } from "@/features/index-quotes/useIndexQuotes";
 import { useOverseasIndexIntraday } from "@/features/index-quotes/useOverseasIndexIntraday";
+import { useOverseasIndexQuotes } from "@/features/index-quotes/useOverseasIndexQuotes";
 import {
+  getIndexMeta,
   isOverseasIntradayCode,
   type DomesticIndexCode,
   type IndexCode,
+  type OverseasIndexCode,
   type OverseasIntradayCode,
 } from "@/shared/constants/indices";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
@@ -29,6 +32,7 @@ import type {
   ChartBar,
   IndexDailySnapshot,
   IndexIntradaySnapshot,
+  IndexQuote,
 } from "@/shared/types/quote";
 import {
   getPreviousKrxTradingDate,
@@ -57,6 +61,24 @@ const fakeUtcSecToLocalDate = (sec: number): string => {
   const m = String(d.getUTCMonth() + 1).padStart(2, "0");
   const dd = String(d.getUTCDate()).padStart(2, "0");
   return `${y}-${m}-${dd}`;
+};
+
+// 해외 quote → 일봉 병합 게이트. quote.time.date (거래소 로컬 YYYYMMDD) 를
+// EOD 포맷 (YYYY-MM-DD) 로 변환한 뒤 latestDaily.date 보다 신선할 때만 반환.
+//  · quote 미도착 / time=null(.DJI 등 output2 부재) → undefined (자연 차단)
+//  · latestDaily 없음 / date length 비정상 → undefined
+//  · 변환된 date <= latestDailyDate → undefined (EOD 가 이미 커버 — 이중 삽입 방지)
+// 폐장 후에도 quoteDate > latestDailyDate 인 동안(EOD D+1 도착 전) 마지막 세션 봉 유지 —
+// 의도된 동작 (헤더 quote 신선도와 차트 기준일 갭 해소).
+export const overseasQuoteMergeDate = (
+  quote: IndexQuote | null,
+  latestDailyDate: string | null,
+): string | undefined => {
+  if (!quote?.time || !latestDailyDate) return undefined;
+  const raw = quote.time.date;
+  if (raw.length !== 8) return undefined;
+  const converted = `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
+  return converted > latestDailyDate ? converted : undefined;
 };
 
 // MA period 상수 — StockChartTabs 컨벤션 동일.
@@ -178,9 +200,13 @@ export const IndexChart = ({
   // 국내/해외 훅을 모두 호출하고 지수 리전에 따라 소비 소스를 선택한다.
   // React Query 가 queryKey 로 dedup 하므로 다른 컴포넌트와 네트워크 중복 없음.
   const isOverseasIntraday = isOverseasIntradayCode(indexCode);
+  const isOverseasIndex = getIndexMeta(indexCode).region === "overseas";
   const domesticIntradayQuery = useIndexIntraday();
   const overseasIntradayQuery = useOverseasIndexIntraday();
   const { data: quotesData } = useIndexQuotes();
+  // 해외 지수 라이브 quote — 8종 전부. 헤더(IndexDetailPane)가 이미 소비 중이라
+  // React Query dedup 로 신규 트래픽 없음.
+  const { data: overseasQuotesData } = useOverseasIndexQuotes();
 
   const intradayQuery = isOverseasIntraday
     ? overseasIntradayQuery
@@ -235,37 +261,35 @@ export const IndexChart = ({
     return rawIntraday.filter((b) => b.timestamp >= prevStartSec);
   }, [rawIntraday, prevStartSec]);
 
-  // 국내: /api/index-quotes 의 live. 해외: 오늘 intraday 봉을 세션 전체 aggregate
-  // (open=첫봉 open, high/low=max/min, price=마지막 봉 close) 로 합성. 이렇게 하면
-  // mergeLiveDayBar 가 EOD 마지막 봉을 today-bar 로 replace 할 때 국내와 동일 계약.
+  // 국내: /api/index-quotes 의 live. 해외: /api/overseas-index-quotes 직결 (헤더와 동일 소스).
   // 정규장 개장 전(pre · preopen)엔 domestic quote 를 null 로 게이트 — 개장 전 당일
   // 지수봉이 EOD 축에 유입되는 것 차단 (StockChartTabs 와 동형).
   const domesticLiveQuote =
     domesticCode !== null && !isKrxBeforeMarketOpen(quotesData?.session)
       ? quotesData?.quotes[domesticCode].live ?? null
       : null;
-  const overseasLiveQuote: LiveQuoteForMerge | null = useMemo(() => {
-    if (!isOverseasIntraday || !rawIntraday || !overseasLatestDate) return null;
-    const today = rawIntraday.filter(
-      (b) => fakeUtcSecToLocalDate(b.timestamp) === overseasLatestDate,
-    );
-    if (today.length === 0) return null;
-    let high = today[0].high;
-    let low = today[0].low;
-    for (const b of today) {
-      if (b.high > high) high = b.high;
-      if (b.low < low) low = b.low;
-    }
-    return {
-      open: today[0].open,
-      high,
-      low,
-      price: today[today.length - 1].close,
-    };
-  }, [isOverseasIntraday, rawIntraday, overseasLatestDate]);
-  const liveQuote: LiveQuoteForMerge | null = isOverseasIntraday
+  const overseasQuote: IndexQuote | null = isOverseasIndex
+    ? overseasQuotesData?.quotes[indexCode as OverseasIndexCode] ?? null
+    : null;
+  // 병합 게이트: quote.time.date > latestDaily.date (converted). time=null(.DJI) 자연 차단.
+  const latestDailyDate =
+    prices.length > 0 ? prices[prices.length - 1].date : null;
+  const overseasMergeDate = overseasQuoteMergeDate(
+    overseasQuote,
+    latestDailyDate,
+  );
+  const overseasLiveQuote: LiveQuoteForMerge | null = overseasQuote
+    ? {
+        open: overseasQuote.open,
+        high: overseasQuote.high,
+        low: overseasQuote.low,
+        price: overseasQuote.price,
+      }
+    : null;
+  const liveQuote: LiveQuoteForMerge | null = isOverseasIndex
     ? overseasLiveQuote
     : domesticLiveQuote;
+  const mergeDate = isOverseasIndex ? overseasMergeDate : liveDate;
 
   const intradayHasData = intraday !== null && intraday.length > 0;
   const renderIntraday = isIntradayView && intradayHasData;
@@ -290,8 +314,8 @@ export const IndexChart = ({
     !intradayFailed;
 
   const dayBars = useMemo<ChartBar[]>(
-    () => mergeLiveDayBar(dailyToBars(prices), liveQuote, liveDate),
-    [prices, liveQuote, liveDate],
+    () => mergeLiveDayBar(dailyToBars(prices), liveQuote, mergeDate),
+    [prices, liveQuote, mergeDate],
   );
 
   const weekBars = useMemo<ChartBar[]>(() => {
