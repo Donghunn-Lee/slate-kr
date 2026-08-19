@@ -1,18 +1,37 @@
+import { TZDate } from "@date-fns/tz";
+import { format } from "date-fns";
+import {
+  OVERSEAS_INDEX_TIMEZONE,
+  type OverseasIndexCode,
+} from "@/shared/constants/indices";
 import type { IndexQuote } from "@/shared/types/quote";
 
-// 해외 지수 quote 체결시각 → "MM-DD HH:mm (현지)".
-// 입력은 거래소 현지 로컬(YYYYMMDD·HHMMSS 문자열, KIS FHKST03030200 output2[0]).
-// 초는 절삭. 타임존 변환·해석 금지 — 라벨은 "현지" 표시로 사용자에게 위임.
-// null 입력·검증 실패 시 null (호출측이 세션 템플릿으로 폴백).
+const KST_ZONE = "Asia/Seoul";
+
+// KIS FHKST03030200 output2 의 (date, hour) 는 거래소 현지 로컬 시각.
+// 지수별 IANA 타임존으로 UTC 인스턴트를 확정한 뒤 KST 로 렌더한다.
+// DST 는 IANA DB(America/New_York 등)에 위임 — EST/EDT 자동 전환.
+// 파싱 실패·유효하지 않은 시각은 null 반환(라벨 미표시).
 export const formatOverseasQuoteTime = (
   time: IndexQuote["time"],
+  code: OverseasIndexCode,
 ): string | null => {
   if (!time) return null;
   const { date, hour } = time;
   if (date.length !== 8 || hour.length !== 6) return null;
-  const mm = date.slice(4, 6);
-  const dd = date.slice(6, 8);
-  const hh = hour.slice(0, 2);
-  const min = hour.slice(2, 4);
-  return `${mm}-${dd} ${hh}:${min} (현지)`;
+
+  const y = Number(date.slice(0, 4));
+  const mo = Number(date.slice(4, 6)) - 1;
+  const d = Number(date.slice(6, 8));
+  const hh = Number(hour.slice(0, 2));
+  const mm = Number(hour.slice(2, 4));
+  if ([y, mo, d, hh, mm].some((n) => !Number.isFinite(n))) return null;
+
+  const tz = OVERSEAS_INDEX_TIMEZONE[code];
+  // TZDate 는 (fields, zone) 을 그 zone 의 wall-clock 으로 해석 → UTC 인스턴트 확정.
+  const localInstant = new TZDate(y, mo, d, hh, mm, 0, tz);
+  if (Number.isNaN(localInstant.getTime())) return null;
+
+  const kstInstant = localInstant.withTimeZone(KST_ZONE);
+  return `${format(kstInstant, "MM-dd HH:mm")} 기준`;
 };

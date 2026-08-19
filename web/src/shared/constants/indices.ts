@@ -56,6 +56,20 @@ export const isOverseasIntradayCode = (
 ): code is OverseasIntradayCode =>
   (OVERSEAS_INTRADAY_CODES as readonly string[]).includes(code);
 
+// 해외 지수 → 거래소 IANA 타임존. KIS FHKST03030200 output2 는 현지 로컬 시각을
+// 반환하므로 UTC 인스턴트 확정 후 KST 렌더에 이 매핑을 사용한다. DST 는 IANA DB
+// 에 위임 (America/New_York 는 EST/EDT 자동 전환).
+export const OVERSEAS_INDEX_TIMEZONE: Record<OverseasIndexCode, string> = {
+  SPX: "America/New_York",
+  ".DJI": "America/New_York",
+  COMP: "America/New_York",
+  NDX: "America/New_York",
+  NI225: "Asia/Tokyo",
+  HSI: "Asia/Hong_Kong",
+  SHCOMP: "Asia/Shanghai",
+  DAX: "Europe/Berlin",
+};
+
 const META_BY_CODE = Object.fromEntries(
   INDEX_REGISTRY.map((m) => [m.code, m]),
 ) as Record<IndexCode, IndexEntry>;

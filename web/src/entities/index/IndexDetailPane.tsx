@@ -225,10 +225,14 @@ export const IndexDetailPane = ({
       : getKrxLastCloseDate(now)
     : null;
 
-  // 해외 quote 체결시각 → "MM-DD HH:mm (현지)". null 이면 세션 템플릿 폴백.
-  const overseasTimeLabel = overseasQuote
-    ? formatOverseasQuoteTime(overseasQuote.time)
-    : null;
+  // 해외 quote 체결시각(현지) → KST "MM-dd HH:mm 기준". null 이면 세션 템플릿 폴백.
+  const overseasTimeLabel =
+    overseasQuote && !isDomestic
+      ? formatOverseasQuoteTime(
+          overseasQuote.time,
+          selected as OverseasIndexCode,
+        )
+      : null;
   // 해외 stats 기준일 — 라이브/EOD 어느 소스든 daily 스냅샷 date 유지 (52주·수익률 계산 기준).
   const overseasRefDate = latestDaily?.date ?? null;
 
