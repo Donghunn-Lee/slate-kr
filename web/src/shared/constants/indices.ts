@@ -85,10 +85,13 @@ export const OVERSEAS_INDEX_CLOSE_LOCAL: Record<OverseasIndexCode, string> = {
   DAX: "1730",
 };
 
-// quote 라이브 지연(분). 0 = 실시간 확정, 양수 = 지연 확정, 미정의 = 미실측(중립 표시).
-// live 상태에서 dot(실시간 신호)/pill 배지(지연) 렌더 정책의 유일 입력.
-// SPX·COMP·NDX·.DJI 는 실측 후 값 추가 예정.
+// quote 라이브 지연(분). 0 = 실시간, 양수 = 지연 분.
+// live 상태에서 dot(실시간 신호) vs pill 배지(지연) 렌더 결정의 단일 입력.
+// .DJI 는 quote.time 이 항상 null 이라 live 상태로 진입하지 않아 이 매핑을 참조하지 않는다.
 export const OVERSEAS_INDEX_DELAY_MIN: Partial<Record<OverseasIndexCode, number>> = {
+  SPX: 0,
+  COMP: 0,
+  NDX: 0,
   NI225: 15,
   HSI: 15,
   SHCOMP: 15,
