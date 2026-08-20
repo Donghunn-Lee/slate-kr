@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { StockPanel } from "@/entities/stock/StockPanel";
 import { PriceCountUp } from "@/entities/stock/PriceCountUp";
 import { PriceChange } from "@/shared/components/PriceChange";
 import {
   INDEX_LABEL,
+  OVERSEAS_INDEX_DELAY_MIN,
   getIndexMeta,
   isOverseasIntradayCode,
   type DomesticIndexCode,
@@ -25,6 +26,7 @@ import {
   getKrxLastCloseDate,
   getKrxSessionState,
 } from "@/shared/utils/market";
+import { useNow } from "@/shared/hooks/useNow";
 import { cn } from "@/lib/utils";
 import { IndexChartDynamic } from "./IndexChartDynamic";
 
@@ -64,27 +66,6 @@ const formatClock = (d: Date): string =>
     minute: "2-digit",
     hour12: false,
   });
-
-// 매 분 tick 하는 client clock. null = pre-mount (SSR hydration mismatch 회피).
-// 장 상태와 무관하게 항상 tick — 15:30·09:00 세션 경계 넘을 때 라벨이 자동 갱신되어야 함.
-const useNow = (): Date | null => {
-  const [now, setNow] = useState<Date | null>(null);
-  useEffect(() => {
-    const tick = () => setNow(new Date());
-    tick();
-    const msToNextMinute = 60_000 - (Date.now() % 60_000);
-    let intervalId: number | undefined;
-    const timeoutId = window.setTimeout(() => {
-      tick();
-      intervalId = window.setInterval(tick, 60_000);
-    }, msToNextMinute);
-    return () => {
-      window.clearTimeout(timeoutId);
-      if (intervalId !== undefined) window.clearInterval(intervalId);
-    };
-  }, []);
-  return now;
-};
 
 type StatCellProps = {
   label: string;
@@ -239,8 +220,16 @@ export const IndexDetailPane = ({
   // 국내 거래량은 EOD 값 — 최신 봉 date 를 셀 밀도 고려해 MM-DD 로 병기.
   const domesticVolumeAsOf = isDomestic ? latestDaily?.date.slice(5) ?? null : null;
 
-  // 공통 문법: `[dot] {상태문구} · {기준시각}`. dot 은 live 신호에서만.
-  const showDot = isKrxRegular || (overseasState?.kind === "live" && overseasKstTime !== null);
+  // 해외 지수 라이브 지연 분 (미실측 = undefined → 중립 표시).
+  const overseasDelayMin = !isDomestic
+    ? OVERSEAS_INDEX_DELAY_MIN[selected as OverseasIndexCode]
+    : undefined;
+  const isOverseasLive = overseasState?.kind === "live" && overseasKstTime !== null;
+  // dot = 실시간(지연 없음) live 전용. 국내 정규장 or 해외 live && delay 확정 0.
+  const showDot = isKrxRegular || (isOverseasLive && overseasDelayMin === 0);
+  // 지연 확정된 해외 지수만 pill 배지. 미실측(undefined)·실시간(0)·비 live 는 배지 없음.
+  const showDelayBadge =
+    isOverseasLive && overseasDelayMin !== undefined && overseasDelayMin > 0;
   const referenceLabel = isDomestic
     ? now === null
       ? "장 마감"
@@ -263,7 +252,7 @@ export const IndexDetailPane = ({
           <h2 className="text-value font-medium">{INDEX_LABEL[selected]}</h2>
         </div>
         <div className="flex items-center gap-1.5 text-body-sm text-muted-foreground">
-          {/* emerald dot 은 live 신호 전용 — 국내 정규장 or 해외 quote.time 이 마감 전. */}
+          {/* emerald dot 은 실시간(지연 0) live 전용. 지연 지수는 pill 배지로 신호. */}
           {showDot && (
             <span
               className="inline-block size-1.5 rounded-full bg-emerald-500"
@@ -271,6 +260,14 @@ export const IndexDetailPane = ({
             />
           )}
           <span>{referenceLabel}</span>
+          {showDelayBadge && (
+            <span
+              className="ml-1 rounded-sm border border-subtle bg-elevated px-1.5 py-0.5 text-micro font-medium uppercase tracking-wide text-muted-foreground"
+              aria-label={`약 ${overseasDelayMin}분 지연 시세`}
+            >
+              지연 ~{overseasDelayMin}분
+            </span>
+          )}
         </div>
       </div>
 

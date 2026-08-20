@@ -13,6 +13,7 @@ import type {
   PriceSign,
 } from "@/shared/types/quote";
 import type { OverseasIndexCode } from "@/shared/constants/indices";
+import { useNow } from "@/shared/hooks/useNow";
 import { cn } from "@/lib/utils";
 import { useIndexQuotes, type IndexCellData } from "./useIndexQuotes";
 import { useIndexIntraday } from "./useIndexIntraday";
@@ -140,17 +141,26 @@ const MobilePairSkeleton = () => (
   </div>
 );
 
-const MarketStatus = ({ marketOpen, date }: { marketOpen: boolean; date?: string }) =>
-  marketOpen ? (
+const formatClock = (d: Date): string =>
+  d.toLocaleTimeString("ko-KR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+
+const MarketStatus = ({ marketOpen, date }: { marketOpen: boolean; date?: string }) => {
+  const now = useNow();
+  return marketOpen ? (
     <div className="flex items-center gap-1.5 text-body-sm text-muted-foreground">
       <span className="inline-block size-1.5 rounded-full bg-emerald-500" aria-hidden />
-      실시간
+      <span>실시간{now ? ` · ${formatClock(now)}` : ""}</span>
     </div>
   ) : (
     <div className="text-body-sm text-muted-foreground">
       장 마감{date ? ` · 기준일 ${date}` : ""}
     </div>
   );
+};
 
 const EMPTY_BARS: IndexIntradaySnapshot[] = [];
 
