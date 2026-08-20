@@ -20,11 +20,10 @@ import { useOverseasIndexIntraday } from "@/features/index-quotes/useOverseasInd
 import { useOverseasIndexQuotes } from "@/features/index-quotes/useOverseasIndexQuotes";
 import { buildIndexCell } from "@/shared/utils/buildIndexCell";
 import { formatOverseasQuoteTime } from "@/shared/utils/formatOverseasQuoteTime";
+import { resolveOverseasDisplayState } from "@/shared/utils/resolveOverseasDisplayState";
 import {
   getKrxLastCloseDate,
   getKrxSessionState,
-  getKstDateAndMinutes,
-  getUsSessionState,
 } from "@/shared/utils/market";
 import { cn } from "@/lib/utils";
 import { IndexChartDynamic } from "./IndexChartDynamic";
@@ -212,21 +211,20 @@ export const IndexDetailPane = ({
     latestDaily,
   });
 
-  // 라벨은 request time 기준: 국내는 client clock 으로 세션 판정, 해외는 quote.time 우선.
+  // 라벨은 request time 기준: 국내는 client clock 으로 세션 판정, 해외는 quote.time 판정.
   const now = useNow();
   const isKrxRegular = isDomestic && now !== null && getKrxSessionState(now) === "regular";
-  // .DJI 는 quote.time 이 없어 (KIS output2=[]) 세션 템플릿으로 폴백. 나머지 해외는 시각 라벨.
-  const isDji = selected === ".DJI";
-  const isUsRegularForDji =
-    isDji && now !== null && getUsSessionState(now) === "regular";
-  const domesticDate = now
-    ? isKrxRegular
-      ? getKstDateAndMinutes(now).date
-      : getKrxLastCloseDate(now)
-    : null;
+  // 국내 마감 라벨의 기준일(MM-dd). pre 세션에서도 전일 반환하는 getKrxLastCloseDate 사용.
+  const domesticLastCloseMd = now ? getKrxLastCloseDate(now).slice(5) : null;
 
-  // 해외 quote 체결시각(현지) → KST "MM-dd HH:mm 기준". null 이면 세션 템플릿 폴백.
-  const overseasTimeLabel =
+  // 해외 표시 상태 판정 (live/closed/eod_only). 시각 포맷은 formatOverseasQuoteTime 재사용.
+  const overseasState = !isDomestic
+    ? resolveOverseasDisplayState(
+        overseasQuote?.time ?? null,
+        selected as OverseasIndexCode,
+      )
+    : null;
+  const overseasKstTime =
     overseasQuote && !isDomestic
       ? formatOverseasQuoteTime(
           overseasQuote.time,
@@ -241,17 +239,19 @@ export const IndexDetailPane = ({
   // 국내 거래량은 EOD 값 — 최신 봉 date 를 셀 밀도 고려해 MM-DD 로 병기.
   const domesticVolumeAsOf = isDomestic ? latestDaily?.date.slice(5) ?? null : null;
 
+  // 공통 문법: `[dot] {상태문구} · {기준시각}`. dot 은 live 신호에서만.
+  const showDot = isKrxRegular || (overseasState?.kind === "live" && overseasKstTime !== null);
   const referenceLabel = isDomestic
     ? now === null
-      ? "정규장 마감"
+      ? "장 마감"
       : isKrxRegular
-        ? `실시간 · ${domesticDate} ${formatClock(now)}`
-        : `정규장 마감 · ${domesticDate} 15:30`
-    : overseasTimeLabel !== null
-      ? overseasTimeLabel
-      : isUsRegularForDji
-        ? `미국 · ~15분 지연${overseasRefDate ? ` · 기준일 ${overseasRefDate}` : ""}`
-        : `미국 · 정규장 마감${overseasRefDate ? ` · 기준일 ${overseasRefDate}` : ""}`;
+        ? `실시간 · ${formatClock(now)}`
+        : `장 마감 · ${domesticLastCloseMd} 15:30`
+    : overseasState?.kind === "live" && overseasKstTime
+      ? `${overseasKstTime} 기준`
+      : overseasState?.kind === "closed" && overseasKstTime
+        ? `장 마감 · ${overseasKstTime}`
+        : `전일 종가 · 기준일 ${overseasRefDate ?? "—"}`;
 
   return (
     <StockPanel variant="lavender" className="overflow-hidden p-0">
@@ -263,23 +263,14 @@ export const IndexDetailPane = ({
           <h2 className="text-value font-medium">{INDEX_LABEL[selected]}</h2>
         </div>
         <div className="flex items-center gap-1.5 text-body-sm text-muted-foreground">
-          {/* emerald dot 은 국내 정규장 라이브 신호 전용. 해외는 quote.time 이 신선도를
-              스스로 전달하므로 별도 dot 없음 (.DJI 지연 배지가 그 역할 대체). */}
-          {isKrxRegular && (
+          {/* emerald dot 은 live 신호 전용 — 국내 정규장 or 해외 quote.time 이 마감 전. */}
+          {showDot && (
             <span
               className="inline-block size-1.5 rounded-full bg-emerald-500"
               aria-hidden
             />
           )}
           <span>{referenceLabel}</span>
-          {isUsRegularForDji && (
-            <span
-              className="ml-1 rounded-sm border border-subtle bg-elevated px-1.5 py-0.5 text-micro font-medium uppercase tracking-wide text-muted-foreground"
-              aria-label="약 15분 지연 시세"
-            >
-              지연
-            </span>
-          )}
         </div>
       </div>
 

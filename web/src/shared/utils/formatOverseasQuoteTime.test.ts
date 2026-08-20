@@ -9,7 +9,7 @@ describe("formatOverseasQuoteTime", () => {
         { date: "20260819", hour: "094600" },
         "NI225",
       ),
-    ).toBe("08-19 09:46 기준");
+    ).toBe("08-19 09:46");
   });
 
   it("HSI (HKT=-1h vs KST) — 16:08 HKT → 17:08 KST", () => {
@@ -18,7 +18,7 @@ describe("formatOverseasQuoteTime", () => {
         { date: "20260818", hour: "160800" },
         "HSI",
       ),
-    ).toBe("08-18 17:08 기준");
+    ).toBe("08-18 17:08");
   });
 
   it("SHCOMP (CST=-1h vs KST) — 15:00 CST → 16:00 KST", () => {
@@ -27,7 +27,7 @@ describe("formatOverseasQuoteTime", () => {
         { date: "20260818", hour: "150000" },
         "SHCOMP",
       ),
-    ).toBe("08-18 16:00 기준");
+    ).toBe("08-18 16:00");
   });
 
   // ── ET DST 대조 ────────────────────────────────────
@@ -37,7 +37,7 @@ describe("formatOverseasQuoteTime", () => {
         { date: "20260818", hour: "160000" },
         "SPX",
       ),
-    ).toBe("08-19 05:00 기준");
+    ).toBe("08-19 05:00");
   });
 
   it("SPX EST (1월, ET=-14h vs KST) — 16:00 EST 1/15 → 익일 06:00 KST 1/16", () => {
@@ -46,7 +46,7 @@ describe("formatOverseasQuoteTime", () => {
         { date: "20260115", hour: "160000" },
         "SPX",
       ),
-    ).toBe("01-16 06:00 기준");
+    ).toBe("01-16 06:00");
   });
 
   // ── DAX 날짜 경계 (CEST=-7h vs KST) ─────────────────
@@ -56,7 +56,7 @@ describe("formatOverseasQuoteTime", () => {
         { date: "20260818", hour: "173000" },
         "DAX",
       ),
-    ).toBe("08-19 00:30 기준");
+    ).toBe("08-19 00:30");
   });
 
   // ── 방어 ────────────────────────────────────────

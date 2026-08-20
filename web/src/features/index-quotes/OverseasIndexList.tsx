@@ -33,7 +33,7 @@ const formatIndexPrice = (v: number): string =>
   });
 
 // 해외 지수 리스트 — 8행. useOverseasIndexQuotes 라이브 우선, null 이면 SSR EOD fallback.
-// 스파크라인 없음 (텍스트만). 지연 라벨은 헤더에 1개.
+// 스파크라인 없음 (텍스트만).
 export const OverseasIndexList = ({
   snapshotsByCode,
 }: OverseasIndexListProps) => {
@@ -43,7 +43,6 @@ export const OverseasIndexList = ({
     <div className="flex flex-col">
       <div className="flex items-baseline gap-1.5 px-4 pt-3 pb-1 text-micro uppercase tracking-widest text-muted-foreground sm:px-6">
         <span>해외</span>
-        <span>· 최대 15분 지연</span>
       </div>
       <ul className="divide-y divide-border/60">
         {OVERSEAS_INDEX_CODES.map((code) => {

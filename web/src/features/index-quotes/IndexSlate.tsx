@@ -148,7 +148,7 @@ const MarketStatus = ({ marketOpen, date }: { marketOpen: boolean; date?: string
     </div>
   ) : (
     <div className="text-body-sm text-muted-foreground">
-      15:30 장 마감{date ? ` · 기준일 ${date}` : ""}
+      장 마감{date ? ` · 기준일 ${date}` : ""}
     </div>
   );
 

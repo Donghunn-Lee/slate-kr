@@ -9,9 +9,10 @@ import type { IndexQuote } from "@/shared/types/quote";
 const KST_ZONE = "Asia/Seoul";
 
 // KIS FHKST03030200 output2 의 (date, hour) 는 거래소 현지 로컬 시각.
-// 지수별 IANA 타임존으로 UTC 인스턴트를 확정한 뒤 KST 로 렌더한다.
+// 지수별 IANA 타임존으로 UTC 인스턴트를 확정한 뒤 KST "MM-dd HH:mm" 문자열로 렌더한다.
 // DST 는 IANA DB(America/New_York 등)에 위임 — EST/EDT 자동 전환.
 // 파싱 실패·유효하지 않은 시각은 null 반환(라벨 미표시).
+// 상태 접미어("기준" · "장 마감") 는 호출측 조립 — 이 함수는 시각 문자열만 담당한다.
 export const formatOverseasQuoteTime = (
   time: IndexQuote["time"],
   code: OverseasIndexCode,
@@ -33,5 +34,5 @@ export const formatOverseasQuoteTime = (
   if (Number.isNaN(localInstant.getTime())) return null;
 
   const kstInstant = localInstant.withTimeZone(KST_ZONE);
-  return `${format(kstInstant, "MM-dd HH:mm")} 기준`;
+  return format(kstInstant, "MM-dd HH:mm");
 };

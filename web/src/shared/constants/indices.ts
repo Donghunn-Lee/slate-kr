@@ -70,6 +70,21 @@ export const OVERSEAS_INDEX_TIMEZONE: Record<OverseasIndexCode, string> = {
   DAX: "Europe/Berlin",
 };
 
+// market-local 정규장 마감 시각 (HHMM). 체결시각 hour(HHMMSS) 앞 4자리와 문자열
+// 비교로 live/closed 판정에만 사용 — 여기에 세션 개장·리셋 시각을 함께 넣지 말 것
+// (해외 헤더 라벨은 hour < close 로 자동 해제, 별도 open 상수 불필요).
+// 수용 리스크: 클로징 옥션(HSI 16:00~16:10 등)·미국 조기마감(연 4일)은 미반영.
+export const OVERSEAS_INDEX_CLOSE_LOCAL: Record<OverseasIndexCode, string> = {
+  SPX: "1600",
+  ".DJI": "1600",
+  COMP: "1600",
+  NDX: "1600",
+  NI225: "1530",
+  HSI: "1600",
+  SHCOMP: "1500",
+  DAX: "1730",
+};
+
 const META_BY_CODE = Object.fromEntries(
   INDEX_REGISTRY.map((m) => [m.code, m]),
 ) as Record<IndexCode, IndexEntry>;
