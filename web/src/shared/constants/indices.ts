@@ -87,11 +87,12 @@ export const OVERSEAS_INDEX_CLOSE_LOCAL: Record<OverseasIndexCode, string> = {
 
 // quote 라이브 지연(분). 0 = 실시간 확정, 양수 = 지연 확정, 미정의 = 미실측(중립 표시).
 // live 상태에서 dot(실시간 신호)/pill 배지(지연) 렌더 정책의 유일 입력.
-// DAX·SPX·COMP·NDX·.DJI 는 실측 후 값 추가 예정.
+// SPX·COMP·NDX·.DJI 는 실측 후 값 추가 예정.
 export const OVERSEAS_INDEX_DELAY_MIN: Partial<Record<OverseasIndexCode, number>> = {
   NI225: 15,
   HSI: 15,
   SHCOMP: 15,
+  DAX: 15,
 };
 
 const META_BY_CODE = Object.fromEntries(

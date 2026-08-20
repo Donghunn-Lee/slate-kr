@@ -14,6 +14,7 @@ import type {
 } from "@/shared/types/quote";
 import type { OverseasIndexCode } from "@/shared/constants/indices";
 import { useNow } from "@/shared/hooks/useNow";
+import { getKrxLastCloseDate } from "@/shared/utils/market";
 import { cn } from "@/lib/utils";
 import { useIndexQuotes, type IndexCellData } from "./useIndexQuotes";
 import { useIndexIntraday } from "./useIndexIntraday";
@@ -148,8 +149,20 @@ const formatClock = (d: Date): string =>
     hour12: false,
   });
 
-const MarketStatus = ({ marketOpen, date }: { marketOpen: boolean; date?: string }) => {
+// 마감 라벨 기준일: quote live 존재 시 셀 값은 당일 종가 → 오늘 거래일(getKrxLastCloseDate).
+// live 없이 EOD fallback 으로 강등된 경우엔 셀 값 자체가 전일 → fallback.date 유지.
+// (마감 직후~EOD 적재 전 구간에서 셀 값/기준일 불일치 회피.)
+const MarketStatus = ({
+  marketOpen,
+  hasLive,
+  fallbackDate,
+}: {
+  marketOpen: boolean;
+  hasLive: boolean;
+  fallbackDate?: string;
+}) => {
   const now = useNow();
+  const referenceDate = hasLive && now ? getKrxLastCloseDate(now) : fallbackDate;
   return marketOpen ? (
     <div className="flex items-center gap-1.5 text-body-sm text-muted-foreground">
       <span className="inline-block size-1.5 rounded-full bg-emerald-500" aria-hidden />
@@ -157,7 +170,7 @@ const MarketStatus = ({ marketOpen, date }: { marketOpen: boolean; date?: string
     </div>
   ) : (
     <div className="text-body-sm text-muted-foreground">
-      장 마감{date ? ` · 기준일 ${date}` : ""}
+      장 마감{referenceDate ? ` · 기준일 ${referenceDate}` : ""}
     </div>
   );
 };
@@ -176,7 +189,8 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
           {data ? (
             <MarketStatus
               marketOpen={data.marketOpen}
-              date={data.quotes.KOSPI.fallback?.date}
+              hasLive={data.quotes.KOSPI.live !== null}
+              fallbackDate={data.quotes.KOSPI.fallback?.date}
             />
           ) : null}
         </div>
