@@ -21,7 +21,8 @@ AI 없이도 설득력 있어야 한다. AI는 투자 판단 도구가 아니라
 
 ## 프로젝트 정의
 
-**SlateKR**는 국내 상장 종목의 가격·재무·공시 정보를 구조화해서 빠르게 조회하는 서비스형 웹앱이다.
+**SlateKR**는 국내 상장 종목의 가격·재무·공시 정보와 국내·해외 주요 지수 시세를
+구조화해서 빠르게 조회하는 서비스형 웹앱이다.
 핵심 플로우: **검색 → 종목 상세 → 관심종목 저장**
 
 이 프로젝트는 투자 추천/분석 서비스가 아니다. 흩어진 종목 데이터를 읽기 쉽게 구조화해서 제공하는 **조회형 서비스**다.
@@ -48,21 +49,29 @@ AI 없이도 설득력 있어야 한다. AI는 투자 판단 도구가 아니라
 - **서버 상태**: Server Components + fetch + revalidate 우선
 - **클라이언트 상태**: TanStack Query v5 (상호작용 필요한 영역만)
 - **전역 UI 상태**: Zustand (관심종목, 최근 검색어, UI 상태)
-- **차트**: lightweight-charts
-- **유틸**: date-fns, Zod (외부 API 응답 런타임 검증), next-themes
+- **차트**: lightweight-charts v5 (v4와 API 차이 큼 — v4 예제 코드 사용 금지)
+- **유틸**: date-fns, Zod (외부 API 응답 런타임 검증), next-themes, @date-fns/tz (TZDate — KST/현지시각 변환)
+- **테스트**: Vitest (커밋 green 기준: tsc --noEmit, ESLint, next build, vitest)
 - **폰트**: SUIT Variable (로컬 로드)
 - **DB**: PostgreSQL on Neon (@neondatabase/serverless, lib/db.ts)
   - neon() 호환 래퍼: 기존 `[rows, null]` 패턴 유지
   - placeholder: `$1, $2` (PostgreSQL 스타일)
-- **데이터 수집**: Python + pykrx (collector/)
-  - `fetch_prices.py` — OHLCV 일별 시세
-  - `fetch_financials.py` — DART 재무제표
-  - `fetch_shares.py` — 발행주식수
-  - `fetch_stocks.py` — 종목 목록 (FSS API)
-  - 공통: 로깅, 에러 격리, incremental update
+- **데이터 수집**: Python (collector/)
+  - 일일: fetch_prices.py (KIS, 국내 종목 EOD) / fetch_index_prices.py (KIS, 국내 지수 4종 EOD)
+    / fetch_overseas_indices.py (KIS, 해외 지수 8종) / verify_daily_freshness.py (적재 검증)
+  - 인트라데이: fetch_overseas_intraday.py (KIS, 해외 3종 1분봉, 30분 주기, 7일 retention)
+  - 스냅샷: fetch_quote_snapshots.py (KIS, 20:10 KST UN/NX 통합 시세)
+  - 주간: fetch_stocks.py (FSS) / update_corp_codes.py (DART) / fetch_shares.py (DART)
+    / fetch_financials.py (DART)
+  - 백필 전용: backfill_prices.py (pykrx) / backfill_index_prices.py (KRX Marketplace)
+    / backfill_overseas_index_prices.py (KIS)
+  - 토큰: issue_kis_token.py + kis_token.py (공용 헬퍼)
+  - 공통: db.py (Neon 커넥션), 로깅, 에러 격리, incremental update
+- **스케줄링**: GitHub Actions 워크플로우 5개 전부 workflow_dispatch만 사용,
+  cron-job.org가 API로 트리거 (schedule 이벤트는 지연/드롭 이슈로 제거)
 - **배포**: Vercel (Next.js) + Neon (PostgreSQL)
-- **외부 API**: DART OpenAPI (공시 데이터 + 재무제표), FSS API (종목 목록)
-- **AI 요약**: Gemini API (`lib/disclosure-summary.ts`), `POST /api/disclosure-summary` API Route, Zod 스키마 단일 소스 (`shared/types/disclosureSummary.ts`)
+- **외부 API**: KIS OpenAPI (국내 종목/지수 시세, 해외 지수 일봉·분봉·quote), KRX Marketplace (국내 지수 과거 일봉), DART OpenAPI (공시 데이터 + 재무제표), FSS API (종목 목록)
+- **AI 요약**: Gemini API (@google/genai SDK) (`lib/disclosure-summary.ts`), `POST /api/disclosure-summary` API Route, Zod 스키마 단일 소스 (`shared/types/disclosureSummary.ts`)
 
 ---
 
@@ -73,8 +82,8 @@ src/
 ├── app/              # 라우트, 레이아웃, loading/error/not-found
 ├── components/
 │   └── ui/           # shadcn 기반 primitive
-├── features/         # 검색, 관심종목 등 사용자 액션 중심 기능
-├── entities/         # stock, disclosure, metric 등 도메인 표시 단위
+├── features/         # 검색, 관심종목, 지수 quote 등 사용자 액션 중심 기능
+├── entities/         # stock, disclosure, metric, index 등 도메인 표시 단위
 ├── shared/           # 상수, 공용 타입, 포맷터, 범용 유틸
 └── lib/              # DB 조회, normalizer, 서버 유틸
 ```
@@ -176,6 +185,20 @@ DB / 외부 API
 - skeleton은 레이아웃 점프 최소화 목적으로만
 - DB 호출은 반드시 try-catch. `res.ok` 체크 후 `res.json()`.
 
+### 지수 데이터
+
+- 지수 목록 단일 소스: `shared/constants/indices.ts`의 `INDEX_REGISTRY`
+- 두 소스 구조(의도적): KIS = 현재가(quote)·분봉, KRX Marketplace = 국내 지수 과거 일봉
+- 표시 우선순위: quote 데이터가 bar(분봉) 데이터보다 항상 우선.
+  세션 기반 bar 우선 분기를 만들지 않는다 (홈/상세 값 불일치 재발 방지)
+- 셀 조립: `shared/utils/buildIndexCell.ts` 공용.
+  KIS sentinel 봉·국내 세션 갭 fill 판정: `shared/utils/intradaySentinel.ts`
+- 시각 표시: `@date-fns/tz` TZDate로 KST 변환 (IANA DB 위임, DST 대응)
+- KIS 토큰: GitHub Actions(kis-token.yml, 12h)가 발급 → Neon `kis_token` 단일행 캐시.
+  앱은 `lib/kis-token.ts`에서 모듈 캐시 → Neon(버퍼 600s) → fallback 직접 발급 순
+- EOD 적재: time-cap guard (거래일이고 KST 16:00 이후에만 당일 적재),
+  bypass 레버 없음, write-once 우선
+
 ### 캐싱
 
 - 종목 기본 정보: revalidate 86400
@@ -183,6 +206,13 @@ DB / 외부 API
 - 공시 목록: revalidate 3600
 - 차트 데이터: revalidate 3600
 - AI 요약: DB 캐시 (동일 공시 재요청 방지, `disclosure_summaries` 테이블)
+- 홈 / 종목 종합정보 탭 / 지수 페이지: revalidate 3600
+- 지수 quote·분봉: API route 층 unstable_cache + 세션 기반 revalidate
+  (국내 regular 60s·그 외 3600s / 해외 quote active 60s·idle 3600s / 해외 분봉 regular 120s·그 외 3600s)
+- 지수 캐시 태그: `{도메인}-{code}-{session}` 형식.
+  조회 실패(null) 시 revalidateTag로 즉시 축출 (unstable_cache는 null도 캐시하므로)
+- lib/ DB 조회 유틸은 React.cache(요청 단위 memo)만 사용 —
+  시간 기반 캐시는 페이지/route 층 소관
 
 ---
 
@@ -233,11 +263,33 @@ SlateKR의 UI는 "slate(판)" 개념을 기반으로 한다.
 
 ## 데이터 수집 제약
 
-- **pykrx**: OHLCV만 신뢰 가능. 시가총액/PER/PBR 함수는 2025년 2월 KRX 구조 변경 이후 깨짐.
+- **pykrx**: 백필 전용. OHLCV만 신뢰 가능 — 시가총액/PER/PBR 함수는
+  2025년 2월 KRX 구조 변경 이후 깨짐. 당일 EOD 적재는 KIS로 이관됨.
 - **비ZIP DART 응답**: 집합투자증권 등 일부 공시가 ZIP이 아닌 status=014 XML 반환. 제목 키워드로 사전 필터링 불가 → 호출 시점에서 분기 처리.
 - **공시 분류**: 비중요 공시는 `null` 반환. `GENERAL` 같은 포괄 fallback 없음 — 배지는 주가 관련성 신호이므로.
+- **Neon serverless HTTP**: bigint를 string으로 반환 → OID 20 후처리 필요
+- **unstable_cache**: null 값도 무조건 캐시됨 → 무효화는 revalidateTag로
+- **GitHub Actions schedule**: 부하 시 지연/드롭 → cron-job.org 외부 트리거 사용 (전환 완료)
 
 ---
+
+## 구현 전 점검 순서
+
+새 코드를 쓰기 전에 순서대로 확인하고, 먼저 해결되는 지점에서 멈춘다:
+
+1. 코드베이스에 같은 helper/util/패턴이 이미 있는가 → 재사용
+2. 표준 라이브러리 또는 플랫폼 기본 기능으로 되는가
+3. 이미 설치된 의존성으로 되는가
+4. 그래도 없으면 최소한만 새로 작성
+
+단, 검증·에러 처리·타입 안전성은 이 원칙의 절감 대상이 아니다.
+
+## 수정 범위 규칙
+
+- 변경된 모든 줄은 작업 요청에 직접 연결되어야 한다
+- 무관한 코드·주석·포맷을 "개선"하지 않는다. 기존 스타일을 따른다
+- 내 변경으로 생긴 orphan(미사용 import/변수)만 정리한다
+- 범위 밖 dead code는 삭제하지 말고 보고만 한다
 
 ## 절대 하지 말 것
 
