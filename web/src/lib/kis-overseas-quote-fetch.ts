@@ -193,6 +193,13 @@ const KisOverseasQuoteResponseSchema = z.object({
 const toSign = (code: string): PriceSign =>
   code === "3" ? "flat" : code === "1" || code === "2" ? "up" : "down";
 
+// 지수 값 0/음수는 무효 — 2026-08-21 .DJI output1 전 필드 0 회귀 관측.
+// 소비측(buildIndexCell)이 quote 미취득과 동일 취급하도록 null 강등.
+// 특정 지수 분기 금지: KIS 회귀는 어느 지수에서든 재현될 수 있다.
+export const demoteInvalidOverseasQuote = (
+  quote: IndexQuote,
+): IndexQuote | null => (quote.price > 0 ? quote : null);
+
 // 도메인 코드 입력 → DOMAIN_TO_ISCD 로 매핑 → FHKST03030200 output1 파싱.
 // 실패는 null 반환 (기존 패턴).
 export const fetchOverseasIndexQuote = async (
@@ -266,7 +273,7 @@ export const fetchOverseasIndexQuote = async (
     }
 
     const d = summary.data;
-    return {
+    return demoteInvalidOverseasQuote({
       name,
       price: d.ovrs_nmix_prpr,
       change: d.ovrs_nmix_prdy_vrss,
@@ -278,7 +285,7 @@ export const fetchOverseasIndexQuote = async (
       advCount: 0,
       declCount: 0,
       time: parseHeadTime(envelope.data.output2),
-    };
+    });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[kis] overseas quote fetch failed iscd=${iscd}: ${message}`);
