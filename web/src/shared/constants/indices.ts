@@ -56,6 +56,14 @@ export const isOverseasIntradayCode = (
 ): code is OverseasIntradayCode =>
   (OVERSEAS_INTRADAY_CODES as readonly string[]).includes(code);
 
+// 거래량 데이터 자체가 없는 지수 — daily/intraday 전 뷰에서 volume 축 렌더 금지.
+// 근거(DB 전수 확인 2026-08-21): NDX 는 전 기간 volume=0,
+// SPX 는 2015-01-30 이후 volume=0. KIS·백필 소스 모두 실값을 제공하지 않는다.
+export const INDICES_WITHOUT_VOLUME: ReadonlySet<IndexCode> = new Set([
+  "SPX",
+  "NDX",
+]);
+
 // 해외 지수 → 거래소 IANA 타임존. KIS FHKST03030200 output2 는 현지 로컬 시각을
 // 반환하므로 UTC 인스턴트 확정 후 KST 렌더에 이 매핑을 사용한다. DST 는 IANA DB
 // 에 위임 (America/New_York 는 EST/EDT 자동 전환).

@@ -21,6 +21,7 @@ import { useOverseasIndexIntraday } from "@/features/index-quotes/useOverseasInd
 import { useOverseasIndexQuotes } from "@/features/index-quotes/useOverseasIndexQuotes";
 import {
   getIndexMeta,
+  INDICES_WITHOUT_VOLUME,
   isOverseasIntradayCode,
   type DomesticIndexCode,
   type IndexCode,
@@ -518,7 +519,12 @@ export const IndexChart = ({
           interactive={interactive}
           intraday={renderIntraday}
           dimBefore={renderIntraday ? todayStartSec : undefined}
-          showVolume
+          // 해외 지수 분봉은 KIS cntg_vol 이 항상 0 (collector/fetch_overseas_intraday.py 실측).
+          // INDICES_WITHOUT_VOLUME 등재 지수(SPX·NDX)는 daily 도 volume=0 이라 전 뷰 숨김.
+          showVolume={
+            !(isOverseasIndex && isIntradayView) &&
+            !INDICES_WITHOUT_VOLUME.has(indexCode)
+          }
           showLegend
           maPeriods={effectiveMaPeriods}
           seriesKind={seriesKind}
