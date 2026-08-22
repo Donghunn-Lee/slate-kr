@@ -49,9 +49,10 @@ type IndexCellProps = {
   cell: IndexCellData;
   bars: IndexIntradaySnapshot[];
   intradayFailed: boolean;
+  intradayLoading: boolean;
 };
 
-const IndexCell = ({ label, cell, bars, intradayFailed }: IndexCellProps) => (
+const IndexCell = ({ label, cell, bars, intradayFailed, intradayLoading }: IndexCellProps) => (
   <div className="flex flex-col gap-2 px-4 py-3 sm:gap-3 sm:px-6 sm:py-4">
     <div>
       <div className="text-body font-bold text-muted-foreground">{label}</div>
@@ -102,7 +103,7 @@ const IndexCell = ({ label, cell, bars, intradayFailed }: IndexCellProps) => (
         </div>
       )}
     </div>
-    <IndexMiniChart bars={bars} failed={intradayFailed} />
+    <IndexMiniChart bars={bars} failed={intradayFailed} isLoading={intradayLoading} />
   </div>
 );
 
@@ -179,7 +180,7 @@ const EMPTY_BARS: IndexIntradaySnapshot[] = [];
 
 export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
   const { data, isLoading, isError } = useIndexQuotes();
-  const { data: intraday } = useIndexIntraday();
+  const { data: intraday, isLoading: intradayLoading } = useIndexIntraday();
 
   return (
     <section>
@@ -219,6 +220,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                     cell={data.quotes.KOSPI}
                     bars={intraday?.quotes.KOSPI ?? EMPTY_BARS}
                     intradayFailed={intraday?.failed.KOSPI ?? false}
+                    intradayLoading={intradayLoading}
                   />
                   <MiniIndexCell
                     label="코스피200"
@@ -236,6 +238,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                     cell={data.quotes.KOSDAQ}
                     bars={intraday?.quotes.KOSDAQ ?? EMPTY_BARS}
                     intradayFailed={intraday?.failed.KOSDAQ ?? false}
+                    intradayLoading={intradayLoading}
                   />
                   <MiniIndexCell
                     label="코스닥150"
@@ -268,12 +271,14 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                   cell={data.quotes.KOSPI}
                   bars={intraday?.quotes.KOSPI ?? EMPTY_BARS}
                   intradayFailed={intraday?.failed.KOSPI ?? false}
+                  intradayLoading={intradayLoading}
                 />
                 <IndexCell
                   label="코스닥"
                   cell={data.quotes.KOSDAQ}
                   bars={intraday?.quotes.KOSDAQ ?? EMPTY_BARS}
                   intradayFailed={intraday?.failed.KOSDAQ ?? false}
+                  intradayLoading={intradayLoading}
                 />
               </div>
               <div className="grid grid-cols-2 divide-x divide-border/60">

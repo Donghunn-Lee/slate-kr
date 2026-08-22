@@ -18,6 +18,9 @@ type IndexMiniChartProps = {
   bars: IndexIntradaySnapshot[];
   // useIndexIntraday failed[cellKey] 파생 — bars 는 실패/preopen 모두 [] 이므로 구분 신호 필수.
   failed: boolean;
+  // 부모 useIndexIntraday 첫 응답 도착 전 구간. quote 훅이 먼저 도착해도
+  // bars=[] 로 "장중 데이터 없음" 플래시가 나지 않도록 여기서 국소 placeholder 로 대체.
+  isLoading: boolean;
 };
 
 type BaselinePalette = {
@@ -65,7 +68,7 @@ const kstDateKey = (ts: number): string => {
   return `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
 };
 
-export const IndexMiniChart = ({ bars, failed }: IndexMiniChartProps) => {
+export const IndexMiniChart = ({ bars, failed, isLoading }: IndexMiniChartProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { resolvedTheme } = useTheme();
   const isMobile = useIsMobile();
@@ -187,6 +190,15 @@ export const IndexMiniChart = ({ bars, failed }: IndexMiniChartProps) => {
     };
   }, [sessionBars, resolvedTheme, isMobile]);
 
+  if (isLoading && bars.length === 0) {
+    return (
+      <div
+        className="w-full animate-pulse rounded bg-muted"
+        style={{ height }}
+        aria-hidden
+      />
+    );
+  }
   if (bars.length === 0) {
     return (
       <div
