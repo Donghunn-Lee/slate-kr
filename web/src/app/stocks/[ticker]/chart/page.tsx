@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { getStockByTicker } from "@/lib/stocks";
 import { getDailyPrices } from "@/lib/prices";
 import { StockChartTabsDynamic } from "@/entities/stock/StockChartTabsDynamic";
-import { ChartSkeleton } from "@/entities/stock/Skeletons";
+import { ChartTabsSkeleton } from "@/entities/stock/Skeletons";
 import type { StockPriceSnapshot } from "@/shared/types/stock";
 
 export const revalidate = 3600;
@@ -47,7 +47,7 @@ const ChartTabsSection = async ({ ticker }: { ticker: string }) => {
 export default async function ChartPage({ params }: PageProps) {
   const { ticker } = await params;
   return (
-    <Suspense fallback={<ChartSkeleton />}>
+    <Suspense fallback={<ChartTabsSkeleton />}>
       <ChartTabsSection ticker={ticker} />
     </Suspense>
   );

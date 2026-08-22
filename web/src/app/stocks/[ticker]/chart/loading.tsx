@@ -1,5 +1,5 @@
-import { ChartSkeleton } from "@/entities/stock/Skeletons";
+import { ChartTabsSkeleton } from "@/entities/stock/Skeletons";
 
 export default function Loading() {
-  return <ChartSkeleton />;
+  return <ChartTabsSkeleton />;
 }

@@ -49,7 +49,7 @@ export default async function OverviewPage({ params }: PageProps) {
             variant="lavender"
           />
         </Suspense>
-        <Suspense fallback={<FinancialsSkeleton />}>
+        <Suspense fallback={<FinancialsSkeleton compact />}>
           <StockFinancials ticker={ticker} viewAllHref={`/stocks/${ticker}/financials`} compact />
         </Suspense>
         <Suspense fallback={<DisclosuresSkeleton />}>
