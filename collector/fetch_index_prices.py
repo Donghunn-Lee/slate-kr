@@ -44,6 +44,7 @@ from dotenv import load_dotenv
 
 from db import get_connection
 from kis_token import get_token
+from verify_daily_freshness import compute_expected_from_now
 
 load_dotenv()
 
@@ -218,7 +219,7 @@ def upsert_bars(conn, cursor, index_code: str, bars_asc: list, prior_close) -> i
     return len(tuples)
 
 
-def run_one(conn, cursor, token: str, index_code: str, iscd: str, today_kst: date):
+def run_one(conn, cursor, token: str, index_code: str, iscd: str, end: date):
     """지수 1건 처리. 반환: (inserted, skipped_no_new). 예외는 상위에서 격리."""
     latest_date, latest_close = get_latest_stored(cursor, index_code)
     if latest_date is None:
@@ -228,20 +229,20 @@ def run_one(conn, cursor, token: str, index_code: str, iscd: str, today_kst: dat
             f"backfill_index_prices.py --backfill START END 로 초기 적재 필요"
         )
     d1 = latest_date + timedelta(days=1)
-    if d1 > today_kst:
-        logger.info("[%s] 이미 최신 (latest=%s ≥ today=%s) — no-op", index_code, latest_date, today_kst)
+    if d1 > end:
+        logger.info("[%s] 이미 최신 (latest=%s ≥ end=%s) — no-op", index_code, latest_date, end)
         return 0, 1
-    gap = (today_kst - latest_date).days
+    gap = (end - latest_date).days
     if gap > DAILY_GAP_LIMIT_DAYS:
         # 41봉 상한 초과 우려 — daily 경로에서 처리 금지.
         raise RuntimeError(
-            f"[{index_code}] gap={gap}일 (latest={latest_date}, today={today_kst}) "
+            f"[{index_code}] gap={gap}일 (latest={latest_date}, end={end}) "
             f"> {DAILY_GAP_LIMIT_DAYS}일 — 1콜 41봉 상한 초과 우려. "
-            f"backfill_index_prices.py --backfill {latest_date} {today_kst} 사용 필요"
+            f"backfill_index_prices.py --backfill {latest_date} {end} 사용 필요"
         )
 
     d1_str = d1.strftime("%Y%m%d")
-    d2_str = today_kst.strftime("%Y%m%d")
+    d2_str = end.strftime("%Y%m%d")
     logger.info("[%s] fetch %s~%s (ISCD=%s)", index_code, d1_str, d2_str, iscd)
     bars = kis_daily_call(token, iscd, d1_str, d2_str)
     if bars is None:
@@ -253,8 +254,13 @@ def run_one(conn, cursor, token: str, index_code: str, iscd: str, today_kst: dat
         if p is None:
             continue
         d_iso = p[0]
+        bar_date = datetime.strptime(d_iso, "%Y-%m-%d").date()
+        # end 초과 필터 (KIS 가 장중 in-progress 봉을 반환할 수 있음).
+        if bar_date > end:
+            logger.warning("[%s] drop in-progress bar %s > end %s", index_code, d_iso, end)
+            continue
         # latest_date 이하 필터 (KIS 가 경계 포함해 반환할 수 있음).
-        if datetime.strptime(d_iso, "%Y-%m-%d").date() <= latest_date:
+        if bar_date <= latest_date:
             continue
         parsed[d_iso] = p  # dedup
 
@@ -279,8 +285,12 @@ def main():
         logger.error("DATABASE_URL 미설정")
         sys.exit(1)
 
-    today_kst = (datetime.now(timezone.utc) + timedelta(hours=9)).date()
-    logger.info("일일 적재 시작 · today(KST)=%s · 대상=%s", today_kst, list(INDEX_CODE_TO_ISCD))
+    now_kst = datetime.now(KST)
+    end = compute_expected_from_now(now_kst)
+    logger.info(
+        "일일 적재 시작 · now(KST)=%s · end 캡=%s · 대상=%s",
+        now_kst.strftime("%Y-%m-%d %H:%M:%S"), end, list(INDEX_CODE_TO_ISCD),
+    )
 
     conn = get_connection()
     cursor = conn.cursor()
@@ -291,7 +301,7 @@ def main():
         total_ins = total_noop = total_err = 0
         for code, iscd in INDEX_CODE_TO_ISCD.items():
             try:
-                ins, noop = run_one(conn, cursor, token, code, iscd, today_kst)
+                ins, noop = run_one(conn, cursor, token, code, iscd, end)
                 total_ins += ins
                 total_noop += noop
             except Exception as e:
