@@ -91,6 +91,8 @@ EXPECTED_CURRENCY = "KRW"
 # exit 1 을 만들어 알람 신호 가치를 잃는 걸 방지하기 위해 "known 은 WARN·
 # exit 미기여, 신규 발견·부풀림만 fail" 로 등급 분리한다.
 # known 티커가 KRW 로 복귀하면 gate 미발동으로 정상 적재됨(의도된 동작).
+# 목록·티커별 통화 주석 변경 시 web/src/shared/constants/nonKrwTickers.ts 의
+# NON_KRW_TICKER_CURRENCIES 매핑값도 함께 동기화할 것.
 KNOWN_NON_KRW_TICKERS = frozenset({
     "241560",  # 두산밥캣 (USD, 2023 annual~)
     "008700",  # 아남전자 (USD 전 기간)

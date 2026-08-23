@@ -3,6 +3,8 @@ import { getLatestPrice } from "@/lib/prices";
 import { getFinancials, computeTtmEps } from "@/lib/financials";
 import { getListedAt } from "@/lib/stocks";
 import { formatRatio, formatEps } from "@/shared/format";
+import { isNonKrwTicker } from "@/shared/constants/nonKrwTickers";
+import { NonKrwNotice } from "./NonKrwNotice";
 import { StockPanel } from "./StockPanel";
 import { StockMetricsFormulaTooltip } from "./StockMetricsFormulaTooltip";
 
@@ -23,6 +25,14 @@ type StockMetricsProps = {
 };
 
 export const StockMetrics = async ({ ticker }: StockMetricsProps) => {
+  if (isNonKrwTicker(ticker)) {
+    return (
+      <StockPanel variant="peach">
+        <NonKrwNotice ticker={ticker} />
+      </StockPanel>
+    );
+  }
+
   const [priceResult, financialsResult, listedAtResult] = await Promise.allSettled([
     getLatestPrice(ticker),
     getFinancials(ticker),

@@ -1,5 +1,7 @@
 import type { FinancialPeriod } from "@/shared/types/stock";
 import { getFinancials } from "@/lib/financials";
+import { isNonKrwTicker } from "@/shared/constants/nonKrwTickers";
+import { NonKrwNotice } from "./NonKrwNotice";
 import { StockPanel } from "./StockPanel";
 import { StockFinancialsClient } from "./StockFinancialsClient";
 
@@ -10,6 +12,18 @@ type StockFinancialsProps = {
 };
 
 export const StockFinancials = async ({ ticker, viewAllHref, compact }: StockFinancialsProps) => {
+  if (isNonKrwTicker(ticker)) {
+    const notice = <NonKrwNotice ticker={ticker} />;
+    return compact ? (
+      // grid stretch 로 늘어난 패널 높이에 맞춰 노티스를 세로 중앙 정렬.
+      <StockPanel variant="amber" className="flex items-center">
+        {notice}
+      </StockPanel>
+    ) : (
+      notice
+    );
+  }
+
   let annual: FinancialPeriod[] = [];
   let quarterly: FinancialPeriod[] = [];
   let hasError = false;
