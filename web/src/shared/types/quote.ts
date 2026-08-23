@@ -1,5 +1,24 @@
 export type PriceSign = "up" | "down" | "flat";
 
+// KIS FHKST01010100 output 판정 결과.
+//   - suspended: 거래정지 (iscd_stat_cls_code=58)
+//   - liquidation: 정리매매 (sltr_yn=Y)
+//   - managed: 관리종목 (mang_issu_cls_code=Y)
+//   - overheated: 단기과열 (iscd_stat_cls_code=59)
+//   - caution / warning / risk: 시장경고 (mrkt_warn_cls_code=01/02/03)
+//   - unavailable: 응답 축소로 판정 근거·시세 부재
+export type MarketActionStatus = {
+  kind:
+    | "suspended"
+    | "liquidation"
+    | "managed"
+    | "overheated"
+    | "caution"
+    | "warning"
+    | "risk"
+    | "unavailable";
+};
+
 export type LiveQuoteCore = {
   price: number; // 현재가 / 지수값
   change: number; // 전일 대비 (부호 포함)

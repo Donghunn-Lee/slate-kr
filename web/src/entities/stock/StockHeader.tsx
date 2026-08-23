@@ -1,12 +1,15 @@
 import { ExternalLink } from "lucide-react";
 import type { CompanyProfile, StockSummary, StockPriceSnapshot } from "@/shared/types/stock";
+import type { MarketActionStatus } from "@/shared/types/quote";
 import { getDailyPrices } from "@/lib/prices";
 import { getCorpCode } from "@/lib/stocks";
 import { getCompanyProfile } from "@/lib/dart";
+import { fetchStockMarketAction } from "@/lib/kis-quote-fetch";
 import { formatVolume, formatMarketCap } from "@/shared/format";
 import { WatchlistButton } from "@/features/watchlist/WatchlistButton";
 import { StockPanel } from "./StockPanel";
 import { StockHeaderLivePrice } from "./StockHeaderLivePrice";
+import { MarketActionBadge } from "./MarketActionBadge";
 
 type StockHeaderProps = {
   ticker: string;
@@ -17,6 +20,7 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
   let prices: StockPriceSnapshot[] = [];
   let hasError = false;
   let profile: CompanyProfile | null = null;
+  let marketAction: MarketActionStatus | null = null;
 
   try {
     prices = await getDailyPrices(ticker, 2);
@@ -29,6 +33,13 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
     if (corpCode) profile = await getCompanyProfile(corpCode);
   } catch {
     profile = null;
+  }
+
+  // 실패는 조용히 null — 배지 미표시로 폴백. 헤더 자체 렌더는 막지 않는다.
+  try {
+    marketAction = await fetchStockMarketAction(ticker);
+  } catch {
+    marketAction = null;
   }
 
   const latest = prices[0] ?? null;
@@ -55,6 +66,7 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
                 {profile.sectorName}
               </span>
             )}
+            {marketAction && <MarketActionBadge status={marketAction} />}
             {profile?.homepageUrl && (
               <a
                 href={profile.homepageUrl}
@@ -92,6 +104,7 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
               {profile.sectorName}
             </span>
           )}
+          {marketAction && <MarketActionBadge status={marketAction} />}
           {profile?.homepageUrl && (
             <a
               href={profile.homepageUrl}

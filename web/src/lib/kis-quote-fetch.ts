@@ -1,7 +1,17 @@
 import { z } from "zod";
 import { getKisToken } from "@/lib/kis-token";
-import { normalizeIndexQuote, normalizeMultiQuote, normalizeStockQuote } from "@/lib/kis-quote";
-import type { ChartBar, IndexQuote, StockQuote } from "@/shared/types/quote";
+import {
+  normalizeIndexQuote,
+  normalizeMultiQuote,
+  normalizeStockQuote,
+  parseMarketAction,
+} from "@/lib/kis-quote";
+import type {
+  ChartBar,
+  IndexQuote,
+  MarketActionStatus,
+  StockQuote,
+} from "@/shared/types/quote";
 import {
   isDomesticSessionGapFill,
   isSentinelBar,
@@ -497,6 +507,73 @@ export const fetchStockQuote = async (
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[kis] stock quote fetch failed: ${message}`);
+    return null;
+  }
+};
+
+// FHKST01010100 을 J(KRX) 로 호출해 raw output 을 parseMarketAction 에 통과.
+// StockQuote 정규화 결과가 아닌 시장조치 상태만 필요할 때 사용 — 폴링 quote 응답
+// 계약과 분리해 SSR 단발 호출로 소비하기 위한 슬림 경로.
+// 자격/HTTP/rt_cd/파싱 실패는 null 반환.
+export const fetchStockMarketAction = async (
+  ticker: string,
+): Promise<MarketActionStatus | null> => {
+  const tokenResult = await getKisToken();
+  if (!tokenResult.ok) {
+    console.error(`[kis] token failed: ${tokenResult.error.kind}`);
+    return null;
+  }
+
+  const appKey = process.env.KIS_APP_KEY;
+  const appSecret = process.env.KIS_APP_SECRET;
+  if (!appKey || !appSecret) {
+    console.error("[kis] missing credentials for stock market action");
+    return null;
+  }
+
+  const url = new URL(BASE_URL + STOCK_PRICE_PATH);
+  url.searchParams.set("FID_COND_MRKT_DIV_CODE", "J");
+  url.searchParams.set("FID_INPUT_ISCD", ticker);
+
+  try {
+    const res = await fetch(url.toString(), {
+      method: "GET",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${tokenResult.token}`,
+        appkey: appKey,
+        appsecret: appSecret,
+        tr_id: TR_ID_STOCK_PRICE,
+        custtype: "P",
+      },
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      console.error(
+        `[kis] stock market action HTTP ${res.status} ticker=${ticker}`,
+      );
+      return null;
+    }
+
+    const json: unknown = await res.json();
+    const parsed = KisResponseSchema.safeParse(json);
+    if (!parsed.success) {
+      console.error("[kis] stock market action response parse failed");
+      return null;
+    }
+
+    if (parsed.data.rt_cd !== "0") {
+      console.error(
+        `[kis] stock market action business error rt_cd=${parsed.data.rt_cd} msg=${parsed.data.msg1 ?? ""}`,
+      );
+      return null;
+    }
+
+    return parseMarketAction(parsed.data.output);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[kis] stock market action fetch failed: ${message}`);
     return null;
   }
 };
