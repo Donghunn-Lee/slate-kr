@@ -59,6 +59,12 @@ _FORCE = os.getenv("VERIFY_FORCE_EXPECTED")
 # 통과해 silent PASS 된 사고 대응. 신규 DB(직전 baseline 부재) 는 WARN + skip.
 ROW_COUNT_FLOOR_RATIO = 0.9
 
+# 국내 지수 EOD 하한 (#120 F61).
+# fetch_index_prices.py INDEX_CODE_TO_ISCD = {KOSPI, KOSDAQ, KOSPI200, KOSDAQ150} — 4종.
+# index_daily_prices 는 해외 지수(8종) 도 공유하는 테이블이라 MAX(base_date) 만으로는
+# 국내 EOD 부분 실패를 잡지 못함(#119 F56 관측). 국내 4종 전량 적재를 명시적으로 검사.
+DOMESTIC_INDEX_CODES = ("KOSPI", "KOSDAQ", "KOSPI200", "KOSDAQ150")
+
 
 def is_trading_day(d: date) -> bool:
     if d.weekday() >= 5:  # 5=토, 6=일
@@ -123,6 +129,23 @@ def check_row_count_floor(cursor, expected: date) -> str | None:
     )
 
 
+def check_index_row_count_floor(cursor, expected: date) -> str | None:
+    """index_daily_prices expected 날짜에 국내 지수 4종이 모두 적재됐는지 검사.
+    부분 적재(<4) 는 실패 사유 문자열 반환. OK/skip 경로는 None + stdout 로그."""
+    cursor.execute(
+        "SELECT COUNT(DISTINCT index_code) FROM index_daily_prices "
+        "WHERE base_date = %s AND index_code = ANY(%s)",
+        (expected, list(DOMESTIC_INDEX_CODES)),
+    )
+    (cur_cnt,) = cursor.fetchone()
+    floor = len(DOMESTIC_INDEX_CODES)
+    if cur_cnt >= floor:
+        print(f"  OK index_daily_prices domestic indices {cur_cnt}/{floor}")
+        return None
+    print(f"  !! index_daily_prices domestic indices {cur_cnt}/{floor}")
+    return f"index_daily_prices domestic indices {cur_cnt}/{floor}"
+
+
 def main() -> None:
     if not os.getenv("DATABASE_URL"):
         print("verify: DATABASE_URL 미설정", file=sys.stderr)
@@ -159,6 +182,9 @@ def main() -> None:
         floor_fail = check_row_count_floor(cur, expected)
         if floor_fail:
             failures.append(floor_fail)
+        idx_floor_fail = check_index_row_count_floor(cur, expected)
+        if idx_floor_fail:
+            failures.append(idx_floor_fail)
         cur.close()
     finally:
         conn.close()
