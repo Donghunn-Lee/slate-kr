@@ -11,6 +11,10 @@ export const CURATED_CASES: CuratedCase[] = [
   { report_nm: "권리락              (유상증자)", flr_nm: "코스닥시장본부", expected: null },
   { report_nm: "불성실공시법인지정              ", flr_nm: "유가증권시장본부", expected: DisclosureType.MARKET_ACTION },
   { report_nm: "주권매매거래정지기간변경              (개선기간 부여)", flr_nm: "코스닥시장본부", expected: DisclosureType.MARKET_ACTION },
+  // 파렌테시스 사유가 PROCEDURAL_KEYWORDS와 충돌하는 거래정지 케이스 — 거래정지 우선 판정으로 MARKET_ACTION.
+  { report_nm: "주권매매거래정지              (주식의 병합, 분할 등 전자등록 변경, 말소)", flr_nm: "코스닥시장본부", expected: DisclosureType.MARKET_ACTION },
+  { report_nm: "주권매매거래정지해제              (액면분할 주권 변경상장)", flr_nm: "코스닥시장본부", expected: DisclosureType.MARKET_ACTION },
+  { report_nm: "매매거래정지및정지해제(중요내용공시)              ", flr_nm: "유가증권시장본부", expected: DisclosureType.MARKET_ACTION },
   { report_nm: "주요사항보고서(유상증자결정)", flr_nm: "삼성전자", expected: DisclosureType.MAJOR_EVENT },
   { report_nm: "분기보고서 (2026.03)", flr_nm: "삼성전자", expected: DisclosureType.FINANCIAL },
   { report_nm: "주식등의대량보유상황보고서", flr_nm: "현대차", expected: DisclosureType.OWNERSHIP },

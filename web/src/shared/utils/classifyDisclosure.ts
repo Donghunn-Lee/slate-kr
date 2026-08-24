@@ -74,6 +74,8 @@ export const classifyDisclosure = (
   flrNm: string,
 ): DisclosureType | null => {
   if (isExchangeFiled(flrNm)) {
+    // 거래정지는 사유(파렌테시스) 불문 주가 관련성 신호 — PROCEDURAL 컷보다 선행.
+    if (disclosureNm.includes("매매거래정지")) return DisclosureType.MARKET_ACTION;
     if (PROCEDURAL_KEYWORDS.some((kw) => disclosureNm.includes(kw))) return null;
     return DisclosureType.MARKET_ACTION;
   }
