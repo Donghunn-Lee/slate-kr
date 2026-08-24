@@ -15,6 +15,22 @@ type DailyPriceRow = {
   market_cap: number | null;
 };
 
+// pykrx 백필이 무거래일에 남긴 open=high=low=0 fill 봉(#120)을 서빙 경계에서 flat(close)로 정규화.
+// DB 원본은 as-is 유지 — 캔들 축 붕괴·52주 저가 0원만 방지한다. 부분 0(예: open만 0)은 통과.
+export const rowToSnapshot = (row: DailyPriceRow): StockPriceSnapshot => {
+  const isFlatFill = row.open === 0 && row.high === 0 && row.low === 0;
+  return {
+    ticker: row.ticker,
+    date: format(new Date(row.date), "yyyy-MM-dd"),
+    open: isFlatFill ? row.close : row.open,
+    high: isFlatFill ? row.close : row.high,
+    low: isFlatFill ? row.close : row.low,
+    close: row.close,
+    volume: row.volume,
+    marketCap: row.market_cap,
+  };
+};
+
 export const getDailyPrices = async (
   ticker: string,
   limit = 365
@@ -24,16 +40,7 @@ export const getDailyPrices = async (
     [ticker, limit]
   );
 
-  return rows.map((row) => ({
-    ticker: row.ticker,
-    date: format(new Date(row.date), "yyyy-MM-dd"),
-    open: row.open,
-    high: row.high,
-    low: row.low,
-    close: row.close,
-    volume: row.volume,
-    marketCap: row.market_cap,
-  }));
+  return rows.map(rowToSnapshot);
 };
 
 export const getLatestPrice = cache(async (ticker: string): Promise<StockPriceSnapshot | null> => {
@@ -44,17 +51,7 @@ export const getLatestPrice = cache(async (ticker: string): Promise<StockPriceSn
 
   if (rows.length === 0) return null;
 
-  const row = rows[0];
-  return {
-    ticker: row.ticker,
-    date: format(new Date(row.date), "yyyy-MM-dd"),
-    open: row.open,
-    high: row.high,
-    low: row.low,
-    close: row.close,
-    volume: row.volume,
-    marketCap: row.market_cap,
-  };
+  return rowToSnapshot(rows[0]);
 });
 
 // tickers 각각의 최신 종가·전일 대비 등락·거래량. change 컬럼이 스키마에 없어(2026-07 확인)
@@ -118,16 +115,7 @@ export const getPricesForStats = async (ticker: string): Promise<StockPriceSnaps
       "SELECT * FROM daily_prices WHERE ticker = $1 AND date >= CURRENT_DATE - INTERVAL '13 months' ORDER BY date ASC",
       [ticker]
     );
-    return rows.map((row) => ({
-      ticker: row.ticker,
-      date: format(new Date(row.date), "yyyy-MM-dd"),
-      open: row.open,
-      high: row.high,
-      low: row.low,
-      close: row.close,
-      volume: row.volume,
-      marketCap: row.market_cap,
-    }));
+    return rows.map(rowToSnapshot);
   } catch {
     return [];
   }
