@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { HelpCircle } from "lucide-react";
+import { HelpCircle, Loader2 } from "lucide-react";
 import type { DartDisclosure } from "@/shared/types/stock";
 import type { DisclosureSummaryContent } from "@/shared/types/disclosureSummary";
 import { formatDartDate } from "@/shared/format";
@@ -261,12 +261,13 @@ const DisclosureItem = ({
           <div className="pt-3 pb-1">
             <div className="rounded-sm border border-sky-border/60 bg-sky-bg px-4 py-4">
               {summaryState.kind === "loading" && (
-                <div className="animate-pulse space-y-2.5">
-                  <div className="h-3.5 w-full rounded bg-muted" />
-                  <div className="h-3.5 w-11/12 rounded bg-muted" />
-                  <div className="h-3.5 w-4/5 rounded bg-muted" />
-                  <div className="h-3.5 w-full rounded bg-muted" />
-                  <div className="h-3.5 w-3/4 rounded bg-muted" />
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className="flex min-h-[110px] flex-col items-center justify-center gap-2 text-lavender-accent"
+                >
+                  <Loader2 className="size-5 animate-spin" aria-hidden="true" />
+                  <p className="text-caption">요약 생성 중…</p>
                 </div>
               )}
 
