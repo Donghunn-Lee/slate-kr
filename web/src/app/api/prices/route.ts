@@ -40,6 +40,7 @@ export async function GET(req: NextRequest) {
          WHERE ticker IN (${placeholders})
          GROUP BY ticker
        ) latest ON p1.ticker = latest.ticker AND p1.date = latest.max_date
+       INNER JOIN stocks s ON s.ticker = p1.ticker AND s.is_active = true
        ORDER BY p1.ticker`,
       tickers
     );
