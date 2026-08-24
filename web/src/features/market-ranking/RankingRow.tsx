@@ -121,15 +121,13 @@ export const RankingRow = ({ item, disclosure, kind }: RankingRowProps) => {
   const disclosureText = count !== null && count > 0 ? `${count}건` : "";
 
   return (
-    <li className="-mx-4 border-b border-subtle last:border-b-0 md:-mx-6">
+    <li className="relative -mx-4 border-b border-subtle transition-colors last:border-b-0 hover:bg-muted/40 md:-mx-6">
       <Link
         href={`/stocks/${item.ticker}`}
         aria-label={`${item.name} 상세 보기`}
-        className={cn(
-          GRID_CLASS,
-          "px-4 py-1.5 transition-colors hover:bg-muted/40 sm:py-2 md:px-6",
-        )}
-      >
+        className="absolute inset-0"
+      />
+      <div className={cn(GRID_CLASS, "px-4 py-1.5 sm:py-2 md:px-6")}>
         <span className="justify-self-center font-mono text-xs tabular-nums text-muted-foreground sm:text-sm">
           {item.rank}
         </span>
@@ -166,10 +164,18 @@ export const RankingRow = ({ item, disclosure, kind }: RankingRowProps) => {
           <span className="sm:hidden">{volTexts.mobile}</span>
           <span className="hidden sm:inline">{volTexts.desktop}</span>
         </span>
-        <span className="hidden justify-self-end text-caption tabular-nums text-amber-accent sm:block">
-          {disclosureText}
+        <span className="hidden justify-self-end sm:block">
+          {count !== null && count > 0 ? (
+            <Link
+              href={`/stocks/${item.ticker}/disclosures`}
+              aria-label={`${item.name} 최근 공시 ${count}건 보기`}
+              className="relative z-10 -my-1.5 inline-flex items-center rounded-sm py-1.5 text-caption tabular-nums text-amber-accent hover:underline focus-visible:underline focus-visible:outline-none"
+            >
+              {disclosureText}
+            </Link>
+          ) : null}
         </span>
-      </Link>
+      </div>
     </li>
   );
 };

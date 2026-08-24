@@ -38,7 +38,7 @@ export const StockDisclosuresPreview = async ({ ticker }: StockDisclosuresPrevie
         <h2 className="text-body font-semibold text-muted-foreground">최근 공시</h2>
         <Link
           href={`/stocks/${ticker}/disclosures`}
-          className="text-caption text-muted-foreground hover:underline"
+          className="text-caption text-muted-foreground hover:underline focus-visible:underline focus-visible:outline-none"
         >
           전체 보기 →
         </Link>

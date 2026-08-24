@@ -44,6 +44,12 @@ export const WatchlistRow = ({
 
   return (
     <li className="group relative -mx-6 bg-transparent px-6 transition-colors hover:bg-muted/40">
+      <Link
+        href={`/stocks/${item.ticker}`}
+        aria-label={`${item.name} 상세 보기`}
+        className="absolute inset-0"
+      />
+
       <div className="border-b border-subtle md:pb-3 md:pt-1 pb-1.5 pt-0.5 group-last:border-b-0">
         <div className="flex flex-col">
           <div className="flex min-h-7 items-center gap-2">
@@ -59,9 +65,13 @@ export const WatchlistRow = ({
               {disclosure?.count != null && disclosure.count > 0 && (
                 <div className="flex items-center gap-1.5 text-[11px] leading-none md:text-xs">
                   <span className="text-muted-foreground">최근 공시</span>
-                  <span className="font-medium tabular-nums text-amber-accent">
+                  <Link
+                    href={`/stocks/${item.ticker}/disclosures`}
+                    aria-label={`${item.name} 최근 공시 ${disclosure.count}건 보기`}
+                    className="relative z-10 -my-1.5 inline-flex items-center rounded-sm py-1.5 font-medium tabular-nums text-amber-accent hover:underline focus-visible:underline focus-visible:outline-none"
+                  >
                     {disclosure.count}건
-                  </span>
+                  </Link>
                 </div>
               )}
               {onRemove && (
@@ -99,12 +109,6 @@ export const WatchlistRow = ({
           </div>
         </div>
       </div>
-
-      <Link
-        href={`/stocks/${item.ticker}`}
-        aria-label={`${item.name} 상세 보기`}
-        className="absolute inset-0"
-      />
     </li>
   );
 };
