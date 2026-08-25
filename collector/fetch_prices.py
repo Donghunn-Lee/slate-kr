@@ -54,6 +54,9 @@ TR_ID = "FHKST03010100"
 CALL_GAP_SEC = 0.15
 # 1콜 100 트레이딩봉 상한(probe #098). 캘린더 150일 ≈ 100 트레이딩봉 안전선.
 DAILY_GAP_LIMIT_DAYS = 150
+# 0행 티커 initial-load 대량 유실 방어 (F64, probe #122).
+# 10건 초과 시 정상 신규 상장이 아니라 daily_prices 유실 정황으로 간주, 전면 skip.
+INITIAL_LOAD_MAX_TICKERS = 10
 KST = timezone(timedelta(hours=9))
 BATCH_SIZE = 200
 
@@ -175,28 +178,34 @@ def get_all_last_dates(cursor) -> dict[str, date]:
 
 
 def run_one(conn, cursor, token: str, ticker: str, end: date,
-            last_date: date | None) -> str:
+            last_date: date | None, initial_load_enabled: bool) -> str:
     """반환 status ∈ {'ins','skip','warn','err'} — success/skip/warn/error 카운트용."""
     if last_date is None:
-        logger.warning(
-            "[%s] daily_prices 무행 — backfill_prices.py 로 초기 적재 필요, skip",
-            ticker,
-        )
-        return "warn"
+        # 게이트 차단 시 개별 로그 없이 warn — run() 시작의 총괄 ERROR 로 대체.
+        if not initial_load_enabled:
+            return "warn"
+        d1 = end - timedelta(days=DAILY_GAP_LIMIT_DAYS)
+        # parse_bar 의 date_iso <= last_iso drop 방어가 실데이터를 자르지 않도록 d1 하루 전.
+        last_iso = (d1 - timedelta(days=1)).strftime("%Y-%m-%d")
+        mode_tag = "[initial-load] "
+        logger.info("%s[%s] 시작 (lookback=%dd, d1=%s, end=%s)",
+                    mode_tag, ticker, DAILY_GAP_LIMIT_DAYS, d1, end)
+    else:
+        d1 = last_date + timedelta(days=1)
+        if d1 > end:
+            return "skip"
 
-    d1 = last_date + timedelta(days=1)
-    if d1 > end:
-        return "skip"
-
-    gap = (end - last_date).days
-    if gap > DAILY_GAP_LIMIT_DAYS:
-        logger.warning(
-            "[%s] gap=%d일 (last=%s, end=%s) > %d일 — 1콜 100봉 상한 초과 우려, skip. "
-            "backfill_prices.py --backfill %s %s --tickers %s 사용 필요",
-            ticker, gap, last_date, end, DAILY_GAP_LIMIT_DAYS,
-            last_date, end, ticker,
-        )
-        return "warn"
+        gap = (end - last_date).days
+        if gap > DAILY_GAP_LIMIT_DAYS:
+            logger.warning(
+                "[%s] gap=%d일 (last=%s, end=%s) > %d일 — 1콜 100봉 상한 초과 우려, skip. "
+                "backfill_prices.py --backfill %s %s --tickers %s 사용 필요",
+                ticker, gap, last_date, end, DAILY_GAP_LIMIT_DAYS,
+                last_date, end, ticker,
+            )
+            return "warn"
+        last_iso = last_date.strftime("%Y-%m-%d")
+        mode_tag = ""
 
     d1_str = d1.strftime("%Y%m%d")
     d2_str = end.strftime("%Y%m%d")
@@ -205,7 +214,6 @@ def run_one(conn, cursor, token: str, ticker: str, end: date,
         return "err"
 
     end_iso = end.strftime("%Y-%m-%d")
-    last_iso = last_date.strftime("%Y-%m-%d")
     parsed: dict[str, tuple] = {}
     for raw in bars:
         p = parse_bar(raw, end_iso, last_iso)
@@ -214,6 +222,9 @@ def run_one(conn, cursor, token: str, ticker: str, end: date,
         parsed[p[0]] = p
 
     if not parsed:
+        if last_date is None:
+            logger.warning("%s[%s] KIS 응답 empty — 상장 지연 또는 티커 문제",
+                           mode_tag, ticker)
         return "skip"
 
     rows: list[tuple] = []
@@ -225,9 +236,14 @@ def run_one(conn, cursor, token: str, ticker: str, end: date,
         cursor.executemany(UPSERT_SQL, rows)
         conn.commit()
     except Exception as e:
-        logger.error("[%s] DB upsert 실패: %s", ticker, e)
+        logger.error("%s[%s] DB upsert 실패: %s", mode_tag, ticker, e)
         conn.rollback()
         return "err"
+
+    if last_date is None:
+        dates = sorted(parsed)
+        logger.info("%s[%s] 적재 완료: %d행 (%s ~ %s)",
+                    mode_tag, ticker, len(rows), dates[0], dates[-1])
     return "ins"
 
 
@@ -241,6 +257,21 @@ def run(end: date):
     conn.close()
 
     total = len(tickers)
+    zero_row_tickers = [t for t in tickers if t not in last_dates]
+    initial_load_enabled = True
+    if len(zero_row_tickers) > INITIAL_LOAD_MAX_TICKERS:
+        logger.error(
+            "[initial-load] 0행 티커 %d개 > 임계 %d개 — daily_prices 대량 유실 의심, "
+            "initial-load 전면 skip (증분 경로는 정상 진행). 수동 확인 필요. 목록: %s",
+            len(zero_row_tickers), INITIAL_LOAD_MAX_TICKERS, zero_row_tickers,
+        )
+        initial_load_enabled = False
+    elif zero_row_tickers:
+        logger.info(
+            "[initial-load] 0행 티커 %d개 대상: %s",
+            len(zero_row_tickers), zero_row_tickers,
+        )
+
     logger.info("총 %d개 종목 적재 시작 (end=%s)", total, end)
 
     success = skip = warn = error = 0
@@ -256,7 +287,7 @@ def run(end: date):
 
         try:
             status = run_one(conn, cursor, token, ticker, end,
-                             last_dates.get(ticker))
+                             last_dates.get(ticker), initial_load_enabled)
         except Exception as e:
             logger.error("[%s] 처리 실패, 스킵: %s", ticker, e)
             error += 1
