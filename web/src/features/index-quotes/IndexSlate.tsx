@@ -12,7 +12,7 @@ import type {
   IndexIntradaySnapshot,
   PriceSign,
 } from "@/shared/types/quote";
-import type { OverseasIndexCode } from "@/shared/constants/indices";
+import { INDEX_LABEL, type OverseasIndexCode } from "@/shared/constants/indices";
 import { useNow } from "@/shared/hooks/useNow";
 import { getKrxLastCloseDate } from "@/shared/utils/market";
 import { cn } from "@/lib/utils";
@@ -120,12 +120,12 @@ const CellSkeleton = ({ label }: { label: string }) => (
 const DesktopDomesticSkeleton = () => (
   <div className="grid grid-cols-2 divide-x divide-border/60 md:h-full md:grid-rows-1">
     <div className="flex flex-col divide-y divide-border/60">
-      <CellSkeleton label="코스피" />
-      <MiniIndexCellSkeleton label="코스피200" />
+      <CellSkeleton label={INDEX_LABEL.KOSPI} />
+      <MiniIndexCellSkeleton label={INDEX_LABEL.KOSPI200} />
     </div>
     <div className="flex flex-col divide-y divide-border/60">
-      <CellSkeleton label="코스닥" />
-      <MiniIndexCellSkeleton label="코스닥150" />
+      <CellSkeleton label={INDEX_LABEL.KOSDAQ} />
+      <MiniIndexCellSkeleton label={INDEX_LABEL.KOSDAQ150} />
     </div>
   </div>
 );
@@ -134,12 +134,12 @@ const DesktopDomesticSkeleton = () => (
 const MobilePairSkeleton = () => (
   <div className="divide-y divide-border/60 md:hidden">
     <div className="grid grid-cols-2 divide-x divide-border/60">
-      <CellSkeleton label="코스피" />
-      <CellSkeleton label="코스닥" />
+      <CellSkeleton label={INDEX_LABEL.KOSPI} />
+      <CellSkeleton label={INDEX_LABEL.KOSDAQ} />
     </div>
     <div className="grid grid-cols-2 divide-x divide-border/60">
-      <MiniIndexCellSkeleton label="코스피200" />
-      <MiniIndexCellSkeleton label="코스닥150" />
+      <MiniIndexCellSkeleton label={INDEX_LABEL.KOSPI200} />
+      <MiniIndexCellSkeleton label={INDEX_LABEL.KOSDAQ150} />
     </div>
   </div>
 );
@@ -220,14 +220,14 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
               <div className="grid grid-cols-2 divide-x divide-border/60 md:h-full md:grid-rows-1">
                 <div className="flex flex-col divide-y divide-border/60">
                   <IndexCell
-                    label="코스피"
+                    label={INDEX_LABEL.KOSPI}
                     cell={data.quotes.KOSPI}
                     bars={intraday?.quotes.KOSPI ?? EMPTY_BARS}
                     intradayFailed={intraday?.failed.KOSPI ?? false}
                     intradayLoading={intradayLoading}
                   />
                   <MiniIndexCell
-                    label="코스피200"
+                    label={INDEX_LABEL.KOSPI200}
                     cell={data.quotes.KOSPI200}
                     bars={intraday?.quotes.KOSPI200 ?? EMPTY_BARS}
                     intradayFailed={intraday?.failed.KOSPI200 ?? false}
@@ -238,14 +238,14 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                 </div>
                 <div className="flex flex-col divide-y divide-border/60">
                   <IndexCell
-                    label="코스닥"
+                    label={INDEX_LABEL.KOSDAQ}
                     cell={data.quotes.KOSDAQ}
                     bars={intraday?.quotes.KOSDAQ ?? EMPTY_BARS}
                     intradayFailed={intraday?.failed.KOSDAQ ?? false}
                     intradayLoading={intradayLoading}
                   />
                   <MiniIndexCell
-                    label="코스닥150"
+                    label={INDEX_LABEL.KOSDAQ150}
                     cell={data.quotes.KOSDAQ150}
                     bars={intraday?.quotes.KOSDAQ150 ?? EMPTY_BARS}
                     intradayFailed={intraday?.failed.KOSDAQ150 ?? false}
@@ -271,14 +271,14 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
             <div className="divide-y divide-border/60">
               <div className="grid grid-cols-2 divide-x divide-border/60">
                 <IndexCell
-                  label="코스피"
+                  label={INDEX_LABEL.KOSPI}
                   cell={data.quotes.KOSPI}
                   bars={intraday?.quotes.KOSPI ?? EMPTY_BARS}
                   intradayFailed={intraday?.failed.KOSPI ?? false}
                   intradayLoading={intradayLoading}
                 />
                 <IndexCell
-                  label="코스닥"
+                  label={INDEX_LABEL.KOSDAQ}
                   cell={data.quotes.KOSDAQ}
                   bars={intraday?.quotes.KOSDAQ ?? EMPTY_BARS}
                   intradayFailed={intraday?.failed.KOSDAQ ?? false}
@@ -287,7 +287,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
               </div>
               <div className="grid grid-cols-2 divide-x divide-border/60">
                 <MiniIndexCell
-                  label="코스피200"
+                  label={INDEX_LABEL.KOSPI200}
                   cell={data.quotes.KOSPI200}
                   bars={intraday?.quotes.KOSPI200 ?? EMPTY_BARS}
                   intradayFailed={intraday?.failed.KOSPI200 ?? false}
@@ -296,7 +296,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                   priceClassName="md:text-xl md:font-medium"
                 />
                 <MiniIndexCell
-                  label="코스닥150"
+                  label={INDEX_LABEL.KOSDAQ150}
                   cell={data.quotes.KOSDAQ150}
                   bars={intraday?.quotes.KOSDAQ150 ?? EMPTY_BARS}
                   intradayFailed={intraday?.failed.KOSDAQ150 ?? false}
