@@ -31,15 +31,25 @@ export const rowToSnapshot = (row: DailyPriceRow): StockPriceSnapshot => {
   };
 };
 
+// raw fetch 캐시 레이어 — React.cache 로 동일 (ticker, limit) 호출을 요청 단위 dedupe.
+// 정규화 결과가 필요한 소비자와 원본 Date 필드가 필요한 소비자가 SQL 을 공유한다.
+const fetchDailyPricesRaw = cache(
+  async (ticker: string, limit: number): Promise<DailyPriceRow[]> => {
+    const [rows] = await pool.query<DailyPriceRow[]>(
+      "SELECT * FROM daily_prices WHERE ticker = $1 ORDER BY date DESC LIMIT $2",
+      [ticker, limit],
+    );
+    return rows;
+  },
+);
+
 export const getDailyPrices = async (
   ticker: string,
   limit = 365
 ): Promise<StockPriceSnapshot[]> => {
-  const [rows] = await pool.query<DailyPriceRow[]>(
-    "SELECT * FROM daily_prices WHERE ticker = $1 ORDER BY date DESC LIMIT $2",
-    [ticker, limit]
-  );
-
+  // limit 은 fetchDailyPricesRaw 캐시 키의 일부 — 같은 요청 내 다른 소비자가 다른 limit 을
+  // 넘기면 별도 SQL 이 발생한다.
+  const rows = await fetchDailyPricesRaw(ticker, limit);
   return rows.map(rowToSnapshot);
 };
 
