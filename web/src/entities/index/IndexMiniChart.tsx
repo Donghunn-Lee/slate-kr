@@ -185,7 +185,24 @@ export const IndexMiniChart = ({ bars, failed, isLoading }: IndexMiniChartProps)
 
     chart.timeScale().fitContent();
 
+    // autoSize 는 캔버스 픽셀만 추종하고 visible range 는 복원하지 않는다 —
+    // 리사이즈마다 rAF 로 병합해 fitContent 재호출.
+    let removed = false;
+    let rafId = 0;
+    const observer = new ResizeObserver(() => {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        rafId = 0;
+        if (removed) return;
+        chart.timeScale().fitContent();
+      });
+    });
+    observer.observe(containerRef.current);
+
     return () => {
+      removed = true;
+      observer.disconnect();
+      if (rafId) cancelAnimationFrame(rafId);
       chart.remove();
     };
   }, [sessionBars, resolvedTheme, isMobile]);
