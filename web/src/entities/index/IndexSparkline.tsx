@@ -41,7 +41,10 @@ const DARK: BaselinePalette = {
 const PREV_CLOSE_LINE_LIGHT = "rgba(0,0,0,0.28)";
 const PREV_CLOSE_LINE_DARK = "rgba(255,255,255,0.28)";
 
-const HEIGHT_PX = 60;
+// 스택 모드 기본 높이. md+ 데스크톱 컨텍스트에서는 부모 높이 추종(md:h-full) —
+// autoSize:true 가 ResizeObserver 로 세로 변화도 캔버스에 반영. 하한은 부모(MiniIndexCell
+// 스파크라인 wrapper)의 md:min-h-[60px] 로 이 값을 재확인.
+const BASE_HEIGHT_CLS = "h-[60px] md:h-full";
 
 // timestamp 는 벽시계(국내 KST · 해외 ET)를 UTC 로 위장한 epoch 초 → getUTC* 로
 // 원본 시간대 컴포넌트를 복원한다. 아래 세션 필터도 자연스레 해당 캘린더 기준으로 동작.
@@ -161,14 +164,13 @@ export const IndexSparkline = ({ bars, failed = false }: IndexSparklineProps) =>
 
   // 실패·데이터 없음 → 슬롯만 비워둠(레이아웃 유지, 텍스트 블록 무영향).
   if (failed || sessionBars.length === 0) {
-    return <div style={{ height: HEIGHT_PX }} aria-hidden />;
+    return <div className={BASE_HEIGHT_CLS} aria-hidden />;
   }
 
   return (
     <div
       ref={containerRef}
-      className="w-full overflow-hidden"
-      style={{ height: HEIGHT_PX }}
+      className={`w-full overflow-hidden ${BASE_HEIGHT_CLS}`}
       aria-hidden
     />
   );

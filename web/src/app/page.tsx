@@ -38,7 +38,7 @@ async function HomePage() {
     <main className="mx-auto w-full max-w-4xl space-y-6 px-4 pb-12 sm:space-y-8">
       <HomeHero />
       <IndexSlate overseasSnapshotsByCode={overseasSnapshotsByCode} />
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-8">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
         <MarketRankingSlate />
         <WatchlistPreview />
       </div>
