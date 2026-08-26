@@ -92,7 +92,12 @@ export const IndexChipStrip = ({
             : "border-subtle bg-elevated shadow-slate",
         )}
       >
-        <span className="text-caption font-medium">{INDEX_LABEL[code]}</span>
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-caption font-medium">{INDEX_LABEL[code]}</span>
+          <span className="text-caption font-medium text-muted-foreground/80">
+            {meta.overline}
+          </span>
+        </div>
         {showSkeleton ? (
           <div className="mt-0.5 h-3.5 w-16 animate-pulse rounded bg-muted" />
         ) : cell?.live ? (
@@ -134,7 +139,7 @@ export const IndexChipStrip = ({
     <nav
       aria-label="지수 선택"
       className={cn(
-        "-mx-4 flex gap-2 overflow-x-auto scrollbar-hide px-4",
+        "-mx-4 flex gap-2 overflow-x-auto scrollbar-slim px-4 pb-2",
         className,
       )}
     >

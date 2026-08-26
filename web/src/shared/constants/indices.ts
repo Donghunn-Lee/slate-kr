@@ -8,7 +8,7 @@ type IndexMeta = {
   code: string;
   label: string;
   region: IndexRegion;
-  // 요약행 상단 overline (텍스처용 영문 라벨). 정보가 아니라 시각 리듬.
+  // 한글 label 옆/아래에 병기하는 표준 심볼 sub 라벨. code(KIS 키) 와 다를 수 있다.
   overline: string;
 };
 
@@ -17,13 +17,13 @@ export const INDEX_REGISTRY = [
   { code: "KOSDAQ", label: "코스닥", region: "domestic", overline: "KOSDAQ" },
   { code: "KOSPI200", label: "코스피200", region: "domestic", overline: "KOSPI 200" },
   { code: "KOSDAQ150", label: "코스닥150", region: "domestic", overline: "KOSDAQ 150" },
-  { code: "SPX", label: "S&P 500", region: "overseas", overline: "S&P 500" },
-  { code: ".DJI", label: "다우존스", region: "overseas", overline: "DOW JONES" },
-  { code: "COMP", label: "나스닥종합", region: "overseas", overline: "NASDAQ COMP" },
-  { code: "NDX", label: "나스닥100", region: "overseas", overline: "NASDAQ 100" },
-  { code: "NI225", label: "니케이225", region: "overseas", overline: "NIKKEI 225" },
-  { code: "HSI", label: "항셍", region: "overseas", overline: "HANG SENG" },
-  { code: "SHCOMP", label: "상해종합", region: "overseas", overline: "SSE COMPOSITE" },
+  { code: "SPX", label: "S&P 500", region: "overseas", overline: "SPX" },
+  { code: ".DJI", label: "다우존스", region: "overseas", overline: "DJI" },
+  { code: "COMP", label: "나스닥종합", region: "overseas", overline: "IXIC" },
+  { code: "NDX", label: "나스닥100", region: "overseas", overline: "NDX" },
+  { code: "NI225", label: "니케이225", region: "overseas", overline: "N225" },
+  { code: "HSI", label: "항셍", region: "overseas", overline: "HSI" },
+  { code: "SHCOMP", label: "상해종합", region: "overseas", overline: "SHCOMP" },
   { code: "DAX", label: "DAX", region: "overseas", overline: "DAX" },
 ] as const satisfies readonly IndexMeta[];
 

@@ -246,10 +246,10 @@ export const IndexDetailPane = ({
     <StockPanel variant="lavender" className="overflow-hidden p-0">
       <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-b border-lavender-border/60 px-4 py-3 sm:px-6 sm:py-4">
         <div className="flex items-baseline gap-3">
-          <span className="text-caption font-medium uppercase tracking-widest text-muted-foreground">
+          <h2 className="text-value font-medium">{INDEX_LABEL[selected]}</h2>
+          <span className="text-value font-medium text-muted-foreground/80">
             {meta.overline}
           </span>
-          <h2 className="text-value font-medium">{INDEX_LABEL[selected]}</h2>
         </div>
         <div className="flex items-center gap-1.5 text-body-sm text-muted-foreground">
           {/* emerald dot 은 실시간(지연 0) live 전용. 지연 지수는 pill 배지로 신호. */}

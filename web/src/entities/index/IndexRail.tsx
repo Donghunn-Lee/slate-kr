@@ -130,12 +130,14 @@ export const IndexRail = ({
                           : "border-subtle bg-elevated shadow-slate hover:bg-lavender-bg/50",
                       )}
                     >
-                      <span className="text-micro font-medium uppercase tracking-widest text-muted-foreground">
-                        {meta.overline}
-                      </span>
-                      <span className="text-body font-medium">
-                        {INDEX_LABEL[code]}
-                      </span>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-body font-medium">
+                          {INDEX_LABEL[code]}
+                        </span>
+                        <span className="text-body font-medium text-muted-foreground/80">
+                          {meta.overline}
+                        </span>
+                      </div>
                       {showSkeleton ? (
                         <div className="mt-0.5 h-4 w-24 animate-pulse rounded bg-muted" />
                       ) : cell?.live ? (

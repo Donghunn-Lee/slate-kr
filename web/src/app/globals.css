@@ -342,6 +342,33 @@
   }
 }
 
+/* Chrome 은 표준 scrollbar-* 가 있으면 webkit ::-webkit-scrollbar 커스텀을 무시하므로
+   표준 속성을 @supports not selector(::-webkit-scrollbar) 로 Firefox 에만 노출. */
+@utility scrollbar-slim {
+  &::-webkit-scrollbar {
+    height: 4px;
+    width: 4px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+    /* 스트립 px-4(16px) 와 정렬 — 트랙 양끝이 첫/마지막 칩의 좌우 여백 시작점에 맞도록.
+       Firefox 폴백(scrollbar-color)은 인셋 지원 없음 → 풀폭 유지 감수. */
+    margin-inline: 16px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: color-mix(in oklab, var(--muted-foreground) 40%, transparent);
+    border-radius: 9999px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklab, var(--muted-foreground) 55%, transparent);
+  }
+  @supports not selector(::-webkit-scrollbar) {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--muted-foreground) 40%, transparent)
+      transparent;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
