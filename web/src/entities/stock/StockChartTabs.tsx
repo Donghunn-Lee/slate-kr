@@ -8,7 +8,7 @@ import { useStockQuote } from "@/features/stock-quote/useStockQuote";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import type { ChartBar, IndexDailySnapshot } from "@/shared/types/quote";
 import type { StockPriceSnapshot } from "@/shared/types/stock";
-import { isKrxBeforeMarketOpen } from "@/shared/utils/market";
+import { defaultMarketForSession, getKrxSessionState, isKrxBeforeMarketOpen } from "@/shared/utils/market";
 import { mergeLiveDayBar } from "@/shared/utils/mergeLiveDayBar";
 import { mergeLiveIntradayBar } from "@/shared/utils/mergeLiveIntradayBar";
 import { resampleIntradayBars } from "@/shared/utils/resampleIntradayBars";
@@ -32,6 +32,8 @@ import { cn } from "@/lib/utils";
 type StockChartTabsProps = {
   ticker: string;
   prices: StockPriceSnapshot[]; // DESC from getDailyPrices
+  // true 면 subscribeOnly 캐시 키를 세션 기본 market 으로 정렬한다.
+  nxEligible: boolean | null;
 };
 
 // MA period 상수 (module-level → 리렌더 간 참조 안정, PriceChart config effect 불필요 재실행 방지).
@@ -164,7 +166,7 @@ const MarketScopeBadge = ({ scope }: { scope: MarketScope }) => (
   </Tooltip>
 );
 
-export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
+export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsProps) => {
   const isMobile = useIsMobile();
   const chartHeight = isMobile ? CHART_HEIGHT_MOBILE : CHART_HEIGHT_DESKTOP;
   // 기본 full/day: 폐장/장전엔 종목 intraday 응답이 완전히 비어 첫인상에 빈 상태를 보게 되므로,
@@ -193,8 +195,15 @@ export const StockChartTabs = ({ ticker, prices }: StockChartTabsProps) => {
     setBarCount(GRANULARITY_DEFAULT_BARS[granularity]);
   }, [granularity]);
 
-  // 헤더 폴링과 동일 queryKey — subscribeOnly 로 캐시만 구독, 네트워크 추가 0.
-  const { data: quoteData } = useStockQuote(ticker, { subscribeOnly: true });
+  // 헤더 폴링과 동일 queryKey 를 subscribe → 네트워크 추가 0.
+  // NXT 취급 종목은 헤더가 시장 축으로 캐시를 분리하므로, 세션 기본 market 을 명시 구독한다.
+  // 사용자가 헤더에서 비기본 탭에 머무는 동안 캐시가 갈라져 live merge 는 잠시 정지 —
+  // 기본 상태 무손실 우선의 감수 갭.
+  const subscribeMarket = nxEligible === true ? defaultMarketForSession(getKrxSessionState()) : undefined;
+  const { data: quoteData } = useStockQuote(ticker, {
+    subscribeOnly: true,
+    market: subscribeMarket,
+  });
   // intraday 뷰 활성 시에만 fetch/polling. 미활성 뷰에서는 백그라운드 트래픽 0.
   const intradayQuery = useStockIntraday(ticker, { enabled: isIntradayView });
 

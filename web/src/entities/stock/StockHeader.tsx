@@ -1,10 +1,11 @@
 import { ExternalLink } from "lucide-react";
 import type { CompanyProfile, StockSummary, StockPriceSnapshot } from "@/shared/types/stock";
 import type { MarketActionStatus } from "@/shared/types/quote";
-import { getDailyPrices } from "@/lib/prices";
+import { getDailyPrices, getLatestKstDate } from "@/lib/prices";
 import { getCorpCode } from "@/lib/stocks";
 import { getCompanyProfile } from "@/lib/dart";
 import { fetchStockMarketAction } from "@/lib/kis-quote-fetch";
+import { fetchNxEligible } from "@/lib/quoteSnapshots";
 import { formatVolume, formatMarketCap } from "@/shared/format";
 import { WatchlistButton } from "@/features/watchlist/WatchlistButton";
 import { StockPanel } from "./StockPanel";
@@ -21,6 +22,10 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
   let hasError = false;
   let profile: CompanyProfile | null = null;
   let marketAction: MarketActionStatus | null = null;
+  // null 은 "판정 불가" — 토글 미노출로 폴백된다. 예외도 동일 처리.
+  let nxEligible: boolean | null = null;
+  // rowToSnapshot 의 date-fns format 은 서버 로컬 TZ 종속 — 등식 비교용은 KST 축 강제값을 쓴다.
+  let initialKstDate: string | null = null;
 
   try {
     prices = await getDailyPrices(ticker, 2);
@@ -40,6 +45,18 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
     marketAction = await fetchStockMarketAction(ticker);
   } catch {
     marketAction = null;
+  }
+
+  try {
+    nxEligible = await fetchNxEligible(ticker);
+  } catch {
+    nxEligible = null;
+  }
+
+  try {
+    initialKstDate = await getLatestKstDate(ticker);
+  } catch {
+    initialKstDate = null;
   }
 
   const latest = prices[0] ?? null;
@@ -125,6 +142,8 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
         initialPrice={latest.close}
         initialChange={initialChange}
         initialChangeRate={initialChangeRate}
+        initialDate={initialKstDate}
+        nxEligible={nxEligible}
       />
 
       <div className="mt-3 flex flex-wrap gap-4 text-body text-muted-foreground">

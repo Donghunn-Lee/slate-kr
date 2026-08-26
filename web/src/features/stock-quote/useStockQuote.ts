@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { StockQuote } from "@/shared/types/quote";
-import type { KrxSession } from "@/shared/utils/market";
+import type { KrxSession, QuoteMarket } from "@/shared/utils/market";
 import { getKrxSessionState, isKrxActiveSession } from "@/shared/utils/market";
 
 export type StockQuoteResponse = {
@@ -16,6 +16,11 @@ export type StockQuoteResponse = {
 
 type UseStockQuoteOptions = {
   subscribeOnly?: boolean;
+  // 명시 시장 축. undefined 는 세션 결정 경로. queryKey 에 포함되어 축이 다른 폴링을
+  // 별도 캐시로 분리한다.
+  market?: QuoteMarket;
+  // false 로 두면 fetch·폴링 모두 중단 (응답이 항상 null 로 확정된 경우 낭비 방지).
+  enabled?: boolean;
 };
 
 const POLL_INTERVAL_MS = 60_000;
@@ -31,24 +36,29 @@ export const useStockQuote = (
   ticker: string,
   options: UseStockQuoteOptions = {},
 ) => {
-  const { subscribeOnly = false } = options;
+  const { subscribeOnly = false, market, enabled = true } = options;
+  // market undefined 는 "auto" sentinel 로 캐시 키 안정화 (미지정 경로가 지정 경로와 섞이지 않게).
+  const marketKey: QuoteMarket | "auto" = market ?? "auto";
 
   const query = useQuery<StockQuoteResponse>({
-    queryKey: ["stock-quote", ticker],
+    queryKey: ["stock-quote", ticker, marketKey],
     queryFn: async () => {
-      const res = await fetch(`/api/stock-quote?ticker=${encodeURIComponent(ticker)}`);
+      const params = new URLSearchParams({ ticker });
+      if (market) params.set("market", market);
+      const res = await fetch(`/api/stock-quote?${params.toString()}`);
       if (!res.ok) throw new Error("stock quote fetch failed");
       return res.json();
     },
+    enabled,
   });
 
   useEffect(() => {
-    if (subscribeOnly) return;
+    if (subscribeOnly || !enabled) return;
     const id = setInterval(() => {
       if (isActiveSession()) void query.refetch();
     }, POLL_INTERVAL_MS);
     return () => clearInterval(id);
-  }, [ticker, subscribeOnly]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [ticker, subscribeOnly, enabled, marketKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return query;
 };

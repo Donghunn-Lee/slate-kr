@@ -18,6 +18,7 @@ const StockChartTabsInner = dynamic(
 type StockChartTabsDynamicProps = {
   ticker: string;
   prices: StockPriceSnapshot[];
+  nxEligible: boolean | null;
 };
 
 export const StockChartTabsDynamic = (props: StockChartTabsDynamicProps) => (

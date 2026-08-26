@@ -5,7 +5,11 @@ import Link from "next/link";
 import { PriceChart } from "@/entities/chart/PriceChart";
 import { useStockQuote } from "@/features/stock-quote/useStockQuote";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
-import { isKrxBeforeMarketOpen } from "@/shared/utils/market";
+import {
+  defaultMarketForSession,
+  getKrxSessionState,
+  isKrxBeforeMarketOpen,
+} from "@/shared/utils/market";
 import { mergeLiveDayBar } from "@/shared/utils/mergeLiveDayBar";
 import type { ChartBar } from "@/shared/types/quote";
 import type { StockPriceSnapshot } from "@/shared/types/stock";
@@ -20,6 +24,8 @@ type StockChartProps = {
   label?: string;
   viewAllHref?: string;
   interactive?: boolean;
+  // true 면 subscribeOnly 캐시 키를 세션 기본 market 으로 정렬한다.
+  nxEligible: boolean | null;
 };
 
 // DB는 DESC → 차트는 ASC 필요.
@@ -41,9 +47,12 @@ export const StockChart = ({
   label,
   viewAllHref,
   interactive = true,
+  nxEligible,
 }: StockChartProps) => {
-  // 헤더가 이미 폴링 중이므로 subscribeOnly 로 캐시만 구독 → 네트워크 추가 0.
-  const { data } = useStockQuote(ticker, { subscribeOnly: true });
+  // 헤더 폴링 캐시를 subscribe (네트워크 추가 0). NXT 취급 종목은 시장 축 정합을 위해
+  // 세션 기본 market 을 명시.
+  const subscribeMarket = nxEligible === true ? defaultMarketForSession(getKrxSessionState()) : undefined;
+  const { data } = useStockQuote(ticker, { subscribeOnly: true, market: subscribeMarket });
   const isMobile = useIsMobile();
 
   const bars = useMemo<ChartBar[]>(() => {

@@ -1,5 +1,6 @@
 import type { StockPriceSnapshot } from "@/shared/types/stock";
 import { getDailyPrices } from "@/lib/prices";
+import { fetchNxEligible } from "@/lib/quoteSnapshots";
 import { StockPanel, type StockPanelVariant } from "./StockPanel";
 import { StockChartDynamic } from "./StockChartDynamic";
 
@@ -39,6 +40,10 @@ export const StockChartSection = async ({
     return interactive ? errorContent : <StockPanel variant={variant}>{errorContent}</StockPanel>;
   }
 
+  // 미니차트 subscribeOnly 캐시 키를 헤더 폴링과 정합시키기 위해 nxEligible 을 함께 넘긴다.
+  // fetchNxEligible 은 React.cache 이므로 layout 의 헤더 조회와 요청 단위 dedupe.
+  const nxEligible = await fetchNxEligible(ticker);
+
   const chart = (
     <StockChartDynamic
       prices={prices}
@@ -46,6 +51,7 @@ export const StockChartSection = async ({
       label={label}
       viewAllHref={viewAllHref}
       interactive={interactive}
+      nxEligible={nxEligible}
     />
   );
 

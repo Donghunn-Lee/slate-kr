@@ -20,6 +20,7 @@ type StockChartDynamicProps = {
   label?: string;
   viewAllHref?: string;
   interactive?: boolean;
+  nxEligible: boolean | null;
 };
 
 export const StockChartDynamic = (props: StockChartDynamicProps) => <StockChartInner {...props} />;

@@ -50,6 +50,14 @@ export const getKrxSessionState = (now: Date = new Date()): KrxSession => {
 export const isKrxMarketOpen = (now: Date = new Date()): boolean =>
   getKrxSessionState(now) === "regular";
 
+// KRX 정규장 / NXT 확장 세션(프리·애프터) 두 시장 축.
+// 세션별 기본값: regular 는 KRX, 그 외는 NXT 확장 세션이 유일한 라이브 소스.
+export type QuoteMarket = "krx" | "nxt";
+
+export const defaultMarketForSession = (
+  session: KrxSession | undefined,
+): QuoteMarket => (session === "regular" ? "krx" : "nxt");
+
 // 활성 세션 술어 — regular/after/pre 에서 라이브 시세가 흐른다.
 // stock-quote 헤더 폴링(useStockQuote)과 stock-intraday 차트 폴링(useStockIntraday)이
 // 동일한 활성 정의를 공유하도록 순수 술어로 노출. session 문자열을 인자로 받아

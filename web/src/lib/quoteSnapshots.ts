@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { pool } from "./db";
 import type { KrxSession } from "@/shared/utils/market";
 import type { PriceSign, StockQuote } from "@/shared/types/quote";
@@ -104,6 +105,24 @@ export const decideMultiSnapshot = (
   }
   return { kind: "serve", byTicker: out };
 };
+
+// 최신 캡처 1건 기반. 행 부재·쿼리 실패 → null (안전 기본 = "판정 불가").
+// nx_eligible 값은 종목별로 일 단위 뒤집힐 수 있어 항상 최신 date 로 조회.
+// React.cache 로 요청 단위 memo — 같은 요청 내 다중 소비자가 DB 히트 1회로 공유.
+export const fetchNxEligible = cache(
+  async (ticker: string): Promise<boolean | null> => {
+    try {
+      const [rows] = await pool.query<{ nx_eligible: boolean }[]>(
+        "SELECT nx_eligible FROM quote_snapshots WHERE ticker = $1 ORDER BY date DESC LIMIT 1",
+        [ticker],
+      );
+      if (rows.length === 0) return null;
+      return rows[0].nx_eligible;
+    } catch {
+      return null;
+    }
+  },
+);
 
 export const fetchQuoteSnapshots = async (
   tickers: string[],

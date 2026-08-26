@@ -53,6 +53,21 @@ export const getDailyPrices = async (
   return rows.map(rowToSnapshot);
 };
 
+// KST 축으로 강제된 최신 거래일 문자열.
+// rowToSnapshot 의 date-fns format 은 서버 로컬 TZ 종속 → 등식 비교 용도에는 부적합.
+// row.date 는 Neon HTTP 가 UTC midnight 으로 파싱한 Date 이므로, UTC 컴포넌트를 직접 추출하면
+// KST 거래일과 동일한 원 date 문자열을 재조립할 수 있다.
+const pad2 = (n: number): string => String(n).padStart(2, "0");
+
+export const getLatestKstDate = async (ticker: string): Promise<string | null> => {
+  // limit=2 로 고정 — 헤더가 getDailyPrices(ticker, 2) 를 호출하는 경로와 캐시 키가 일치해야
+  // 요청 단위 dedupe 가 성립하고 추가 SQL 이 발생하지 않는다.
+  const rows = await fetchDailyPricesRaw(ticker, 2);
+  if (rows.length === 0) return null;
+  const d = new Date(rows[0].date);
+  return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
+};
+
 export const getLatestPrice = cache(async (ticker: string): Promise<StockPriceSnapshot | null> => {
   const [rows] = await pool.query<DailyPriceRow[]>(
     "SELECT * FROM daily_prices WHERE ticker = $1 ORDER BY date DESC LIMIT 1",

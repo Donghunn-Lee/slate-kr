@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import { getStockByTicker } from "@/lib/stocks";
 import { getDailyPrices } from "@/lib/prices";
+import { fetchNxEligible } from "@/lib/quoteSnapshots";
 import { StockChartTabsDynamic } from "@/entities/stock/StockChartTabsDynamic";
 import { ChartTabsSkeleton } from "@/entities/stock/Skeletons";
 import type { StockPriceSnapshot } from "@/shared/types/stock";
@@ -41,7 +42,10 @@ const ChartTabsSection = async ({ ticker }: { ticker: string }) => {
     );
   }
 
-  return <StockChartTabsDynamic ticker={ticker} prices={prices} />;
+  // 차트 subscribeOnly 캐시 키를 헤더 폴링과 정합시키기 위해 nxEligible 을 함께 넘긴다.
+  const nxEligible = await fetchNxEligible(ticker);
+
+  return <StockChartTabsDynamic ticker={ticker} prices={prices} nxEligible={nxEligible} />;
 };
 
 export default async function ChartPage({ params }: PageProps) {
