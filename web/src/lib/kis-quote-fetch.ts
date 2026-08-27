@@ -24,6 +24,7 @@ import {
   isKrxEarlyPreopen,
   isKrxLatePreopen,
 } from "@/shared/utils/market";
+import { toEndLabelBars } from "@/shared/utils/toEndLabelBars";
 
 const BASE_URL = "https://openapi.koreainvestment.com:9443";
 const INDEX_PRICE_PATH = "/uapi/domestic-stock/v1/quotations/inquire-index-price";
@@ -45,6 +46,11 @@ const TR_ID_STOCK_DAILY_MINUTE = "FHKST03010230";
 const TR_ID_MULTI_PRICE = "FHKST11300006";
 const MULTI_QUOTE_LIMIT = 30; // KIS 공식 상한
 const INTRADAY_INTERVAL_SEC = "600"; // 10분봉
+
+// END 라벨 변환 파라미터. KRX 정규장 마감 15:30 에서 마감 크로스 클램프.
+const KRX_REGULAR_CLOSE_HMS = "153000";
+const STOCK_MINUTE_INTERVAL_SEC = 60;
+const INDEX_MINUTE_INTERVAL_SEC = 600;
 
 // 종목 1분봉 fan-out anchors — 각 anchor 는 (anchor-30min, anchor] 창의 30개 봉을 반환.
 // NXT 거래가능 종목은 UN 로 25개(08:00~20:00) 전체 요청, 비NXT 종목은 J 로 13개
@@ -302,10 +308,34 @@ export const parseIndexMinuteRows = (
     .sort((a, b) => a.timestamp - b.timestamp);
 };
 
+// IndexIntradayBar ↔ ChartBar — timestamp/time 키 차이 외 동일.
+const indexBarsToChartBars = (bars: readonly IndexIntradayBar[]): ChartBar[] =>
+  bars.map((b) => ({
+    time: b.timestamp,
+    open: b.open,
+    high: b.high,
+    low: b.low,
+    close: b.close,
+    volume: b.volume,
+  }));
+
+const chartBarsToIndexBars = (bars: readonly ChartBar[]): IndexIntradayBar[] =>
+  bars
+    .filter((b): b is ChartBar & { time: number } => typeof b.time === "number")
+    .map((b) => ({
+      timestamp: b.time,
+      open: b.open,
+      high: b.high,
+      low: b.low,
+      close: b.close,
+      volume: b.volume ?? 0,
+    }));
+
 // 지수 10분봉 차트. 마커 행 제거, 시간 ASC 정렬.
 // closed(주말·공휴일)엔 FID_INPUT_DATE_1 로 직전 완결 거래일을 명시 조회 — 이 TR 은
 // date 파라미터를 수용하며(probe 실측) target 전후일 봉을 함께 반환하므로 파싱 단계에서
 // bleed 필터. null = 호출 자체 실패, [] = 응답에 데이터 없음.
+// 서빙 직전 END 라벨 시프트로 START→END 규약 변환 (마감 봉은 15:30 로 클램프 병합).
 export const fetchIndexIntradayChart = async (
   iscd: string,
   now: Date = new Date(),
@@ -370,7 +400,14 @@ export const fetchIndexIntradayChart = async (
       return null;
     }
 
-    return parseIndexMinuteRows(parsed.data.output2, targetDate);
+    const encoded = parseIndexMinuteRows(parsed.data.output2, targetDate);
+    return chartBarsToIndexBars(
+      toEndLabelBars(
+        indexBarsToChartBars(encoded),
+        INDEX_MINUTE_INTERVAL_SEC,
+        KRX_REGULAR_CLOSE_HMS,
+      ),
+    );
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[kis] index intraday fetch failed: ${message}`);
@@ -942,6 +979,10 @@ export type StockIntradayChartResult = {
   previousDay: boolean; // true = 전일 스냅샷 fallback (오늘 봉 부재)
 };
 
+// 서빙 직전 END 라벨 시프트. fetchStockIntradayChart 의 모든 반환 경로에서 통과.
+const toEndLabelStockBars = (bars: ChartBar[]): ChartBar[] =>
+  toEndLabelBars(bars, STOCK_MINUTE_INTERVAL_SEC, KRX_REGULAR_CLOSE_HMS);
+
 // 종목 분봉 차트. adaptive fan-out + preopen/closed 시 전일 스냅샷 fallback + 등락률
 // 초기화 이후엔 전일 tail 30봉 prepend (연속 컨텍스트).
 // - 활성 세션 (pre / regular / after) + latePreopen (08:50~09:00): 라이브 fan-out +
@@ -992,7 +1033,7 @@ export const fetchStockIntradayChart = async (
       appSecret,
     );
     if (bars === null) return null;
-    return { bars, tradingDate: prevDate, previousDay: true };
+    return { bars: toEndLabelStockBars(bars), tradingDate: prevDate, previousDay: true };
   }
 
   // closed (주말·공휴일): 직전 완결 거래일 스냅샷. todayTradingDate 는 이미 직전 거래일.
@@ -1006,7 +1047,11 @@ export const fetchStockIntradayChart = async (
       appSecret,
     );
     if (bars === null) return null;
-    return { bars, tradingDate: todayTradingDate, previousDay: true };
+    return {
+      bars: toEndLabelStockBars(bars),
+      tradingDate: todayTradingDate,
+      previousDay: true,
+    };
   }
 
   // 활성 세션 + latePreopen + after_close — 라이브 fan-out 경로 진입.
@@ -1069,7 +1114,11 @@ export const fetchStockIntradayChart = async (
   // 라이브 anchor 가 하나도 안 걸리는 케이스 (pre 비NXT · latePreopen 비NXT): tail 만 반환.
   // tail 조차 [] 이면 empty 응답 → client 가 "정규장 개장 전" 안내로 자연 폴백.
   if (anchors.length === 0) {
-    return { bars: tailBars, tradingDate: barsDate, previousDay: false };
+    return {
+      bars: toEndLabelStockBars(tailBars),
+      tradingDate: barsDate,
+      previousDay: false,
+    };
   }
 
   // 전체 anchor 가 실패 (모두 null) 인 경우 정상 empty([]) 와 구분하기 위해 null 반환.
@@ -1090,7 +1139,7 @@ export const fetchStockIntradayChart = async (
   const combined = mergeAndSortIntradayBars([tailBars, liveBars]);
 
   return {
-    bars: combined,
+    bars: toEndLabelStockBars(combined),
     tradingDate: barsDate,
     previousDay: false,
   };
