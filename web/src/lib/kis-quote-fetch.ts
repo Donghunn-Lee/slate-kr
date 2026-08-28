@@ -284,6 +284,39 @@ type IndexMinuteRow = {
   cntg_vol: number;
 };
 
+// 지수 마감 후 확정 재계산 프린트 접기 — HHMMSS > closeBoundary 인 raw 봉의 time 을
+// 그 봉 날짜의 closeBoundary 로 재라벨.
+//
+// KIS 발행 규칙(KOSPI/KOSDAQ 실측): 15:30 마감 봉 이후 15:31·15:32 프린트가 나오며
+// 공식 종가는 15:32 프린트에만 확정값으로 담긴다(15:30 raw close 는 소수점 최종 반올림
+// 이전 값이라 어긋난다). 접기 → toEndLabelBars 의 shifted-time 충돌 병합 규칙
+// (open=선행 · close=후행 · H/L 극값 · vol 합) 이 자동으로 15:30 봉 하나로 통합 ·
+// close=15:32 값을 상속하게 한다.
+//
+// KOSPI200/KOSDAQ150 처럼 15:31+ 프린트가 없는 케이스는 no-op.
+// 순서 유지 (입력 ASC 라면 재라벨 후에도 배열 인덱스 순서 = ASC).
+export const foldPostCloseIndexBars = (
+  bars: readonly ChartBar[],
+  closeBoundary: string = "153000",
+): ChartBar[] => {
+  const hh = Number(closeBoundary.slice(0, 2));
+  const mm = Number(closeBoundary.slice(2, 4));
+  const ss = Number(closeBoundary.slice(4, 6));
+  const closeSecFromBar = (barSec: number): number => {
+    const d = new Date(barSec * 1000);
+    return Math.floor(
+      Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), hh, mm, ss) /
+        1000,
+    );
+  };
+  return bars.map((b) => {
+    if (typeof b.time !== "number") return b;
+    const closeSec = closeSecFromBar(b.time);
+    if (b.time > closeSec) return { ...b, time: closeSec };
+    return b;
+  });
+};
+
 // targetDateYyyymmdd = null 이면 date 필터 스킵 — 라이브 경로는 KIS 응답이 자연스레
 // 최근 세션 위주라 소비측 filter 로 충분. non-null 이면 stck_bsop_date === target
 // 필터로 bleed(응답이 target 전후일 봉도 함께 반환) 방어.
@@ -403,7 +436,7 @@ export const fetchIndexIntradayChart = async (
     const encoded = parseIndexMinuteRows(parsed.data.output2, targetDate);
     return chartBarsToIndexBars(
       toEndLabelBars(
-        indexBarsToChartBars(encoded),
+        foldPostCloseIndexBars(indexBarsToChartBars(encoded)),
         INDEX_MINUTE_INTERVAL_SEC,
         INDEX_END_LABEL_BOUNDARIES,
       ),

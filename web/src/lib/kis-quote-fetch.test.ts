@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  foldPostCloseIndexBars,
   getClosedFallbackAnchors,
   getClosedFallbackMarketDiv,
   mergeAndSortIntradayBars,
@@ -7,6 +8,7 @@ import {
   parseIndexMinuteRows,
   toKisDate,
 } from "./kis-quote-fetch";
+import { toEndLabelBars } from "@/shared/utils/toEndLabelBars";
 import type { ChartBar } from "@/shared/types/quote";
 
 // ── 순수 selectors ────────────────────────────────────────────
@@ -276,5 +278,89 @@ describe("parseIndexMinuteRows", () => {
     expect(out.map((b) => b.timestamp)).toEqual(
       [...out.map((b) => b.timestamp)].sort((a, b) => a - b),
     );
+  });
+});
+
+// ── foldPostCloseIndexBars: 마감 후 확정 재계산 프린트 접기 ──
+describe("foldPostCloseIndexBars", () => {
+  const Y = 2026;
+  const MO = 7; // August
+  const DA = 28;
+  const barSec = (hh: number, mm: number, ss: number = 0): number =>
+    Math.floor(Date.UTC(Y, MO, DA, hh, mm, ss) / 1000);
+
+  it("빈 배열 → []", () => {
+    expect(foldPostCloseIndexBars([])).toEqual([]);
+  });
+
+  it("15:30 이하 봉은 무변경 · 15:30 초과 봉은 그 날짜 15:30 로 재라벨", () => {
+    const bars: ChartBar[] = [
+      { time: barSec(15, 29), open: 1, high: 1, low: 1, close: 1, volume: 10 },
+      { time: barSec(15, 30), open: 2, high: 2, low: 2, close: 2, volume: 20 },
+      { time: barSec(15, 31), open: 3, high: 3, low: 3, close: 3, volume: 30 },
+      { time: barSec(15, 32), open: 4, high: 4, low: 4, close: 4, volume: 40 },
+    ];
+    const out = foldPostCloseIndexBars(bars);
+    expect(out.map((b) => b.time)).toEqual([
+      barSec(15, 29),
+      barSec(15, 30),
+      barSec(15, 30),
+      barSec(15, 30),
+    ]);
+    // volume/OHLC 는 재라벨만 · 값 유지
+    expect(out.map((b) => b.volume)).toEqual([10, 20, 30, 40]);
+    expect(out.map((b) => b.close)).toEqual([1, 2, 3, 4]);
+  });
+
+  it("KOSPI 실측 패턴: 15:30/15:31/15:32 접기 후 toEndLabelBars → 단일 END 15:30, close=15:32, vol=세 행 합", () => {
+    // KIS KOSPI 발행 패턴:
+    //   152500~152900: v=0 프리즈 (close=마감 auction 직전 값)
+    //   153000: 마감 단일가 실체결
+    //   153100: v=0 · close 미변동
+    //   153200: 확정 재계산 프린트 (공식 종가, vol 소량)
+    const raw: ChartBar[] = [
+      { time: barSec(15, 25), open: 6807.9, high: 6807.9, low: 6807.9, close: 6807.9, volume: 0 },
+      { time: barSec(15, 30), open: 6788.89, high: 6788.89, low: 6788.89, close: 6788.89, volume: 7547 },
+      { time: barSec(15, 31), open: 6788.89, high: 6788.89, low: 6788.89, close: 6788.89, volume: 0 },
+      { time: barSec(15, 32), open: 6788.88, high: 6788.88, low: 6788.88, close: 6788.88, volume: 31 },
+    ];
+    const folded = foldPostCloseIndexBars(raw);
+    // 10분봉 END 라벨 파이프라인 상응 (지수 서빙 경로).
+    const endLabeled = toEndLabelBars(folded, 600, ["153000"]);
+    const end1530 = endLabeled.find((b) => b.time === barSec(15, 30));
+    expect(end1530).toBeDefined();
+    expect(end1530?.close).toBe(6788.88); // 15:32 프린트 = 공식 종가
+    expect(end1530?.volume).toBe(7547 + 0 + 31);
+  });
+
+  it("KOSPI200 발행 패턴: 15:31+ 프린트 없음 → no-op", () => {
+    const raw: ChartBar[] = [
+      { time: barSec(15, 29), open: 1065.7, high: 1065.7, low: 1065.7, close: 1065.7, volume: 0 },
+      { time: barSec(15, 30), open: 1065.7, high: 1065.7, low: 1065.7, close: 1065.7, volume: 5348 },
+    ];
+    const folded = foldPostCloseIndexBars(raw);
+    expect(folded).toEqual(raw);
+  });
+
+  it("다일자 봉 — 각 봉 자기 날짜의 15:30 기준으로 재라벨", () => {
+    const prevClose1531 = Math.floor(Date.UTC(Y, MO, DA - 1, 15, 31, 0) / 1000);
+    const prevClose1530 = Math.floor(Date.UTC(Y, MO, DA - 1, 15, 30, 0) / 1000);
+    const todayClose1532 = barSec(15, 32);
+    const todayClose1530 = barSec(15, 30);
+    const bars: ChartBar[] = [
+      { time: prevClose1531, open: 1, high: 1, low: 1, close: 1 },
+      { time: todayClose1532, open: 2, high: 2, low: 2, close: 2 },
+    ];
+    const out = foldPostCloseIndexBars(bars);
+    expect(out[0].time).toBe(prevClose1530);
+    expect(out[1].time).toBe(todayClose1530);
+  });
+
+  it("time 이 string 인 봉은 pass-through", () => {
+    const bars: ChartBar[] = [
+      { time: "2026-08-28" as unknown as ChartBar["time"], open: 1, high: 1, low: 1, close: 1 },
+    ];
+    const out = foldPostCloseIndexBars(bars);
+    expect(out).toEqual(bars);
   });
 });

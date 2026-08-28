@@ -11,10 +11,9 @@ import type { StockPriceSnapshot } from "@/shared/types/stock";
 import { defaultMarketForSession, getKrxSessionState, isKrxBeforeMarketOpen } from "@/shared/utils/market";
 import { mergeLiveDayBar } from "@/shared/utils/mergeLiveDayBar";
 import { mergeLiveIntradayBar } from "@/shared/utils/mergeLiveIntradayBar";
-import { resampleIntradayBars } from "@/shared/utils/resampleIntradayBars";
+import { resampleThenEndLabelBySession } from "@/shared/utils/resampleThenEndLabelBySession";
 import { resampleToMonthly } from "@/shared/utils/resampleToMonthly";
 import { resampleToWeekly } from "@/shared/utils/resampleToWeekly";
-import { toEndLabelBars } from "@/shared/utils/toEndLabelBars";
 import { parseISO, startOfWeek, format } from "date-fns";
 import { RefreshCw, WifiOff } from "lucide-react";
 import {
@@ -267,22 +266,20 @@ export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsPro
     [rawIntradayBars],
   );
 
-  // 파이프라인: raw START(1분) → N분 리샘플 → END 라벨 변환 → 헤더 quote 마스킹.
-  // 순서가 중요 — END 라벨 봉에 floor 리샘플을 걸면 라벨이 붕괴한다(예: END 08:05
-  // 5분봉을 floor 5m 하면 08:00 버킷). 리샘플→변환→병합 순서를 지킬 것.
-  // 1분 뷰에서는 resampleIntradayBars 가 minutes<=1 pass-through 하므로 자동 적용.
-  const intradayResampledStart = useMemo<ChartBar[]>(
-    () => resampleIntradayBars(rawIntradayBars, intradayInterval),
-    [rawIntradayBars, intradayInterval],
-  );
+  // 파이프라인: raw START(1분) → 세션 분할 리샘플+END 라벨 → 헤더 quote 마스킹.
+  // 세션 분할이 필요한 이유: floor 리샘플 버킷이 세션 경계(15:30 등) 를 걸치면
+  // 경계 이후 raw(NXT 애프터 15:40~44) 가 마감 봉 END 15:30 에 흡수된다.
+  // resampleThenEndLabelBySession 은 봉의 시각으로 세션을 먼저 나누고 각 세그먼트
+  // 내부에서만 리샘플+END 라벨 → 버킷이 절대 경계를 걸치지 않게 한다.
+  // 1분 뷰에서는 내부 resampleIntradayBars 가 pass-through 하므로 자동 적용.
   const intradayEndLabeled = useMemo<ChartBar[]>(
     () =>
-      toEndLabelBars(
-        intradayResampledStart,
-        intradayInterval * 60,
+      resampleThenEndLabelBySession(
+        rawIntradayBars,
+        intradayInterval,
         STOCK_END_LABEL_BOUNDARIES,
       ),
-    [intradayResampledStart, intradayInterval],
+    [rawIntradayBars, intradayInterval],
   );
   // 헤더 60s 폴링 quote 로 최신 봉 close 대체 — 서버 캐시 miss 사이 gap 마스킹.
   // previousDay / date 축 어긋남은 유틸 가드가 처리.
