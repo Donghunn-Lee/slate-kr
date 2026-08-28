@@ -1,0 +1,34 @@
+name: Collector Index Minute
+
+on:
+  # 국내 KRX 세션(09:00~15:30 KST) 밖 실행은 stale 봉 재-upsert 로 무해(멱등).
+  # 휴장일 캘린더도 없음 — 휴장 시 KIS 응답이 갱신되지 않아 자연 스킵.
+  workflow_dispatch:
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    # Job-level 단일 캡. step-level timeout 은 사용하지 않는다 (step timeout +
+    # continue-on-error 조합은 cancelled outcome 을 gate 가 감지해야 하는 구조인
+    # 반면, job timeout 은 run 자체를 fail 시켜 gate 의존이 없음). 실측 대비 ~2배 여유.
+    timeout-minutes: 15
+
+    env:
+      DATABASE_URL: ${{ secrets.NEON_DIRECT_URL }}
+      KIS_APP_KEY: ${{ secrets.KIS_APP_KEY }}
+      KIS_APP_SECRET: ${{ secrets.KIS_APP_SECRET }}
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        working-directory: collector
+        run: pip install -r requirements.txt
+
+      - name: Run fetch_index_minute
+        working-directory: collector
+        run: python fetch_index_minute.py
