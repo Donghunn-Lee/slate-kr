@@ -14,6 +14,7 @@ import { mergeLiveIntradayBar } from "@/shared/utils/mergeLiveIntradayBar";
 import { resampleIntradayBars } from "@/shared/utils/resampleIntradayBars";
 import { resampleToMonthly } from "@/shared/utils/resampleToMonthly";
 import { resampleToWeekly } from "@/shared/utils/resampleToWeekly";
+import { toEndLabelBars } from "@/shared/utils/toEndLabelBars";
 import { parseISO, startOfWeek, format } from "date-fns";
 import { RefreshCw, WifiOff } from "lucide-react";
 import {
@@ -59,6 +60,14 @@ const INTRADAY_INTERVAL_DEFAULT = 5;
 // intraday 응답이 아직 도착하지 않았을 때 fallback — module-level 로 참조 안정화해
 // intradayResampled useMemo 의 deps 가 매 렌더 바뀌지 않게 한다.
 const EMPTY_BARS: ChartBar[] = [];
+
+// 종목 분봉 END 라벨 세션 경계 (ASC). NXT 프리마켓 마감 08:50, 정규장 마감 15:30,
+// NXT 애프터마켓 마감 20:00 세 지점에서 각각 마감 크로스 클램프.
+const STOCK_END_LABEL_BOUNDARIES: readonly string[] = [
+  "085000",
+  "153000",
+  "200000",
+];
 
 // KST 정규장 창 (분). 확장 세션(NXT 프리/애프터) 판정에 사용.
 const REGULAR_START_KST_MIN = 9 * 60;
@@ -239,45 +248,63 @@ export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsPro
   }, [dayBars]);
 
   const rawIntradayBars = intradayQuery.data?.bars ?? EMPTY_BARS;
-  // 헤더 60s 폴링 quote 로 최신 봉 close 대체 — 서버 캐시 miss 사이 gap 마스킹.
-  // previousDay / date 축 어긋남은 유틸 가드가 처리.
-  const intradayBars = useMemo<ChartBar[]>(
-    () =>
-      mergeLiveIntradayBar(
-        rawIntradayBars,
-        quoteData?.quote ?? null,
-        quoteData?.date,
-        intradayQuery.data?.date,
-        intradayQuery.data?.previousDay ?? false,
-      ),
-    [rawIntradayBars, quoteData, intradayQuery.data?.date, intradayQuery.data?.previousDay],
-  );
-  const hasIntraday = intradayBars.length > 0;
+  const hasIntraday = rawIntradayBars.length > 0;
   // route 가 완전 fetch 실패 시 true. bars 는 항상 [] 이므로 실패는 empty 를 동반.
   const intradayFailed = intradayQuery.data?.failed ?? false;
   // 전일 스냅샷 fallback (preopen · 주말 · 공휴일). 라벨과 baseline 분기에 사용.
   const isPreviousDay = intradayQuery.data?.previousDay ?? false;
 
   // NXT 확장 세션 유입 판정 — sentinel 필터 후에도 정규장(09:00~15:30) 밖 봉이 하나라도
-  // 있으면 NXT 상장 종목. 데이터 파생 — 마스터 플래그 불필요.
+  // 있으면 NXT 상장 종목. 데이터 파생 — 마스터 플래그 불필요. raw(리샘플/END 변환 전) 로
+  // 판정 — 세션 창 밖 봉 존재 여부는 라벨링/집계와 무관.
   const hasExtendedSessionBar = useMemo<boolean>(
     () =>
-      intradayBars.some((b) => {
+      rawIntradayBars.some((b) => {
         if (typeof b.time !== "number") return false;
         const m = barKstMinuteOfDay(b.time);
         return m < REGULAR_START_KST_MIN || m > REGULAR_END_KST_MIN;
       }),
-    [intradayBars],
+    [rawIntradayBars],
   );
 
-  // intraday base 는 1분봉 → 선택한 간격으로 N분 리샘플. 1분은 raw 통과.
-  const intradayResampled = useMemo<ChartBar[]>(
-    () => resampleIntradayBars(intradayBars, intradayInterval),
-    [intradayBars, intradayInterval],
+  // 파이프라인: raw START(1분) → N분 리샘플 → END 라벨 변환 → 헤더 quote 마스킹.
+  // 순서가 중요 — END 라벨 봉에 floor 리샘플을 걸면 라벨이 붕괴한다(예: END 08:05
+  // 5분봉을 floor 5m 하면 08:00 버킷). 리샘플→변환→병합 순서를 지킬 것.
+  // 1분 뷰에서는 resampleIntradayBars 가 minutes<=1 pass-through 하므로 자동 적용.
+  const intradayResampledStart = useMemo<ChartBar[]>(
+    () => resampleIntradayBars(rawIntradayBars, intradayInterval),
+    [rawIntradayBars, intradayInterval],
+  );
+  const intradayEndLabeled = useMemo<ChartBar[]>(
+    () =>
+      toEndLabelBars(
+        intradayResampledStart,
+        intradayInterval * 60,
+        STOCK_END_LABEL_BOUNDARIES,
+      ),
+    [intradayResampledStart, intradayInterval],
+  );
+  // 헤더 60s 폴링 quote 로 최신 봉 close 대체 — 서버 캐시 miss 사이 gap 마스킹.
+  // previousDay / date 축 어긋남은 유틸 가드가 처리.
+  const intradayBars = useMemo<ChartBar[]>(
+    () =>
+      mergeLiveIntradayBar(
+        intradayEndLabeled,
+        quoteData?.quote ?? null,
+        quoteData?.date,
+        intradayQuery.data?.date,
+        intradayQuery.data?.previousDay ?? false,
+      ),
+    [
+      intradayEndLabeled,
+      quoteData,
+      intradayQuery.data?.date,
+      intradayQuery.data?.previousDay,
+    ],
   );
 
   const bars = isIntradayView
-    ? intradayResampled
+    ? intradayBars
     : granularity === "week"
       ? weekBars
       : granularity === "month"

@@ -47,9 +47,9 @@ const TR_ID_MULTI_PRICE = "FHKST11300006";
 const MULTI_QUOTE_LIMIT = 30; // KIS 공식 상한
 const INTRADAY_INTERVAL_SEC = "600"; // 10분봉
 
-// END 라벨 변환 파라미터. KRX 정규장 마감 15:30 에서 마감 크로스 클램프.
-const KRX_REGULAR_CLOSE_HMS = "153000";
-const STOCK_MINUTE_INTERVAL_SEC = 60;
+// END 라벨 변환 파라미터. 지수는 정규장 마감 15:30 단일 경계.
+// 종목 분봉은 클라(StockChartTabs) 리샘플 뒤 변환 — 서버는 raw START 로 서빙한다.
+const INDEX_END_LABEL_BOUNDARIES: readonly string[] = ["153000"];
 const INDEX_MINUTE_INTERVAL_SEC = 600;
 
 // 종목 1분봉 fan-out anchors — 각 anchor 는 (anchor-30min, anchor] 창의 30개 봉을 반환.
@@ -405,7 +405,7 @@ export const fetchIndexIntradayChart = async (
       toEndLabelBars(
         indexBarsToChartBars(encoded),
         INDEX_MINUTE_INTERVAL_SEC,
-        KRX_REGULAR_CLOSE_HMS,
+        INDEX_END_LABEL_BOUNDARIES,
       ),
     );
   } catch (err: unknown) {
@@ -979,10 +979,6 @@ export type StockIntradayChartResult = {
   previousDay: boolean; // true = 전일 스냅샷 fallback (오늘 봉 부재)
 };
 
-// 서빙 직전 END 라벨 시프트. fetchStockIntradayChart 의 모든 반환 경로에서 통과.
-const toEndLabelStockBars = (bars: ChartBar[]): ChartBar[] =>
-  toEndLabelBars(bars, STOCK_MINUTE_INTERVAL_SEC, KRX_REGULAR_CLOSE_HMS);
-
 // 종목 분봉 차트. adaptive fan-out + preopen/closed 시 전일 스냅샷 fallback + 등락률
 // 초기화 이후엔 전일 tail 30봉 prepend (연속 컨텍스트).
 // - 활성 세션 (pre / regular / after) + latePreopen (08:50~09:00): 라이브 fan-out +
@@ -1033,7 +1029,7 @@ export const fetchStockIntradayChart = async (
       appSecret,
     );
     if (bars === null) return null;
-    return { bars: toEndLabelStockBars(bars), tradingDate: prevDate, previousDay: true };
+    return { bars, tradingDate: prevDate, previousDay: true };
   }
 
   // closed (주말·공휴일): 직전 완결 거래일 스냅샷. todayTradingDate 는 이미 직전 거래일.
@@ -1048,7 +1044,7 @@ export const fetchStockIntradayChart = async (
     );
     if (bars === null) return null;
     return {
-      bars: toEndLabelStockBars(bars),
+      bars,
       tradingDate: todayTradingDate,
       previousDay: true,
     };
@@ -1115,7 +1111,7 @@ export const fetchStockIntradayChart = async (
   // tail 조차 [] 이면 empty 응답 → client 가 "정규장 개장 전" 안내로 자연 폴백.
   if (anchors.length === 0) {
     return {
-      bars: toEndLabelStockBars(tailBars),
+      bars: tailBars,
       tradingDate: barsDate,
       previousDay: false,
     };
@@ -1139,7 +1135,7 @@ export const fetchStockIntradayChart = async (
   const combined = mergeAndSortIntradayBars([tailBars, liveBars]);
 
   return {
-    bars: toEndLabelStockBars(combined),
+    bars: combined,
     tradingDate: barsDate,
     previousDay: false,
   };

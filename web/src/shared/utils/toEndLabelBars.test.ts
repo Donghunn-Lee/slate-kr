@@ -35,7 +35,7 @@ const bar = (
 const flat = (hhmmss: string, price: number, v?: number): ChartBar =>
   bar(hhmmss, { o: price, h: price, l: price, c: price }, v);
 
-const CLOSE = "153000";
+const CLOSE: readonly string[] = ["153000"];
 
 describe("toEndLabelBars", () => {
   it("빈 배열 → []", () => {
