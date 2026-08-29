@@ -1,13 +1,22 @@
 import { cache } from "react";
 import { format } from "date-fns";
 import { pool } from "./db";
-import { fetchIndexIntradayChart } from "./kis-quote-fetch";
+import {
+  INDEX_END_LABEL_BOUNDARIES,
+  fetchIndexIntradayChart,
+  fetchIndexMinuteBarsRaw,
+  foldPostCloseIndexBars,
+  kstToFakeUtcSec,
+  toKisDate,
+} from "./kis-quote-fetch";
 import { fetchOverseasIndexIntradayChart } from "./kis-overseas-quote-fetch";
 import type {
   DomesticIndexCode,
   OverseasIntradayCode,
 } from "@/shared/constants/indices";
+import { getKrxTradingDate } from "@/shared/utils/market";
 import { resampleIntradayBars } from "@/shared/utils/resampleIntradayBars";
+import { toEndLabelBars } from "@/shared/utils/toEndLabelBars";
 import type {
   ChartBar,
   IndexDailySnapshot,
@@ -176,7 +185,7 @@ const readOverseasIntradayFromDb = async (
 };
 
 // pure — live 우선 dedup 후 ASC 정렬. 테스트 대상.
-export const mergeOverseasIntradayBars = (
+export const mergeIntradayBars = (
   dbBars: ChartBar[],
   liveBars: ChartBar[],
 ): ChartBar[] => {
@@ -193,10 +202,13 @@ export const mergeOverseasIntradayBars = (
   );
 };
 
-const toIntradaySnapshots = (
+// useBarVolume=false: KIS 해외 분봉 volume 은 항상 0 이므로 강제 0.
+// useBarVolume=true: 봉의 volume 을 그대로 전달 (histogram 오버레이).
+export const toIntradaySnapshots = (
   indexCode: string,
   bars: ChartBar[],
   prevClose: number,
+  useBarVolume: boolean = false,
 ): IndexIntradaySnapshot[] =>
   bars.map((bar) => {
     const change = prevClose > 0 ? bar.close - prevClose : 0;
@@ -210,7 +222,7 @@ const toIntradaySnapshots = (
       close: bar.close,
       change,
       changeRate,
-      volume: 0, // 해외 지수 분봉은 KIS 응답에서도 volume 항상 0.
+      volume: useBarVolume ? bar.volume ?? 0 : 0,
     };
   });
 
@@ -233,7 +245,7 @@ export const getOverseasIndexIntradayPrices = async (
     return null;
   }
 
-  const merged = mergeOverseasIntradayBars(dbBars, liveBars ?? []);
+  const merged = mergeIntradayBars(dbBars, liveBars ?? []);
   const resampled = resampleIntradayBars(merged, INTRADAY_RESAMPLE_MINUTES);
   const sessionDate =
     resampled.length > 0
@@ -244,6 +256,93 @@ export const getOverseasIndexIntradayPrices = async (
       ? (await queryPrevSessionClose(indexCode, sessionDate)) ?? 0
       : 0;
   return toIntradaySnapshots(indexCode, resampled, prevClose);
+};
+
+// ── 국내 지수 1분 (DB + KIS live tail) ─────────────────
+// tradingDate 1값으로 DB 필터·live 필터 모두 고정 — 세션·일 경계에서 자연 정합.
+// live 호출 게이트 없음.
+// 실패 계약: live 실패 + DB 빈 배열 → null (소비측 failed).
+// 한쪽만 실패 → degraded 성공 (빈 배열도 정상 응답).
+
+type DomesticIntradayRow = {
+  ts_date: string; // to_char(ts, 'YYYYMMDD')
+  ts_time: string; // to_char(ts, 'HH24MISS')
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+};
+
+// KST naive `ts` 를 kstToFakeUtcSec 로 fake-UTC epoch 초 인코딩 —
+// 라이브 파싱 경로와 동일 축을 보장해 DB↔live 병합 dedup key 정합 유지.
+const readDomesticIntradayFromDb = async (
+  indexCode: DomesticIndexCode,
+  tradingDate: string, // 'YYYY-MM-DD'
+): Promise<ChartBar[]> => {
+  try {
+    const [rows] = await pool.query<DomesticIntradayRow[]>(
+      `SELECT to_char(ts, 'YYYYMMDD') AS ts_date,
+              to_char(ts, 'HH24MISS') AS ts_time,
+              open, high, low, close, volume
+         FROM domestic_index_intraday
+        WHERE index_code = $1
+          AND ts >= $2::date
+          AND ts <  ($2::date + INTERVAL '1 day')
+        ORDER BY ts ASC`,
+      [indexCode, tradingDate],
+    );
+    return rows.map((r) => ({
+      time: kstToFakeUtcSec(r.ts_date, r.ts_time),
+      open: r.open,
+      high: r.high,
+      low: r.low,
+      close: r.close,
+      volume: r.volume,
+    }));
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(
+      `[indices] domestic intraday DB read failed ${indexCode}: ${message}`,
+    );
+    return [];
+  }
+};
+
+export const getIndexIntraday1mPrices = async (
+  indexCode: DomesticIndexCode,
+  now: Date = new Date(),
+): Promise<IndexIntradaySnapshot[] | null> => {
+  const tradingDate = getKrxTradingDate(now);
+  const targetDate = toKisDate(tradingDate);
+  const iscd = ISCD_BY_INDEX[indexCode];
+
+  const [dbBars, liveBars] = await Promise.all([
+    readDomesticIntradayFromDb(indexCode, tradingDate),
+    fetchIndexMinuteBarsRaw(iscd, now, 60, targetDate),
+  ]);
+
+  const liveFailed = liveBars === null;
+  const dbFailed = dbBars.length === 0;
+  if (liveFailed && dbFailed) {
+    return null;
+  }
+
+  const merged = mergeIntradayBars(dbBars, liveBars ?? []);
+  const endLabeled = toEndLabelBars(
+    foldPostCloseIndexBars(merged),
+    60,
+    INDEX_END_LABEL_BOUNDARIES,
+  );
+  const sessionDate =
+    endLabeled.length > 0
+      ? sessionDateFromTimestamp(endLabeled[endLabeled.length - 1].time as number)
+      : null;
+  const prevClose =
+    sessionDate !== null
+      ? (await queryPrevSessionClose(indexCode, sessionDate)) ?? 0
+      : 0;
+  return toIntradaySnapshots(indexCode, endLabeled, prevClose, true);
 };
 
 export const getIndexDailyPrices = async (

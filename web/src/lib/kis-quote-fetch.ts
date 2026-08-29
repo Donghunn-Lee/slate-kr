@@ -49,7 +49,7 @@ const INTRADAY_INTERVAL_SEC = "600"; // 10분봉
 
 // END 라벨 변환 파라미터. 지수는 정규장 마감 15:30 단일 경계.
 // 종목 분봉은 클라(StockChartTabs) 리샘플 뒤 변환 — 서버는 raw START 로 서빙한다.
-const INDEX_END_LABEL_BOUNDARIES: readonly string[] = ["153000"];
+export const INDEX_END_LABEL_BOUNDARIES: readonly string[] = ["153000"];
 const INDEX_MINUTE_INTERVAL_SEC = 600;
 
 // 종목 1분봉 fan-out anchors — 각 anchor 는 (anchor-30min, anchor] 창의 30개 봉을 반환.
@@ -227,7 +227,7 @@ const INTRADAY_MARKERS = new Set(["999999", "888888"]);
 
 // KST 시각을 그대로 UTC로 간주하고 epoch 초로 변환. lightweight-charts가 UTC 기준으로
 // 가로축을 표시하므로 이 위장이 가장 적은 비용으로 "10:30 KST"를 화면에 "10:30"으로 보여준다.
-const kstToFakeUtcSec = (yyyymmdd: string, hhmmss: string): number =>
+export const kstToFakeUtcSec = (yyyymmdd: string, hhmmss: string): number =>
   Math.floor(
     Date.UTC(
       Number(yyyymmdd.slice(0, 4)),
@@ -364,15 +364,19 @@ const chartBarsToIndexBars = (bars: readonly ChartBar[]): IndexIntradayBar[] =>
       volume: b.volume ?? 0,
     }));
 
-// 지수 10분봉 차트. 마커 행 제거, 시간 ASC 정렬.
-// closed(주말·공휴일)엔 FID_INPUT_DATE_1 로 직전 완결 거래일을 명시 조회 — 이 TR 은
-// date 파라미터를 수용하며(probe 실측) target 전후일 봉을 함께 반환하므로 파싱 단계에서
-// bleed 필터. null = 호출 자체 실패, [] = 응답에 데이터 없음.
-// 서빙 직전 END 라벨 시프트로 START→END 규약 변환 (마감 봉은 15:30 로 클램프 병합).
-export const fetchIndexIntradayChart = async (
+// START 라벨 ChartBar[] 반환. fold/END 는 서빙 층 소관.
+// targetDate 는 두 축으로 쓰인다:
+//   · URL `FID_INPUT_DATE_1` — session === "closed" 일 때만 전달. active 세션에서
+//     이 파라미터를 보내면 collector 와 다른 호출 형태가 되어 검증된 경로 밖으로 나간다.
+//   · `parseIndexMinuteRows` 필터 — non-null 이면 항상 stck_bsop_date 필터.
+//     active 세션에서 URL 파라미터 없이 호출해도 세션 경계에서 어제 봉이 섞이는 회귀 차단.
+// null = 자격/HTTP/파싱/rt_cd 실패, [] = 응답 정상 empty.
+export const fetchIndexMinuteBarsRaw = async (
   iscd: string,
-  now: Date = new Date(),
-): Promise<IndexIntradayBar[] | null> => {
+  now: Date,
+  intervalSec: number,
+  targetDate: string | null,
+): Promise<ChartBar[] | null> => {
   const tokenResult = await getKisToken();
   if (!tokenResult.ok) {
     console.error(`[kis] token failed: ${tokenResult.error.kind}`);
@@ -386,18 +390,18 @@ export const fetchIndexIntradayChart = async (
     return null;
   }
 
-  const session = getKrxSessionState(now);
-  const targetDate =
-    session === "closed" ? toKisDate(getKrxTradingDate(now)) : null;
-
   const url = new URL(BASE_URL + INDEX_INTRADAY_PATH);
   url.searchParams.set("FID_COND_MRKT_DIV_CODE", "U");
   url.searchParams.set("FID_INPUT_ISCD", iscd);
-  url.searchParams.set("FID_INPUT_HOUR_1", INTRADAY_INTERVAL_SEC);
+  url.searchParams.set("FID_INPUT_HOUR_1", String(intervalSec));
   url.searchParams.set("FID_PW_DATA_INCU_YN", "Y");
   url.searchParams.set("FID_ETC_CLS_CODE", "0");
-  if (targetDate !== null) {
-    url.searchParams.set("FID_INPUT_DATE_1", targetDate);
+  const urlDate =
+    targetDate !== null && getKrxSessionState(now) === "closed"
+      ? targetDate
+      : null;
+  if (urlDate !== null) {
+    url.searchParams.set("FID_INPUT_DATE_1", urlDate);
   }
 
   try {
@@ -434,18 +438,40 @@ export const fetchIndexIntradayChart = async (
     }
 
     const encoded = parseIndexMinuteRows(parsed.data.output2, targetDate);
-    return chartBarsToIndexBars(
-      toEndLabelBars(
-        foldPostCloseIndexBars(indexBarsToChartBars(encoded)),
-        INDEX_MINUTE_INTERVAL_SEC,
-        INDEX_END_LABEL_BOUNDARIES,
-      ),
-    );
+    return indexBarsToChartBars(encoded);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[kis] index intraday fetch failed: ${message}`);
     return null;
   }
+};
+
+// 지수 10분봉 차트. 마커 행 제거, 시간 ASC 정렬.
+// closed(주말·공휴일)엔 FID_INPUT_DATE_1 로 직전 완결 거래일을 명시 조회 — 이 TR 은
+// date 파라미터를 수용하며(probe 실측) target 전후일 봉을 함께 반환하므로 파싱 단계에서
+// bleed 필터. null = 호출 자체 실패, [] = 응답에 데이터 없음.
+// 서빙 직전 END 라벨 시프트로 START→END 규약 변환 (마감 봉은 15:30 로 클램프 병합).
+export const fetchIndexIntradayChart = async (
+  iscd: string,
+  now: Date = new Date(),
+): Promise<IndexIntradayBar[] | null> => {
+  const session = getKrxSessionState(now);
+  const targetDate =
+    session === "closed" ? toKisDate(getKrxTradingDate(now)) : null;
+  const raw = await fetchIndexMinuteBarsRaw(
+    iscd,
+    now,
+    Number(INTRADAY_INTERVAL_SEC),
+    targetDate,
+  );
+  if (raw === null) return null;
+  return chartBarsToIndexBars(
+    toEndLabelBars(
+      foldPostCloseIndexBars(raw),
+      INDEX_MINUTE_INTERVAL_SEC,
+      INDEX_END_LABEL_BOUNDARIES,
+    ),
+  );
 };
 
 export const fetchIndexQuote = async (iscd: string): Promise<IndexQuote | null> => {

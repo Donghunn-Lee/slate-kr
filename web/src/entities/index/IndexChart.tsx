@@ -15,7 +15,7 @@ import {
   type SeriesKind,
   type ViewMode,
 } from "@/entities/chart/chartToolbar";
-import { useIndexIntraday } from "@/features/index-quotes/useIndexIntraday";
+import { useIndexIntraday1m } from "@/features/index-quotes/useIndexIntraday1m";
 import { useIndexQuotes } from "@/features/index-quotes/useIndexQuotes";
 import { useOverseasIndexIntraday } from "@/features/index-quotes/useOverseasIndexIntraday";
 import { useOverseasIndexQuotes } from "@/features/index-quotes/useOverseasIndexQuotes";
@@ -49,7 +49,7 @@ type IndexChartProps = {
   indexCode: IndexCode;
   prices: IndexDailySnapshot[]; // ASC
   interactive?: boolean;
-  // 해외 지수용 daily-only 모드. false 이면 useIndexQuotes/useIndexIntraday
+  // 해외 지수용 daily-only 모드. false 이면 useIndexQuotes/useIndexIntraday1m
   // 호출 없이 EOD 만 그린다. viewMode 토글 UI 도 숨긴다.
   intradayEnabled?: boolean;
 };
@@ -202,7 +202,7 @@ export const IndexChart = ({
   // React Query 가 queryKey 로 dedup 하므로 다른 컴포넌트와 네트워크 중복 없음.
   const isOverseasIntraday = isOverseasIntradayCode(indexCode);
   const isOverseasIndex = getIndexMeta(indexCode).region === "overseas";
-  const domesticIntradayQuery = useIndexIntraday();
+  const domesticIntradayQuery = useIndexIntraday1m();
   const overseasIntradayQuery = useOverseasIndexIntraday();
   const { data: quotesData } = useIndexQuotes();
   // 해외 지수 라이브 quote — 8종 전부. 헤더(IndexDetailPane)가 이미 소비 중이라

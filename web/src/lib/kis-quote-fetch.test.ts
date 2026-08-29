@@ -1,8 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
+  INDEX_END_LABEL_BOUNDARIES,
   foldPostCloseIndexBars,
   getClosedFallbackAnchors,
   getClosedFallbackMarketDiv,
+  kstToFakeUtcSec,
   mergeAndSortIntradayBars,
   parseDailyMinuteRows,
   parseIndexMinuteRows,
@@ -362,5 +364,59 @@ describe("foldPostCloseIndexBars", () => {
     ];
     const out = foldPostCloseIndexBars(bars);
     expect(out).toEqual(bars);
+  });
+});
+
+// ── 지수 10분 파이프라인 출력 형상 (raw → fold → END) ──
+// 순수 단위 파이프라인만 검증 — fetch 자체는 별도.
+describe("index intraday 10분 파이프라인 (raw → fold → END)", () => {
+  const barSec = (hh: number, mm: number, ss: number = 0): number =>
+    Math.floor(Date.UTC(2026, 7, 28, hh, mm, ss) / 1000);
+
+  it("KOSPI 08-28 tail: fold → toEndLabelBars(600,153000) → 단일 15:30 · close=15:32 · vol 합", () => {
+    // parseIndexMinuteRows 후 indexBarsToChartBars 결과와 동형인 raw ChartBar[].
+    const raw: ChartBar[] = [
+      { time: barSec(15, 29), open: 6807.9, high: 6807.9, low: 6807.9, close: 6807.9, volume: 0 },
+      { time: barSec(15, 30), open: 6788.89, high: 6788.89, low: 6788.89, close: 6788.89, volume: 7547 },
+      { time: barSec(15, 31), open: 6788.89, high: 6788.89, low: 6788.89, close: 6788.89, volume: 0 },
+      { time: barSec(15, 32), open: 6788.88, high: 6788.88, low: 6788.88, close: 6788.88, volume: 31 },
+    ];
+    const out = toEndLabelBars(
+      foldPostCloseIndexBars(raw),
+      600,
+      INDEX_END_LABEL_BOUNDARIES,
+    );
+    // END 라벨: 15:29 → 15:30 (start=15:29 + 10분 = 15:39, 경계 clamp → 15:30). 15:30/31/32 fold → 15:30.
+    // 15:29 (single bar shifted to 15:30) 와 15:30 fold bar 가 END 15:30 에서 병합.
+    const end1530 = out.find((b) => b.time === barSec(15, 30));
+    expect(end1530).toBeDefined();
+    expect(end1530?.close).toBe(6788.88);
+    expect(end1530?.volume).toBe(0 + 7547 + 0 + 31);
+  });
+});
+
+// ── kstToFakeUtcSec: 라이브·DB 인코딩 정합 검증 ──
+// 같은 (YYYYMMDD,HHMMSS) → 같은 epoch 초 규약. parseIndexMinuteRows 산출과 동일 값 확인.
+describe("kstToFakeUtcSec — export & Date.UTC 인코딩", () => {
+  it("Date.UTC 트릭 그대로 (KST 벽시계 → fake-UTC 초)", () => {
+    expect(kstToFakeUtcSec("20260828", "153000")).toBe(
+      Math.floor(Date.UTC(2026, 7, 28, 15, 30, 0) / 1000),
+    );
+  });
+
+  it("parseIndexMinuteRows 산출 timestamp 와 동일 값", () => {
+    const rows = [
+      {
+        stck_bsop_date: "20260828",
+        stck_cntg_hour: "153000",
+        bstp_nmix_prpr: 6788.89,
+        bstp_nmix_oprc: 6788.89,
+        bstp_nmix_hgpr: 6788.89,
+        bstp_nmix_lwpr: 6788.89,
+        cntg_vol: 7547,
+      },
+    ];
+    const out = parseIndexMinuteRows(rows, "20260828");
+    expect(out[0].timestamp).toBe(kstToFakeUtcSec("20260828", "153000"));
   });
 });
