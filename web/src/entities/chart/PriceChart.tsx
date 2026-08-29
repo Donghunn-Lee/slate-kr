@@ -61,6 +61,13 @@ type PriceChartProps = {
   // 사용자 휠/팬으로 표시 창이 바뀌었을 때 새 봉 개수를 알려주는 콜백.
   // 상위 상태(barCount input) 와 양방향 동기화용. 값이 전체 근사면 null 을 전달.
   onVisibleBarsChange?: (n: number | null) => void;
+  // 툴바 "기본 배율" 버튼용 카운터. 값이 증가할 때마다 현재 뷰의 초기 visible range 를
+  // 재적용 (intraday=applyLockedRange, EOD=applyVisibleRange). 0 은 mount 시 no-op —
+  // config effect 의 initial 경로가 이미 초기 창을 잡기 때문에 이중 적용 방지.
+  resetKey?: number;
+  // 사용자의 첫 pan/zoom 시 1회 통지. 상위 "기본 배율" 버튼 disabled 판정용.
+  // resetKey 증가로 userScrolledRef 가 다시 false 로 초기화되면 이후 첫 조작에서 재발화.
+  onUserInteract?: () => void;
 };
 
 const DEFAULT_HEIGHT = 300;
@@ -345,6 +352,8 @@ export const PriceChart = ({
   baseline,
   visibleBars,
   onVisibleBarsChange,
+  resetKey = 0,
+  onUserInteract,
 }: PriceChartProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -372,19 +381,33 @@ export const PriceChart = ({
   const runLockedRangeRef = useRef<
     ((bars: ChartBar[], dim: number | undefined) => void) | null
   >(null);
-  // programmatic setVisibleLogicalRange 로 인한 subscribe 콜백을 무시하기 위한 재진입 가드.
-  // rAF 이후 해제 — 라이트웨이트차트가 range 변경을 큐잉하므로 동일 tick 내엔 유지.
+  // programmatic setVisibleLogicalRange/setVisibleRange 로 인한 subscribe 콜백을 무시하기
+  // 위한 재진입 가드. lightweight-charts 가 range change 이벤트를 다음 rAF 사이클 이후에
+  // 발화하는 경우가 있어 rAF 한 번으론 놓친다 — 두 번의 rAF (= 다음 프레임의 다음 프레임) 로
+  // guard 해제 시점을 미뤄 초기/리셋 range 세팅이 사용자 팬 이벤트로 오인식되지 않게 한다.
   const applyingRangeRef = useRef(false);
+  const releaseApplyingRange = () => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        applyingRangeRef.current = false;
+      });
+    });
+  };
   // 마지막으로 상위에 보고한 봉 개수(중복 콜백 억제 + wheel-originated 값 재적용 방지).
   const lastReportedRef = useRef<number | null | undefined>(undefined);
   // 콜백 최신 참조 — 구독 재설정 없이도 갈아끼울 수 있도록 ref 로.
   const onVisibleBarsChangeRef = useRef(onVisibleBarsChange);
+  const onUserInteractRef = useRef(onUserInteract);
   // 휠 연사 시 setState 폭주 방지용 debounce 타이머.
   const reportTimerRef = useRef<number | null>(null);
   // 팬 clamp 에서 참조 — subscribe 콜백이 config effect 재구독 사이의 잔여 이벤트를 처리할 수도 있어
   // 최신값이 필요. 구독 재설정 자체가 있지만 방어적으로 ref 로 안정화.
   const intradayRef = useRef(intraday);
   const interactiveRef = useRef(interactive);
+  // resetKey effect 가 intraday 리셋 시 runLockedRange 에 넘길 최신 dimBefore. ref 로 노출해
+  // effect deps 에서 제외 — deps 에 두면 dimBefore 변경(예: 국내→해외 지수 전환) 시 리셋이
+  // 발화되어 뷰포트 유지 정책이 깨진다.
+  const dimBeforeRef = useRef(dimBefore);
   // 사용자가 pan/zoom 을 한 번이라도 했는지. auto-follow(intraday) 를 idle 상태에서만 발동시키기 위한 gate.
   // config effect 재실행(= chart 재생성) 시 false 로 초기화.
   const userScrolledRef = useRef(false);
@@ -418,12 +441,20 @@ export const PriceChart = ({
   }, [onVisibleBarsChange]);
 
   useEffect(() => {
+    onUserInteractRef.current = onUserInteract;
+  }, [onUserInteract]);
+
+  useEffect(() => {
     intradayRef.current = intraday;
   }, [intraday]);
 
   useEffect(() => {
     interactiveRef.current = interactive;
   }, [interactive]);
+
+  useEffect(() => {
+    dimBeforeRef.current = dimBefore;
+  }, [dimBefore]);
 
   // 차트/시리즈는 config(테마·precision·timeVisible·interactive·intraday·dimBefore) 변경 시에만
   // 재생성. bars-only 갱신은 아래 데이터 effect가 처리해 사용자 줌 상태를 유지한다.
@@ -570,9 +601,7 @@ export const PriceChart = ({
       const to = len - 1 + margin;
       applyingRangeRef.current = true;
       chart.timeScale().setVisibleLogicalRange({ from, to });
-      requestAnimationFrame(() => {
-        applyingRangeRef.current = false;
-      });
+      releaseApplyingRange();
     };
     applyRangeRef.current = applyVisibleRange;
 
@@ -581,14 +610,28 @@ export const PriceChart = ({
     // interactive=false 는 조작 없음 → 구독 자체 skip.
     let logicalRangeHandler: ((range: LogicalRange | null) => void) | null =
       null;
+    // 사용자 pan/zoom 감지는 DOM 이벤트로 직접 — lightweight-charts subscribe 콜백은
+    // programmatic 세팅 이후 rAF 지연으로 발화되어 applyingRangeRef guard 를 놓치는 경우가 있고,
+    // 그때 잘못된 range 로 상위 barCount 를 덮어써 pristine 판정이 깨진다. wheel/mousedown/
+    // touchstart 는 사용자 액션에만 발화되어 이 오인식을 원천 차단한다.
+    const container = containerRef.current;
+    const handleUserAction = () => {
+      if (!userScrolledRef.current) {
+        onUserInteractRef.current?.();
+      }
+      userScrolledRef.current = true;
+    };
+    if (interactive) {
+      container.addEventListener("wheel", handleUserAction, { passive: true });
+      container.addEventListener("mousedown", handleUserAction);
+      container.addEventListener("touchstart", handleUserAction, { passive: true });
+    }
+
     if (interactive) {
       logicalRangeHandler = (incoming) => {
         if (applyingRangeRef.current || !incoming) return;
         const len = barsRef.current.length;
         if (len === 0) return;
-
-        // 사용자 유래 range 변화 — intraday auto-follow gate 해제.
-        userScrolledRef.current = true;
 
         // 미래쪽 clamp — RIGHT_MARGIN_RATIO 만큼의 우측 여백은 허용, 그 이상은 되돌린다.
         // tolerance 0.5 (봉 절반) 로 rubber-band/부동소수 오차 흡수해 잦은 재설정 방지.
@@ -604,13 +647,13 @@ export const PriceChart = ({
           chartRef.current
             ?.timeScale()
             .setVisibleLogicalRange({ from, to });
-          requestAnimationFrame(() => {
-            applyingRangeRef.current = false;
-          });
+          releaseApplyingRange();
         }
 
-        // barCount 역반영 — intraday 는 상위에서 visibleBars/onVisibleBarsChange 를 안 넘기므로
-        // 콜백 미존재로 자연 skip. EOD 만 실제 동기화.
+        // barCount 역반영 — DOM 이벤트로 사용자 조작이 확인된 이후에만 활성.
+        // 초기/리셋 programmatic 세팅으로 인한 rAF 지연 콜백이 상위 barCount 을 잘못된
+        // 계산값으로 덮어써 pristine 판정을 깨는 것을 방지.
+        if (!userScrolledRef.current) return;
         if (!onVisibleBarsChangeRef.current) return;
         const right = Math.min(to, len - 1);
         const left = Math.max(from, 0);
@@ -636,9 +679,7 @@ export const PriceChart = ({
     const runLockedRange = (barsForRange: ChartBar[], dim: number | undefined) => {
       applyingRangeRef.current = true;
       applyLockedRange(chart, barsForRange, dim);
-      requestAnimationFrame(() => {
-        applyingRangeRef.current = false;
-      });
+      releaseApplyingRange();
     };
     runLockedRangeRef.current = runLockedRange;
 
@@ -755,6 +796,11 @@ export const PriceChart = ({
         chart
           .timeScale()
           .unsubscribeVisibleLogicalRangeChange(logicalRangeHandler);
+      }
+      if (interactive) {
+        container.removeEventListener("wheel", handleUserAction);
+        container.removeEventListener("mousedown", handleUserAction);
+        container.removeEventListener("touchstart", handleUserAction);
       }
       if (reportTimerRef.current !== null) {
         window.clearTimeout(reportTimerRef.current);
@@ -878,6 +924,22 @@ export const PriceChart = ({
       paintLegend(legendRef.current, last, prev, c, precision, seriesKind);
     }
   }, [bars, intraday, dimBefore, resolvedTheme, showLegend, precision, seriesKind]);
+
+  // "기본 배율" 버튼 트리거. resetKey 가 0 → 양수로 최초 변경되거나 이후 증가할 때마다
+  // 현재 뷰의 초기 visible range 를 재적용. mount 시엔 default(0) 라 skip → config effect
+  // 의 initial 경로와 이중 적용되지 않는다. userScrolledRef 도 함께 리셋 — intraday 는
+  // auto-follow 재개, EOD 는 barCount 역보고 억제(초기 range 세팅으로 인한 지연 콜백 방어).
+  // dimBefore 는 dimBeforeRef 로 참조 — deps 에 넣으면 지수 전환 등 dim 변경 시 리셋이
+  // 발화되어 뷰포트 유지가 깨진다. 리셋은 오직 사용자의 명시적 버튼 클릭으로만 트리거.
+  useEffect(() => {
+    if (resetKey === 0) return;
+    userScrolledRef.current = false;
+    if (intradayRef.current) {
+      runLockedRangeRef.current?.(barsRef.current, dimBeforeRef.current);
+    } else {
+      applyRangeRef.current?.(visibleBarsRef.current);
+    }
+  }, [resetKey]);
 
   // visibleBars prop 변경 → 표시 창 재적용. 데이터 배열은 그대로, 시계축 논리 범위만 이동.
   // config effect 재실행/데이터 effect 와 별개로 툴바 조작(프리셋·입력) 반영 경로.
