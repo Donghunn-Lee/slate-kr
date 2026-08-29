@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { PriceChange } from "@/shared/components/PriceChange";
 import { IndexSparkline } from "@/entities/index/IndexSparkline";
 import { cn } from "@/lib/utils";
-import type { IndexIntradaySnapshot, PriceSign } from "@/shared/types/quote";
+import type { ChartBar, PriceSign } from "@/shared/types/quote";
 import type { IndexCellData } from "./useIndexQuotes";
 
 // 가격 span 등락색. flat 은 default foreground 유지 (색 없음) — 무채로 두어
@@ -21,7 +21,8 @@ const signOfChange = (change: number): PriceSign =>
 type MiniIndexCellProps = {
   label: string;
   cell: IndexCellData | undefined;
-  bars: IndexIntradaySnapshot[];
+  bars: ChartBar[];
+  prevClose: number | null;
   intradayFailed: boolean;
   // 값 문자열 포맷 — 국내(KRW, 콤마)·해외(소숫점 2자리 등) 케이스별 주입.
   formatPrice: (v: number) => string;
@@ -42,6 +43,7 @@ export const MiniIndexCell = ({
   label,
   cell,
   bars,
+  prevClose,
   intradayFailed,
   formatPrice,
   renderLiveValue,
@@ -115,7 +117,7 @@ export const MiniIndexCell = ({
       )}
     </div>
     <div className="min-w-[50px] flex-1 md:min-h-[60px] md:min-w-[90px] md:self-stretch">
-      <IndexSparkline bars={bars} failed={intradayFailed} />
+      <IndexSparkline bars={bars} prevClose={prevClose} failed={intradayFailed} />
     </div>
   </div>
 );

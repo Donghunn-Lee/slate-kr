@@ -56,13 +56,14 @@ export type IndexDailySnapshot = {
   volume?: number;
 };
 
-// 10분봉(인트라데이) 1행. lightweight-charts가 분 단위 데이터를 UTCTimestamp(=epoch 초)로만
+// 지수 분봉(인트라데이) 1행. lightweight-charts가 분 단위 데이터를 UTCTimestamp(=epoch 초)로만
 // 받기 때문에 ISO 문자열이 아니라 number 로 보관한다.
 // 차트 가로축이 UTC 기준으로 표시되므로, KST 시각을 "UTC로 위장"해서 저장한다
 // (KST 10:30 → 차트는 "10:30"으로 표기). 정규화는 lib/indices.ts 참조.
+// timestamp = START 라벨 (봉 시작 시각). END 시프트·리샘플은 클라이언트 소관.
 export type IndexIntradaySnapshot = {
   indexCode: string;
-  timestamp: number; // KST를 UTC로 위장한 epoch 초
+  timestamp: number; // KST를 UTC로 위장한 epoch 초 (START 라벨)
   open: number;
   high: number;
   low: number;

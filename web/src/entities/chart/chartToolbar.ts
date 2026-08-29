@@ -20,6 +20,10 @@ export const GRANULARITY_BUTTONS: { value: Granularity; label: string }[] = [
   { value: "month", label: "월" },
 ];
 
+// intraday 뷰의 분봉 간격 세트. 종목·지수 공용. 1분은 리샘플 pass-through.
+export const INTRADAY_INTERVAL_BUTTONS: readonly number[] = [1, 5, 15];
+export const INTRADAY_INTERVAL_DEFAULT = 5;
+
 export const SERIES_KIND_BUTTONS: {
   value: SeriesKind;
   label: string;

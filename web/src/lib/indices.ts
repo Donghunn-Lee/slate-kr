@@ -2,8 +2,6 @@ import { cache } from "react";
 import { format } from "date-fns";
 import { pool } from "./db";
 import {
-  INDEX_END_LABEL_BOUNDARIES,
-  fetchIndexIntradayChart,
   fetchIndexMinuteBarsRaw,
   foldPostCloseIndexBars,
   kstToFakeUtcSec,
@@ -16,7 +14,6 @@ import type {
 } from "@/shared/constants/indices";
 import { getKrxTradingDate } from "@/shared/utils/market";
 import { resampleIntradayBars } from "@/shared/utils/resampleIntradayBars";
-import { toEndLabelBars } from "@/shared/utils/toEndLabelBars";
 import type {
   ChartBar,
   IndexDailySnapshot,
@@ -91,40 +88,6 @@ const queryPrevSessionClose = async (
     [indexCode, sessionDate],
   );
   return rows.length > 0 ? rows[0].close : null;
-};
-
-// 인트라데이(10분봉) 가져와서 직전 세션 close 기준 change/changeRate 채워서 반환.
-// prevClose 미도착(신규 지수 등) 이면 change=0 — UI 는 차트만 그릴 거라 영향 없음.
-// null = fetch 실패 (route 에서 캐시 evict 판정에 사용), [] = 정상 empty.
-export const getIndexIntradayPrices = async (
-  indexCode: DomesticIndexCode,
-  now: Date = new Date(),
-): Promise<IndexIntradaySnapshot[] | null> => {
-  const bars = await fetchIndexIntradayChart(ISCD_BY_INDEX[indexCode], now);
-  if (bars === null) return null;
-  const sessionDate =
-    bars.length > 0
-      ? sessionDateFromTimestamp(bars[bars.length - 1].timestamp)
-      : null;
-  const prevClose =
-    sessionDate !== null
-      ? (await queryPrevSessionClose(indexCode, sessionDate)) ?? 0
-      : 0;
-  return bars.map((bar) => {
-    const change = prevClose > 0 ? bar.close - prevClose : 0;
-    const changeRate = prevClose > 0 ? (change / prevClose) * 100 : 0;
-    return {
-      indexCode,
-      timestamp: bar.timestamp,
-      open: bar.open,
-      high: bar.high,
-      low: bar.low,
-      close: bar.close,
-      change,
-      changeRate,
-      volume: bar.volume,
-    };
-  });
 };
 
 // ── 해외지수 intraday (SPX / COMP / NDX) ─────────────────
@@ -263,6 +226,8 @@ export const getOverseasIndexIntradayPrices = async (
 // live 호출 게이트 없음.
 // 실패 계약: live 실패 + DB 빈 배열 → null (소비측 failed).
 // 한쪽만 실패 → degraded 성공 (빈 배열도 정상 응답).
+// 서버 fold 로 15:31·15:32 프린트만 15:30 봉에 흡수. END 라벨·리샘플은 클라 소관 —
+// 서빙 timestamp 는 START 라벨(HH:MM 시각) 이다.
 
 type DomesticIntradayRow = {
   ts_date: string; // to_char(ts, 'YYYYMMDD')
@@ -309,7 +274,7 @@ const readDomesticIntradayFromDb = async (
   }
 };
 
-export const getIndexIntraday1mPrices = async (
+export const getIndexIntradayPrices = async (
   indexCode: DomesticIndexCode,
   now: Date = new Date(),
 ): Promise<IndexIntradaySnapshot[] | null> => {
@@ -329,20 +294,16 @@ export const getIndexIntraday1mPrices = async (
   }
 
   const merged = mergeIntradayBars(dbBars, liveBars ?? []);
-  const endLabeled = toEndLabelBars(
-    foldPostCloseIndexBars(merged),
-    60,
-    INDEX_END_LABEL_BOUNDARIES,
-  );
+  const folded = foldPostCloseIndexBars(merged);
   const sessionDate =
-    endLabeled.length > 0
-      ? sessionDateFromTimestamp(endLabeled[endLabeled.length - 1].time as number)
+    folded.length > 0
+      ? sessionDateFromTimestamp(folded[folded.length - 1].time as number)
       : null;
   const prevClose =
     sessionDate !== null
       ? (await queryPrevSessionClose(indexCode, sessionDate)) ?? 0
       : 0;
-  return toIntradaySnapshots(indexCode, endLabeled, prevClose, true);
+  return toIntradaySnapshots(indexCode, folded, prevClose, true);
 };
 
 export const getIndexDailyPrices = async (

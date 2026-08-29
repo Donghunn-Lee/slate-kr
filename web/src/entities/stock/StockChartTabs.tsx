@@ -18,6 +18,8 @@ import { parseISO, startOfWeek, format } from "date-fns";
 import { RefreshCw, WifiOff } from "lucide-react";
 import {
   GRANULARITY_BUTTONS,
+  INTRADAY_INTERVAL_BUTTONS,
+  INTRADAY_INTERVAL_DEFAULT,
   SERIES_KIND_BUTTONS,
   TOOLBAR_BUTTON_CLS,
   TOOLBAR_GROUP_CLS,
@@ -51,10 +53,6 @@ const GRANULARITY_DEFAULT_BARS: Record<Granularity, number> = {
   month: 12,
 };
 
-// intraday 분봉 세트. base = 1분(KIS output). N분 = resampleIntradayBars 로 버킷 집계.
-// 기본 5분: 1분은 390봉으로 dense, 5분(≈78봉) 이 첫 인상에 적당.
-const INTRADAY_INTERVAL_BUTTONS: number[] = [1, 5, 15];
-const INTRADAY_INTERVAL_DEFAULT = 5;
 
 // intraday 응답이 아직 도착하지 않았을 때 fallback — module-level 로 참조 안정화해
 // intradayResampled useMemo 의 deps 가 매 렌더 바뀌지 않게 한다.

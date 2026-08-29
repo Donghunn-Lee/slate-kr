@@ -24,7 +24,7 @@ import {
   isKrxEarlyPreopen,
   isKrxLatePreopen,
 } from "@/shared/utils/market";
-import { toEndLabelBars } from "@/shared/utils/toEndLabelBars";
+import { mergeChartBars } from "@/shared/utils/toEndLabelBars";
 
 const BASE_URL = "https://openapi.koreainvestment.com:9443";
 const INDEX_PRICE_PATH = "/uapi/domestic-stock/v1/quotations/inquire-index-price";
@@ -45,12 +45,6 @@ const TR_ID_STOCK_MINUTE = "FHKST03010200";
 const TR_ID_STOCK_DAILY_MINUTE = "FHKST03010230";
 const TR_ID_MULTI_PRICE = "FHKST11300006";
 const MULTI_QUOTE_LIMIT = 30; // KIS 공식 상한
-const INTRADAY_INTERVAL_SEC = "600"; // 10분봉
-
-// END 라벨 변환 파라미터. 지수는 정규장 마감 15:30 단일 경계.
-// 종목 분봉은 클라(StockChartTabs) 리샘플 뒤 변환 — 서버는 raw START 로 서빙한다.
-export const INDEX_END_LABEL_BOUNDARIES: readonly string[] = ["153000"];
-const INDEX_MINUTE_INTERVAL_SEC = 600;
 
 // 종목 1분봉 fan-out anchors — 각 anchor 는 (anchor-30min, anchor] 창의 30개 봉을 반환.
 // NXT 거래가능 종목은 UN 로 25개(08:00~20:00) 전체 요청, 비NXT 종목은 J 로 13개
@@ -284,17 +278,15 @@ type IndexMinuteRow = {
   cntg_vol: number;
 };
 
-// 지수 마감 후 확정 재계산 프린트 접기 — HHMMSS > closeBoundary 인 raw 봉의 time 을
-// 그 봉 날짜의 closeBoundary 로 재라벨.
+// 지수 마감 후 확정 재계산 프린트 접기 — HHMMSS > closeBoundary 인 raw 봉을
+// 그 봉 날짜의 closeBoundary 봉에 흡수(open=선행, close=후행, H/L 극값, vol 합).
 //
 // KIS 발행 규칙(KOSPI/KOSDAQ 실측): 15:30 마감 봉 이후 15:31·15:32 프린트가 나오며
 // 공식 종가는 15:32 프린트에만 확정값으로 담긴다(15:30 raw close 는 소수점 최종 반올림
-// 이전 값이라 어긋난다). 접기 → toEndLabelBars 의 shifted-time 충돌 병합 규칙
-// (open=선행 · close=후행 · H/L 극값 · vol 합) 이 자동으로 15:30 봉 하나로 통합 ·
-// close=15:32 값을 상속하게 한다.
+// 이전 값이라 어긋난다). 병합 결과 15:30 봉이 close=15:32 값을 상속하고 vol 은 세 행 합.
 //
 // KOSPI200/KOSDAQ150 처럼 15:31+ 프린트가 없는 케이스는 no-op.
-// 순서 유지 (입력 ASC 라면 재라벨 후에도 배열 인덱스 순서 = ASC).
+// 순서 유지 (입력 ASC 라면 병합 후에도 배열 인덱스 순서 = ASC).
 export const foldPostCloseIndexBars = (
   bars: readonly ChartBar[],
   closeBoundary: string = "153000",
@@ -309,11 +301,29 @@ export const foldPostCloseIndexBars = (
         1000,
     );
   };
-  return bars.map((b) => {
-    if (typeof b.time !== "number") return b;
+  const buckets = new Map<number, ChartBar>();
+  const stringTimeBars: ChartBar[] = [];
+  const orderKey: (number | string)[] = [];
+  for (const b of bars) {
+    if (typeof b.time !== "number") {
+      stringTimeBars.push(b);
+      orderKey.push(`s${stringTimeBars.length - 1}`);
+      continue;
+    }
     const closeSec = closeSecFromBar(b.time);
-    if (b.time > closeSec) return { ...b, time: closeSec };
-    return b;
+    const key = b.time > closeSec ? closeSec : b.time;
+    const existing = buckets.get(key);
+    const incoming: ChartBar = { ...b, time: key };
+    if (existing) {
+      buckets.set(key, mergeChartBars(existing, incoming, key));
+    } else {
+      buckets.set(key, incoming);
+      orderKey.push(key);
+    }
+  }
+  return orderKey.map((k) => {
+    if (typeof k === "string") return stringTimeBars[Number(k.slice(1))];
+    return buckets.get(k) as ChartBar;
   });
 };
 
@@ -351,18 +361,6 @@ const indexBarsToChartBars = (bars: readonly IndexIntradayBar[]): ChartBar[] =>
     close: b.close,
     volume: b.volume,
   }));
-
-const chartBarsToIndexBars = (bars: readonly ChartBar[]): IndexIntradayBar[] =>
-  bars
-    .filter((b): b is ChartBar & { time: number } => typeof b.time === "number")
-    .map((b) => ({
-      timestamp: b.time,
-      open: b.open,
-      high: b.high,
-      low: b.low,
-      close: b.close,
-      volume: b.volume ?? 0,
-    }));
 
 // START 라벨 ChartBar[] 반환. fold/END 는 서빙 층 소관.
 // targetDate 는 두 축으로 쓰인다:
@@ -444,34 +442,6 @@ export const fetchIndexMinuteBarsRaw = async (
     console.error(`[kis] index intraday fetch failed: ${message}`);
     return null;
   }
-};
-
-// 지수 10분봉 차트. 마커 행 제거, 시간 ASC 정렬.
-// closed(주말·공휴일)엔 FID_INPUT_DATE_1 로 직전 완결 거래일을 명시 조회 — 이 TR 은
-// date 파라미터를 수용하며(probe 실측) target 전후일 봉을 함께 반환하므로 파싱 단계에서
-// bleed 필터. null = 호출 자체 실패, [] = 응답에 데이터 없음.
-// 서빙 직전 END 라벨 시프트로 START→END 규약 변환 (마감 봉은 15:30 로 클램프 병합).
-export const fetchIndexIntradayChart = async (
-  iscd: string,
-  now: Date = new Date(),
-): Promise<IndexIntradayBar[] | null> => {
-  const session = getKrxSessionState(now);
-  const targetDate =
-    session === "closed" ? toKisDate(getKrxTradingDate(now)) : null;
-  const raw = await fetchIndexMinuteBarsRaw(
-    iscd,
-    now,
-    Number(INTRADAY_INTERVAL_SEC),
-    targetDate,
-  );
-  if (raw === null) return null;
-  return chartBarsToIndexBars(
-    toEndLabelBars(
-      foldPostCloseIndexBars(raw),
-      INDEX_MINUTE_INTERVAL_SEC,
-      INDEX_END_LABEL_BOUNDARIES,
-    ),
-  );
 };
 
 export const fetchIndexQuote = async (iscd: string): Promise<IndexQuote | null> => {

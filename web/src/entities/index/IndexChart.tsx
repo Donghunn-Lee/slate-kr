@@ -6,6 +6,8 @@ import { parseISO, startOfWeek, format } from "date-fns";
 import { PriceChart } from "@/entities/chart/PriceChart";
 import {
   GRANULARITY_BUTTONS,
+  INTRADAY_INTERVAL_BUTTONS,
+  INTRADAY_INTERVAL_DEFAULT,
   SERIES_KIND_BUTTONS,
   TOOLBAR_BUTTON_CLS,
   TOOLBAR_GROUP_CLS,
@@ -15,7 +17,8 @@ import {
   type SeriesKind,
   type ViewMode,
 } from "@/entities/chart/chartToolbar";
-import { useIndexIntraday1m } from "@/features/index-quotes/useIndexIntraday1m";
+import { toIndexDisplayBars } from "@/entities/index/toIndexDisplayBars";
+import { useIndexIntraday } from "@/features/index-quotes/useIndexIntraday";
 import { useIndexQuotes } from "@/features/index-quotes/useIndexQuotes";
 import { useOverseasIndexIntraday } from "@/features/index-quotes/useOverseasIndexIntraday";
 import { useOverseasIndexQuotes } from "@/features/index-quotes/useOverseasIndexQuotes";
@@ -49,7 +52,7 @@ type IndexChartProps = {
   indexCode: IndexCode;
   prices: IndexDailySnapshot[]; // ASC
   interactive?: boolean;
-  // 해외 지수용 daily-only 모드. false 이면 useIndexQuotes/useIndexIntraday1m
+  // 해외 지수용 daily-only 모드. false 이면 useIndexQuotes/useIndexIntraday
   // 호출 없이 EOD 만 그린다. viewMode 토글 UI 도 숨긴다.
   intradayEnabled?: boolean;
 };
@@ -183,6 +186,9 @@ export const IndexChart = ({
 }: IndexChartProps) => {
   const [viewMode, setViewMode] = useState<ViewMode>("full");
   const [granularity, setGranularity] = useState<Granularity>("day");
+  const [intradayInterval, setIntradayInterval] = useState<number>(
+    INTRADAY_INTERVAL_DEFAULT,
+  );
   const [seriesKind, setSeriesKind] = useState<SeriesKind>("candle");
   const [barCount, setBarCount] = useState<number | null>(
     GRANULARITY_DEFAULT_BARS.day,
@@ -202,7 +208,7 @@ export const IndexChart = ({
   // React Query 가 queryKey 로 dedup 하므로 다른 컴포넌트와 네트워크 중복 없음.
   const isOverseasIntraday = isOverseasIntradayCode(indexCode);
   const isOverseasIndex = getIndexMeta(indexCode).region === "overseas";
-  const domesticIntradayQuery = useIndexIntraday1m();
+  const domesticIntradayQuery = useIndexIntraday();
   const overseasIntradayQuery = useOverseasIndexIntraday();
   const { data: quotesData } = useIndexQuotes();
   // 해외 지수 라이브 quote — 8종 전부. 헤더(IndexDetailPane)가 이미 소비 중이라
@@ -339,10 +345,19 @@ export const IndexChart = ({
     });
   }, [dayBars]);
 
+  // 국내 intraday: START 라벨 snapshots → 리샘플+END 라벨 (`toIndexDisplayBars`).
+  // 해외 intraday: 서버가 10분 리샘플로 이미 반환 → snapshot → ChartBar 직결.
+  const intradayDisplayBars = useMemo<ChartBar[]>(() => {
+    if (!renderIntraday || !intraday) return [];
+    return isOverseasIntraday
+      ? intradayToBars(intraday)
+      : toIndexDisplayBars(intraday, intradayInterval);
+  }, [renderIntraday, intraday, isOverseasIntraday, intradayInterval]);
+
   // isIntradayView 인데 데이터가 없으면 아래 failure/empty 블록이 PriceChart 를 대체하므로
   // 여기의 [] 는 실제로 렌더되지 않는다. day 로 silent fallback 하지 않는 것이 요점.
   const bars: ChartBar[] = renderIntraday
-    ? intradayToBars(intraday ?? [])
+    ? intradayDisplayBars
     : isIntradayView
       ? []
       : granularity === "week"
@@ -434,24 +449,43 @@ export const IndexChart = ({
             );
           })}
         </div>
-        <div className={TOOLBAR_GROUP_CLS} role="group" aria-label="차트 주기">
-          {GRANULARITY_BUTTONS.map(({ value, label: btnLabel }) => {
-            const active = granularity === value;
-            return (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={active}
-                aria-disabled={isIntradayView}
-                disabled={isIntradayView}
-                onClick={() => setGranularity(value)}
-                className={TOOLBAR_BUTTON_CLS(active, isIntradayView)}
-              >
-                {btnLabel}
-              </button>
-            );
-          })}
-        </div>
+        {isIntradayView && !isOverseasIntraday ? (
+          <div className={TOOLBAR_GROUP_CLS} role="group" aria-label="분봉 간격">
+            {INTRADAY_INTERVAL_BUTTONS.map((m) => {
+              const active = intradayInterval === m;
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => setIntradayInterval(m)}
+                  className={TOOLBAR_BUTTON_CLS(active)}
+                >
+                  {m}분
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className={TOOLBAR_GROUP_CLS} role="group" aria-label="차트 주기">
+            {GRANULARITY_BUTTONS.map(({ value, label: btnLabel }) => {
+              const active = granularity === value;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={active}
+                  aria-disabled={isIntradayView}
+                  disabled={isIntradayView}
+                  onClick={() => setGranularity(value)}
+                  className={TOOLBAR_BUTTON_CLS(active, isIntradayView)}
+                >
+                  {btnLabel}
+                </button>
+              );
+            })}
+          </div>
+        )}
         <input
           key={`bc-${barCount ?? "all"}-${inputRevertNonce}`}
           type="number"

@@ -1,11 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { mergeIntradayBars, toIntradaySnapshots } from "./indices";
-import {
-  INDEX_END_LABEL_BOUNDARIES,
-  foldPostCloseIndexBars,
-  kstToFakeUtcSec,
-} from "./kis-quote-fetch";
-import { toEndLabelBars } from "@/shared/utils/toEndLabelBars";
+import { foldPostCloseIndexBars, kstToFakeUtcSec } from "./kis-quote-fetch";
 import type { ChartBar } from "@/shared/types/quote";
 
 const mk = (time: number, close: number): ChartBar => ({
@@ -66,9 +61,9 @@ describe("mergeIntradayBars — live 우선 dedup", () => {
   });
 });
 
-// ── 국내 1분 파이프라인 ──
-// DB read + KIS live tail 병합 후 fold → END(60, ["153000"]) 파이프라인 순수 검증.
-describe("국내 1분 파이프라인 (merge → fold → END)", () => {
+// ── 서버 파이프라인 (merge → fold, START 라벨 유지) ──
+// getIndexIntradayPrices 는 END 라벨/리샘플 없이 fold 결과를 그대로 서빙한다.
+describe("국내 지수 서버 파이프라인 (merge → fold)", () => {
   const barSec = (hh: number, mm: number, ss: number = 0): number =>
     kstToFakeUtcSec("20260828", `${String(hh).padStart(2, "0")}${String(mm).padStart(2, "0")}${String(ss).padStart(2, "0")}`);
 
@@ -78,9 +73,7 @@ describe("국내 1분 파이프라인 (merge → fold → END)", () => {
     expect(dbLike).toBe(liveLike);
   });
 
-  it("KOSPI 08-28 tail (15:28~15:32) → END 15:30 단일 · close=6788.88 · vol=15:29+7547+0+31", () => {
-    // fixture — DB tail (15:28~15:32) 실측값. KOSPI 15:31/15:32 프린트 포함.
-    // 15:25~15:27 은 v=0 프리즈, tail 하한을 15:28 로 압축 (테스트 필수치만).
+  it("KOSPI 08-28 tail (15:28~15:32) → START 라벨 · 마지막 15:30 · close=6788.88 · vol 7578 · 15:31/32 부재", () => {
     const db: ChartBar[] = [
       { time: barSec(15, 28), open: 6807.9, high: 6807.9, low: 6807.9, close: 6807.9, volume: 0 },
       { time: barSec(15, 29), open: 6807.9, high: 6807.9, low: 6807.9, close: 6807.9, volume: 0 },
@@ -90,37 +83,24 @@ describe("국내 1분 파이프라인 (merge → fold → END)", () => {
     ];
     const merged = mergeIntradayBars(db, []);
     const folded = foldPostCloseIndexBars(merged);
-    const out = toEndLabelBars(folded, 60, INDEX_END_LABEL_BOUNDARIES);
-    // 예상: 15:28→15:29 END, 15:29→15:30 END(15:30 fold 봉과 병합), 15:30/31/32 fold→15:30 END.
-    // 결국 END-labeled 봉:
-    //   15:29 (raw 15:28 shifted +60)
-    //   15:30 (raw 15:29 shifted + raw 15:30/31/32 fold 통합)
-    expect(out).toHaveLength(2);
-    const end1529 = out.find((b) => b.time === barSec(15, 29));
-    expect(end1529).toBeDefined();
-    const end1530 = out.find((b) => b.time === barSec(15, 30));
-    expect(end1530).toBeDefined();
-    expect(end1530?.close).toBe(6788.88); // 15:32 프린트 = 공식 종가
-    expect(end1530?.volume).toBe(0 + 7547 + 0 + 31); // 15:29 (0) + 15:30/31/32 실값
-    // 15:31/15:32 END-labeled 봉은 존재하지 않아야 함.
-    expect(out.find((b) => b.time === barSec(15, 31))).toBeUndefined();
-    expect(out.find((b) => b.time === barSec(15, 32))).toBeUndefined();
+    expect(folded.map((b) => b.time)).toEqual([barSec(15, 28), barSec(15, 29), barSec(15, 30)]);
+    const last = folded[folded.length - 1];
+    expect(last.time).toBe(barSec(15, 30));
+    expect(last.open).toBe(6788.89);
+    expect(last.close).toBe(6788.88);
+    expect(last.volume).toBe(7547 + 0 + 31); // 7578
+    expect(folded.find((b) => b.time === barSec(15, 31))).toBeUndefined();
+    expect(folded.find((b) => b.time === barSec(15, 32))).toBeUndefined();
   });
 
-  it("KOSPI200 08-28 tail: 15:31+ 프린트 없음 → END 15:30 단일", () => {
+  it("KOSPI200 08-28 tail: 15:31+ 프린트 없음 → fold no-op (START 라벨 유지)", () => {
     const db: ChartBar[] = [
       { time: barSec(15, 29), open: 1069.4, high: 1069.4, low: 1069.4, close: 1069.4, volume: 0 },
       { time: barSec(15, 30), open: 1065.7, high: 1069.5, low: 1065.7, close: 1065.7, volume: 5348 },
     ];
     const merged = mergeIntradayBars(db, []);
     const folded = foldPostCloseIndexBars(merged);
-    const out = toEndLabelBars(folded, 60, INDEX_END_LABEL_BOUNDARIES);
-    // 15:29 → END 15:30 · 15:30 → END 15:30 (경계 clamp) → 병합.
-    const end1530 = out.find((b) => b.time === barSec(15, 30));
-    expect(end1530).toBeDefined();
-    expect(end1530?.close).toBe(1065.7);
-    expect(end1530?.volume).toBe(0 + 5348);
-    expect(out).toHaveLength(1);
+    expect(folded).toEqual(db);
   });
 
   it("toIntradaySnapshots: 해외 기본 → volume 0 강제 · 국내 useBarVolume=true → bar.volume 전달", () => {
@@ -131,7 +111,6 @@ describe("국내 1분 파이프라인 (merge → fold → END)", () => {
     expect(overseasOut[0].volume).toBe(0);
     const domesticOut = toIntradaySnapshots("KOSPI", bars, 6800, true);
     expect(domesticOut[0].volume).toBe(7547);
-    // volume 미정의 봉은 국내 경로에서도 0 로 안전.
     const noVol: ChartBar[] = [
       { time: barSec(15, 31), open: 1, high: 1, low: 1, close: 1 },
     ];

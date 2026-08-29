@@ -68,6 +68,13 @@ export type ChartPalette = (typeof CHART_THEME)[keyof typeof CHART_THEME];
 // intraday 잠금 뷰: 전일 마지막 세션 봉을 좌측에 흐리게 걸치는 여유. 3600s = 6개 10분봉.
 export const INTRADAY_PREV_LOOKBACK_SEC = 3600;
 
+// 지수 END 라벨 세션 경계 (HHMMSS ASC). 정규장 마감 15:30 단일 경계.
+// 종목(StockChartTabs) 은 프리·정규·애프터 3경계라 별도.
+export const INDEX_END_LABEL_BOUNDARIES: readonly string[] = ["153000"];
+
+// 홈·Rail mini 차트가 소비하는 인터벌(분). 값 1개 상수로 유지 — 미니 렌더 결정.
+export const INDEX_MINI_INTERVAL_MIN = 1;
+
 // 크로스헤어 시간 라벨 포맷터. intraday(timeVisible)= `MM-DD HH:mm` / EOD= `YYYY-MM-DD`.
 // timestamp 는 국내 KST · 해외 ET 벽시계를 UTC 로 위장한 epoch 초 → getUTC* 로 원본
 // 컴포넌트 복원 (로컬 TZ 변환 금지). 하단 tickMarkFormatter 는 별도 관리.

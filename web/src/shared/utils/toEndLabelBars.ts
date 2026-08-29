@@ -47,7 +47,7 @@ const nextBoundaryAtOrAfter = (
 
 // existing = 선행(먼저 삽입, 이른 raw time), incoming = 후행(늦은 raw time).
 // volume: 하나라도 존재하면 합산, 전부 undefined 면 undefined 유지 (결측 신호 보존).
-const mergeCollision = (
+export const mergeChartBars = (
   existing: ChartBar,
   incoming: ChartBar,
   time: number,
@@ -83,7 +83,7 @@ export const toEndLabelBars = (
     const existing = buckets.get(shifted);
     const relabeled: ChartBar = { ...bar, time: shifted };
     if (existing) {
-      buckets.set(shifted, mergeCollision(existing, relabeled, shifted));
+      buckets.set(shifted, mergeChartBars(existing, relabeled, shifted));
     } else {
       buckets.set(shifted, relabeled);
     }

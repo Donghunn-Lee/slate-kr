@@ -1,18 +1,26 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { StockPanel } from "@/entities/stock/StockPanel";
 import { PriceCountUp } from "@/entities/stock/PriceCountUp";
 import { PriceChange } from "@/shared/components/PriceChange";
 import { IndexMiniChart } from "@/entities/index/IndexMiniChart";
+import { toIndexDisplayBars } from "@/entities/index/toIndexDisplayBars";
 import type {
+  ChartBar,
   IndexDailySnapshot,
   IndexIntradaySnapshot,
   PriceSign,
 } from "@/shared/types/quote";
-import { INDEX_LABEL, type OverseasIndexCode } from "@/shared/constants/indices";
+import {
+  DOMESTIC_INDEX_CODES,
+  INDEX_LABEL,
+  type DomesticIndexCode,
+  type OverseasIndexCode,
+} from "@/shared/constants/indices";
+import { INDEX_MINI_INTERVAL_MIN } from "@/shared/constants/chart";
 import { useNow } from "@/shared/hooks/useNow";
 import { getKrxLastCloseDate } from "@/shared/utils/market";
 import { cn } from "@/lib/utils";
@@ -47,12 +55,13 @@ type IndexSlateProps = {
 type IndexCellProps = {
   label: string;
   cell: IndexCellData;
-  bars: IndexIntradaySnapshot[];
+  bars: ChartBar[];
+  prevClose: number | null;
   intradayFailed: boolean;
   intradayLoading: boolean;
 };
 
-const IndexCell = ({ label, cell, bars, intradayFailed, intradayLoading }: IndexCellProps) => (
+const IndexCell = ({ label, cell, bars, prevClose, intradayFailed, intradayLoading }: IndexCellProps) => (
   <div className="flex flex-col gap-2 px-4 py-3 md:gap-3 md:px-6 md:py-4">
     <div>
       <div className="text-body font-bold text-muted-foreground">{label}</div>
@@ -103,7 +112,7 @@ const IndexCell = ({ label, cell, bars, intradayFailed, intradayLoading }: Index
         </div>
       )}
     </div>
-    <IndexMiniChart bars={bars} failed={intradayFailed} isLoading={intradayLoading} />
+    <IndexMiniChart bars={bars} prevClose={prevClose} failed={intradayFailed} isLoading={intradayLoading} />
   </div>
 );
 
@@ -177,11 +186,36 @@ const MarketStatus = ({
   );
 };
 
-const EMPTY_BARS: IndexIntradaySnapshot[] = [];
+const EMPTY_BARS: ChartBar[] = [];
+
+type DomesticDisplay = { bars: ChartBar[]; prevClose: number | null };
+
+// snapshot 첫 봉의 `close - change` 로 prevClose 를 유도. 리샘플 후엔 close 가
+// 버킷 마지막 값으로 바뀌므로 반드시 raw snapshot 에서 뽑는다.
+const derivePrevClose = (
+  snapshots: IndexIntradaySnapshot[] | undefined,
+): number | null => {
+  if (!snapshots || snapshots.length === 0) return null;
+  const first = snapshots[0];
+  const pc = first.close - first.change;
+  return pc > 0 ? pc : null;
+};
 
 export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
   const { data, isLoading, isError } = useIndexQuotes();
   const { data: intraday, isLoading: intradayLoading } = useIndexIntraday();
+
+  const displayByCode = useMemo<Record<DomesticIndexCode, DomesticDisplay>>(() => {
+    const out = {} as Record<DomesticIndexCode, DomesticDisplay>;
+    for (const code of DOMESTIC_INDEX_CODES) {
+      const snaps = intraday?.quotes[code];
+      out[code] = {
+        bars: snaps ? toIndexDisplayBars(snaps, INDEX_MINI_INTERVAL_MIN) : EMPTY_BARS,
+        prevClose: derivePrevClose(snaps),
+      };
+    }
+    return out;
+  }, [intraday]);
 
   return (
     <section>
@@ -222,14 +256,16 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                   <IndexCell
                     label={INDEX_LABEL.KOSPI}
                     cell={data.quotes.KOSPI}
-                    bars={intraday?.quotes.KOSPI ?? EMPTY_BARS}
+                    bars={displayByCode.KOSPI.bars}
+                    prevClose={displayByCode.KOSPI.prevClose}
                     intradayFailed={intraday?.failed.KOSPI ?? false}
                     intradayLoading={intradayLoading}
                   />
                   <MiniIndexCell
                     label={INDEX_LABEL.KOSPI200}
                     cell={data.quotes.KOSPI200}
-                    bars={intraday?.quotes.KOSPI200 ?? EMPTY_BARS}
+                    bars={displayByCode.KOSPI200.bars}
+                    prevClose={displayByCode.KOSPI200.prevClose}
                     intradayFailed={intraday?.failed.KOSPI200 ?? false}
                     formatPrice={formatKrw}
                     renderLiveValue={renderDomesticLive}
@@ -240,14 +276,16 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                   <IndexCell
                     label={INDEX_LABEL.KOSDAQ}
                     cell={data.quotes.KOSDAQ}
-                    bars={intraday?.quotes.KOSDAQ ?? EMPTY_BARS}
+                    bars={displayByCode.KOSDAQ.bars}
+                    prevClose={displayByCode.KOSDAQ.prevClose}
                     intradayFailed={intraday?.failed.KOSDAQ ?? false}
                     intradayLoading={intradayLoading}
                   />
                   <MiniIndexCell
                     label={INDEX_LABEL.KOSDAQ150}
                     cell={data.quotes.KOSDAQ150}
-                    bars={intraday?.quotes.KOSDAQ150 ?? EMPTY_BARS}
+                    bars={displayByCode.KOSDAQ150.bars}
+                    prevClose={displayByCode.KOSDAQ150.prevClose}
                     intradayFailed={intraday?.failed.KOSDAQ150 ?? false}
                     formatPrice={formatKrw}
                     renderLiveValue={renderDomesticLive}
@@ -273,14 +311,16 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                 <IndexCell
                   label={INDEX_LABEL.KOSPI}
                   cell={data.quotes.KOSPI}
-                  bars={intraday?.quotes.KOSPI ?? EMPTY_BARS}
+                  bars={displayByCode.KOSPI.bars}
+                  prevClose={displayByCode.KOSPI.prevClose}
                   intradayFailed={intraday?.failed.KOSPI ?? false}
                   intradayLoading={intradayLoading}
                 />
                 <IndexCell
                   label={INDEX_LABEL.KOSDAQ}
                   cell={data.quotes.KOSDAQ}
-                  bars={intraday?.quotes.KOSDAQ ?? EMPTY_BARS}
+                  bars={displayByCode.KOSDAQ.bars}
+                  prevClose={displayByCode.KOSDAQ.prevClose}
                   intradayFailed={intraday?.failed.KOSDAQ ?? false}
                   intradayLoading={intradayLoading}
                 />
@@ -289,7 +329,8 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                 <MiniIndexCell
                   label={INDEX_LABEL.KOSPI200}
                   cell={data.quotes.KOSPI200}
-                  bars={intraday?.quotes.KOSPI200 ?? EMPTY_BARS}
+                  bars={displayByCode.KOSPI200.bars}
+                  prevClose={displayByCode.KOSPI200.prevClose}
                   intradayFailed={intraday?.failed.KOSPI200 ?? false}
                   formatPrice={formatKrw}
                   renderLiveValue={renderDomesticLive}
@@ -298,7 +339,8 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                 <MiniIndexCell
                   label={INDEX_LABEL.KOSDAQ150}
                   cell={data.quotes.KOSDAQ150}
-                  bars={intraday?.quotes.KOSDAQ150 ?? EMPTY_BARS}
+                  bars={displayByCode.KOSDAQ150.bars}
+                  prevClose={displayByCode.KOSDAQ150.prevClose}
                   intradayFailed={intraday?.failed.KOSDAQ150 ?? false}
                   formatPrice={formatKrw}
                   renderLiveValue={renderDomesticLive}

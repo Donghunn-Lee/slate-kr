@@ -10,10 +10,13 @@ import {
   type AutoscaleInfo,
   type UTCTimestamp,
 } from "lightweight-charts";
-import type { IndexIntradaySnapshot } from "@/shared/types/quote";
+import type { ChartBar } from "@/shared/types/quote";
 
 type IndexSparklineProps = {
-  bars: IndexIntradaySnapshot[];
+  bars: ChartBar[];
+  // 전일 종가 (부모가 snapshot 첫 봉의 close - change 로 유도).
+  // null 이면 무채색 AreaSeries fallback (신규 지수 등 직전 세션 row 부재).
+  prevClose: number | null;
   // useIndexIntraday failed[cellKey] 파생 — 실패면 빈 슬롯으로 두어 텍스트 블록 무영향.
   failed?: boolean;
 };
@@ -46,22 +49,26 @@ const PREV_CLOSE_LINE_DARK = "rgba(255,255,255,0.28)";
 // 스파크라인 wrapper)의 md:min-h-[60px] 로 이 값을 재확인.
 const BASE_HEIGHT_CLS = "h-[60px] md:h-full";
 
-// timestamp 는 벽시계(국내 KST · 해외 ET)를 UTC 로 위장한 epoch 초 → getUTC* 로
+// time 은 벽시계(국내 KST · 해외 ET)를 UTC 로 위장한 epoch 초 → getUTC* 로
 // 원본 시간대 컴포넌트를 복원한다. 아래 세션 필터도 자연스레 해당 캘린더 기준으로 동작.
-const kstDateKey = (ts: number): string => {
-  const d = new Date(ts * 1000);
+const kstDateKey = (t: number): string => {
+  const d = new Date(t * 1000);
   return `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
 };
 
-export const IndexSparkline = ({ bars, failed = false }: IndexSparklineProps) => {
+export const IndexSparkline = ({ bars, prevClose, failed = false }: IndexSparklineProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { resolvedTheme } = useTheme();
 
   // 마지막 봉의 KST 캘린더 날짜와 같은 세션만 유지 — 전일 데이터 섞임 방지.
   const sessionBars = useMemo(() => {
     if (bars.length === 0) return bars;
-    const lastKey = kstDateKey(bars[bars.length - 1].timestamp);
-    return bars.filter((b) => kstDateKey(b.timestamp) === lastKey);
+    const last = bars[bars.length - 1].time;
+    if (typeof last !== "number") return bars;
+    const lastKey = kstDateKey(last);
+    return bars.filter(
+      (b) => typeof b.time === "number" && kstDateKey(b.time) === lastKey,
+    );
   }, [bars]);
 
   useEffect(() => {
@@ -70,12 +77,10 @@ export const IndexSparkline = ({ bars, failed = false }: IndexSparklineProps) =>
 
     const palette = resolvedTheme === "dark" ? DARK : LIGHT;
 
-    // 전일종가 = close - change (같은 세션 봉에서 상수). autoscaleInfoProvider 에서
-    // series priceRange 로 clamp 하지 않고 prevClose 도 포함시켜, price line 이
+    // autoscaleInfoProvider 에서 prevClose 도 포함시켜 price line 이
     // [min close, max close] 밖으로 벗어난 경우에도 잘리지 않게 한다.
-    const first = sessionBars[0];
-    const prevClose = first.close - first.change;
-    const hasPrevClose = prevClose > 0;
+    const pc = prevClose ?? 0;
+    const hasPrevClose = pc > 0;
 
     const chart = createChart(containerRef.current, {
       autoSize: true,
@@ -100,7 +105,7 @@ export const IndexSparkline = ({ bars, failed = false }: IndexSparklineProps) =>
     // (신규 지수 등 직전 세션 row 부재) 시 AreaSeries 무채색 fallback — PriceChart 동일 패턴.
     const series = hasPrevClose
       ? chart.addSeries(BaselineSeries, {
-          baseValue: { type: "price", price: prevClose },
+          baseValue: { type: "price", price: pc },
           topLineColor: palette.up.line,
           bottomLineColor: palette.down.line,
           topFillColor1: palette.up.fill1,
@@ -119,8 +124,8 @@ export const IndexSparkline = ({ bars, failed = false }: IndexSparklineProps) =>
             return {
               ...info,
               priceRange: {
-                minValue: Math.min(info.priceRange.minValue, prevClose),
-                maxValue: Math.max(info.priceRange.maxValue, prevClose),
+                minValue: Math.min(info.priceRange.minValue, pc),
+                maxValue: Math.max(info.priceRange.maxValue, pc),
               },
             };
           },
@@ -136,16 +141,18 @@ export const IndexSparkline = ({ bars, failed = false }: IndexSparklineProps) =>
         });
 
     series.setData(
-      sessionBars.map((b) => ({
-        time: b.timestamp as UTCTimestamp,
-        value: b.close,
-      })),
+      sessionBars
+        .filter((b): b is ChartBar & { time: number } => typeof b.time === "number")
+        .map((b) => ({
+          time: b.time as UTCTimestamp,
+          value: b.close,
+        })),
     );
 
     // 큰 차트 스타일 준용 — 대시 라인, 얇게, 축 라벨 없이 순수 시각 기준선.
     if (hasPrevClose) {
       series.createPriceLine({
-        price: prevClose,
+        price: pc,
         color:
           resolvedTheme === "dark" ? PREV_CLOSE_LINE_DARK : PREV_CLOSE_LINE_LIGHT,
         lineStyle: LineStyle.Dashed,
@@ -177,7 +184,7 @@ export const IndexSparkline = ({ bars, failed = false }: IndexSparklineProps) =>
       if (rafId) cancelAnimationFrame(rafId);
       chart.remove();
     };
-  }, [sessionBars, resolvedTheme]);
+  }, [sessionBars, prevClose, resolvedTheme]);
 
   // 실패·데이터 없음 → 슬롯만 비워둠(레이아웃 유지, 텍스트 블록 무영향).
   if (failed || sessionBars.length === 0) {

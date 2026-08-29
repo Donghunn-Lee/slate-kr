@@ -12,10 +12,13 @@ import {
 } from "lightweight-charts";
 import { crosshairLocalization } from "@/shared/constants/chart";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
-import type { IndexIntradaySnapshot } from "@/shared/types/quote";
+import type { ChartBar } from "@/shared/types/quote";
 
 type IndexMiniChartProps = {
-  bars: IndexIntradaySnapshot[];
+  bars: ChartBar[];
+  // 전일 종가 (Slate/Rail 에서 snapshot 첫 봉의 close - change 로 유도).
+  // null 이면 무채색 fallback (신규 지수 등 직전 세션 row 부재).
+  prevClose: number | null;
   // useIndexIntraday failed[cellKey] 파생 — bars 는 실패/preopen 모두 [] 이므로 구분 신호 필수.
   failed: boolean;
   // 부모 useIndexIntraday 첫 응답 도착 전 구간. quote 훅이 먼저 도착해도
@@ -62,13 +65,13 @@ const HEIGHT_PX_DESKTOP = 140;
 const HEIGHT_PX_MOBILE = 95;
 const FONT_SIZE_MOBILE = 10;
 
-// timestamp는 KST를 UTC로 위장한 epoch 초이므로 getUTC* 가 원래 KST 컴포넌트를 돌려준다.
-const kstDateKey = (ts: number): string => {
-  const d = new Date(ts * 1000);
+// time 은 KST를 UTC로 위장한 epoch 초이므로 getUTC* 가 원래 KST 컴포넌트를 돌려준다.
+const kstDateKey = (t: number): string => {
+  const d = new Date(t * 1000);
   return `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
 };
 
-export const IndexMiniChart = ({ bars, failed, isLoading }: IndexMiniChartProps) => {
+export const IndexMiniChart = ({ bars, prevClose, failed, isLoading }: IndexMiniChartProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { resolvedTheme } = useTheme();
   const isMobile = useIsMobile();
@@ -78,8 +81,12 @@ export const IndexMiniChart = ({ bars, failed, isLoading }: IndexMiniChartProps)
   // 날짜로 잘라낸다 — 장중엔 오늘, 장 마감 후엔 가장 최근 영업일 세션이 잡힌다.
   const sessionBars = useMemo(() => {
     if (bars.length === 0) return bars;
-    const lastKey = kstDateKey(bars[bars.length - 1].timestamp);
-    return bars.filter((b) => kstDateKey(b.timestamp) === lastKey);
+    const last = bars[bars.length - 1].time;
+    if (typeof last !== "number") return bars;
+    const lastKey = kstDateKey(last);
+    return bars.filter(
+      (b) => typeof b.time === "number" && kstDateKey(b.time) === lastKey,
+    );
   }, [bars]);
 
   useEffect(() => {
@@ -88,10 +95,8 @@ export const IndexMiniChart = ({ bars, failed, isLoading }: IndexMiniChartProps)
 
     const palette = resolvedTheme === "dark" ? DARK : LIGHT;
 
-    // 전일종가 = close - change (같은 세션 봉에서 상수). IndexSparkline 과 동일 파생.
-    const first = sessionBars[0];
-    const prevClose = first.close - first.change;
-    const hasPrevClose = prevClose > 0;
+    const pc = prevClose ?? 0;
+    const hasPrevClose = pc > 0;
 
     const chart = createChart(containerRef.current, {
       autoSize: true,
@@ -132,7 +137,7 @@ export const IndexMiniChart = ({ bars, failed, isLoading }: IndexMiniChartProps)
     // 무채색 fallback — IndexSparkline · PriceChart 동일 패턴.
     const series = hasPrevClose
       ? chart.addSeries(BaselineSeries, {
-          baseValue: { type: "price", price: prevClose },
+          baseValue: { type: "price", price: pc },
           topLineColor: palette.up.line,
           bottomLineColor: palette.down.line,
           topFillColor1: palette.up.fill1,
@@ -149,8 +154,8 @@ export const IndexMiniChart = ({ bars, failed, isLoading }: IndexMiniChartProps)
             return {
               ...info,
               priceRange: {
-                minValue: Math.min(info.priceRange.minValue, prevClose),
-                maxValue: Math.max(info.priceRange.maxValue, prevClose),
+                minValue: Math.min(info.priceRange.minValue, pc),
+                maxValue: Math.max(info.priceRange.maxValue, pc),
               },
             };
           },
@@ -164,16 +169,18 @@ export const IndexMiniChart = ({ bars, failed, isLoading }: IndexMiniChartProps)
         });
 
     series.setData(
-      sessionBars.map((b) => ({
-        time: b.timestamp as UTCTimestamp,
-        value: b.close,
-      })),
+      sessionBars
+        .filter((b): b is ChartBar & { time: number } => typeof b.time === "number")
+        .map((b) => ({
+          time: b.time as UTCTimestamp,
+          value: b.close,
+        })),
     );
 
     // 전일종가 dashed line — IndexSparkline 과 동일 스타일. 축 라벨 없이 순수 시각 기준선.
     if (hasPrevClose) {
       series.createPriceLine({
-        price: prevClose,
+        price: pc,
         color:
           resolvedTheme === "dark" ? PREV_CLOSE_LINE_DARK : PREV_CLOSE_LINE_LIGHT,
         lineStyle: LineStyle.Dashed,
@@ -205,7 +212,7 @@ export const IndexMiniChart = ({ bars, failed, isLoading }: IndexMiniChartProps)
       if (rafId) cancelAnimationFrame(rafId);
       chart.remove();
     };
-  }, [sessionBars, resolvedTheme, isMobile]);
+  }, [sessionBars, prevClose, resolvedTheme, isMobile]);
 
   if (isLoading && bars.length === 0) {
     return (

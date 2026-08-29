@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import {
-  INDEX_END_LABEL_BOUNDARIES,
   foldPostCloseIndexBars,
   getClosedFallbackAnchors,
   getClosedFallbackMarketDiv,
@@ -10,7 +9,6 @@ import {
   parseIndexMinuteRows,
   toKisDate,
 } from "./kis-quote-fetch";
-import { toEndLabelBars } from "@/shared/utils/toEndLabelBars";
 import type { ChartBar } from "@/shared/types/quote";
 
 // ── 순수 selectors ────────────────────────────────────────────
@@ -295,29 +293,28 @@ describe("foldPostCloseIndexBars", () => {
     expect(foldPostCloseIndexBars([])).toEqual([]);
   });
 
-  it("15:30 이하 봉은 무변경 · 15:30 초과 봉은 그 날짜 15:30 로 재라벨", () => {
+  it("15:30 이하 봉은 무변경 · 15:30 초과 봉은 그 날짜 15:30 봉에 흡수 병합", () => {
     const bars: ChartBar[] = [
       { time: barSec(15, 29), open: 1, high: 1, low: 1, close: 1, volume: 10 },
-      { time: barSec(15, 30), open: 2, high: 2, low: 2, close: 2, volume: 20 },
+      { time: barSec(15, 30), open: 2, high: 3, low: 2, close: 2, volume: 20 },
       { time: barSec(15, 31), open: 3, high: 3, low: 3, close: 3, volume: 30 },
-      { time: barSec(15, 32), open: 4, high: 4, low: 4, close: 4, volume: 40 },
+      { time: barSec(15, 32), open: 4, high: 5, low: 4, close: 4, volume: 40 },
     ];
     const out = foldPostCloseIndexBars(bars);
-    expect(out.map((b) => b.time)).toEqual([
-      barSec(15, 29),
-      barSec(15, 30),
-      barSec(15, 30),
-      barSec(15, 30),
-    ]);
-    // volume/OHLC 는 재라벨만 · 값 유지
-    expect(out.map((b) => b.volume)).toEqual([10, 20, 30, 40]);
-    expect(out.map((b) => b.close)).toEqual([1, 2, 3, 4]);
+    // 15:29 무변경 + 15:30/31/32 병합 → 2봉
+    expect(out.map((b) => b.time)).toEqual([barSec(15, 29), barSec(15, 30)]);
+    expect(out[0]).toEqual({ time: barSec(15, 29), open: 1, high: 1, low: 1, close: 1, volume: 10 });
+    // 병합 규칙: open=선행(15:30) · close=후행(15:32) · H/L 극값 · vol 합
+    expect(out[1].open).toBe(2);
+    expect(out[1].close).toBe(4);
+    expect(out[1].high).toBe(5);
+    expect(out[1].low).toBe(2);
+    expect(out[1].volume).toBe(20 + 30 + 40);
   });
 
-  it("KOSPI 실측 패턴: 15:30/15:31/15:32 접기 후 toEndLabelBars → 단일 END 15:30, close=15:32, vol=세 행 합", () => {
+  it("KOSPI 실측 패턴: fold 결과 15:30 봉 하나에 15:30/31/32 병합 · close=6788.88 · vol=7578", () => {
     // KIS KOSPI 발행 패턴:
-    //   152500~152900: v=0 프리즈 (close=마감 auction 직전 값)
-    //   153000: 마감 단일가 실체결
+    //   153000: 마감 단일가 실체결 (vol 큼)
     //   153100: v=0 · close 미변동
     //   153200: 확정 재계산 프린트 (공식 종가, vol 소량)
     const raw: ChartBar[] = [
@@ -327,12 +324,12 @@ describe("foldPostCloseIndexBars", () => {
       { time: barSec(15, 32), open: 6788.88, high: 6788.88, low: 6788.88, close: 6788.88, volume: 31 },
     ];
     const folded = foldPostCloseIndexBars(raw);
-    // 10분봉 END 라벨 파이프라인 상응 (지수 서빙 경로).
-    const endLabeled = toEndLabelBars(folded, 600, ["153000"]);
-    const end1530 = endLabeled.find((b) => b.time === barSec(15, 30));
-    expect(end1530).toBeDefined();
-    expect(end1530?.close).toBe(6788.88); // 15:32 프린트 = 공식 종가
-    expect(end1530?.volume).toBe(7547 + 0 + 31);
+    expect(folded).toHaveLength(2);
+    expect(folded[0].time).toBe(barSec(15, 25));
+    expect(folded[1].time).toBe(barSec(15, 30));
+    expect(folded[1].open).toBe(6788.89);
+    expect(folded[1].close).toBe(6788.88);
+    expect(folded[1].volume).toBe(7547 + 0 + 31); // 7578
   });
 
   it("KOSPI200 발행 패턴: 15:31+ 프린트 없음 → no-op", () => {
@@ -364,34 +361,6 @@ describe("foldPostCloseIndexBars", () => {
     ];
     const out = foldPostCloseIndexBars(bars);
     expect(out).toEqual(bars);
-  });
-});
-
-// ── 지수 10분 파이프라인 출력 형상 (raw → fold → END) ──
-// 순수 단위 파이프라인만 검증 — fetch 자체는 별도.
-describe("index intraday 10분 파이프라인 (raw → fold → END)", () => {
-  const barSec = (hh: number, mm: number, ss: number = 0): number =>
-    Math.floor(Date.UTC(2026, 7, 28, hh, mm, ss) / 1000);
-
-  it("KOSPI 08-28 tail: fold → toEndLabelBars(600,153000) → 단일 15:30 · close=15:32 · vol 합", () => {
-    // parseIndexMinuteRows 후 indexBarsToChartBars 결과와 동형인 raw ChartBar[].
-    const raw: ChartBar[] = [
-      { time: barSec(15, 29), open: 6807.9, high: 6807.9, low: 6807.9, close: 6807.9, volume: 0 },
-      { time: barSec(15, 30), open: 6788.89, high: 6788.89, low: 6788.89, close: 6788.89, volume: 7547 },
-      { time: barSec(15, 31), open: 6788.89, high: 6788.89, low: 6788.89, close: 6788.89, volume: 0 },
-      { time: barSec(15, 32), open: 6788.88, high: 6788.88, low: 6788.88, close: 6788.88, volume: 31 },
-    ];
-    const out = toEndLabelBars(
-      foldPostCloseIndexBars(raw),
-      600,
-      INDEX_END_LABEL_BOUNDARIES,
-    );
-    // END 라벨: 15:29 → 15:30 (start=15:29 + 10분 = 15:39, 경계 clamp → 15:30). 15:30/31/32 fold → 15:30.
-    // 15:29 (single bar shifted to 15:30) 와 15:30 fold bar 가 END 15:30 에서 병합.
-    const end1530 = out.find((b) => b.time === barSec(15, 30));
-    expect(end1530).toBeDefined();
-    expect(end1530?.close).toBe(6788.88);
-    expect(end1530?.volume).toBe(0 + 7547 + 0 + 31);
   });
 });
 
