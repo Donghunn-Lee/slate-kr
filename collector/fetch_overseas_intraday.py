@@ -5,25 +5,32 @@ KIS 해외지수 1분봉 → overseas_index_intraday idempotent upsert.
 을 read-only 로 사용한다(토큰 발급 책임은 issue_kis_token.py 의 12h cron).
 토큰이 만료된 상태면 이번 실행은 로그 남기고 exit 0 — 다음 cron 이 재시도.
 
-대상 지수 (US 3종)
-  SPX      S&P 500
-  COMP     NASDAQ Composite
-  NDX      NASDAQ 100
+대상 지수 (7종)
+  SPX      S&P 500                (ISCD SPX)
+  COMP     NASDAQ Composite       (ISCD COMP)
+  NDX      NASDAQ 100             (ISCD NDX)
+  NI225    Nikkei 225             (ISCD JP#NI225)
+  HSI      Hang Seng              (ISCD HK#HS)
+  SHCOMP   Shanghai Composite     (ISCD SHANG)
+  DAX      DAX 30                 (ISCD GR#DAX)
   (.DJI 는 intraday API 가 rt_cd=0 + 빈 배열을 돌려주므로 대상에서 제외)
 
 호출
   GET /uapi/overseas-price/v1/quotations/inquire-time-indexchartprice
   tr_id=FHKST03030200 · FID_HOUR_CLS_CODE=0 · FID_PW_DATA_INCU_YN=Y
-  FID_INPUT_HOUR_1 은 무시되는 파라미터이므로 전달하지 않음 (probe 확정).
+  FID_INPUT_HOUR_1 · 날짜 파라미터는 이 TR 이 무시함 (probe 실측 — US·아시아·DAX
+  전 대상 정합). 콜당 output2 = 102 행 고정.
 
 output2 매핑
-  stck_bsop_date(YYYYMMDD) + stck_cntg_hour(HHMMSS) → ts (ET 로컬 naive)
+  stck_bsop_date(YYYYMMDD) + stck_cntg_hour(HHMMSS) → ts (거래소 로컬 naive)
   optn_oprc / optn_hgpr / optn_lwpr / optn_prpr → open/high/low/close
   cntg_vol 은 지수 분봉에서 항상 0 이므로 저장하지 않음.
+  마커행(999999/888888) 은 skip — 장중 응답에서만 관측되므로 방어적 필터.
 
 retention
-  적재 후 (오늘 ET - 7 일) 이전 봉 삭제. ET 는 UTC-5h(EST) 근사로 계산.
-  경계 정밀도는 불필요 — DST 편차는 하루치 봉이 스치는 정도라 무해.
+  적재 후 (오늘 UTC - 7 일) 이전 봉 삭제. ts 는 거래소 로컬 wall-clock naive 로
+  저장되어 지수별 오프셋이 상이 (UTC-5~+9). UTC 기준 cutoff 는 지수별 최대 ±14h
+  편차를 가질 수 있으나 7일 보존에서 무해 — 경계에서 하루치가 스치는 수준.
 
 규약은 fetch_overseas_indices.py 와 정합: psycopg2 / load_dotenv /
 logs/{prefix}_{YYYYMMDD}.log / ON CONFLICT DO UPDATE / per-code 에러 격리.
@@ -51,10 +58,23 @@ API_URL = "/uapi/overseas-price/v1/quotations/inquire-time-indexchartprice"
 TR_ID = "FHKST03030200"
 CALL_GAP_SEC = 0.5
 RETENTION_DAYS = 7
-# ET 근사 오프셋(EST=UTC-5). retention 경계는 정밀할 필요 없음.
-ET_OFFSET_HOURS = 5
 
-OVERSEAS_CODES = ("SPX", "COMP", "NDX")
+# 도메인 index_code → KIS iscd. fetch_overseas_indices.py 및
+# web/src/lib/kis-overseas-quote-fetch.ts 의 DOMAIN_TO_ISCD 와 정합
+# (일봉 collector 는 8종, 여기는 intraday 7종 — .DJI 는 rt_cd=0 + 빈 배열).
+# 임포트 대신 사본 유지: fetch_overseas_indices 는 module-load 시점에
+# logging.basicConfig + logs/overseas_indices_*.log 를 생성해, 임포트하면
+# 우리 로그가 그쪽 핸들러로 뒤바뀐다 (root logger first-win 규약).
+DOMAIN_TO_ISCD: dict[str, str] = {
+    "SPX":    "SPX",
+    "COMP":   "COMP",
+    "NDX":    "NDX",
+    "NI225":  "JP#NI225",
+    "HSI":    "HK#HS",
+    "SHCOMP": "SHANG",
+    "DAX":    "GR#DAX",
+}
+OVERSEAS_CODES = tuple(DOMAIN_TO_ISCD.keys())
 
 # 마커행 방어 — 국내 필터와 동일하게 999999/888888 시각은 skip.
 MARKER_HOURS = {"999999", "888888"}
@@ -178,10 +198,11 @@ def upsert_bars(conn, cursor, index_code: str, bars: list) -> int:
 
 
 def prune_old(conn, cursor) -> int:
-    """(오늘 ET - RETENTION_DAYS) 이전 봉 삭제. 반환: 삭제 행 수."""
+    """(오늘 UTC - RETENTION_DAYS) 이전 봉 삭제. 반환: 삭제 행 수.
+    ts 는 거래소 로컬 wall-clock naive — UTC cutoff 는 지수별 ±14h 편차를
+    무해하게 흡수 (7일 보존 창에서 하루치가 스치는 정도)."""
     cutoff_date = (
-        datetime.now(timezone.utc)
-        - timedelta(hours=ET_OFFSET_HOURS, days=RETENTION_DAYS)
+        datetime.now(timezone.utc) - timedelta(days=RETENTION_DAYS)
     ).date()
     try:
         cursor.execute(
@@ -207,8 +228,9 @@ def run():
 
         total_recv = total_ins = total_skip = 0
         for code in OVERSEAS_CODES:
+            iscd = DOMAIN_TO_ISCD[code]
             try:
-                raw_bars = kis_intraday_call(token, code)
+                raw_bars = kis_intraday_call(token, iscd)
                 if raw_bars is None:
                     logger.warning("[%s] 호출 실패 — 다음 코드로", code)
                     continue
