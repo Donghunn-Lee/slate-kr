@@ -3,12 +3,11 @@ import { NextResponse } from "next/server";
 
 import { getOverseasIndexIntradayPrices } from "@/lib/indices";
 import {
-  getUsSessionState,
-  getUsTradingDate,
-  isUsMarketOpen,
-  type UsSession,
+  getOverseasIndexSessionState,
+  getOverseasIndexTradingDate,
+  type OverseasIndexSessionState,
 } from "@/shared/utils/market";
-import { usOverseasIntradayRevalidate } from "@/lib/sessionCache";
+import { overseasIntradayRevalidate } from "@/lib/sessionCache";
 import {
   OVERSEAS_INTRADAY_CODES,
   type OverseasIntradayCode,
@@ -17,24 +16,26 @@ import type { IndexIntradaySnapshot } from "@/shared/types/quote";
 
 export const dynamic = "force-dynamic";
 
-// 코드 × usSession × etDate 별 캐시. session·tradingDate 를 key 축에 두어
-// ET 세션 경계에서 자동 miss. 정규장 120s / closed 3600s.
-// 국내 60s 보다 완만한 이유: 라이브 자체가 ~15분 지연 피드라 짧은 revalidate 이득 없음.
+// 코드 × 거래소세션 × 거래일 별 캐시. session·tradingDate 를 지수별 축(거래소 TZ)
+// 으로 산출해 각 시장 경계에서 자동 miss. 정규장 120s / closed 3600s.
+// US 3종·아시아 3종·DAX 동일 경로 — `OVERSEAS_INTRADAY_CODES` 화이트리스트에서 파생.
 type OverseasFetcher = () => Promise<IndexIntradaySnapshot[] | null>;
 const fetchers = new Map<string, OverseasFetcher>();
 
 const cacheKeyOf = (
   code: OverseasIntradayCode,
-  session: UsSession,
+  session: OverseasIndexSessionState,
   tradingDate: string,
 ): string => `${code}::${session}::${tradingDate}`;
 
-const cacheTagOf = (code: OverseasIntradayCode, session: UsSession): string =>
-  `overseas-index-intraday-${code.toLowerCase()}-${session}`;
+const cacheTagOf = (
+  code: OverseasIntradayCode,
+  session: OverseasIndexSessionState,
+): string => `overseas-index-intraday-${code.toLowerCase()}-${session}`;
 
 const getCachedFetcher = (
   code: OverseasIntradayCode,
-  session: UsSession,
+  session: OverseasIndexSessionState,
   tradingDate: string,
 ): OverseasFetcher => {
   const key = cacheKeyOf(code, session, tradingDate);
@@ -44,7 +45,7 @@ const getCachedFetcher = (
     () => getOverseasIndexIntradayPrices(code),
     ["overseas-index-intraday", code, session, tradingDate],
     {
-      revalidate: usOverseasIntradayRevalidate(session),
+      revalidate: overseasIntradayRevalidate(session),
       tags: [cacheTagOf(code, session)],
     },
   );
@@ -59,7 +60,7 @@ type OverseasResolveResult = {
 
 const resolve = (
   code: OverseasIntradayCode,
-  session: UsSession,
+  session: OverseasIndexSessionState,
   r: PromiseSettledResult<IndexIntradaySnapshot[] | null>,
 ): OverseasResolveResult => {
   if (r.status !== "fulfilled" || r.value === null) {
@@ -82,18 +83,23 @@ const allFailed = (): Record<OverseasIntradayCode, boolean> =>
   >;
 
 export const GET = async () => {
-  const session = getUsSessionState();
-  const tradingDate = getUsTradingDate();
-  const marketOpen = isUsMarketOpen();
+  // 코드별 세션·거래일 산출. marketOpen 은 7종 중 하나라도 regular 면 true —
+  // 훅 폴링 게이트가 단일 boolean 이므로 aggregate 유지.
+  const perCode = OVERSEAS_INTRADAY_CODES.map((code) => ({
+    code,
+    session: getOverseasIndexSessionState(code),
+    tradingDate: getOverseasIndexTradingDate(code),
+  }));
+  const marketOpen = perCode.some((p) => p.session === "regular");
 
   try {
     const results = await Promise.allSettled(
-      OVERSEAS_INTRADAY_CODES.map((code) =>
+      perCode.map(({ code, session, tradingDate }) =>
         getCachedFetcher(code, session, tradingDate)(),
       ),
     );
-    const resolved = OVERSEAS_INTRADAY_CODES.map(
-      (code, i) => [code, resolve(code, session, results[i])] as const,
+    const resolved = perCode.map(
+      ({ code, session }, i) => [code, resolve(code, session, results[i])] as const,
     );
 
     const quotes = Object.fromEntries(

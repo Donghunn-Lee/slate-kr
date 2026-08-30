@@ -70,9 +70,16 @@ const etToFakeUtcSec = (yyyymmdd: string, hhmmss: string): number =>
 
 // null = 호출 자체 실패, [] = 응답 정상이나 데이터 없음(preopen/휴장 등).
 // ASC 정렬, 마커행·OHLC 전부 0인 행 제거.
+// 도메인 코드 입력 → DOMAIN_TO_ISCD 로 매핑 (fetchOverseasIndexQuote 패턴과 동형).
 export const fetchOverseasIndexIntradayChart = async (
-  iscd: string,
+  code: OverseasIndexCode,
 ): Promise<ChartBar[] | null> => {
+  const iscd = DOMAIN_TO_ISCD[code];
+  if (!iscd) {
+    console.error(`[kis] unknown overseas index code: ${code}`);
+    return null;
+  }
+
   const tokenResult = await getKisToken();
   if (!tokenResult.ok) {
     console.error(`[kis] token failed: ${tokenResult.error.kind}`);

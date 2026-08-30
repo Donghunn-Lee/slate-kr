@@ -48,7 +48,15 @@ export const OVERSEAS_INDEX_CODES = INDEX_REGISTRY
 // intraday(1분봉·현재가) 를 지원하는 해외 지수 화이트리스트.
 // .DJI 는 KIS intraday API 가 rt_cd=0 + 빈 배열을 돌려주므로 제외 — 이 목록에
 // 없는 해외 지수는 IndexDetailPane 에서 daily-only 로 동작한다.
-export const OVERSEAS_INTRADAY_CODES = ["SPX", "COMP", "NDX"] as const;
+export const OVERSEAS_INTRADAY_CODES = [
+  "SPX",
+  "COMP",
+  "NDX",
+  "NI225",
+  "HSI",
+  "SHCOMP",
+  "DAX",
+] as const;
 export type OverseasIntradayCode = (typeof OVERSEAS_INTRADAY_CODES)[number];
 
 export const isOverseasIntradayCode = (
@@ -79,8 +87,8 @@ export const OVERSEAS_INDEX_TIMEZONE: Record<OverseasIndexCode, string> = {
 };
 
 // market-local 정규장 마감 시각 (HHMM). 체결시각 hour(HHMMSS) 앞 4자리와 문자열
-// 비교로 live/closed 판정에만 사용 — 여기에 세션 개장·리셋 시각을 함께 넣지 말 것
-// (해외 헤더 라벨은 hour < close 로 자동 해제, 별도 open 상수 불필요).
+// 비교로 live/closed 판정에 사용. 지수별 세션 판정(`getOverseasIndexSessionState`)
+// 도 이 상수를 close 경계로 소비.
 // 수용 리스크: 클로징 옥션(HSI 16:00~16:10 등)·미국 조기마감(연 4일)은 미반영.
 export const OVERSEAS_INDEX_CLOSE_LOCAL: Record<OverseasIndexCode, string> = {
   SPX: "1600",
@@ -91,6 +99,20 @@ export const OVERSEAS_INDEX_CLOSE_LOCAL: Record<OverseasIndexCode, string> = {
   HSI: "1600",
   SHCOMP: "1500",
   DAX: "1730",
+};
+
+// market-local 정규장 개장 시각 (HHMM). `getOverseasIndexSessionState` 가 open 경계로
+// 소비. 점심 휴장(HSI 12:00~13:00 · SHCOMP 11:30~13:00)은 모델링하지 않음 —
+// [open, close) 를 regular 로 취급 (KIS 응답이 점심 구간 봉을 어차피 반환하지 않음).
+export const OVERSEAS_INDEX_OPEN_LOCAL: Record<OverseasIndexCode, string> = {
+  SPX: "0930",
+  ".DJI": "0930",
+  COMP: "0930",
+  NDX: "0930",
+  NI225: "0900",
+  HSI: "0930",
+  SHCOMP: "0930",
+  DAX: "0900",
 };
 
 // quote 라이브 지연(분). 0 = 실시간, 양수 = 지연 분.

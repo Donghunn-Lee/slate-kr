@@ -1,7 +1,7 @@
 import type {
   GlobalOverseasSession,
   KrxSession,
-  UsSession,
+  OverseasIndexSessionState,
 } from "@/shared/utils/market";
 
 // 지수·랭킹 route 공통 TTL. session·tradingDate 를 cache key 축으로 넣어
@@ -13,9 +13,11 @@ export const krxIndexRankingRevalidate = (session: KrxSession): number =>
   session === "regular" ? 60 : 3600;
 
 // 해외 지수 intraday. 라이브 자체가 ~15분 지연 피드라 국내 60s 보다 완만한 120s.
-// closed 는 국내와 동일한 3600s.
-export const usOverseasIntradayRevalidate = (session: UsSession): number =>
-  session === "regular" ? 120 : 3600;
+// closed 는 국내와 동일한 3600s. session 축은 코드별 거래소 세션
+// (`getOverseasIndexSessionState`) — US 3종·아시아 3종·DAX 모두 동일 정책.
+export const overseasIntradayRevalidate = (
+  session: OverseasIndexSessionState,
+): number => (session === "regular" ? 120 : 3600);
 
 // 해외 지수 quote (8종 폴링) TTL. 클라 폴링 60s 와 정렬. idle(KST 05:00~09:00)
 // 은 폴링 중단 창이라 3600s 로 KIS 부담 최소화.

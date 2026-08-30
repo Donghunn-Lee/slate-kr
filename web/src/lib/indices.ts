@@ -8,9 +8,11 @@ import {
   toKisDate,
 } from "./kis-quote-fetch";
 import { fetchOverseasIndexIntradayChart } from "./kis-overseas-quote-fetch";
-import type {
-  DomesticIndexCode,
-  OverseasIntradayCode,
+import {
+  OVERSEAS_INDEX_CLOSE_LOCAL,
+  OVERSEAS_INDEX_TIMEZONE,
+  type DomesticIndexCode,
+  type OverseasIntradayCode,
 } from "@/shared/constants/indices";
 import { getKrxTradingDate } from "@/shared/utils/market";
 import { resampleIntradayBars } from "@/shared/utils/resampleIntradayBars";
@@ -125,13 +127,16 @@ const readOverseasIntradayFromDb = async (
   indexCode: OverseasIntradayCode,
 ): Promise<ChartBar[]> => {
   try {
+    const tz = OVERSEAS_INDEX_TIMEZONE[indexCode];
+    // tz 는 SQL 파라미터로 바인딩 — 문자열 보간 금지 (인젝션 방어). INTERVAL 은
+    // 리터럴 고정(2일) 이라 상수 삽입, 값은 코드 상수(`INTRADAY_DB_LOOKBACK_DAYS`).
     const [rows] = await pool.query<OverseasIntradayRow[]>(
       `SELECT to_char(ts, 'YYYYMMDDHH24MISS') AS ts_str, open, high, low, close
        FROM overseas_index_intraday
        WHERE index_code = $1
-         AND ts >= (now() AT TIME ZONE 'America/New_York')::date - INTERVAL '${INTRADAY_DB_LOOKBACK_DAYS} days'
+         AND ts >= (now() AT TIME ZONE $2)::date - INTERVAL '${INTRADAY_DB_LOOKBACK_DAYS} days'
        ORDER BY ts ASC`,
-      [indexCode],
+      [indexCode, tz],
     );
     return rows.map((r) => ({
       time: parseTsStrToFakeUtcSec(r.ts_str),
@@ -195,10 +200,9 @@ export const toIntradaySnapshots = (
 export const getOverseasIndexIntradayPrices = async (
   indexCode: OverseasIntradayCode,
 ): Promise<IndexIntradaySnapshot[] | null> => {
-  const iscd = indexCode; // 해외 코드는 KIS ISCD 와 그대로 일치 (SPX / COMP / NDX)
   const [dbBars, liveBars] = await Promise.all([
     readOverseasIntradayFromDb(indexCode),
-    fetchOverseasIndexIntradayChart(iscd),
+    fetchOverseasIndexIntradayChart(indexCode),
   ]);
 
   const liveFailed = liveBars === null;
@@ -208,8 +212,14 @@ export const getOverseasIndexIntradayPrices = async (
     return null;
   }
 
+  // fold → 리샘플 순서 유지: 마감 후 프린트를 그 세션 마감 봉에 흡수한 뒤 10분
+  // 버킷 리샘플. mergeIntradayBars 가 ASC 정렬을 보장하므로 fold 입력 전제 충족.
   const merged = mergeIntradayBars(dbBars, liveBars ?? []);
-  const resampled = resampleIntradayBars(merged, INTRADAY_RESAMPLE_MINUTES);
+  const folded = foldPostCloseIndexBars(
+    merged,
+    `${OVERSEAS_INDEX_CLOSE_LOCAL[indexCode]}00`,
+  );
+  const resampled = resampleIntradayBars(folded, INTRADAY_RESAMPLE_MINUTES);
   const sessionDate =
     resampled.length > 0
       ? sessionDateFromTimestamp(resampled[resampled.length - 1].time as number)
@@ -294,7 +304,7 @@ export const getIndexIntradayPrices = async (
   }
 
   const merged = mergeIntradayBars(dbBars, liveBars ?? []);
-  const folded = foldPostCloseIndexBars(merged);
+  const folded = foldPostCloseIndexBars(merged, "153000");
   const sessionDate =
     folded.length > 0
       ? sessionDateFromTimestamp(folded[folded.length - 1].time as number)

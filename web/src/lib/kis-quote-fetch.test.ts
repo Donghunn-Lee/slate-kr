@@ -290,7 +290,7 @@ describe("foldPostCloseIndexBars", () => {
     Math.floor(Date.UTC(Y, MO, DA, hh, mm, ss) / 1000);
 
   it("빈 배열 → []", () => {
-    expect(foldPostCloseIndexBars([])).toEqual([]);
+    expect(foldPostCloseIndexBars([], "153000")).toEqual([]);
   });
 
   it("15:30 이하 봉은 무변경 · 15:30 초과 봉은 그 날짜 15:30 봉에 흡수 병합", () => {
@@ -300,7 +300,7 @@ describe("foldPostCloseIndexBars", () => {
       { time: barSec(15, 31), open: 3, high: 3, low: 3, close: 3, volume: 30 },
       { time: barSec(15, 32), open: 4, high: 5, low: 4, close: 4, volume: 40 },
     ];
-    const out = foldPostCloseIndexBars(bars);
+    const out = foldPostCloseIndexBars(bars, "153000");
     // 15:29 무변경 + 15:30/31/32 병합 → 2봉
     expect(out.map((b) => b.time)).toEqual([barSec(15, 29), barSec(15, 30)]);
     expect(out[0]).toEqual({ time: barSec(15, 29), open: 1, high: 1, low: 1, close: 1, volume: 10 });
@@ -323,7 +323,7 @@ describe("foldPostCloseIndexBars", () => {
       { time: barSec(15, 31), open: 6788.89, high: 6788.89, low: 6788.89, close: 6788.89, volume: 0 },
       { time: barSec(15, 32), open: 6788.88, high: 6788.88, low: 6788.88, close: 6788.88, volume: 31 },
     ];
-    const folded = foldPostCloseIndexBars(raw);
+    const folded = foldPostCloseIndexBars(raw, "153000");
     expect(folded).toHaveLength(2);
     expect(folded[0].time).toBe(barSec(15, 25));
     expect(folded[1].time).toBe(barSec(15, 30));
@@ -337,7 +337,7 @@ describe("foldPostCloseIndexBars", () => {
       { time: barSec(15, 29), open: 1065.7, high: 1065.7, low: 1065.7, close: 1065.7, volume: 0 },
       { time: barSec(15, 30), open: 1065.7, high: 1065.7, low: 1065.7, close: 1065.7, volume: 5348 },
     ];
-    const folded = foldPostCloseIndexBars(raw);
+    const folded = foldPostCloseIndexBars(raw, "153000");
     expect(folded).toEqual(raw);
   });
 
@@ -350,7 +350,7 @@ describe("foldPostCloseIndexBars", () => {
       { time: prevClose1531, open: 1, high: 1, low: 1, close: 1 },
       { time: todayClose1532, open: 2, high: 2, low: 2, close: 2 },
     ];
-    const out = foldPostCloseIndexBars(bars);
+    const out = foldPostCloseIndexBars(bars, "153000");
     expect(out[0].time).toBe(prevClose1530);
     expect(out[1].time).toBe(todayClose1530);
   });
@@ -359,7 +359,71 @@ describe("foldPostCloseIndexBars", () => {
     const bars: ChartBar[] = [
       { time: "2026-08-28" as unknown as ChartBar["time"], open: 1, high: 1, low: 1, close: 1 },
     ];
-    const out = foldPostCloseIndexBars(bars);
+    const out = foldPostCloseIndexBars(bars, "153000");
+    expect(out).toEqual(bars);
+  });
+
+  // ── 해외 지수 마감 경계 ──
+  // 봉 시각은 거래소 로컬 wall-clock 을 Date.UTC 로 위장한 fake-UTC. 경계 판정은
+  // getUTC* 컴포넌트로 이뤄지므로 로컬 TZ 상수를 그대로 인코딩해 넣는다.
+  it("SPX 16:00 마감 경계 · 마감 후 3봉 (16:01~16:03) → 16:00 봉에 흡수", () => {
+    const bars: ChartBar[] = [
+      { time: barSec(15, 59), open: 1, high: 1, low: 1, close: 1, volume: 0 },
+      { time: barSec(16, 0),  open: 2, high: 2, low: 2, close: 2, volume: 0 },
+      { time: barSec(16, 1),  open: 3, high: 3, low: 3, close: 3, volume: 0 },
+      { time: barSec(16, 2),  open: 4, high: 5, low: 4, close: 4, volume: 0 },
+      { time: barSec(16, 3),  open: 6, high: 6, low: 1, close: 7, volume: 0 },
+    ];
+    const out = foldPostCloseIndexBars(bars, "160000");
+    expect(out.map((b) => b.time)).toEqual([barSec(15, 59), barSec(16, 0)]);
+    expect(out[1].open).toBe(2);
+    expect(out[1].close).toBe(7);
+    expect(out[1].high).toBe(6);
+    expect(out[1].low).toBe(1);
+  });
+
+  it("HSI 16:00 마감 경계 · 마감 후 8봉 → 16:00 봉에 흡수 (실측 개수 정합)", () => {
+    const bars: ChartBar[] = [
+      { time: barSec(15, 59), open: 100, high: 100, low: 100, close: 100 },
+      { time: barSec(16, 0),  open: 101, high: 101, low: 101, close: 101 },
+    ];
+    for (let mm = 1; mm <= 8; mm++) {
+      bars.push({ time: barSec(16, mm), open: 100 + mm, high: 100 + mm, low: 100 + mm, close: 100 + mm });
+    }
+    const out = foldPostCloseIndexBars(bars, "160000");
+    expect(out.map((b) => b.time)).toEqual([barSec(15, 59), barSec(16, 0)]);
+    expect(out[1].close).toBe(108); // 마지막 봉의 close
+  });
+
+  it("NI225 15:30 마감 경계 · 마감 후 1봉 (15:45) → 15:30 봉에 흡수", () => {
+    const bars: ChartBar[] = [
+      { time: barSec(15, 29), open: 60_000, high: 60_000, low: 60_000, close: 60_000 },
+      { time: barSec(15, 30), open: 61_000, high: 61_000, low: 61_000, close: 61_000 },
+      { time: barSec(15, 45), open: 62_000, high: 62_500, low: 61_500, close: 62_000 },
+    ];
+    const out = foldPostCloseIndexBars(bars, "153000");
+    expect(out.map((b) => b.time)).toEqual([barSec(15, 29), barSec(15, 30)]);
+    expect(out[1].open).toBe(61_000);
+    expect(out[1].close).toBe(62_000);
+    expect(out[1].high).toBe(62_500);
+    expect(out[1].low).toBe(61_000);
+  });
+
+  it("SHCOMP 15:00 마감 · 마감 후 봉 없음 (실측) → no-op", () => {
+    const bars: ChartBar[] = [
+      { time: barSec(14, 58), open: 3900, high: 3900, low: 3900, close: 3900 },
+      { time: barSec(15, 0),  open: 3910, high: 3910, low: 3910, close: 3910 },
+    ];
+    const out = foldPostCloseIndexBars(bars, "150000");
+    expect(out).toEqual(bars);
+  });
+
+  it("DAX 17:30 마감 · 마감 후 봉 없음 (실측) → no-op", () => {
+    const bars: ChartBar[] = [
+      { time: barSec(17, 29), open: 26_500, high: 26_500, low: 26_500, close: 26_500 },
+      { time: barSec(17, 30), open: 26_583, high: 26_583, low: 26_583, close: 26_583 },
+    ];
+    const out = foldPostCloseIndexBars(bars, "173000");
     expect(out).toEqual(bars);
   });
 });

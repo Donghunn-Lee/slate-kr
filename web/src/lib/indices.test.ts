@@ -82,7 +82,7 @@ describe("국내 지수 서버 파이프라인 (merge → fold)", () => {
       { time: barSec(15, 32), open: 6788.88, high: 6788.88, low: 6788.88, close: 6788.88, volume: 31 },
     ];
     const merged = mergeIntradayBars(db, []);
-    const folded = foldPostCloseIndexBars(merged);
+    const folded = foldPostCloseIndexBars(merged, "153000");
     expect(folded.map((b) => b.time)).toEqual([barSec(15, 28), barSec(15, 29), barSec(15, 30)]);
     const last = folded[folded.length - 1];
     expect(last.time).toBe(barSec(15, 30));
@@ -99,7 +99,7 @@ describe("국내 지수 서버 파이프라인 (merge → fold)", () => {
       { time: barSec(15, 30), open: 1065.7, high: 1069.5, low: 1065.7, close: 1065.7, volume: 5348 },
     ];
     const merged = mergeIntradayBars(db, []);
-    const folded = foldPostCloseIndexBars(merged);
+    const folded = foldPostCloseIndexBars(merged, "153000");
     expect(folded).toEqual(db);
   });
 

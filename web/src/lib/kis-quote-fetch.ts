@@ -286,10 +286,13 @@ type IndexMinuteRow = {
 // 이전 값이라 어긋난다). 병합 결과 15:30 봉이 close=15:32 값을 상속하고 vol 은 세 행 합.
 //
 // KOSPI200/KOSDAQ150 처럼 15:31+ 프린트가 없는 케이스는 no-op.
+// 해외 지수도 마감 후 프린트가 발생하므로 closeBoundary(HHMMSS)를 지수별 마감
+// 시각으로 호출측에서 명시 전달한다. 경계 판정은 봉 시각의 getUTC* 컴포넌트로
+// 수행 — wall-clock 인코딩(fake-UTC epoch)에 그대로 성립.
 // 순서 유지 (입력 ASC 라면 병합 후에도 배열 인덱스 순서 = ASC).
 export const foldPostCloseIndexBars = (
   bars: readonly ChartBar[],
-  closeBoundary: string = "153000",
+  closeBoundary: string,
 ): ChartBar[] => {
   const hh = Number(closeBoundary.slice(0, 2));
   const mm = Number(closeBoundary.slice(2, 4));

@@ -1,3 +1,9 @@
+import {
+  OVERSEAS_INDEX_CLOSE_LOCAL,
+  OVERSEAS_INDEX_OPEN_LOCAL,
+  OVERSEAS_INDEX_TIMEZONE,
+  type OverseasIndexCode,
+} from "@/shared/constants/indices";
 import { isKrxHoliday } from "./krxHolidays";
 import { isUsMarketHoliday } from "./usMarketHolidays";
 
@@ -256,3 +262,88 @@ export const getGlobalOverseasSessionState = (
 
 export const isGlobalOverseasActive = (now: Date = new Date()): boolean =>
   getGlobalOverseasSessionState(now) === "active";
+
+// ── 해외 지수별 세션 (거래소 TZ 로컬) ─────────────────
+// US 세션과 대칭: DST 는 IANA DB(`OVERSEAS_INDEX_TIMEZONE[code]`) 에 위임하고
+// open/close 는 지수별 상수 테이블(`OVERSEAS_INDEX_OPEN_LOCAL`·`CLOSE_LOCAL`)
+// 을 그대로 읽는다. 휴장 캘린더는 US 만 유지 — 아시아·유럽은 주말만 skip.
+// 점심 휴장은 regular 로 취급 (KIS 응답이 점심 봉을 반환하지 않아 자연 갭).
+
+export type OverseasIndexSessionState = "regular" | "closed";
+
+const OVERSEAS_FORMATTER_CACHE = new Map<string, Intl.DateTimeFormat>();
+
+const getOverseasFormatter = (tz: string): Intl.DateTimeFormat => {
+  const cached = OVERSEAS_FORMATTER_CACHE.get(tz);
+  if (cached) return cached;
+  const f = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    weekday: "short",
+  });
+  OVERSEAS_FORMATTER_CACHE.set(tz, f);
+  return f;
+};
+
+type OverseasLocalParts = { day: number; minutes: number; date: string };
+
+const toOverseasLocalParts = (
+  code: OverseasIndexCode,
+  now: Date,
+): OverseasLocalParts => {
+  const parts = getOverseasFormatter(OVERSEAS_INDEX_TIMEZONE[code]).formatToParts(now);
+  const bag: Record<string, string> = {};
+  for (const p of parts) if (p.type !== "literal") bag[p.type] = p.value;
+  const hour = Number(bag.hour === "24" ? "00" : bag.hour); // en-US 24h 는 자정을 "24" 로 반환
+  return {
+    day: WEEKDAY_TO_INDEX[bag.weekday] ?? 0,
+    minutes: hour * 60 + Number(bag.minute),
+    date: `${bag.year}-${bag.month}-${bag.day}`,
+  };
+};
+
+const hhmmToMinutes = (hhmm: string): number =>
+  Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(2, 4));
+
+export const getOverseasIndexSessionState = (
+  code: OverseasIndexCode,
+  now: Date = new Date(),
+): OverseasIndexSessionState => {
+  const { day, minutes } = toOverseasLocalParts(code, now);
+  if (day === 0 || day === 6) return "closed";
+  const open = hhmmToMinutes(OVERSEAS_INDEX_OPEN_LOCAL[code]);
+  const close = hhmmToMinutes(OVERSEAS_INDEX_CLOSE_LOCAL[code]);
+  return minutes >= open && minutes < close ? "regular" : "closed";
+};
+
+const isOverseasTradingDay = (yyyyMmDd: string): boolean => {
+  const [y, m, d] = yyyyMmDd.split("-").map(Number);
+  const day = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  return day !== 0 && day !== 6;
+};
+
+const findRecentOverseasTradingDay = (fromDate: string): string => {
+  let d = fromDate;
+  for (let i = 0; i < 15; i++) {
+    if (isOverseasTradingDay(d)) return d;
+    d = shiftUsDate(d, -1);
+  }
+  return d;
+};
+
+// getUsTradingDate 규칙 일반화: regular = 오늘(로컬 캘린더),
+// 그 외(개장 전·마감·주말) = 어제부터 역방향으로 첫 트레이딩 데이(주말 skip).
+// 아시아·유럽은 휴장 캘린더 없음 — 주말만 배제.
+export const getOverseasIndexTradingDate = (
+  code: OverseasIndexCode,
+  now: Date = new Date(),
+): string => {
+  const { date } = toOverseasLocalParts(code, now);
+  if (getOverseasIndexSessionState(code, now) === "regular") return date;
+  return findRecentOverseasTradingDay(shiftUsDate(date, -1));
+};
