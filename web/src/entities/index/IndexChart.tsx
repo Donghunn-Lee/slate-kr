@@ -41,7 +41,7 @@ import type {
 } from "@/shared/types/quote";
 import {
   getPreviousKrxTradingDate,
-  getPreviousUsTradingDate,
+  getPreviousOverseasIndexTradingDate,
   isKrxBeforeMarketOpen,
 } from "@/shared/utils/market";
 import { mergeLiveDayBar, type LiveQuoteForMerge } from "@/shared/utils/mergeLiveDayBar";
@@ -118,16 +118,6 @@ const dailyToBars = (prices: IndexDailySnapshot[]): ChartBar[] =>
     low: p.low,
     close: p.close,
     volume: p.volume,
-  }));
-
-const intradayToBars = (bars: IndexIntradaySnapshot[]): ChartBar[] =>
-  bars.map((b) => ({
-    time: b.timestamp,
-    open: b.open,
-    high: b.high,
-    low: b.low,
-    close: b.close,
-    volume: b.volume,
   }));
 
 // dayBars → 월별 volume 합. resampleToMonthly 결과 date("YYYY-MM-01") 와 "YYYY-MM" 로 조인.
@@ -267,7 +257,10 @@ export const IndexChart = ({
   const prevStartSec = liveDate
     ? dateToKstStartSec(
         isOverseasIntraday
-          ? getPreviousUsTradingDate(liveDate)
+          ? getPreviousOverseasIndexTradingDate(
+              indexCode as OverseasIntradayCode,
+              liveDate,
+            )
           : getPreviousKrxTradingDate(liveDate),
       )
     : undefined;
@@ -356,14 +349,12 @@ export const IndexChart = ({
     });
   }, [dayBars]);
 
-  // 국내 intraday: START 라벨 snapshots → 리샘플+END 라벨 (`toIndexDisplayBars`).
-  // 해외 intraday: 서버가 10분 리샘플로 이미 반환 → snapshot → ChartBar 직결.
+  // START 라벨 snapshots → 리샘플+END 라벨 (`toIndexDisplayBars`). 국내·해외 동일 —
+  // 경계는 코드별로 `getIndexEndLabelBoundaries` 가 자동 산출.
   const intradayDisplayBars = useMemo<ChartBar[]>(() => {
     if (!renderIntraday || !intraday) return [];
-    return isOverseasIntraday
-      ? intradayToBars(intraday)
-      : toIndexDisplayBars(intraday, intradayInterval);
-  }, [renderIntraday, intraday, isOverseasIntraday, intradayInterval]);
+    return toIndexDisplayBars(intraday, intradayInterval, indexCode);
+  }, [renderIntraday, intraday, intradayInterval, indexCode]);
 
   // isIntradayView 인데 데이터가 없으면 아래 failure/empty 블록이 PriceChart 를 대체하므로
   // 여기의 [] 는 실제로 렌더되지 않는다. day 로 silent fallback 하지 않는 것이 요점.
@@ -460,7 +451,7 @@ export const IndexChart = ({
             );
           })}
         </div>
-        {isIntradayView && !isOverseasIntraday ? (
+        {isIntradayView ? (
           <div className={TOOLBAR_GROUP_CLS} role="group" aria-label="분봉 간격">
             {INTRADAY_INTERVAL_BUTTONS.map((m) => {
               const active = intradayInterval === m;

@@ -15,7 +15,6 @@ import {
   type OverseasIntradayCode,
 } from "@/shared/constants/indices";
 import { getKrxTradingDate } from "@/shared/utils/market";
-import { resampleIntradayBars } from "@/shared/utils/resampleIntradayBars";
 import type {
   ChartBar,
   IndexDailySnapshot,
@@ -92,15 +91,14 @@ const queryPrevSessionClose = async (
   return rows.length > 0 ? rows[0].close : null;
 };
 
-// ── 해외지수 intraday (SPX / COMP / NDX) ─────────────────
-// 국내와 달리 collector 가 DB(overseas_index_intraday) 에 30분마다 1분봉을 적재하고,
-// 여기서는 (a) DB 최근 2일치 read + (b) KIS live 1콜(102봉 창) 을 병합해 반환한다.
+// ── 해외지수 intraday (US 3종 + 아시아 3종 + DAX) ─────────────────
+// collector 가 DB(overseas_index_intraday) 에 30분마다 1분봉을 적재하고, 여기서는
+// (a) DB 최근 2일치 read + (b) KIS live 1콜(102봉 창) 을 병합해 반환한다.
 // live 우선 dedup — 같은 ts 라면 방금 fetch 한 봉이 더 최신 상태 (KIS 는 확장세션
 // 꼬리를 더 늦게 갱신하는 경우가 있어 항상 live 를 신뢰).
 // 실패 격리: live 실패 → DB-only degraded, DB 실패 → live-only, 둘 다 실패 → null.
-// 반환은 10분봉으로 리샘플 (국내 시각 밀도 대칭 + 페이로드 절감).
+// 국내와 동형: 서버는 START 라벨 1분 봉을 반환하고 END/리샘플은 클라 소관.
 
-const INTRADAY_RESAMPLE_MINUTES = 10;
 const INTRADAY_DB_LOOKBACK_DAYS = 2;
 
 type OverseasIntradayRow = {
@@ -212,23 +210,23 @@ export const getOverseasIndexIntradayPrices = async (
     return null;
   }
 
-  // fold → 리샘플 순서 유지: 마감 후 프린트를 그 세션 마감 봉에 흡수한 뒤 10분
-  // 버킷 리샘플. mergeIntradayBars 가 ASC 정렬을 보장하므로 fold 입력 전제 충족.
+  // fold 만 서버에서 수행 — 마감 후 프린트를 그 세션 마감 봉에 흡수. END 라벨과
+  // N분 리샘플은 클라 소관(국내 파이프라인과 동형). mergeIntradayBars 가 ASC 정렬을
+  // 보장하므로 fold 입력 전제 충족.
   const merged = mergeIntradayBars(dbBars, liveBars ?? []);
   const folded = foldPostCloseIndexBars(
     merged,
     `${OVERSEAS_INDEX_CLOSE_LOCAL[indexCode]}00`,
   );
-  const resampled = resampleIntradayBars(folded, INTRADAY_RESAMPLE_MINUTES);
   const sessionDate =
-    resampled.length > 0
-      ? sessionDateFromTimestamp(resampled[resampled.length - 1].time as number)
+    folded.length > 0
+      ? sessionDateFromTimestamp(folded[folded.length - 1].time as number)
       : null;
   const prevClose =
     sessionDate !== null
       ? (await queryPrevSessionClose(indexCode, sessionDate)) ?? 0
       : 0;
-  return toIntradaySnapshots(indexCode, resampled, prevClose);
+  return toIntradaySnapshots(indexCode, folded, prevClose);
 };
 
 // ── 국내 지수 1분 (DB + KIS live tail) ─────────────────

@@ -347,3 +347,14 @@ export const getOverseasIndexTradingDate = (
   if (getOverseasIndexSessionState(code, now) === "regular") return date;
   return findRecentOverseasTradingDay(shiftUsDate(date, -1));
 };
+
+// fromDate 직전 트레이딩 데이 (지수별 캘린더). US 지수는 휴장 캘린더까지 반영해
+// getPreviousUsTradingDate 로 위임, 그 외 거래소는 휴장 캘린더 부재로 주말만 skip.
+export const getPreviousOverseasIndexTradingDate = (
+  code: OverseasIndexCode,
+  fromDate: string,
+): string => {
+  const tz = OVERSEAS_INDEX_TIMEZONE[code];
+  if (tz === "America/New_York") return getPreviousUsTradingDate(fromDate);
+  return findRecentOverseasTradingDay(shiftUsDate(fromDate, -1));
+};

@@ -131,3 +131,34 @@ describe("국내 지수 서버 파이프라인 (merge → fold)", () => {
     expect(merged[0].volume).toBe(7547);
   });
 });
+
+// ── 해외 서버 파이프라인 (merge → fold, 리샘플 없음) ──
+// 서버는 fold 만 수행하고 END·N분 리샘플은 클라 소관. 결과는 1분 START 라벨 유지.
+describe("해외 지수 서버 파이프라인 (merge → fold, 1분 유지)", () => {
+  const etBar = (hh: number, mm: number): number =>
+    Math.floor(Date.UTC(2026, 7, 28, hh, mm, 0) / 1000);
+
+  it("SPX 15:58~16:03: fold 후 마지막 봉 = 16:00 (16:01~03 흡수) · 1분 유지", () => {
+    const db: ChartBar[] = [
+      { time: etBar(15, 58), open: 100, high: 100, low: 100, close: 100 },
+      { time: etBar(15, 59), open: 101, high: 101, low: 101, close: 101 },
+      { time: etBar(16, 0), open: 102, high: 102, low: 102, close: 102 },
+      { time: etBar(16, 1), open: 103, high: 103, low: 103, close: 103 },
+      { time: etBar(16, 2), open: 104, high: 105, low: 104, close: 104 },
+      { time: etBar(16, 3), open: 106, high: 106, low: 100, close: 107 },
+    ];
+    const merged = mergeIntradayBars(db, []);
+    const folded = foldPostCloseIndexBars(merged, "160000");
+    // fold 후 timestamp 는 1분 그대로 (15:58, 15:59, 16:00) — 리샘플 없음.
+    expect(folded.map((b) => b.time)).toEqual([
+      etBar(15, 58),
+      etBar(15, 59),
+      etBar(16, 0),
+    ]);
+    const last = folded[folded.length - 1];
+    expect(last.open).toBe(102); // 16:00 원래 open
+    expect(last.close).toBe(107); // 16:03 close (마지막 봉)
+    expect(last.high).toBe(106);
+    expect(last.low).toBe(100);
+  });
+});

@@ -210,7 +210,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
     for (const code of DOMESTIC_INDEX_CODES) {
       const snaps = intraday?.quotes[code];
       out[code] = {
-        bars: snaps ? toIndexDisplayBars(snaps, INDEX_MINI_INTERVAL_MIN) : EMPTY_BARS,
+        bars: snaps ? toIndexDisplayBars(snaps, INDEX_MINI_INTERVAL_MIN, code) : EMPTY_BARS,
         prevClose: derivePrevClose(snaps),
       };
     }

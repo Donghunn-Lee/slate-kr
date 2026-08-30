@@ -3,6 +3,7 @@ import {
   getKrxSessionState,
   getOverseasIndexSessionState,
   getOverseasIndexTradingDate,
+  getPreviousOverseasIndexTradingDate,
   getUsSessionState,
   getEtDateAndMinutes,
   getUsTradingDate,
@@ -284,6 +285,29 @@ describe("getOverseasIndexTradingDate", () => {
   it("DAX 일요일 → 직전 금요일", () => {
     expect(getOverseasIndexTradingDate("DAX", utc(2026, 7, 26, 12, 0))).toBe(
       "2026-07-24",
+    );
+  });
+});
+
+describe("getPreviousOverseasIndexTradingDate", () => {
+  it("SPX 는 getPreviousUsTradingDate 와 동치 (일요일 → 금요일)", () => {
+    expect(getPreviousOverseasIndexTradingDate("SPX", "2026-07-27")).toBe(
+      getPreviousUsTradingDate("2026-07-27"),
+    );
+  });
+  it("SPX 는 getPreviousUsTradingDate 와 동치 (휴장 반영: 7-6 → 7-2)", () => {
+    expect(getPreviousOverseasIndexTradingDate("SPX", "2026-07-06")).toBe(
+      getPreviousUsTradingDate("2026-07-06"),
+    );
+  });
+  it("NI225 월요일 → 금요일 (아시아 휴장 캘린더 없음, 주말만 skip)", () => {
+    expect(getPreviousOverseasIndexTradingDate("NI225", "2026-07-27")).toBe(
+      "2026-07-24",
+    );
+  });
+  it("DAX 화요일 → 월요일 (평일 연속)", () => {
+    expect(getPreviousOverseasIndexTradingDate("DAX", "2026-07-28")).toBe(
+      "2026-07-27",
     );
   });
 });
