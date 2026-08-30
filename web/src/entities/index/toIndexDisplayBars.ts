@@ -1,13 +1,11 @@
-import {
-  getIndexEndLabelBoundaries,
-} from "@/shared/constants/chart";
-import type { IndexCode } from "@/shared/constants/indices";
+import { INDEX_END_LABEL_BOUNDARIES } from "@/shared/constants/chart";
+import { getIndexMeta, type IndexCode } from "@/shared/constants/indices";
 import type { ChartBar, IndexIntradaySnapshot } from "@/shared/types/quote";
+import { resampleIntradayBars } from "@/shared/utils/resampleIntradayBars";
 import { resampleThenEndLabelBySession } from "@/shared/utils/resampleThenEndLabelBySession";
 
-// snapshot (START 라벨) → 리샘플(N분 버킷) → END 라벨(코드별 마감 경계) ChartBar[].
-// interval=1 이면 리샘플 pass-through, END 만 적용해 라벨을 END 로 시프트.
-// Chart 상세 · 홈 mini · sparkline 공용. 국내는 15:30 단일, 해외는 지수별 마감 시각.
+// snapshot → N분 리샘플 ChartBar[]. Chart 상세 · 홈 mini · sparkline 공용.
+// 국내는 END 라벨로 시프트(15:30 경계), 해외는 KIS HTS 관례에 맞춰 START 라벨 유지.
 export const toIndexDisplayBars = (
   snapshots: readonly IndexIntradaySnapshot[],
   intervalMin: number,
@@ -21,9 +19,8 @@ export const toIndexDisplayBars = (
     close: s.close,
     volume: s.volume,
   }));
-  return resampleThenEndLabelBySession(
-    raw,
-    intervalMin,
-    getIndexEndLabelBoundaries(code),
-  );
+  if (getIndexMeta(code).region === "overseas") {
+    return resampleIntradayBars(raw, intervalMin);
+  }
+  return resampleThenEndLabelBySession(raw, intervalMin, INDEX_END_LABEL_BOUNDARIES);
 };

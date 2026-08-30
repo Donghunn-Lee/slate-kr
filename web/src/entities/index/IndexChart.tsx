@@ -349,8 +349,7 @@ export const IndexChart = ({
     });
   }, [dayBars]);
 
-  // START 라벨 snapshots → 리샘플+END 라벨 (`toIndexDisplayBars`). 국내·해외 동일 —
-  // 경계는 코드별로 `getIndexEndLabelBoundaries` 가 자동 산출.
+  // START 라벨 snapshots → `toIndexDisplayBars` (국내 END 시프트 · 해외 START 유지).
   const intradayDisplayBars = useMemo<ChartBar[]>(() => {
     if (!renderIntraday || !intraday) return [];
     return toIndexDisplayBars(intraday, intradayInterval, indexCode);

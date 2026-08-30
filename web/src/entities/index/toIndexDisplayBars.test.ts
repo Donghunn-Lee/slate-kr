@@ -131,8 +131,8 @@ describe("toIndexDisplayBars", () => {
   });
 });
 
-// 해외 지수는 code 인자로 마감 경계(HHMMSS)를 파생. 아래 fixture 는 서버 fold 결과
-// 와 동형인 close-경계 근접 몇 분치 봉.
+// 해외 지수는 KIS HTS 관례상 START 라벨 유지 — END 시프트 없음.
+// fixture 는 서버 fold 결과와 동형인 START 1분 봉.
 const overseasSnap = (
   code: IndexIntradaySnapshot["indexCode"],
   d: number,
@@ -151,69 +151,65 @@ const overseasSnap = (
   volume: 0,
 });
 
-describe("toIndexDisplayBars — overseas (code 별 마감 경계)", () => {
-  it("SPX 1분: 마지막 라벨 = END 16:00 (fold 봉이 clamp), 그 이후 봉 없음", () => {
-    const snaps = [
-      overseasSnap("SPX", 28, 15, 58, 7715),
-      overseasSnap("SPX", 28, 15, 59, 7714),
-      overseasSnap("SPX", 28, 16, 0, 7711.76),
-    ];
-    const out = toIndexDisplayBars(snaps, 1, "SPX");
-    const last = out[out.length - 1];
-    expect(last.time).toBe(Math.floor(Date.UTC(2026, 7, 28, 16, 0, 0) / 1000));
-    expect(last.close).toBe(7711.76);
+describe("toIndexDisplayBars — overseas (START 라벨 유지)", () => {
+  // SPX 세션 09:30~16:00 (서버 fold 결과 16:00 이 마지막). 5·15분 버킷은 09:30/16:00 정렬.
+  const spxFullSession = (): IndexIntradaySnapshot[] => {
+    const arr: IndexIntradaySnapshot[] = [];
+    // 09:30 (첫 봉) · 09:31 (중간 샘플) · 15:59 · 16:00 (fold 마감 봉)
+    arr.push(overseasSnap("SPX", 28, 9, 30, 7700));
+    arr.push(overseasSnap("SPX", 28, 9, 31, 7701));
+    arr.push(overseasSnap("SPX", 28, 15, 59, 7710));
+    arr.push(overseasSnap("SPX", 28, 16, 0, 7711.76));
+    return arr;
+  };
+
+  it("SPX 1분: 첫 라벨 09:30 · 마지막 라벨 16:00 (START, END 시프트 없음)", () => {
+    const out = toIndexDisplayBars(spxFullSession(), 1, "SPX");
+    expect(out[0].time).toBe(Math.floor(Date.UTC(2026, 7, 28, 9, 30, 0) / 1000));
+    expect(out[out.length - 1].time).toBe(
+      Math.floor(Date.UTC(2026, 7, 28, 16, 0, 0) / 1000),
+    );
+    expect(out[out.length - 1].close).toBe(7711.76);
   });
 
-  it("SPX 5분: 마지막 5분 버킷이 END 16:00 으로 clamp", () => {
-    const snaps: IndexIntradaySnapshot[] = [];
-    for (let m = 55; m < 60; m++) snaps.push(overseasSnap("SPX", 28, 15, m, 7710 + m));
-    snaps.push(overseasSnap("SPX", 28, 16, 0, 7711.76));
-    const out = toIndexDisplayBars(snaps, 5, "SPX");
-    const last = out[out.length - 1];
-    expect(last.time).toBe(Math.floor(Date.UTC(2026, 7, 28, 16, 0, 0) / 1000));
-    expect(last.close).toBe(7711.76);
+  it("SPX 5분: 첫 09:30 · 마지막 16:00 (START, END shift 없음)", () => {
+    const out = toIndexDisplayBars(spxFullSession(), 5, "SPX");
+    expect(out[0].time).toBe(Math.floor(Date.UTC(2026, 7, 28, 9, 30, 0) / 1000));
+    expect(out[out.length - 1].time).toBe(
+      Math.floor(Date.UTC(2026, 7, 28, 16, 0, 0) / 1000),
+    );
+    expect(out[out.length - 1].close).toBe(7711.76);
   });
 
-  it("SPX 15분: 마지막 15분 버킷이 END 16:00 으로 clamp", () => {
-    const snaps: IndexIntradaySnapshot[] = [];
-    for (let m = 45; m < 60; m++) snaps.push(overseasSnap("SPX", 28, 15, m, 7710 + m));
-    snaps.push(overseasSnap("SPX", 28, 16, 0, 7711.76));
-    const out = toIndexDisplayBars(snaps, 15, "SPX");
-    const last = out[out.length - 1];
-    expect(last.time).toBe(Math.floor(Date.UTC(2026, 7, 28, 16, 0, 0) / 1000));
-    expect(last.close).toBe(7711.76);
+  it("SPX 15분: 첫 09:30 · 마지막 16:00 (START, END shift 없음)", () => {
+    const out = toIndexDisplayBars(spxFullSession(), 15, "SPX");
+    expect(out[0].time).toBe(Math.floor(Date.UTC(2026, 7, 28, 9, 30, 0) / 1000));
+    expect(out[out.length - 1].time).toBe(
+      Math.floor(Date.UTC(2026, 7, 28, 16, 0, 0) / 1000),
+    );
+    expect(out[out.length - 1].close).toBe(7711.76);
   });
 
-  it("NI225 15분: 마지막 라벨 = END 15:30 (KOSPI 와 같지만 code 파생)", () => {
-    const snaps: IndexIntradaySnapshot[] = [];
-    for (let m = 15; m < 30; m++) snaps.push(overseasSnap("NI225", 28, 15, m, 66000 + m));
-    snaps.push(overseasSnap("NI225", 28, 15, 30, 66405.56));
-    const out = toIndexDisplayBars(snaps, 15, "NI225");
-    const last = out[out.length - 1];
-    expect(last.time).toBe(Math.floor(Date.UTC(2026, 7, 28, 15, 30, 0) / 1000));
-    expect(last.close).toBe(66405.56);
-  });
-
-  it("2세션 입력 (prev + today) → 각 세션 마감 봉 각각 END 라벨 적용", () => {
-    // 27일 15:58, 15:59, 16:00 (prev close) + 28일 15:58, 15:59, 16:00 (today close).
+  it("NI225 15분: 점심 경계(11:30 마지막 · 12:30 첫) 봉 각각 START 라벨 유지", () => {
+    // 오전 마지막 봉 = 11:30 · 점심 12:30 재개 첫 봉 = 12:30. 15분 리샘플 후 두 봉이
+    // 각각 자기 START(11:30, 12:30) 라벨로 유지되는지 확인.
     const snaps: IndexIntradaySnapshot[] = [
-      overseasSnap("SPX", 27, 15, 58, 100),
-      overseasSnap("SPX", 27, 15, 59, 101),
-      overseasSnap("SPX", 27, 16, 0, 102),
-      overseasSnap("SPX", 28, 15, 58, 200),
-      overseasSnap("SPX", 28, 15, 59, 201),
-      overseasSnap("SPX", 28, 16, 0, 202),
+      overseasSnap("NI225", 28, 11, 30, 66100),
+      overseasSnap("NI225", 28, 12, 30, 66200),
+      overseasSnap("NI225", 28, 12, 31, 66210),
     ];
-    const out = toIndexDisplayBars(snaps, 1, "SPX");
-    const prev1600 = out.find(
-      (b) => b.time === Math.floor(Date.UTC(2026, 7, 27, 16, 0, 0) / 1000),
+    const out = toIndexDisplayBars(snaps, 15, "NI225");
+    const morningEnd = out.find(
+      (b) => b.time === Math.floor(Date.UTC(2026, 7, 28, 11, 30, 0) / 1000),
     );
-    const today1600 = out.find(
-      (b) => b.time === Math.floor(Date.UTC(2026, 7, 28, 16, 0, 0) / 1000),
+    const lunchResumeStart = out.find(
+      (b) => b.time === Math.floor(Date.UTC(2026, 7, 28, 12, 30, 0) / 1000),
     );
-    expect(prev1600).toBeDefined();
-    expect(today1600).toBeDefined();
-    expect(prev1600?.close).toBe(102);
-    expect(today1600?.close).toBe(202);
+    expect(morningEnd).toBeDefined();
+    expect(morningEnd?.close).toBe(66100);
+    expect(lunchResumeStart).toBeDefined();
+    expect(lunchResumeStart?.open).toBe(66200);
+    // 12:30 버킷은 12:30 · 12:31 을 묶는다 (close = 12:31 값).
+    expect(lunchResumeStart?.close).toBe(66210);
   });
 });

@@ -1,9 +1,4 @@
 import type { Time } from "lightweight-charts";
-import {
-  OVERSEAS_INDEX_CLOSE_LOCAL,
-  getIndexMeta,
-  type IndexCode,
-} from "@/shared/constants/indices";
 
 // KR 관행: 상승=레드, 하락=블루. Tailwind red-600/blue-600 톤으로 globals.css의 oklch와 매칭.
 // dim.{up,down} — 전일 봉 등 흐림 처리용 저채도 저대비 버전. 무채색 계열과 톤 충돌 없도록
@@ -75,17 +70,8 @@ export const INTRADAY_PREV_LOOKBACK_SEC = 3600;
 
 // 지수 END 라벨 세션 경계 (HHMMSS ASC). 국내 정규장 마감 15:30 단일.
 // 종목(StockChartTabs) 은 프리·정규·애프터 3경계라 별도.
-const DOMESTIC_INDEX_END_LABEL_BOUNDARIES: readonly string[] = ["153000"];
-
-// 지수별 END 라벨 경계 — 국내는 상수, 해외는 `OVERSEAS_INDEX_CLOSE_LOCAL[code]`(HHMM)
-// 를 HHMMSS 로 확장. `resampleThenEndLabelBySession` 이 boundary 를 봉의 로컬 날짜로
-// 재조립하므로 지수마다 자기 세션의 마감 시각을 하나 넘기면 다세션 입력도 정합.
-export const getIndexEndLabelBoundaries = (
-  code: IndexCode,
-): readonly string[] =>
-  getIndexMeta(code).region === "domestic"
-    ? DOMESTIC_INDEX_END_LABEL_BOUNDARIES
-    : [`${OVERSEAS_INDEX_CLOSE_LOCAL[code as keyof typeof OVERSEAS_INDEX_CLOSE_LOCAL]}00`];
+// 해외 지수는 KIS HTS 관례상 START 라벨 유지 → 이 경계를 소비하지 않는다.
+export const INDEX_END_LABEL_BOUNDARIES: readonly string[] = ["153000"];
 
 // 홈·Rail mini 차트가 소비하는 인터벌(분). 값 1개 상수로 유지 — 미니 렌더 결정.
 export const INDEX_MINI_INTERVAL_MIN = 1;
