@@ -37,6 +37,11 @@ export type OverseasIndexCode = OverseasIndexEntry["code"];
 
 export const INDEX_CODES = INDEX_REGISTRY.map((m) => m.code) as readonly IndexCode[];
 
+// 지수 페이지 SSR 시 index_daily_prices 에서 지수당 최근 N행만 실는다.
+// 270 = 주봉 52개 완결분(52×5=260) + 첫 주 부분봉 여유 — 1Y 기본 뷰(day 250·week 52) 를 커버.
+// 이보다 오래된 이력은 좌측 팬 트리거로 /api/index-daily 가 전량 서빙.
+export const INDEX_DAILY_SSR_LIMIT = 270;
+
 export const DOMESTIC_INDEX_CODES = INDEX_REGISTRY
   .filter((m): m is DomesticIndexEntry => m.region === "domestic")
   .map((m) => m.code) as readonly DomesticIndexCode[];

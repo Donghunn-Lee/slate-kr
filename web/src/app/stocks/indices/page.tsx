@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import {
   INDEX_CODES,
+  INDEX_DAILY_SSR_LIMIT,
   INDEX_LABEL,
   type IndexCode,
 } from "@/shared/constants/indices";
@@ -43,7 +44,7 @@ export default async function IndicesPage({ searchParams }: PageProps) {
   const dailyEntries = await Promise.all(
     INDEX_CODES.map(async (code) => {
       try {
-        return [code, await getIndexDailyPrices(code, 1000)] as const;
+        return [code, await getIndexDailyPrices(code, INDEX_DAILY_SSR_LIMIT)] as const;
       } catch {
         return [code, null] as const;
       }
