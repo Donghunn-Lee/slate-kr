@@ -289,6 +289,55 @@ describe("getOverseasIndexTradingDate", () => {
       "2026-07-24",
     );
   });
+
+  // 마감 후~로컬 자정 사이는 당일 유지 — DB 창·세션 캐시 키가 세션 경계를 넘도록.
+  it("SPX 월 04:00 ET (개장 전) → 직전 금요일", () => {
+    // 2026-07-27 월 04:00 ET = 08:00 UTC. 개장 전 → 어제(일) 역방향 → 금(7-24).
+    expect(getOverseasIndexTradingDate("SPX", utc(2026, 7, 27, 8, 0))).toBe(
+      "2026-07-24",
+    );
+  });
+  it("SPX 월 12:00 ET (정규장 중) → 당일", () => {
+    expect(getOverseasIndexTradingDate("SPX", utc(2026, 7, 27, 16, 0))).toBe(
+      "2026-07-27",
+    );
+  });
+  it("SPX 월 17:00 ET (마감 후) → 당일", () => {
+    // 2026-07-27 월 17:00 ET = 21:00 UTC. 마감(16:00) 후 → 로컬 당일 유지.
+    expect(getOverseasIndexTradingDate("SPX", utc(2026, 7, 27, 21, 0))).toBe(
+      "2026-07-27",
+    );
+  });
+  it("SPX 화 01:00 ET (다음날 새벽) → 직전 월요일", () => {
+    // 2026-07-28 화 01:00 ET = 05:00 UTC. 개장 전 → 어제(월) 역방향 → 월(7-27).
+    expect(getOverseasIndexTradingDate("SPX", utc(2026, 7, 28, 5, 0))).toBe(
+      "2026-07-27",
+    );
+  });
+  it("SPX 토요일 → 직전 금요일", () => {
+    // 2026-08-01 토 11:00 ET = 15:00 UTC. 주말 → minutesSinceClose=null → 어제부터 역방향.
+    expect(getOverseasIndexTradingDate("SPX", utc(2026, 8, 1, 15, 0))).toBe(
+      "2026-07-31",
+    );
+  });
+  it("NI225 월 16:00 JST (마감 후) → 당일", () => {
+    // 2026-07-27 월 16:00 JST = 07:00 UTC. close=15:30 → 마감 후 → 로컬 당일.
+    expect(getOverseasIndexTradingDate("NI225", utc(2026, 7, 27, 7, 0))).toBe(
+      "2026-07-27",
+    );
+  });
+  it("DAX 월 18:00 CEST (마감 후) → 당일", () => {
+    // 2026-07-27 월 18:00 Berlin (CEST=UTC+2) = 16:00 UTC. close=17:30 → 마감 후.
+    expect(getOverseasIndexTradingDate("DAX", utc(2026, 7, 27, 16, 0))).toBe(
+      "2026-07-27",
+    );
+  });
+  it("DAX 화 01:00 CEST (다음날 새벽) → 직전 월요일", () => {
+    // 2026-07-28 화 01:00 Berlin = 2026-07-27 23:00 UTC. 개장 전 → 어제(월) 역방향 → 월.
+    expect(getOverseasIndexTradingDate("DAX", utc(2026, 7, 27, 23, 0))).toBe(
+      "2026-07-27",
+    );
+  });
 });
 
 describe("getPreviousOverseasIndexTradingDate", () => {

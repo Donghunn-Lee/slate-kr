@@ -361,15 +361,17 @@ const findRecentOverseasTradingDay = (fromDate: string): string => {
   return d;
 };
 
-// getUsTradingDate 규칙 일반화: regular = 오늘(로컬 캘린더),
-// 그 외(개장 전·마감·주말) = 어제부터 역방향으로 첫 트레이딩 데이(주말 skip).
-// 아시아·유럽은 휴장 캘린더 없음 — 주말만 배제.
+// "최근 세션의 거래일" — 국내 `getKrxTradingDate` 와 동일 의미.
+// regular · 마감 후(로컬 자정 전) = 오늘(로컬 캘린더). 그 외(개장 전·주말·US 휴장)
+// = 어제부터 역방향으로 첫 트레이딩 데이(주말 skip). 마감 후 당일 유지가 있어야
+// 세션 캐시 키·DB 창 축이 로컬 자정을 세션 경계로 삼는다.
 export const getOverseasIndexTradingDate = (
   code: OverseasIndexCode,
   now: Date = new Date(),
 ): string => {
   const { date } = toOverseasLocalParts(code, now);
   if (getOverseasIndexSessionState(code, now) === "regular") return date;
+  if (minutesSinceOverseasIndexClose(code, now) !== null) return date;
   return findRecentOverseasTradingDay(shiftUsDate(date, -1));
 };
 

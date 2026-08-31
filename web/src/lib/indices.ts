@@ -10,11 +10,14 @@ import {
 import { fetchOverseasIndexIntradayChart } from "./kis-overseas-quote-fetch";
 import {
   OVERSEAS_INDEX_CLOSE_LOCAL,
-  OVERSEAS_INDEX_TIMEZONE,
   type DomesticIndexCode,
   type OverseasIntradayCode,
 } from "@/shared/constants/indices";
-import { getKrxTradingDate } from "@/shared/utils/market";
+import {
+  getKrxTradingDate,
+  getOverseasIndexTradingDate,
+  getPreviousOverseasIndexTradingDate,
+} from "@/shared/utils/market";
 import type {
   ChartBar,
   IndexDailySnapshot,
@@ -93,13 +96,11 @@ const queryPrevSessionClose = async (
 
 // ── 해외지수 intraday (US 3종 + 아시아 3종 + DAX) ─────────────────
 // collector 가 DB(overseas_index_intraday) 에 30분마다 1분봉을 적재하고, 여기서는
-// (a) DB 최근 2일치 read + (b) KIS live 1콜(102봉 창) 을 병합해 반환한다.
+// (a) DB 전 거래일 이후분 read + (b) KIS live 1콜(102봉 창) 을 병합해 반환한다.
 // live 우선 dedup — 같은 ts 라면 방금 fetch 한 봉이 더 최신 상태 (KIS 는 확장세션
 // 꼬리를 더 늦게 갱신하는 경우가 있어 항상 live 를 신뢰).
 // 실패 격리: live 실패 → DB-only degraded, DB 실패 → live-only, 둘 다 실패 → null.
 // 국내와 동형: 서버는 START 라벨 1분 봉을 반환하고 END/리샘플은 클라 소관.
-
-const INTRADAY_DB_LOOKBACK_DAYS = 2;
 
 type OverseasIntradayRow = {
   ts_str: string; // to_char(ts, 'YYYYMMDDHH24MISS') — 저장 시 ET 로컬 naive 를 그대로 보존
@@ -123,18 +124,20 @@ const parseTsStrToFakeUtcSec = (tsStr: string): number =>
 
 const readOverseasIntradayFromDb = async (
   indexCode: OverseasIntradayCode,
+  tradingDate: string, // 'YYYY-MM-DD' (거래소 로컬 캘린더의 최근 세션 거래일)
 ): Promise<ChartBar[]> => {
   try {
-    const tz = OVERSEAS_INDEX_TIMEZONE[indexCode];
-    // tz 는 SQL 파라미터로 바인딩 — 문자열 보간 금지 (인젝션 방어). INTERVAL 은
-    // 리터럴 고정(2일) 이라 상수 삽입, 값은 코드 상수(`INTRADAY_DB_LOOKBACK_DAYS`).
+    // 창 축은 "이전 거래일 00:00 부터" — 캘린더 산술로 잡으면 로컬 자정~개장 사이
+    // 직전 세션이 창 밖으로 밀린다. 국내 `readDomesticIntradayFromDb` 의 `$2::date`
+    // 바인딩 패턴 동형.
+    const prevTradingDate = getPreviousOverseasIndexTradingDate(indexCode, tradingDate);
     const [rows] = await pool.query<OverseasIntradayRow[]>(
       `SELECT to_char(ts, 'YYYYMMDDHH24MISS') AS ts_str, open, high, low, close
        FROM overseas_index_intraday
        WHERE index_code = $1
-         AND ts >= (now() AT TIME ZONE $2)::date - INTERVAL '${INTRADAY_DB_LOOKBACK_DAYS} days'
+         AND ts >= $2::date
        ORDER BY ts ASC`,
-      [indexCode, tz],
+      [indexCode, prevTradingDate],
     );
     return rows.map((r) => ({
       time: parseTsStrToFakeUtcSec(r.ts_str),
@@ -197,9 +200,10 @@ export const toIntradaySnapshots = (
 //   [] 또는 배열 — 정상. degraded (한쪽 실패) 도 성공으로 취급.
 export const getOverseasIndexIntradayPrices = async (
   indexCode: OverseasIntradayCode,
+  tradingDate: string = getOverseasIndexTradingDate(indexCode),
 ): Promise<IndexIntradaySnapshot[] | null> => {
   const [dbBars, liveBars] = await Promise.all([
-    readOverseasIntradayFromDb(indexCode),
+    readOverseasIntradayFromDb(indexCode, tradingDate),
     fetchOverseasIndexIntradayChart(indexCode),
   ]);
 

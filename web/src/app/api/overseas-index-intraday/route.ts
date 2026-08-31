@@ -44,7 +44,7 @@ const getCachedFetcher = (
   const cached = fetchers.get(key);
   if (cached) return cached;
   const fresh = unstable_cache(
-    () => getOverseasIndexIntradayPrices(code),
+    () => getOverseasIndexIntradayPrices(code, tradingDate),
     ["overseas-index-intraday", code, session, tradingDate],
     {
       revalidate: overseasIntradayRevalidate(session, minutesSinceClose),
