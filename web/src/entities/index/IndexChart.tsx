@@ -487,38 +487,40 @@ export const IndexChart = ({
             })}
           </div>
         )}
-        <input
-          key={`bc-${barCount ?? "all"}-${inputRevertNonce}`}
-          type="number"
-          inputMode="numeric"
-          min={1}
-          aria-label="표시 봉 개수"
-          aria-disabled={isIntradayView}
-          disabled={isIntradayView}
-          defaultValue={barCount === null ? "" : String(barCount)}
-          onBlur={(e) => applyBarCountFromInput(e.currentTarget.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.currentTarget.blur();
+        <div className="flex items-center gap-1.5 shrink-0">
+          <input
+            key={`bc-${barCount ?? "all"}-${inputRevertNonce}`}
+            type="number"
+            inputMode="numeric"
+            min={1}
+            aria-label="표시 봉 개수"
+            aria-disabled={isIntradayView}
+            disabled={isIntradayView}
+            defaultValue={barCount === null ? "" : String(barCount)}
+            onBlur={(e) => applyBarCountFromInput(e.currentTarget.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.currentTarget.blur();
+              }
+            }}
+            className={cn(TOOLBAR_INPUT_CLS, isIntradayView && "opacity-40")}
+          />
+          <ResetViewButton
+            onClick={() => {
+              // 봉수를 초기값으로 되돌리지 않으면 PriceChart resetKey effect 가 "현재 barCount"
+              // (=사용자 팬/줌 후 갱신된 값) 로 range 를 재계산 → 시각적 변화 거의 없음.
+              setBarCount(GRANULARITY_DEFAULT_BARS[granularity]);
+              setResetKey((k) => k + 1);
+              setHasUserPanned(false);
+            }}
+            // pan/zoom 미조작 & barCount 가 초기값이면 비활성.
+            // intraday 뷰는 봉수 input 이 잠겨 있어 barCount 가 default 유지 → 사실상
+            // hasUserPanned 만 결정. 리셋 클릭 시 resetKey 경로가 runLockedRange 로 복구.
+            disabled={
+              !hasUserPanned && barCount === GRANULARITY_DEFAULT_BARS[granularity]
             }
-          }}
-          className={cn(TOOLBAR_INPUT_CLS, isIntradayView && "opacity-40")}
-        />
-        <ResetViewButton
-          onClick={() => {
-            // 봉수를 초기값으로 되돌리지 않으면 PriceChart resetKey effect 가 "현재 barCount"
-            // (=사용자 팬/줌 후 갱신된 값) 로 range 를 재계산 → 시각적 변화 거의 없음.
-            setBarCount(GRANULARITY_DEFAULT_BARS[granularity]);
-            setResetKey((k) => k + 1);
-            setHasUserPanned(false);
-          }}
-          // pan/zoom 미조작 & barCount 가 초기값이면 비활성.
-          // intraday 뷰는 봉수 input 이 잠겨 있어 barCount 가 default 유지 → 사실상
-          // hasUserPanned 만 결정. 리셋 클릭 시 resetKey 경로가 runLockedRange 로 복구.
-          disabled={
-            !hasUserPanned && barCount === GRANULARITY_DEFAULT_BARS[granularity]
-          }
-        />
+          />
+        </div>
       </div>
       {showFailedIntraday ? (
         <div
