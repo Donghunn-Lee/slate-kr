@@ -68,6 +68,10 @@ type PriceChartProps = {
   // 사용자의 첫 pan/zoom 시 1회 통지. 상위 "기본 배율" 버튼 disabled 판정용.
   // resetKey 증가로 userScrolledRef 가 다시 false 로 초기화되면 이후 첫 조작에서 재발화.
   onUserInteract?: () => void;
+  // 사용자가 좌측 가장자리 근처(첫 봉 앞 LEFT_EDGE_TRIGGER_BARS 미만)까지 팬/줌하면 1회 통지.
+  // EOD 뷰 · 사용자 조작 경로 전용 — programmatic range 세팅에서는 발화하지 않는다.
+  // bars 배열 참조가 바뀌면 다시 발화 가능 (예: 지수 전환).
+  onNearLeftEdge?: () => void;
 };
 
 const DEFAULT_HEIGHT = 300;
@@ -75,6 +79,9 @@ const INTRADAY_BAR_BUFFER_SEC = 600; // 오른쪽 여유 = 10분봉 1개 폭
 // EOD 뷰 우측 여백 = 보이는 봉수 × 비율. 픽셀 여백을 봉수와 무관하게 일정 비율로 유지.
 // (rightOffset 고정 방식은 60/120/월 등 봉 폭이 크게 바뀔 때 여백 폭이 시각적으로 흔들려 폐기.)
 const RIGHT_MARGIN_RATIO = 0.04;
+// EOD 좌측 가장자리 접근 트리거. incoming.from 이 이 임계 미만이면 onNearLeftEdge 발화.
+// 첫 봉 index 0 앞으로 가상 slot(from<0) 이 잡히면 곧바로 트리거 → 사전 로드 성격.
+const LEFT_EDGE_TRIGGER_BARS = 50;
 
 const toTime = (t: string | number): Time =>
   typeof t === "number"
@@ -354,6 +361,7 @@ export const PriceChart = ({
   onVisibleBarsChange,
   resetKey = 0,
   onUserInteract,
+  onNearLeftEdge,
 }: PriceChartProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -398,6 +406,10 @@ export const PriceChart = ({
   // 콜백 최신 참조 — 구독 재설정 없이도 갈아끼울 수 있도록 ref 로.
   const onVisibleBarsChangeRef = useRef(onVisibleBarsChange);
   const onUserInteractRef = useRef(onUserInteract);
+  const onNearLeftEdgeRef = useRef(onNearLeftEdge);
+  // 같은 bars 배열에 대해 onNearLeftEdge 는 1회만 발화. bars prop 참조가 바뀌면 해제 —
+  // 지수 전환 후 새 지수에서 다시 트리거될 수 있도록.
+  const leftEdgeFiredRef = useRef(false);
   // 휠 연사 시 setState 폭주 방지용 debounce 타이머.
   const reportTimerRef = useRef<number | null>(null);
   // resetKey/visibleBars effect 가 intraday 를 deps 에 넣지 않고 최신값을 읽기 위한 ref.
@@ -429,6 +441,9 @@ export const PriceChart = ({
   // 선언 순서상 config/data effect 보다 먼저 실행된다.
   useEffect(() => {
     barsRef.current = bars;
+    // bars 참조 변경 시 좌측 트리거 재무장 — 지수 전환/history swap 이후 새 배열에서
+    // 첫 조작이 좌측 근처면 다시 발화될 수 있게 한다.
+    leftEdgeFiredRef.current = false;
   }, [bars]);
 
   // visibleBars 는 데이터 effect / 비-incremental 재설정 경로에서도 최신값을 참조해야 하므로 ref 로.
@@ -443,6 +458,10 @@ export const PriceChart = ({
   useEffect(() => {
     onUserInteractRef.current = onUserInteract;
   }, [onUserInteract]);
+
+  useEffect(() => {
+    onNearLeftEdgeRef.current = onNearLeftEdge;
+  }, [onNearLeftEdge]);
 
   useEffect(() => {
     intradayRef.current = intraday;
@@ -626,6 +645,15 @@ export const PriceChart = ({
         // barCount 역반영은 EOD 전용 — intraday 는 applyLockedRange 로 창이 고정되어
         // 봉수 프리셋 개념 자체가 없다. dirty 판정(위)은 뷰 무관.
         if (intraday) return;
+        // 좌측 가장자리 트리거 — EOD 뷰의 사용자 조작 경로 안에서만 발화.
+        // guard 통과 후 실행되므로 programmatic 초기 range 세팅은 걸리지 않는다.
+        if (
+          !leftEdgeFiredRef.current &&
+          incoming.from < LEFT_EDGE_TRIGGER_BARS
+        ) {
+          leftEdgeFiredRef.current = true;
+          onNearLeftEdgeRef.current?.();
+        }
         if (!onVisibleBarsChangeRef.current) return;
         const right = Math.min(incoming.to, len - 1);
         const left = Math.max(incoming.from, 0);
@@ -875,6 +903,18 @@ export const PriceChart = ({
         if (point) lineSeries.update(point);
       }
     } else {
+      // 좌측 확장 감지: 우측 끝 봉 동일 + 길이 증가 + suffix 앵커 일치.
+      // 앵커는 prev[1] — 리샘플된 뷰(주/월봉)에서는 첫 버킷이 부분 버킷일 수 있어 확장 전후로
+      // time 라벨(주 시작일)·close 가 어긋난다. 두 번째 버킷부터는 양쪽 다 완결이라 안전.
+      // 이 케이스는 range 재적용을 스킵 — 라이브러리가 마지막 봉 기준 우측 offset 으로 뷰를
+      // 저장하므로 prepend 뒤 재적용을 안 하면 보이는 구간이 그대로 유지된다.
+      const isLeftExtension =
+        prev !== null &&
+        prev.length >= 2 &&
+        bars.length > prev.length &&
+        prev[prev.length - 1].time === bars[bars.length - 1].time &&
+        bars[bars.length - prev.length + 1].time === prev[1].time &&
+        bars[bars.length - prev.length + 1].close === prev[1].close;
       if (seriesKind === "line") {
         (series as ISeriesApi<"Area" | "Baseline">).setData(bars.map(mapLine));
       } else {
@@ -891,7 +931,7 @@ export const PriceChart = ({
       for (const { period, series: lineSeries } of maSeriesList) {
         lineSeries.setData(computeSma(bars, period));
       }
-      if (!intraday) {
+      if (!intraday && !isLeftExtension) {
         // 툴바 조작(granularity/tab 등) 으로 데이터셋이 통째 갈릴 때 사용자가 지정한 표시 창을
         // 그대로 재적용. fitContent 로 매번 fit 하면 barCount 프리셋/휠 조작이 무시된다.
         applyRangeRef.current?.(visibleBarsRef.current);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw, WifiOff } from "lucide-react";
 import { parseISO, startOfWeek, format } from "date-fns";
 import { PriceChart } from "@/entities/chart/PriceChart";
@@ -19,6 +19,7 @@ import {
   type ViewMode,
 } from "@/entities/chart/chartToolbar";
 import { toIndexDisplayBars } from "@/entities/index/toIndexDisplayBars";
+import { useIndexDailyHistory } from "@/features/index-quotes/useIndexDailyHistory";
 import { useIndexIntraday } from "@/features/index-quotes/useIndexIntraday";
 import { useIndexQuotes } from "@/features/index-quotes/useIndexQuotes";
 import { useOverseasIndexIntraday } from "@/features/index-quotes/useOverseasIndexIntraday";
@@ -190,6 +191,9 @@ export const IndexChart = ({
   // 사용자가 pan/zoom 을 한 번이라도 했는지 — 버튼 disabled 판정용. PriceChart 첫 조작
   // 콜백으로 true, 리셋/뷰전환/주기전환/간격전환 시 false.
   const [hasUserPanned, setHasUserPanned] = useState(false);
+  // 좌측 팬 근접 시 opt-in 로 로드된 지수 코드 (또는 null). 훅 enabled 를 현재 indexCode
+  // 일치로 파생 → 지수 전환 시 자동으로 비활성 (별도 reset effect 불필요).
+  const [historyCode, setHistoryCode] = useState<IndexCode | null>(null);
   const isIntradayView = intradayEnabled && viewMode === "intraday";
   const isMobile = useIsMobile();
   const chartHeight = isMobile ? CHART_HEIGHT_MOBILE : CHART_HEIGHT_DESKTOP;
@@ -215,6 +219,20 @@ export const IndexChart = ({
   // 해외 지수 라이브 quote — 8종 전부. 헤더(IndexDetailPane)가 이미 소비 중이라
   // React Query dedup 로 신규 트래픽 없음.
   const { data: overseasQuotesData } = useOverseasIndexQuotes();
+  // 좌측 팬 트리거로만 활성화 — SSR 상한 초과분까지의 전량 이력. 실패 시 SSR prices 유지, 재시도 없음.
+  const historyActive = historyCode === indexCode;
+  const { data: dailyHistory, error: dailyHistoryError } = useIndexDailyHistory(
+    indexCode,
+    historyActive,
+  );
+  useEffect(() => {
+    if (dailyHistoryError) {
+      console.error(`[index-daily] ${indexCode}: ${dailyHistoryError.message}`);
+    }
+  }, [dailyHistoryError, indexCode]);
+  // enabled=false 여도 TanStack 은 이전 캐시가 있으면 data 를 반환하므로 historyActive
+  // 게이트를 명시 — 트리거 없이 캐시만으로 EOD 파이프라인이 승격되지 않게.
+  const basePrices = historyActive && dailyHistory ? dailyHistory : prices;
 
   const intradayQuery = isOverseasIntraday
     ? overseasIntradayQuery
@@ -284,7 +302,7 @@ export const IndexChart = ({
     : null;
   // 병합 게이트: quote.time.date > latestDaily.date (converted). time=null(.DJI) 자연 차단.
   const latestDailyDate =
-    prices.length > 0 ? prices[prices.length - 1].date : null;
+    basePrices.length > 0 ? basePrices[basePrices.length - 1].date : null;
   const overseasMergeDate = overseasQuoteMergeDate(
     overseasQuote,
     latestDailyDate,
@@ -325,8 +343,8 @@ export const IndexChart = ({
     !intradayFailed;
 
   const dayBars = useMemo<ChartBar[]>(
-    () => mergeLiveDayBar(dailyToBars(prices), liveQuote, mergeDate),
-    [prices, liveQuote, mergeDate],
+    () => mergeLiveDayBar(dailyToBars(basePrices), liveQuote, mergeDate),
+    [basePrices, liveQuote, mergeDate],
   );
 
   const weekBars = useMemo<ChartBar[]>(() => {
@@ -394,6 +412,10 @@ export const IndexChart = ({
     const filtered = maPeriods.filter((p) => p <= bars.length);
     return filtered.length > 0 ? filtered : undefined;
   }, [maPeriods, bars.length]);
+
+  // 좌측 팬 근접 시 현재 지수 코드로 로드 활성화. indexCode 변경 시 참조도 갱신 —
+  // PriceChart 는 콜백 참조를 ref 로 잡아 재구독 없음.
+  const enableHistory = useCallback(() => setHistoryCode(indexCode), [indexCode]);
 
   const applyBarCountFromInput = (raw: string) => {
     const trimmed = raw.trim();
@@ -585,6 +607,7 @@ export const IndexChart = ({
           onVisibleBarsChange={renderIntraday ? undefined : setBarCount}
           resetKey={resetKey}
           onUserInteract={() => setHasUserPanned(true)}
+          onNearLeftEdge={renderIntraday ? undefined : enableHistory}
         />
       )}
     </>
