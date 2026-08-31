@@ -512,11 +512,11 @@ export const IndexChart = ({
             setResetKey((k) => k + 1);
             setHasUserPanned(false);
           }}
-          // pan/zoom 미조작 상태에서 비활성. EOD 뷰는 추가로 barCount 가 초기값이어야 pristine.
-          // intraday 뷰는 barCount 프리셋 개념이 없어 hasUserPanned 만으로 판정.
+          // pan/zoom 미조작 & barCount 가 초기값이면 비활성.
+          // intraday 뷰는 봉수 input 이 잠겨 있어 barCount 가 default 유지 → 사실상
+          // hasUserPanned 만 결정. 리셋 클릭 시 resetKey 경로가 runLockedRange 로 복구.
           disabled={
-            !hasUserPanned &&
-            (isIntradayView || barCount === GRANULARITY_DEFAULT_BARS[granularity])
+            !hasUserPanned && barCount === GRANULARITY_DEFAULT_BARS[granularity]
           }
         />
       </div>

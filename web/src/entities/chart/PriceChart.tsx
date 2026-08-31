@@ -623,6 +623,9 @@ export const PriceChart = ({
           userScrolledRef.current = true;
           onUserInteractRef.current?.();
         }
+        // barCount 역반영은 EOD 전용 — intraday 는 applyLockedRange 로 창이 고정되어
+        // 봉수 프리셋 개념 자체가 없다. dirty 판정(위)은 뷰 무관.
+        if (intraday) return;
         if (!onVisibleBarsChangeRef.current) return;
         const right = Math.min(incoming.to, len - 1);
         const left = Math.max(incoming.from, 0);
@@ -662,6 +665,9 @@ export const PriceChart = ({
     runLockedRangeRef.current = runLockedRange;
 
     if (initial.length > 0) {
+      // 초기 setData 는 subscribe 콜백을 동기 발화시켜 guard 밖에서 userScrolled 로 오인식될
+      // 위험이 있음. 후속 runLockedRange/applyVisibleRange 자체 guard 와 중복돼도 무해.
+      applyingRangeRef.current = true;
       if (seriesKind === "line") {
         (series as ISeriesApi<"Area" | "Baseline">).setData(initial.map(mapLine));
       } else {
@@ -683,6 +689,7 @@ export const PriceChart = ({
       } else {
         applyVisibleRange(visibleBarsRef.current);
       }
+      releaseApplyingRange();
     }
     prevBarsRef.current = initial;
 
