@@ -604,37 +604,25 @@ export const PriceChart = ({
     };
     applyRangeRef.current = applyVisibleRange;
 
-    // 휠/팬으로 표시 창이 바뀌면 봉 개수 역산해 상위에 보고. 매 이벤트마다 setState 하면
-    // 폭주하므로 80ms debounce. interactive=false 는 조작 없음 → 구독 자체 skip.
+    // dirty 판정 + barCount 역반영을 subscribe 콜백에서 처리.
+    // applyingRangeRef guard 밖에서 도착한 range 변경 = 실제 사용자 조작.
+    // programmatic 경로(applyVisibleRange · runLockedRange · 데이터 effect setData/update ·
+    // 컨테이너 resize)는 모두 guard 를 통과하므로 이 콜백은 wheel/drag/touch 만 처리한다.
+    // barCount 보고는 매 이벤트 setState 폭주 방지용 80ms debounce.
+    // interactive=false 는 조작 없음 → 구독 자체 skip.
+    const container = containerRef.current;
     let logicalRangeHandler: ((range: LogicalRange | null) => void) | null =
       null;
-    // 사용자 pan/zoom 감지는 DOM 이벤트로 직접 — lightweight-charts subscribe 콜백은
-    // programmatic 세팅 이후 rAF 지연으로 발화되어 applyingRangeRef guard 를 놓치는 경우가 있고,
-    // 그때 잘못된 range 로 상위 barCount 를 덮어써 pristine 판정이 깨진다. wheel/mousedown/
-    // touchstart 는 사용자 액션에만 발화되어 이 오인식을 원천 차단한다.
-    const container = containerRef.current;
-    const handleUserAction = () => {
-      if (!userScrolledRef.current) {
-        onUserInteractRef.current?.();
-      }
-      userScrolledRef.current = true;
-    };
-    if (interactive) {
-      container.addEventListener("wheel", handleUserAction, { passive: true });
-      container.addEventListener("mousedown", handleUserAction);
-      container.addEventListener("touchstart", handleUserAction, { passive: true });
-    }
 
     if (interactive) {
       logicalRangeHandler = (incoming) => {
         if (applyingRangeRef.current || !incoming) return;
         const len = barsRef.current.length;
         if (len === 0) return;
-
-        // barCount 역반영 — DOM 이벤트로 사용자 조작이 확인된 이후에만 활성.
-        // 초기/리셋 programmatic 세팅으로 인한 rAF 지연 콜백이 상위 barCount 을 잘못된
-        // 계산값으로 덮어써 pristine 판정을 깨는 것을 방지.
-        if (!userScrolledRef.current) return;
+        if (!userScrolledRef.current) {
+          userScrolledRef.current = true;
+          onUserInteractRef.current?.();
+        }
         if (!onVisibleBarsChangeRef.current) return;
         const right = Math.min(incoming.to, len - 1);
         const left = Math.max(incoming.from, 0);
@@ -654,6 +642,15 @@ export const PriceChart = ({
       };
       chart.timeScale().subscribeVisibleLogicalRangeChange(logicalRangeHandler);
     }
+
+    // 컨테이너 resize(라이브러리 autoSize)로 인한 range 변경이 dirty 로 오인식되지 않게 guard.
+    // 라이브러리 ResizeObserver → 이 콜백(guard on) → 다음 프레임 rAF(range 이벤트, guard
+    // 활성) → 그 다음 프레임 release 순서. double-rAF guard 와 같은 전제.
+    const resizeObserver = new ResizeObserver(() => {
+      applyingRangeRef.current = true;
+      releaseApplyingRange();
+    });
+    resizeObserver.observe(container);
 
     // applyLockedRange 를 applyingRangeRef 로 감싸 subscribe 콜백이 userScrolled 로 오인식하지
     // 않게 한다. 초기 세팅·auto-follow 두 경로가 이 헬퍼를 공유.
@@ -778,11 +775,7 @@ export const PriceChart = ({
           .timeScale()
           .unsubscribeVisibleLogicalRangeChange(logicalRangeHandler);
       }
-      if (interactive) {
-        container.removeEventListener("wheel", handleUserAction);
-        container.removeEventListener("mousedown", handleUserAction);
-        container.removeEventListener("touchstart", handleUserAction);
-      }
+      resizeObserver.disconnect();
       if (reportTimerRef.current !== null) {
         window.clearTimeout(reportTimerRef.current);
         reportTimerRef.current = null;
@@ -824,6 +817,11 @@ export const PriceChart = ({
     const volumeSeries = volumeSeriesRef.current;
     const maSeriesList = maSeriesRef.current;
 
+    // series.setData/update 자체가 range change 이벤트를 유발할 수 있음
+    // (라이브러리 shiftVisibleRangeOnNewBar 기본 true, dataset 스왑 시 range 조정).
+    // 후속 applyRangeRef/runLockedRange 없이 끝나는 경로도 있으므로 mutation 전체를 감싼다.
+    applyingRangeRef.current = true;
+
     if (bars.length === 0) {
       if (seriesKind === "line") {
         (series as ISeriesApi<"Area" | "Baseline">).setData([]);
@@ -833,6 +831,7 @@ export const PriceChart = ({
       if (volumeSeries) volumeSeries.setData([]);
       for (const { series: lineSeries } of maSeriesList) lineSeries.setData([]);
       prevBarsRef.current = bars;
+      releaseApplyingRange();
       return;
     }
 
@@ -896,6 +895,7 @@ export const PriceChart = ({
       runLockedRangeRef.current?.(bars, dimBefore);
     }
     prevBarsRef.current = bars;
+    releaseApplyingRange();
 
     // Legend: 사용자가 crosshair 로 특정 봉을 보고 있을 땐 그대로 두고,
     // 미호버 상태에서만 최신 봉으로 갱신 (라이브 tick 반영).
