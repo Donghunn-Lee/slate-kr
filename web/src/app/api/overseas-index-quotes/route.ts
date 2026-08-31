@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
 
 // 코드 × 글로벌세션 × KST일자 별 unstable_cache 래퍼 memoize.
 // F42 패턴 이식: session·date 를 key 축으로 넣어 세션·일 경계 자동 miss.
-// active 60s / idle 3600s (KST 05:00~09:00 만 idle). null(호출 실패) 도 캐시되므로
+// active 60s / idle 3600s (KST 05:45~09:00 만 idle). null(호출 실패) 도 캐시되므로
 // 실패 시 tag evict 로 stale null 재서빙 방지.
 type OverseasQuoteFetcher = () => Promise<IndexQuote | null>;
 const quoteFetchers = new Map<string, OverseasQuoteFetcher>();

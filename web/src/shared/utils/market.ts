@@ -153,6 +153,15 @@ export const getKrxLastCloseDate = (now: Date = new Date()): string => {
   return findRecentTradingDay(shiftKstDate(date, -1));
 };
 
+// 당일 KRX 정규장 마감(15:30) 이후 경과 분. 개장 전·자정 넘김·주말·휴장이면 null —
+// 전일 마감까지 소급해 계산하지 않는다(당일 마감 후 확정 프린트 도달 창에만 관심).
+export const minutesSinceKrxClose = (now: Date = new Date()): number | null => {
+  const { date, minutes } = toKstParts(now);
+  if (!isKrxTradingDay(date)) return null;
+  if (minutes < REGULAR_END_MINUTES) return null;
+  return minutes - REGULAR_END_MINUTES;
+};
+
 // ── US 세션 (NYSE 정규장 09:30~16:00 ET) ─────────────────
 // DST 자동: Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York' }) 로 ET 파싱.
 // 조기마감(1/2, 7/3(Thu), 11/27, 12/24 등)은 보수적으로 정규 16:00 마감으로 취급.
@@ -242,10 +251,12 @@ export const getPreviousUsTradingDate = (fromDate: string): string =>
   findRecentUsTradingDay(shiftUsDate(fromDate, -1));
 
 // ── 글로벌 해외지수 coarse 세션 ─────────────────
-// KST 05:00~09:00 은 전 세계 주요 시장(US/EU/아시아) 공통 휴지 구간 → 폴링 중단.
+// KST 05:45~09:00 은 전 세계 주요 시장(US/EU/아시아) 공통 휴지 구간 → 폴링 중단.
 // 시장별 세션·휴장 캘린더는 만들지 않는다 — 마감 시장은 KIS 가 종가를 반환하므로
 // 값 표시는 성립.
-const GLOBAL_OVERSEAS_IDLE_START_MINUTES = 5 * 60; // 05:00 KST
+// 05:45 = US 정규장 마감(EDT 기간 KST 05:00) + 45분 정산 프린트 버퍼.
+// EST 기간(마감 KST 06:00)은 창 시작이 마감보다 앞서므로 이 버퍼로는 커버되지 않는다.
+const GLOBAL_OVERSEAS_IDLE_START_MINUTES = 5 * 60 + 45; // 05:45 KST
 const GLOBAL_OVERSEAS_IDLE_END_MINUTES = 9 * 60; // 09:00 KST
 
 export type GlobalOverseasSession = "active" | "idle";
@@ -319,6 +330,20 @@ export const getOverseasIndexSessionState = (
   const open = hhmmToMinutes(OVERSEAS_INDEX_OPEN_LOCAL[code]);
   const close = hhmmToMinutes(OVERSEAS_INDEX_CLOSE_LOCAL[code]);
   return minutes >= open && minutes < close ? "regular" : "closed";
+};
+
+// 당일 해외 지수 정규장 마감 이후 경과 분(거래소 로컬). 개장 전·주말이면 null.
+// 휴장 캘린더는 `getOverseasIndexSessionState` 와 동일 정책(주말만 skip) — US 휴장은
+// 미반영이나 마감 개념이 성립하지 않는 날이라 소비처에서 문제 되지 않는다.
+export const minutesSinceOverseasIndexClose = (
+  code: OverseasIndexCode,
+  now: Date = new Date(),
+): number | null => {
+  const { day, minutes } = toOverseasLocalParts(code, now);
+  if (day === 0 || day === 6) return null;
+  const close = hhmmToMinutes(OVERSEAS_INDEX_CLOSE_LOCAL[code]);
+  if (minutes < close) return null;
+  return minutes - close;
 };
 
 const isOverseasTradingDay = (yyyyMmDd: string): boolean => {

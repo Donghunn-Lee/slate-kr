@@ -119,7 +119,7 @@ const getCachedFetcher = (
   const fresh = unstable_cache(
     () => runFetch(kind),
     ["market-ranking", key, session, tradingDate],
-    { revalidate: krxIndexRankingRevalidate(session), tags: [tag] },
+    { revalidate: krxIndexRankingRevalidate(session, null), tags: [tag] },
   );
   fetchers.set(mapKey, fresh);
   return { fetcher: fresh, key };

@@ -6,6 +6,7 @@ import {
   getKrxSessionState,
   getKrxTradingDate,
   isKrxMarketOpen,
+  minutesSinceKrxClose,
   type KrxSession,
 } from "@/shared/utils/market";
 import { krxIndexRankingRevalidate } from "@/lib/sessionCache";
@@ -17,7 +18,7 @@ export const dynamic = "force-dynamic";
 // 지수 코드 × session × krxDate 별 unstable_cache 래퍼 memoize.
 // session·tradingDate 를 key 축에 두어 세션·일 경계에서 자동 miss 를 보장한다
 // (미포함 시 preopen 진입 때 어제 봉이 stale 로 재사용될 수 있음).
-// TTL: 활성 세션(regular) 60s / 그 외 3600s.
+// TTL: 활성 세션(regular) 60s / 그 외 3600s (마감 직후 정산 창은 60s).
 type IndexFetcher = () => Promise<IndexIntradaySnapshot[] | null>;
 const fetchers = new Map<string, IndexFetcher>();
 
@@ -34,6 +35,7 @@ const getCachedFetcher = (
   code: DomesticIndexCode,
   session: KrxSession,
   tradingDate: string,
+  minutesSinceClose: number | null,
 ): IndexFetcher => {
   const key = cacheKeyOf(code, session, tradingDate);
   const cached = fetchers.get(key);
@@ -42,7 +44,7 @@ const getCachedFetcher = (
     () => getIndexIntradayPrices(code),
     ["index-intraday", code, session, tradingDate],
     {
-      revalidate: krxIndexRankingRevalidate(session),
+      revalidate: krxIndexRankingRevalidate(session, minutesSinceClose),
       tags: [cacheTagOf(code, session)],
     },
   );
@@ -86,11 +88,12 @@ export const GET = async () => {
   const session = getKrxSessionState();
   const tradingDate = getKrxTradingDate();
   const marketOpen = isKrxMarketOpen();
+  const sinceClose = minutesSinceKrxClose();
 
   try {
     const results = await Promise.allSettled(
       DOMESTIC_INDEX_CODES.map((code) =>
-        getCachedFetcher(code, session, tradingDate)(),
+        getCachedFetcher(code, session, tradingDate, sinceClose)(),
       ),
     );
     const resolved = DOMESTIC_INDEX_CODES.map(

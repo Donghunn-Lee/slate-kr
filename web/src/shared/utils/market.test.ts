@@ -12,6 +12,8 @@ import {
   isKrxEarlyPreopen,
   isKrxLatePreopen,
   isUsMarketOpen,
+  minutesSinceKrxClose,
+  minutesSinceOverseasIndexClose,
 } from "./market";
 
 // Date 생성 헬퍼 — 명시적 UTC epoch 를 통해 ET 로컬 시각을 유도한다.
@@ -309,6 +311,91 @@ describe("getPreviousOverseasIndexTradingDate", () => {
     expect(getPreviousOverseasIndexTradingDate("DAX", "2026-07-28")).toBe(
       "2026-07-27",
     );
+  });
+});
+
+// 정산 창 TTL 판정용 close-경과 헬퍼. null = 정산 창 대상 아님 → 3600s.
+// 양수 = 당일 마감 후 경과 분 → 창 이내면 60s.
+describe("minutesSinceKrxClose", () => {
+  it("정규장 중 (14:00 KST) → null (아직 마감 전)", () => {
+    expect(minutesSinceKrxClose(kst(2026, 7, 23, 14, 0))).toBeNull();
+  });
+  it("마감 경계 (15:30 KST) → 0 (정산 창 시작)", () => {
+    expect(minutesSinceKrxClose(kst(2026, 7, 23, 15, 30))).toBe(0);
+  });
+  it("마감 +5분 (15:35 KST) → 5 (창 이내)", () => {
+    expect(minutesSinceKrxClose(kst(2026, 7, 23, 15, 35))).toBe(5);
+  });
+  it("마감 +14분 (15:44 KST) → 14 (창 경계)", () => {
+    expect(minutesSinceKrxClose(kst(2026, 7, 23, 15, 44))).toBe(14);
+  });
+  it("마감 +15분 (15:45 KST) → 15 (창 밖 — 소비처가 < 15 로 판정)", () => {
+    expect(minutesSinceKrxClose(kst(2026, 7, 23, 15, 45))).toBe(15);
+  });
+  it("마감 +4시간 (19:30 KST) → 240", () => {
+    expect(minutesSinceKrxClose(kst(2026, 7, 23, 19, 30))).toBe(240);
+  });
+  it("자정 넘어 (다음날 03:00 KST) → null (당일 마감 없음)", () => {
+    expect(minutesSinceKrxClose(kst(2026, 7, 24, 3, 0))).toBeNull();
+  });
+  it("토요일 정오 → null (주말)", () => {
+    expect(minutesSinceKrxClose(kst(2026, 7, 25, 12, 0))).toBeNull();
+  });
+});
+
+describe("minutesSinceOverseasIndexClose", () => {
+  // NI225 15:30 JST 마감. JST(UTC+9) — 06:30 UTC 가 15:30 JST.
+  it("NI225 정규장 중 (12:00 JST) → null", () => {
+    expect(
+      minutesSinceOverseasIndexClose("NI225", utc(2026, 7, 23, 3, 0)),
+    ).toBeNull();
+  });
+  it("NI225 마감 +5분 (15:35 JST) → 5", () => {
+    expect(
+      minutesSinceOverseasIndexClose("NI225", utc(2026, 7, 23, 6, 35)),
+    ).toBe(5);
+  });
+  it("NI225 마감 +44분 (16:14 JST) → 44 (창 경계 안)", () => {
+    expect(
+      minutesSinceOverseasIndexClose("NI225", utc(2026, 7, 23, 7, 14)),
+    ).toBe(44);
+  });
+  it("NI225 마감 +45분 (16:15 JST) → 45 (창 밖)", () => {
+    expect(
+      minutesSinceOverseasIndexClose("NI225", utc(2026, 7, 23, 7, 15)),
+    ).toBe(45);
+  });
+  it("NI225 토요일 → null (주말)", () => {
+    expect(
+      minutesSinceOverseasIndexClose("NI225", utc(2026, 7, 25, 7, 0)),
+    ).toBeNull();
+  });
+
+  // SPX 16:00 ET 마감. EDT(UTC-4): 20:00 UTC. EST(UTC-5): 21:00 UTC.
+  it("SPX EDT 마감 +5분 (16:05 ET) → 5 (2026-07-23)", () => {
+    expect(
+      minutesSinceOverseasIndexClose("SPX", utc(2026, 7, 23, 20, 5)),
+    ).toBe(5);
+  });
+  it("SPX EDT 마감 +44분 → 44 (창 경계 안)", () => {
+    expect(
+      minutesSinceOverseasIndexClose("SPX", utc(2026, 7, 23, 20, 44)),
+    ).toBe(44);
+  });
+  it("SPX EDT 마감 +45분 → 45 (창 밖)", () => {
+    expect(
+      minutesSinceOverseasIndexClose("SPX", utc(2026, 7, 23, 20, 45)),
+    ).toBe(45);
+  });
+  it("SPX EDT 정규장 중 (11:00 ET) → null", () => {
+    expect(
+      minutesSinceOverseasIndexClose("SPX", utc(2026, 7, 23, 15, 0)),
+    ).toBeNull();
+  });
+  it("SPX EST 마감 +5분 (16:05 ET, 2026-12-15) → 5 (DST 전환 대칭)", () => {
+    expect(
+      minutesSinceOverseasIndexClose("SPX", utc(2026, 12, 15, 21, 5)),
+    ).toBe(5);
   });
 });
 

@@ -5,6 +5,7 @@ import { getOverseasIndexIntradayPrices } from "@/lib/indices";
 import {
   getOverseasIndexSessionState,
   getOverseasIndexTradingDate,
+  minutesSinceOverseasIndexClose,
   type OverseasIndexSessionState,
 } from "@/shared/utils/market";
 import { overseasIntradayRevalidate } from "@/lib/sessionCache";
@@ -37,6 +38,7 @@ const getCachedFetcher = (
   code: OverseasIntradayCode,
   session: OverseasIndexSessionState,
   tradingDate: string,
+  minutesSinceClose: number | null,
 ): OverseasFetcher => {
   const key = cacheKeyOf(code, session, tradingDate);
   const cached = fetchers.get(key);
@@ -45,7 +47,7 @@ const getCachedFetcher = (
     () => getOverseasIndexIntradayPrices(code),
     ["overseas-index-intraday", code, session, tradingDate],
     {
-      revalidate: overseasIntradayRevalidate(session),
+      revalidate: overseasIntradayRevalidate(session, minutesSinceClose),
       tags: [cacheTagOf(code, session)],
     },
   );
@@ -89,13 +91,14 @@ export const GET = async () => {
     code,
     session: getOverseasIndexSessionState(code),
     tradingDate: getOverseasIndexTradingDate(code),
+    sinceClose: minutesSinceOverseasIndexClose(code),
   }));
   const marketOpen = perCode.some((p) => p.session === "regular");
 
   try {
     const results = await Promise.allSettled(
-      perCode.map(({ code, session, tradingDate }) =>
-        getCachedFetcher(code, session, tradingDate)(),
+      perCode.map(({ code, session, tradingDate, sinceClose }) =>
+        getCachedFetcher(code, session, tradingDate, sinceClose)(),
       ),
     );
     const resolved = perCode.map(

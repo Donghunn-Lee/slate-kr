@@ -6,6 +6,7 @@ import {
   getKrxSessionState,
   getKrxTradingDate,
   isKrxMarketOpen,
+  minutesSinceKrxClose,
   type KrxSession,
 } from "@/shared/utils/market";
 import { krxIndexRankingRevalidate } from "@/lib/sessionCache";
@@ -28,7 +29,7 @@ const KIS_BY_DOMESTIC: Record<DomesticIndexCode, IndexKisCode> = {
 
 // 지수 코드 × session × krxDate 별 unstable_cache 래퍼를 memoize.
 // session·tradingDate 를 key 축에 두어 세션·일 경계에서 자동 miss 를 보장한다.
-// TTL: 활성 세션(regular) 60s / 그 외 3600s.
+// TTL: 활성 세션(regular) 60s / 그 외 3600s (마감 직후 정산 창은 60s).
 // null(호출 실패) 도 그대로 캐시 = KIS backpressure. 실패 시 tag evict 로 정리.
 type IndexQuoteFetcher = () => Promise<IndexQuote | null>;
 const quoteFetchers = new Map<string, IndexQuoteFetcher>();
@@ -46,6 +47,7 @@ const getCachedQuote = (
   code: IndexKisCode,
   session: KrxSession,
   tradingDate: string,
+  minutesSinceClose: number | null,
 ): IndexQuoteFetcher => {
   const key = cacheKeyOf(code, session, tradingDate);
   const cached = quoteFetchers.get(key);
@@ -54,7 +56,7 @@ const getCachedQuote = (
     () => fetchIndexQuote(code),
     ["index-quote", code, session, tradingDate],
     {
-      revalidate: krxIndexRankingRevalidate(session),
+      revalidate: krxIndexRankingRevalidate(session, minutesSinceClose),
       tags: [cacheTagOf(code, session)],
     },
   );
@@ -86,12 +88,13 @@ const resolveLive = (
 export const GET = async () => {
   const session = getKrxSessionState();
   const tradingDate = getKrxTradingDate();
+  const sinceClose = minutesSinceKrxClose();
 
   try {
     const [liveResults, fallbackResults] = await Promise.all([
       Promise.allSettled(
         DOMESTIC_INDEX_CODES.map((code) =>
-          getCachedQuote(KIS_BY_DOMESTIC[code], session, tradingDate)(),
+          getCachedQuote(KIS_BY_DOMESTIC[code], session, tradingDate, sinceClose)(),
         ),
       ),
       Promise.allSettled(
