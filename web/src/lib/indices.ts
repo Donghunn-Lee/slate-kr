@@ -320,12 +320,16 @@ export const getIndexIntradayPrices = async (
 
 export const getIndexDailyPrices = async (
   indexCode: string,
-  limit = 365
+  limit?: number,
 ): Promise<IndexDailySnapshot[]> => {
-  // 최신 N건을 가져온 뒤 차트가 소비하기 좋게 ASC로 뒤집는다.
-  const [rows] = await pool.query<DailyIndexRow[]>(
-    "SELECT base_date, open, high, low, close, change, change_rate, volume FROM index_daily_prices WHERE index_code = $1 ORDER BY base_date DESC LIMIT $2",
-    [indexCode, limit]
-  );
+  // limit 생략 = LIMIT 절 없이 전량. 기본값을 두면 잊고 잘라올 위험이 있어 옵셔널로.
+  // 최신 N건 → 차트 소비용 ASC 로 뒤집는다.
+  const sql =
+    limit === undefined
+      ? "SELECT base_date, open, high, low, close, change, change_rate, volume FROM index_daily_prices WHERE index_code = $1 ORDER BY base_date DESC"
+      : "SELECT base_date, open, high, low, close, change, change_rate, volume FROM index_daily_prices WHERE index_code = $1 ORDER BY base_date DESC LIMIT $2";
+  const params: (string | number)[] =
+    limit === undefined ? [indexCode] : [indexCode, limit];
+  const [rows] = await pool.query<DailyIndexRow[]>(sql, params);
   return rows.reverse().map((row) => toSnapshot(indexCode, row));
 };
