@@ -10,8 +10,11 @@ export type OverseasIndexQuotesResponse = {
 };
 
 const POLL_INTERVAL_MS = 60_000;
+// idle(KST 05:00~09:00) 에서도 느린 cadence 유지 — active 판정이 서버 응답 필드라
+// 클라가 09:00 승격을 자가 감지 못하므로 폴링 필요. 서버 세션 캐시 히트라 KIS 콜 0.
+const CLOSED_POLL_MS = 120_000;
 
-// useIndexQuotes 와 동일 패턴. active=false 이면 폴링 정지.
+// useIndexQuotes 와 동일 패턴. active=true 60s / 그 외 120s 2단 cadence.
 export const useOverseasIndexQuotes = () =>
   useQuery<OverseasIndexQuotesResponse>({
     queryKey: ["overseas-index-quotes"],
@@ -21,5 +24,5 @@ export const useOverseasIndexQuotes = () =>
       return res.json();
     },
     refetchInterval: (query) =>
-      query.state.data?.active ? POLL_INTERVAL_MS : false,
+      query.state.data?.active ? POLL_INTERVAL_MS : CLOSED_POLL_MS,
   });

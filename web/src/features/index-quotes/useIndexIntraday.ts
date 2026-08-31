@@ -11,9 +11,12 @@ export type IndexIntradayResponse = {
 };
 
 const POLL_INTERVAL_MS = 60_000;
+// closed 에서도 느린 cadence 유지 — 개장 전 로드된 held 탭이 09:00 을 감지해
+// marketOpen=true 수신 시 regular cadence 로 자동 승격. 서버 세션 캐시 히트라 KIS 콜 0.
+const CLOSED_POLL_MS = 120_000;
 
 // 국내 지수 인트라데이를 단일 폴링으로 가져온다.
-// 직전 응답 marketOpen=true 일 때만 60s 폴링, 장 마감 시 정지.
+// 직전 응답 marketOpen=true 일 때 60s, 그 외 120s 로 2단 cadence.
 export const useIndexIntraday = () =>
   useQuery<IndexIntradayResponse>({
     queryKey: ["index-intraday"],
@@ -23,5 +26,5 @@ export const useIndexIntraday = () =>
       return res.json();
     },
     refetchInterval: (query) =>
-      query.state.data?.marketOpen ? POLL_INTERVAL_MS : false,
+      query.state.data?.marketOpen ? POLL_INTERVAL_MS : CLOSED_POLL_MS,
   });
