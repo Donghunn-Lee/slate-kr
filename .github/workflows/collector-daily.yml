@@ -37,6 +37,12 @@ jobs:
         working-directory: collector
         run: pip install -r requirements.txt
 
+      - name: Run fetch_market_calendar
+        id: fetch_market_calendar
+        working-directory: collector
+        run: python fetch_market_calendar.py
+        continue-on-error: true
+
       # 국내 스텝 실행 조건: inputs.mode 로 제어.
       #   full(기본값) → 국내+해외 전체 실행.
       #   overseas-only → 국내 skip, 해외만 실행 (예: 국내는 정상, 해외만 재수집 · 토요일 US 금요일 마감분).
@@ -103,6 +109,7 @@ jobs:
           else
             domestic_expected=yes
           fi
+          check fetch_market_calendar  "${{ steps.fetch_market_calendar.outcome }}"  yes
           check fetch_prices           "${{ steps.fetch_prices.outcome }}"           "$domestic_expected"
           check fetch_index_prices     "${{ steps.fetch_index_prices.outcome }}"     "$domestic_expected"
           check fetch_overseas_indices "${{ steps.fetch_overseas_indices.outcome }}" yes
