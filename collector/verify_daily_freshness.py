@@ -3,7 +3,8 @@
 
 모드 (argparse --mode)
   full (기본값)   국내 EOD(daily_prices, index_daily_prices) + 국내 지수 1분봉 4종 하한.
-                  expected: 거래일이면 today(KST), 아니면 직전 거래일 (KRX_HOLIDAYS_2026 기준).
+                  expected: 거래일이면 today(KST), 아니면 직전 거래일.
+                  거래일 판정: market_trading_days(KRX) 우선, 부재 시 KRX_HOLIDAYS_2026 폴백.
   overseas-only   해외 EOD(index_daily_prices 8종) + 해외 intraday(overseas_index_intraday 7종) 하한.
                   expected: KST 오늘 - 1일. 주말이면 섹션 전체 skip.
                   시장 개장 여부는 market_trading_days(US·JP·HK·CN) + 정적 XETRA 캘린더(DE) 참조.
@@ -30,6 +31,8 @@ load_dotenv()
 # 출처: web/src/shared/utils/krxHolidays.ts (#064 도입).
 # 갱신 주기: 연 1회 — 양쪽 동시 갱신 필요 (Python·TypeScript 상수 동시 반영).
 # 임시공휴일(보궐선거 등) 발생 시 추가.
+# 폴백 전용: market_trading_days 조회에 실패했거나 조회 창 밖의 날짜일 때만 사용.
+# 정상 경로는 load_krx_calendar() 로드 결과 우선.
 KRX_HOLIDAYS_2026: frozenset[str] = frozenset([
     "2026-01-01",  # 신정
     "2026-02-16",  # 설날 연휴
@@ -112,26 +115,65 @@ HALF_DAY_2026 = {
 }
 
 
-def is_trading_day(d: date) -> bool:
+def is_trading_day(d: date, calendar: dict[date, bool] | None = None) -> bool:
+    """calendar 에 d 가 있으면 그 값(우선), 없으면 주말+KRX_HOLIDAYS_2026 폴백."""
+    if calendar is not None and d in calendar:
+        return calendar[d]
     if d.weekday() >= 5:  # 5=토, 6=일
         return False
     return d.isoformat() not in KRX_HOLIDAYS_2026
 
 
-def compute_expected(today_kst: date) -> date:
+def compute_expected(today_kst: date, calendar: dict[date, bool] | None = None) -> date:
     d = today_kst
-    while not is_trading_day(d):
+    while not is_trading_day(d, calendar):
         d = d - timedelta(days=1)
     return d
 
 
-def compute_expected_from_now(now_kst: datetime) -> date:
+def compute_expected_from_now(now_kst: datetime,
+                              calendar: dict[date, bool] | None = None) -> date:
     """오늘이 KRX 거래일이고 KST ≥ 16:00 이면 오늘, 아니면 직전 거래일.
     fetch_prices.py / fetch_index_prices.py 의 end 캡과 동일 기준."""
     today = now_kst.date()
-    if is_trading_day(today) and now_kst.hour >= 16:
+    if is_trading_day(today, calendar) and now_kst.hour >= 16:
         return today
-    return compute_expected(today - timedelta(days=1))
+    return compute_expected(today - timedelta(days=1), calendar)
+
+
+def load_krx_calendar(conn) -> dict[date, bool]:
+    """market_trading_days market='KRX' 최근 ±45일 창을 dict[date -> is_open] 로 로드.
+    실패 시 빈 dict 반환 (호출부는 자동으로 KRX_HOLIDAYS_2026 폴백).
+    로드 결과와 정적 규칙이 다른 날짜(임시공휴일 등)는 stderr 로 1줄 로그."""
+    today_kst = (datetime.now(timezone.utc) + timedelta(hours=9)).date()
+    lo = today_kst - timedelta(days=45)
+    hi = today_kst + timedelta(days=45)
+    try:
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                "SELECT trade_date, is_open FROM market_trading_days "
+                "WHERE market = 'KRX' AND trade_date BETWEEN %s AND %s",
+                (lo, hi),
+            )
+            rows = cur.fetchall()
+        finally:
+            cur.close()
+    except Exception as e:
+        print(f"load_krx_calendar failed, fallback to static: {e}",
+              file=sys.stderr)
+        return {}
+
+    calendar = {d: bool(o) for d, o in rows}
+    for d, is_open in calendar.items():
+        static_open = (d.weekday() < 5) and (d.isoformat() not in KRX_HOLIDAYS_2026)
+        if static_open != is_open:
+            print(
+                f"KRX_HOLIDAYS_2026 mismatch: {d.isoformat()} "
+                f"static={static_open} calendar={is_open}",
+                file=sys.stderr,
+            )
+    return calendar
 
 
 def get_max(cursor, table: str, col: str) -> date | None:
@@ -277,7 +319,7 @@ def check_overseas_section(cursor, expected: date) -> list[str]:
     return failures
 
 
-def _run_full(cur, now_kst: datetime) -> list[str]:
+def _run_full(cur, now_kst: datetime, calendar: dict[date, bool]) -> list[str]:
     if _FORCE:
         try:
             expected = datetime.strptime(_FORCE, "%Y-%m-%d").date()
@@ -287,7 +329,7 @@ def _run_full(cur, now_kst: datetime) -> list[str]:
                   file=sys.stderr)
             sys.exit(2)
     else:
-        expected = compute_expected_from_now(now_kst)
+        expected = compute_expected_from_now(now_kst, calendar)
 
     print(f"verify [full]: now(KST)={now_kst:%Y-%m-%d %H:%M:%S}  expected={expected}")
 
@@ -337,9 +379,10 @@ def main() -> None:
 
     conn = get_connection()
     try:
+        calendar = load_krx_calendar(conn)
         cur = conn.cursor()
         if args.mode == "full":
-            failures = _run_full(cur, now_kst)
+            failures = _run_full(cur, now_kst, calendar)
         else:
             failures = _run_overseas_only(cur, now_kst)
         cur.close()

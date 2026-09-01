@@ -44,7 +44,7 @@ from dotenv import load_dotenv
 
 from db import get_connection
 from kis_token import get_token
-from verify_daily_freshness import is_trading_day
+from verify_daily_freshness import is_trading_day, load_krx_calendar
 
 load_dotenv()
 
@@ -80,11 +80,12 @@ logger = logging.getLogger(__name__)
 
 
 
-# ── 게이트 (pure function — 테스트 시 mock now 주입) ─────────────────
-def is_gate_open(now_kst: datetime) -> tuple[bool, str]:
+# ── 게이트 (pure function — 테스트 시 mock now / calendar 주입) ──────
+def is_gate_open(now_kst: datetime,
+                 calendar: dict | None = None) -> tuple[bool, str]:
     """(open, reason). open=False 면 reason 메시지 반환."""
     today = now_kst.date()
-    if not is_trading_day(today):
+    if not is_trading_day(today, calendar):
         return False, f"non-trading day ({today.isoformat()})"
     if now_kst.hour < GATE_HOUR or (
         now_kst.hour == GATE_HOUR and now_kst.minute < GATE_MIN
@@ -316,7 +317,12 @@ def main() -> int:
         return 1
 
     now_kst = datetime.now(KST)
-    open_, reason = is_gate_open(now_kst)
+    conn = get_connection()
+    try:
+        calendar = load_krx_calendar(conn)
+    finally:
+        conn.close()
+    open_, reason = is_gate_open(now_kst, calendar)
     if not open_:
         logger.info(
             "gate closed — %s. skip 후 정상 종료 (--force 없음).", reason

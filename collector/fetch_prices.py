@@ -42,7 +42,7 @@ from dotenv import load_dotenv
 
 from db import get_connection
 from kis_token import get_token
-from verify_daily_freshness import compute_expected_from_now
+from verify_daily_freshness import compute_expected_from_now, load_krx_calendar
 
 load_dotenv()
 
@@ -344,7 +344,12 @@ def main():
         sys.exit(1)
 
     now_kst = datetime.now(KST)
-    end = compute_expected_from_now(now_kst)
+    conn = get_connection()
+    try:
+        calendar = load_krx_calendar(conn)
+    finally:
+        conn.close()
+    end = compute_expected_from_now(now_kst, calendar)
     logger.info(
         "일일 적재 시작 · now(KST)=%s · end 캡=%s",
         now_kst.strftime("%Y-%m-%d %H:%M:%S"), end,
