@@ -100,6 +100,10 @@ const GRANULARITY_DEFAULT_BARS: Record<Granularity, number> = {
   month: 12,
 };
 
+// EOD 지수 일봉 좌측 여백 (whitespace) — 첫 봉 앞 이 개수만큼 슬롯을 예약.
+// 사용자가 좌측 팬으로 여백에 진입하면 useIndexDailyHistory 트리거 + 로딩 오버레이가 뜬다.
+const LEFT_MARGIN_BARS = 40;
+
 // 차트 높이 — StockChartTabs 와 동일 축. failed/empty 상태 컨테이너와 PriceChart height 공용.
 const CHART_HEIGHT_MOBILE = 320;
 const CHART_HEIGHT_DESKTOP = 450;
@@ -219,12 +223,16 @@ export const IndexChart = ({
   // 해외 지수 라이브 quote — 8종 전부. 헤더(IndexDetailPane)가 이미 소비 중이라
   // React Query dedup 로 신규 트래픽 없음.
   const { data: overseasQuotesData } = useOverseasIndexQuotes();
-  // 좌측 팬 트리거로만 활성화 — SSR 상한 초과분까지의 전량 이력. 실패 시 SSR prices 유지, 재시도 없음.
+  // 좌측 팬 트리거로만 활성화 — SSR 상한 초과분까지의 전량 이력.
+  // 실패 시 SSR prices 유지. 재시도는 enableHistory 콜백에서 refetch 로 트리거.
   const historyActive = historyCode === indexCode;
-  const { data: dailyHistory, error: dailyHistoryError } = useIndexDailyHistory(
-    indexCode,
-    historyActive,
-  );
+  const {
+    data: dailyHistory,
+    error: dailyHistoryError,
+    isFetching: dailyHistoryFetching,
+    isError: dailyHistoryIsError,
+    refetch: refetchDailyHistory,
+  } = useIndexDailyHistory(indexCode, historyActive);
   useEffect(() => {
     if (dailyHistoryError) {
       console.error(`[index-daily] ${indexCode}: ${dailyHistoryError.message}`);
@@ -233,6 +241,8 @@ export const IndexChart = ({
   // enabled=false 여도 TanStack 은 이전 캐시가 있으면 data 를 반환하므로 historyActive
   // 게이트를 명시 — 트리거 없이 캐시만으로 EOD 파이프라인이 승격되지 않게.
   const basePrices = historyActive && dailyHistory ? dailyHistory : prices;
+  // 여백은 이력이 실제로 도착한 뒤에만 제거 — 로딩/에러 구간의 오버레이 표시 영역을 살려둔다.
+  const historyLoaded = historyActive && dailyHistory !== undefined;
 
   const intradayQuery = isOverseasIntraday
     ? overseasIntradayQuery
@@ -413,9 +423,16 @@ export const IndexChart = ({
     return filtered.length > 0 ? filtered : undefined;
   }, [maPeriods, bars.length]);
 
-  // 좌측 팬 근접 시 현재 지수 코드로 로드 활성화. indexCode 변경 시 참조도 갱신 —
-  // PriceChart 는 콜백 참조를 ref 로 잡아 재구독 없음.
-  const enableHistory = useCallback(() => setHistoryCode(indexCode), [indexCode]);
+  // 좌측 팬 근접 시 현재 지수 코드로 로드 활성화. 이미 활성 상태(historyCode===indexCode)
+  // 라면 refetch — error 후 재시도 경로. indexCode 변경 시 참조도 갱신되므로 PriceChart
+  // 의 콜백 ref 는 재구독 없이도 최신 코드를 반영.
+  const enableHistory = useCallback(() => {
+    if (historyCode === indexCode) {
+      void refetchDailyHistory();
+    } else {
+      setHistoryCode(indexCode);
+    }
+  }, [historyCode, indexCode, refetchDailyHistory]);
 
   const applyBarCountFromInput = (raw: string) => {
     const trimmed = raw.trim();
@@ -608,6 +625,18 @@ export const IndexChart = ({
           resetKey={resetKey}
           onUserInteract={() => setHasUserPanned(true)}
           onNearLeftEdge={renderIntraday ? undefined : enableHistory}
+          leftMarginBars={
+            renderIntraday || historyLoaded ? undefined : LEFT_MARGIN_BARS
+          }
+          leftEdgeStatus={
+            renderIntraday
+              ? "idle"
+              : dailyHistoryFetching
+                ? "loading"
+                : dailyHistoryIsError
+                  ? "error"
+                  : "idle"
+          }
         />
       )}
     </>
