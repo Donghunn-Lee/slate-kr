@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { AlertCircle, Loader2 } from "lucide-react";
 import { useTheme } from "next-themes";
 import {
   createChart,
@@ -15,10 +16,12 @@ import {
   type IChartApi,
   type ISeriesApi,
   type LineData,
+  type Logical,
   type LogicalRange,
   type MouseEventParams,
   type Time,
   type UTCTimestamp,
+  type WhitespaceData,
 } from "lightweight-charts";
 import {
   CHART_THEME,
@@ -27,6 +30,7 @@ import {
   type ChartPalette,
 } from "@/shared/constants/chart";
 import type { ChartBar } from "@/shared/types/quote";
+import { makeLeadingWhitespace } from "@/entities/chart/leadingWhitespace";
 
 type PriceChartProps = {
   bars: ChartBar[];
@@ -68,10 +72,18 @@ type PriceChartProps = {
   // 사용자의 첫 pan/zoom 시 1회 통지. 상위 "기본 배율" 버튼 disabled 판정용.
   // resetKey 증가로 userScrolledRef 가 다시 false 로 초기화되면 이후 첫 조작에서 재발화.
   onUserInteract?: () => void;
-  // 사용자가 좌측 가장자리 근처(첫 봉 앞 LEFT_EDGE_TRIGGER_BARS 미만)까지 팬/줌하면 1회 통지.
+  // 사용자가 좌측 여백(whitespace) 슬롯까지 팬/줌해 들어오면 1회 통지.
   // EOD 뷰 · 사용자 조작 경로 전용 — programmatic range 세팅에서는 발화하지 않는다.
-  // bars 배열 참조가 바뀌면 다시 발화 가능 (예: 지수 전환).
+  // bars 배열 참조가 바뀌면 다시 발화 가능 (예: 지수 전환). leftEdgeStatus="error"
+  // 로의 전환에서도 재무장 → 사용자가 재팬으로 재시도 유도 가능.
   onNearLeftEdge?: () => void;
+  // 좌측 whitespace 여백 봉수. 값 > 0 이면 첫 실봉 앞에 이 개수만큼 whitespace 슬롯을 prepend.
+  // fixLeftEdge:true 유지로 여백 폭이 정확히 이 슬롯 수로 제한된다.
+  // undefined/0 = 여백 없음. intraday 뷰는 여백 미사용 — 호출측에서 undefined 전달.
+  leftMarginBars?: number;
+  // 여백 오버레이 상태. loading → 스피너, error → 실패 문구/아이콘, idle → 오버레이 미렌더.
+  // leftMarginBars > 0 && status !== "idle" 일 때만 오버레이 표시.
+  leftEdgeStatus?: "idle" | "loading" | "error";
 };
 
 const DEFAULT_HEIGHT = 300;
@@ -79,9 +91,6 @@ const INTRADAY_BAR_BUFFER_SEC = 600; // 오른쪽 여유 = 10분봉 1개 폭
 // EOD 뷰 우측 여백 = 보이는 봉수 × 비율. 픽셀 여백을 봉수와 무관하게 일정 비율로 유지.
 // (rightOffset 고정 방식은 60/120/월 등 봉 폭이 크게 바뀔 때 여백 폭이 시각적으로 흔들려 폐기.)
 const RIGHT_MARGIN_RATIO = 0.04;
-// EOD 좌측 가장자리 접근 트리거. incoming.from 이 이 임계 미만이면 onNearLeftEdge 발화.
-// 첫 봉 index 0 앞으로 가상 slot(from<0) 이 잡히면 곧바로 트리거 → 사전 로드 성격.
-const LEFT_EDGE_TRIGGER_BARS = 50;
 
 const toTime = (t: string | number): Time =>
   typeof t === "number"
@@ -132,6 +141,49 @@ const mapVolume = (b: ChartBar, palette: ChartPalette): VolumePoint | null => {
     value: b.volume,
     color: b.close >= b.open ? palette.volume.up : palette.volume.down,
   };
+};
+
+// "YYYY-MM-DD" ↔ epoch 일수 변환. 문자열 시간 봉의 whitespace 계산은 순수함수(숫자 기반)에
+// 위임하기 위한 어댑터. Date.UTC 로 자정 anchor → 나눗셈으로 정수 일수 획득.
+const dateToDayNum = (s: string): number => {
+  const [y, m, d] = s.split("-").map(Number);
+  return Math.floor(Date.UTC(y, m - 1, d) / 86_400_000);
+};
+
+const dayNumToDate = (n: number): string => {
+  const dt = new Date(n * 86_400_000);
+  const y = dt.getUTCFullYear();
+  const mo = String(dt.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(dt.getUTCDate()).padStart(2, "0");
+  return `${y}-${mo}-${dd}`;
+};
+
+// 첫 실봉 앞 whitespace 포인트 생성 — 시리즈 시간 형식에 맞춰 UTCTimestamp(숫자) 또는
+// "YYYY-MM-DD"(문자열) 로 반환. count<=0 또는 bars.length<2 → [] (makeLeadingWhitespace 대칭).
+// 문자열 케이스는 day-count 정수로 변환해 순수함수에 위임한 뒤 재포맷.
+const generateWhitespace = (
+  bars: ChartBar[],
+  count: number,
+): WhitespaceData<Time>[] => {
+  if (count <= 0 || bars.length < 2) return [];
+  const first = bars[0].time;
+  if (typeof first === "number") {
+    const numeric = bars
+      .filter((b): b is ChartBar & { time: number } => typeof b.time === "number")
+      .map((b) => ({ time: b.time }));
+    return makeLeadingWhitespace(numeric, count).map((w) => ({
+      time: w.time as UTCTimestamp,
+    }));
+  }
+  if (typeof first === "string") {
+    const numeric = bars
+      .filter((b): b is ChartBar & { time: string } => typeof b.time === "string")
+      .map((b) => ({ time: dateToDayNum(b.time) }));
+    return makeLeadingWhitespace(numeric, count).map((w) => ({
+      time: dayNumToDate(w.time) as Time,
+    }));
+  }
+  return [];
 };
 
 // close 기반 SMA. index i 에서 [i-p+1, i] 평균. i < p-1 자리는 점 없음.
@@ -362,6 +414,8 @@ export const PriceChart = ({
   resetKey = 0,
   onUserInteract,
   onNearLeftEdge,
+  leftMarginBars,
+  leftEdgeStatus = "idle",
 }: PriceChartProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -427,6 +481,14 @@ export const PriceChart = ({
   const legendRef = useRef<HTMLDivElement>(null);
   const maLegendRef = useRef<HTMLDivElement>(null);
   const isHoveringRef = useRef<boolean>(false);
+  // 좌측 여백/오버레이 상태 refs. subscribe·resize 콜백에서 최신값 참조용.
+  const leftMarginBarsRef = useRef<number | undefined>(leftMarginBars);
+  const leftEdgeStatusRef = useRef<"idle" | "loading" | "error">(leftEdgeStatus);
+  const marginOverlayRef = useRef<HTMLDivElement>(null);
+  // error 오버레이의 텍스트 span — 폭 <120px 일 때 표시 토글 (아이콘만 남김).
+  const marginOverlayTextRef = useRef<HTMLSpanElement>(null);
+  // 오버레이 위치/폭 갱신 함수 — 최신 chart 참조가 필요해 config effect 에서 셋업.
+  const syncMarginOverlayRef = useRef<(() => void) | null>(null);
 
   // period 배열 참조 안정화 (부모가 새 배열을 만들어도 값 동일하면 재실행 방지).
   const maPeriodsKey = maPeriods?.join(",") ?? "";
@@ -474,6 +536,19 @@ export const PriceChart = ({
   useEffect(() => {
     dimBeforeRef.current = dimBefore;
   }, [dimBefore]);
+
+  useEffect(() => {
+    leftMarginBarsRef.current = leftMarginBars;
+    // 여백 봉수 변경(예: 이력 도착 후 undefined 로 축소) 시 오버레이 좌표도 즉시 재계산.
+    syncMarginOverlayRef.current?.();
+  }, [leftMarginBars]);
+
+  useEffect(() => {
+    leftEdgeStatusRef.current = leftEdgeStatus;
+    // error 진입 시 트리거 재무장 — 사용자가 재팬으로 재시도할 수 있게.
+    if (leftEdgeStatus === "error") leftEdgeFiredRef.current = false;
+    syncMarginOverlayRef.current?.();
+  }, [leftEdgeStatus]);
 
   // 차트/시리즈는 config(테마·precision·timeVisible·interactive·intraday·dimBefore) 변경 시에만
   // 재생성. bars-only 갱신은 아래 데이터 effect가 처리해 사용자 줌 상태를 유지한다.
@@ -609,77 +684,124 @@ export const PriceChart = ({
     // 표시 창 적용 — 데이터 slice 대신 시계축 논리 범위로 최근 N봉만 보이게.
     // n=null/undefined → 전체 표시. 우측 여백은 보이는 봉수 × RIGHT_MARGIN_RATIO 로 비례해
     // day 250봉/week 52봉/month 12봉 어디서든 화면폭 대비 같은 비율의 빈 공간이 남는다.
+    // 렌더 배열은 [ws(marginBars) + real(len)] 이므로 실봉 구간은 logical [marginBars, marginBars+len-1].
+    // 여백은 뷰포트 좌측 밖에 남기고 실봉 기준으로만 창을 잡는다.
     // applyingRangeRef 로 감싸 subscribe 콜백이 programmatic 변경을 되받지 않게 한다.
     const applyVisibleRange = (n: number | null | undefined) => {
       const len = barsRef.current.length;
       if (len === 0) return;
+      const marginBars = leftMarginBarsRef.current ?? 0;
       const visibleCount = n == null ? len : Math.min(n, len);
-      const margin = visibleCount * RIGHT_MARGIN_RATIO;
-      const from = n == null ? 0 : Math.max(0, len - n);
-      const to = len - 1 + margin;
+      const rightMargin = visibleCount * RIGHT_MARGIN_RATIO;
+      const from = marginBars + (n == null ? 0 : Math.max(0, len - n));
+      const to = marginBars + len - 1 + rightMargin;
       applyingRangeRef.current = true;
       chart.timeScale().setVisibleLogicalRange({ from, to });
       releaseApplyingRange();
     };
     applyRangeRef.current = applyVisibleRange;
 
-    // dirty 판정 + barCount 역반영을 subscribe 콜백에서 처리.
-    // applyingRangeRef guard 밖에서 도착한 range 변경 = 실제 사용자 조작.
-    // programmatic 경로(applyVisibleRange · runLockedRange · 데이터 effect setData/update ·
-    // 컨테이너 resize)는 모두 guard 를 통과하므로 이 콜백은 wheel/drag/touch 만 처리한다.
-    // barCount 보고는 매 이벤트 setState 폭주 방지용 80ms debounce.
-    // interactive=false 는 조작 없음 → 구독 자체 skip.
-    const container = containerRef.current;
-    let logicalRangeHandler: ((range: LogicalRange | null) => void) | null =
-      null;
+    // 표시 게이트는 트리거와 동형(실봉 앞 whitespace 슬롯이 뷰에 진입) 유지 — 두 조건을
+    // 분리하면 트리거 없이 표시되거나 표시 없이 트리거되는 상태를 만들 수 있다.
+    // 자연 폭이 OVERLAY_MIN_WIDTH 미만이어도 MIN 까지 확보 — whitespace 가 슬롯 단위라
+    // 진입 직후 자연 폭이 수 px 에 그쳐 사용자 피드백이 성립하지 않기 때문. 대가로 실봉
+    // 좌측 몇 슬롯 위를 잠시 덮지만 status !== "idle" 구간 한정이므로 허용.
+    // width < 120px 에서는 error 문구 대신 아이콘만 남긴다 (loading 은 항상 스피너 단독).
+    const syncMarginOverlay = () => {
+      const el = marginOverlayRef.current;
+      if (!el) return;
+      const marginBars = leftMarginBarsRef.current ?? 0;
+      const status = leftEdgeStatusRef.current;
+      const ts = chart.timeScale();
+      const r = ts.getVisibleLogicalRange();
+      // 표시 조건 = 트리거 조건과 동형 (실봉 앞 whitespace 슬롯이 뷰에 들어옴).
+      const show =
+        status !== "idle" && r !== null && marginBars > 0 && r.from < marginBars;
+      if (!show) {
+        el.style.display = "none";
+        return;
+      }
+      const container = containerRef.current;
+      if (!container) {
+        el.style.display = "none";
+        return;
+      }
+      const coord = ts.logicalToCoordinate((marginBars - 0.5) as Logical);
+      const paneWidth = container.clientWidth - chart.priceScale("right").width();
+      if (paneWidth <= 0) {
+        el.style.display = "none";
+        return;
+      }
+      const OVERLAY_MIN_WIDTH = 120;
+      const width = Math.min(paneWidth, Math.max(coord ?? 0, OVERLAY_MIN_WIDTH));
+      el.style.display = "flex";
+      el.style.width = `${width}px`;
+      el.style.bottom = `${ts.height()}px`;
+      if (marginOverlayTextRef.current) {
+        marginOverlayTextRef.current.style.display = width < 120 ? "none" : "";
+      }
+    };
+    syncMarginOverlayRef.current = syncMarginOverlay;
 
-    if (interactive) {
-      logicalRangeHandler = (incoming) => {
-        if (applyingRangeRef.current || !incoming) return;
-        const len = barsRef.current.length;
-        if (len === 0) return;
-        if (!userScrolledRef.current) {
-          userScrolledRef.current = true;
-          onUserInteractRef.current?.();
+    // subscribe 는 항상 활성 — 오버레이 폭은 programmatic 이동(초기 setData·리셋·데이터 스왑)
+    // 에서도 매번 재계산이 필요하다. 사용자 조작 감지(userScrolled/트리거/봉수 역보고) 만
+    // applyingRangeRef guard 밖으로 유지.
+    // programmatic 경로(applyVisibleRange · runLockedRange · 데이터 effect setData/update ·
+    // 컨테이너 resize)는 모두 guard 를 통과하므로 사용자 로직은 wheel/drag/touch 만 처리한다.
+    // barCount 보고는 매 이벤트 setState 폭주 방지용 80ms debounce.
+    const container = containerRef.current;
+    const logicalRangeHandler = (incoming: LogicalRange | null) => {
+      syncMarginOverlay();
+      if (!interactive) return;
+      if (applyingRangeRef.current || !incoming) return;
+      const len = barsRef.current.length;
+      if (len === 0) return;
+      if (!userScrolledRef.current) {
+        userScrolledRef.current = true;
+        onUserInteractRef.current?.();
+      }
+      // barCount 역반영은 EOD 전용 — intraday 는 applyLockedRange 로 창이 고정되어
+      // 봉수 프리셋 개념 자체가 없다. dirty 판정(위)은 뷰 무관.
+      if (intraday) return;
+      const marginBars = leftMarginBarsRef.current ?? 0;
+      // 좌측 여백 진입 트리거 — 실봉 앞 whitespace 슬롯이 뷰에 들어오면 1회 발화.
+      // guard 통과 후 실행되므로 programmatic 초기 range 세팅은 걸리지 않는다.
+      if (
+        !leftEdgeFiredRef.current &&
+        marginBars > 0 &&
+        incoming.from < marginBars
+      ) {
+        leftEdgeFiredRef.current = true;
+        onNearLeftEdgeRef.current?.();
+      }
+      if (!onVisibleBarsChangeRef.current) return;
+      // 보이는 실봉 수만 역보고 — whitespace 슬롯은 실봉 구간 [marginBars, marginBars+len-1] 밖.
+      const right = Math.min(incoming.to, marginBars + len - 1);
+      const left = Math.max(incoming.from, marginBars);
+      const visible = Math.round(right - left) + 1;
+      const clamped = Math.max(1, Math.min(visible, len));
+      const next = clamped >= len ? null : clamped;
+      if (reportTimerRef.current !== null) {
+        window.clearTimeout(reportTimerRef.current);
+      }
+      reportTimerRef.current = window.setTimeout(() => {
+        reportTimerRef.current = null;
+        if (next !== lastReportedRef.current) {
+          lastReportedRef.current = next;
+          onVisibleBarsChangeRef.current?.(next);
         }
-        // barCount 역반영은 EOD 전용 — intraday 는 applyLockedRange 로 창이 고정되어
-        // 봉수 프리셋 개념 자체가 없다. dirty 판정(위)은 뷰 무관.
-        if (intraday) return;
-        // 좌측 가장자리 트리거 — EOD 뷰의 사용자 조작 경로 안에서만 발화.
-        // guard 통과 후 실행되므로 programmatic 초기 range 세팅은 걸리지 않는다.
-        if (
-          !leftEdgeFiredRef.current &&
-          incoming.from < LEFT_EDGE_TRIGGER_BARS
-        ) {
-          leftEdgeFiredRef.current = true;
-          onNearLeftEdgeRef.current?.();
-        }
-        if (!onVisibleBarsChangeRef.current) return;
-        const right = Math.min(incoming.to, len - 1);
-        const left = Math.max(incoming.from, 0);
-        const visible = Math.round(right - left) + 1;
-        const clamped = Math.max(1, Math.min(visible, len));
-        const next = clamped >= len ? null : clamped;
-        if (reportTimerRef.current !== null) {
-          window.clearTimeout(reportTimerRef.current);
-        }
-        reportTimerRef.current = window.setTimeout(() => {
-          reportTimerRef.current = null;
-          if (next !== lastReportedRef.current) {
-            lastReportedRef.current = next;
-            onVisibleBarsChangeRef.current?.(next);
-          }
-        }, 80);
-      };
-      chart.timeScale().subscribeVisibleLogicalRangeChange(logicalRangeHandler);
-    }
+      }, 80);
+    };
+    chart.timeScale().subscribeVisibleLogicalRangeChange(logicalRangeHandler);
 
     // 컨테이너 resize(라이브러리 autoSize)로 인한 range 변경이 dirty 로 오인식되지 않게 guard.
     // 라이브러리 ResizeObserver → 이 콜백(guard on) → 다음 프레임 rAF(range 이벤트, guard
     // 활성) → 그 다음 프레임 release 순서. double-rAF guard 와 같은 전제.
+    // resize 시 오버레이 폭도 재계산 (paneWidth·timeScale height 모두 바뀔 수 있음).
     const resizeObserver = new ResizeObserver(() => {
       applyingRangeRef.current = true;
       releaseApplyingRange();
+      syncMarginOverlay();
     });
     resizeObserver.observe(container);
 
@@ -696,12 +818,19 @@ export const PriceChart = ({
       // 초기 setData 는 subscribe 콜백을 동기 발화시켜 guard 밖에서 userScrolled 로 오인식될
       // 위험이 있음. 후속 runLockedRange/applyVisibleRange 자체 guard 와 중복돼도 무해.
       applyingRangeRef.current = true;
+      // whitespace 는 메인 시리즈에만 주입 (시간축 슬롯 확보 목적). volume/MA 는 실봉만 —
+      // 시간축은 메인 시리즈의 union 으로 이미 생성되므로 정합 유지.
+      const initialWs = generateWhitespace(initial, leftMarginBarsRef.current ?? 0);
       if (seriesKind === "line") {
-        (series as ISeriesApi<"Area" | "Baseline">).setData(initial.map(mapLine));
+        (series as ISeriesApi<"Area" | "Baseline">).setData([
+          ...initialWs,
+          ...initial.map(mapLine),
+        ]);
       } else {
-        (series as ISeriesApi<"Candlestick">).setData(
-          initial.map((b) => mapBar(b, c, dimBefore)),
-        );
+        (series as ISeriesApi<"Candlestick">).setData([
+          ...initialWs,
+          ...initial.map((b) => mapBar(b, c, dimBefore)),
+        ]);
       }
       if (volumeSeries) {
         const volData = initial
@@ -805,11 +934,9 @@ export const PriceChart = ({
 
     return () => {
       if (crosshairHandler) chart.unsubscribeCrosshairMove(crosshairHandler);
-      if (logicalRangeHandler) {
-        chart
-          .timeScale()
-          .unsubscribeVisibleLogicalRangeChange(logicalRangeHandler);
-      }
+      chart
+        .timeScale()
+        .unsubscribeVisibleLogicalRangeChange(logicalRangeHandler);
       resizeObserver.disconnect();
       if (reportTimerRef.current !== null) {
         window.clearTimeout(reportTimerRef.current);
@@ -824,6 +951,7 @@ export const PriceChart = ({
       isHoveringRef.current = false;
       applyRangeRef.current = null;
       runLockedRangeRef.current = null;
+      syncMarginOverlayRef.current = null;
     };
     // maPeriodsKey 로 배열 값 변화를 감지 (참조 대신 값 비교).
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -858,10 +986,11 @@ export const PriceChart = ({
     applyingRangeRef.current = true;
 
     if (bars.length === 0) {
+      const ws = generateWhitespace(bars, leftMarginBars ?? 0);
       if (seriesKind === "line") {
-        (series as ISeriesApi<"Area" | "Baseline">).setData([]);
+        (series as ISeriesApi<"Area" | "Baseline">).setData(ws);
       } else {
-        (series as ISeriesApi<"Candlestick">).setData([]);
+        (series as ISeriesApi<"Candlestick">).setData(ws);
       }
       if (volumeSeries) volumeSeries.setData([]);
       for (const { series: lineSeries } of maSeriesList) lineSeries.setData([]);
@@ -915,12 +1044,17 @@ export const PriceChart = ({
         prev[prev.length - 1].time === bars[bars.length - 1].time &&
         bars[bars.length - prev.length + 1].time === prev[1].time &&
         bars[bars.length - prev.length + 1].close === prev[1].close;
+      const ws = generateWhitespace(bars, leftMarginBars ?? 0);
       if (seriesKind === "line") {
-        (series as ISeriesApi<"Area" | "Baseline">).setData(bars.map(mapLine));
+        (series as ISeriesApi<"Area" | "Baseline">).setData([
+          ...ws,
+          ...bars.map(mapLine),
+        ]);
       } else {
-        (series as ISeriesApi<"Candlestick">).setData(
-          bars.map((b) => mapBar(b, c, dimBefore)),
-        );
+        (series as ISeriesApi<"Candlestick">).setData([
+          ...ws,
+          ...bars.map((b) => mapBar(b, c, dimBefore)),
+        ]);
       }
       if (volumeSeries) {
         const volData = bars
@@ -951,7 +1085,7 @@ export const PriceChart = ({
       const prev = bars.length >= 2 ? bars[bars.length - 2].close : null;
       paintLegend(legendRef.current, last, prev, c, precision, seriesKind);
     }
-  }, [bars, intraday, dimBefore, resolvedTheme, showLegend, precision, seriesKind]);
+  }, [bars, intraday, dimBefore, resolvedTheme, showLegend, precision, seriesKind, leftMarginBars]);
 
   // "기본 배율" 버튼 트리거. resetKey 가 0 → 양수로 최초 변경되거나 이후 증가할 때마다
   // 현재 뷰의 초기 visible range 를 재적용. mount 시엔 default(0) 라 skip → config effect
@@ -992,6 +1126,31 @@ export const PriceChart = ({
         <div className="pointer-events-none absolute left-3 right-14 top-2 z-10 flex flex-col gap-0.5">
           <div ref={legendRef} className="text-caption tabular-nums" />
           <div ref={maLegendRef} className="text-micro font-medium" />
+        </div>
+      )}
+      {leftEdgeStatus !== "idle" && (
+        <div
+          ref={marginOverlayRef}
+          role="status"
+          aria-live="polite"
+          className="pointer-events-none absolute left-0 top-0 z-10 hidden items-center justify-center border-r border-subtle bg-muted/30 text-muted-foreground"
+        >
+          {leftEdgeStatus === "loading" ? (
+            <Loader2
+              className="h-4 w-4 animate-spin motion-reduce:animate-none"
+              aria-hidden="true"
+            />
+          ) : (
+            <>
+              <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span
+                ref={marginOverlayTextRef}
+                className="ml-1.5 whitespace-nowrap text-micro"
+              >
+                과거 데이터를 불러오지 못했어요
+              </span>
+            </>
+          )}
         </div>
       )}
     </div>
