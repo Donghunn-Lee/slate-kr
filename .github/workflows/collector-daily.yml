@@ -68,9 +68,8 @@ jobs:
 
       - name: Verify daily freshness
         id: verify_freshness
-        if: ${{ inputs.mode != 'overseas-only' }}
         working-directory: collector
-        run: python verify_daily_freshness.py
+        run: python verify_daily_freshness.py --mode ${{ inputs.mode || 'full' }}
         continue-on-error: true
 
       # Gate: silent green 방지. 위 스텝 중 하나라도 실패·취소·의도치 않은 skip 이면
@@ -113,7 +112,7 @@ jobs:
           check fetch_prices           "${{ steps.fetch_prices.outcome }}"           "$domestic_expected"
           check fetch_index_prices     "${{ steps.fetch_index_prices.outcome }}"     "$domestic_expected"
           check fetch_overseas_indices "${{ steps.fetch_overseas_indices.outcome }}" yes
-          check verify_freshness       "${{ steps.verify_freshness.outcome }}"       "$domestic_expected"
+          check verify_freshness       "${{ steps.verify_freshness.outcome }}"       yes
           if [ "$fail" = "1" ]; then
             exit 1
           fi

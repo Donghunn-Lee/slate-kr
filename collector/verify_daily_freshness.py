@@ -1,20 +1,21 @@
 """
-일일 적재 후 freshness 검증. daily_prices / index_daily_prices 의 MAX 가
-today(KST) 기준 expected 거래일과 일치해야 한다.
+일일 적재 후 freshness 검증.
 
-expected 산출
-  today(KST) 가 거래일이면 today, 아니면 직전 거래일.
-  거래일 = 주말 아님 AND KRX_HOLIDAYS_2026 미포함.
+모드 (argparse --mode)
+  full (기본값)   국내 EOD(daily_prices, index_daily_prices) + 국내 지수 1분봉 4종 하한.
+                  expected: 거래일이면 today(KST), 아니면 직전 거래일 (KRX_HOLIDAYS_2026 기준).
+  overseas-only   해외 EOD(index_daily_prices 8종) + 해외 intraday(overseas_index_intraday 7종) 하한.
+                  expected: KST 오늘 - 1일. 주말이면 섹션 전체 skip.
+                  시장 개장 여부는 market_trading_days(US·JP·HK·CN) + 정적 XETRA 캘린더(DE) 참조.
 
 exit code
-  0  두 테이블 모두 expected 와 일치
-  1  하나라도 불일치 (stderr 로 어느 테이블·어느 날짜에 멈췄는지 출력)
-
-해외 지수는 이번 범위에서 제외 — US 휴장 캘린더 별도 이슈(F27 잔여).
+  0  전 검사 통과
+  1  하나라도 실패 (stderr 로 사유 목록)
 """
 
 from __future__ import annotations
 
+import argparse
 import os
 import sys
 from datetime import date, datetime, timedelta, timezone
@@ -64,6 +65,51 @@ ROW_COUNT_FLOOR_RATIO = 0.9
 # index_daily_prices 는 해외 지수(8종) 도 공유하는 테이블이라 MAX(base_date) 만으로는
 # 국내 EOD 부분 실패를 잡지 못함(#119 F56 관측). 국내 4종 전량 적재를 명시적으로 검사.
 DOMESTIC_INDEX_CODES = ("KOSPI", "KOSDAQ", "KOSPI200", "KOSDAQ150")
+
+# 국내 지수 1분봉 하한.
+# fetch_index_minute.py 가 채우는 domestic_index_intraday 4종 공통.
+# 정규장 393분(09:00~15:30) × 0.9 = 353 (#108류 부분 적재 silent PASS 방어).
+DOMESTIC_INTRADAY_FLOOR = 353
+
+# ── 해외 검사 (--mode overseas-only) ─────────────────────────────
+# EOD 8종: index_daily_prices 에 base_date=expected 행이 있어야 한다.
+# intraday 7종: overseas_index_intraday count ≥ 실측 완전세션 × 0.9.
+#   .DJI 는 intraday 미수집이라 EOD 만 검사.
+OVERSEAS_EOD_CODES = ("SPX", ".DJI", "COMP", "NDX", "NI225", "HSI", "SHCOMP", "DAX")
+OVERSEAS_INTRADAY_CODES = ("SPX", "COMP", "NDX", "NI225", "HSI", "SHCOMP", "DAX")
+
+# 실측 baseline (2026-08-31 완전세션) × 0.9.
+OVERSEAS_INTRADAY_FLOOR = {
+    "SPX":    370,
+    "COMP":   365,
+    "NDX":    365,
+    "NI225":  300,
+    "HSI":    320,
+    "SHCOMP": 216,
+    "DAX":    459,
+}
+
+# 지수 → 시장. market_trading_days.market 과 정합 (DE 는 예외).
+INDEX_MARKET = {
+    "SPX":    "US",
+    ".DJI":   "US",
+    "COMP":   "US",
+    "NDX":    "US",
+    "NI225":  "JP",
+    "HSI":    "HK",
+    "SHCOMP": "CN",
+    "DAX":    "DE",
+}
+
+# XETRA 는 CTOS5011R 미커버라 정적 상수. 갱신 주기: 연 1회.
+# Deutsche Börse 공식 캘린더(2026): 12/24, 12/25, 12/31.
+XETRA_HOLIDAYS_2026 = frozenset({"2026-12-24", "2026-12-25", "2026-12-31"})
+
+# 반나절 세션. 이 날짜의 floor 는 //2 로 낮춘다.
+HALF_DAY_2026 = {
+    "US": frozenset({"2026-11-27", "2026-12-24"}),  # Thanksgiving 익일, Christmas Eve
+    "HK": frozenset({"2026-12-24", "2026-12-31"}),  # Christmas Eve, New Year's Eve
+}
 
 
 def is_trading_day(d: date) -> bool:
@@ -146,45 +192,156 @@ def check_index_row_count_floor(cursor, expected: date) -> str | None:
     return f"index_daily_prices domestic indices {cur_cnt}/{floor}"
 
 
+def check_domestic_intraday(cursor, expected: date) -> list[str]:
+    """domestic_index_intraday 4종 각각 ts::date=expected count ≥ DOMESTIC_INTRADAY_FLOOR."""
+    failures: list[str] = []
+    for code in DOMESTIC_INDEX_CODES:
+        cursor.execute(
+            "SELECT COUNT(*) FROM domestic_index_intraday "
+            "WHERE index_code = %s AND ts::date = %s",
+            (code, expected),
+        )
+        (cnt,) = cursor.fetchone()
+        if cnt >= DOMESTIC_INTRADAY_FLOOR:
+            print(f"  OK domestic_index_intraday {code} {cnt}>={DOMESTIC_INTRADAY_FLOOR}")
+        else:
+            print(f"  !! domestic_index_intraday {code} {cnt}<{DOMESTIC_INTRADAY_FLOOR}")
+            failures.append(
+                f"domestic_index_intraday {code} {cnt}<{DOMESTIC_INTRADAY_FLOOR} ({expected})"
+            )
+    return failures
+
+
+def check_overseas_section(cursor, expected: date) -> list[str]:
+    """해외 EOD 8종 + intraday 7종. 시장 휴장이면 그 시장의 지수는 skip.
+    시장 캘린더가 부재하면 실패로 취급하고 해당 시장의 지수는 skip."""
+    failures: list[str] = []
+
+    market_open: dict[str, bool | None] = {}
+    for market in ("US", "JP", "HK", "CN"):
+        cursor.execute(
+            "SELECT is_open FROM market_trading_days "
+            "WHERE market = %s AND trade_date = %s",
+            (market, expected),
+        )
+        row = cursor.fetchone()
+        if row is None:
+            print(f"  !! calendar missing: {market} {expected}")
+            failures.append(f"calendar missing: {market} {expected}")
+            market_open[market] = None
+        else:
+            market_open[market] = bool(row[0])
+    market_open["DE"] = expected.isoformat() not in XETRA_HOLIDAYS_2026
+
+    for code in OVERSEAS_EOD_CODES:
+        market = INDEX_MARKET[code]
+        is_open = market_open.get(market)
+        if is_open is None:
+            print(f"  ?? {code} skip (calendar missing for {market} {expected})")
+            continue
+        if not is_open:
+            print(f"  -- {code} closed, skip ({market} {expected})")
+            continue
+
+        cursor.execute(
+            "SELECT 1 FROM index_daily_prices "
+            "WHERE index_code = %s AND base_date = %s LIMIT 1",
+            (code, expected),
+        )
+        if cursor.fetchone() is None:
+            print(f"  !! {code} EOD row missing base_date={expected}")
+            failures.append(f"{code} EOD row missing base_date={expected}")
+        else:
+            print(f"  OK {code} EOD present base_date={expected}")
+
+        if code not in OVERSEAS_INTRADAY_CODES:
+            continue
+        floor = OVERSEAS_INTRADAY_FLOOR[code]
+        half_note = ""
+        if expected.isoformat() in HALF_DAY_2026.get(market, frozenset()):
+            floor = floor // 2
+            half_note = " (half-day)"
+        cursor.execute(
+            "SELECT COUNT(*) FROM overseas_index_intraday "
+            "WHERE index_code = %s AND ts::date = %s",
+            (code, expected),
+        )
+        (cnt,) = cursor.fetchone()
+        if cnt >= floor:
+            print(f"  OK {code} intraday {cnt}>={floor}{half_note}")
+        else:
+            print(f"  !! {code} intraday {cnt}<{floor}{half_note}")
+            failures.append(
+                f"{code} intraday {cnt}<{floor} ({expected}{half_note})"
+            )
+    return failures
+
+
+def _run_full(cur, now_kst: datetime) -> list[str]:
+    if _FORCE:
+        try:
+            expected = datetime.strptime(_FORCE, "%Y-%m-%d").date()
+            print(f"verify [full]: VERIFY_FORCE_EXPECTED={expected} (override)")
+        except ValueError:
+            print(f"verify [full]: VERIFY_FORCE_EXPECTED 형식 오류 '{_FORCE}'",
+                  file=sys.stderr)
+            sys.exit(2)
+    else:
+        expected = compute_expected_from_now(now_kst)
+
+    print(f"verify [full]: now(KST)={now_kst:%Y-%m-%d %H:%M:%S}  expected={expected}")
+
+    failures: list[str] = []
+    for table, col in (("daily_prices", "date"), ("index_daily_prices", "base_date")):
+        mx = get_max(cur, table, col)
+        ok = mx == expected
+        mark = "OK " if ok else "!! "
+        print(f"  {mark}{table}.MAX({col}) = {mx}  (expected {expected})")
+        if not ok:
+            failures.append(f"{table}.MAX({col})={mx} != expected {expected}")
+
+    floor_fail = check_row_count_floor(cur, expected)
+    if floor_fail:
+        failures.append(floor_fail)
+    idx_floor_fail = check_index_row_count_floor(cur, expected)
+    if idx_floor_fail:
+        failures.append(idx_floor_fail)
+    failures.extend(check_domestic_intraday(cur, expected))
+    return failures
+
+
+def _run_overseas_only(cur, now_kst: datetime) -> list[str]:
+    expected = now_kst.date() - timedelta(days=1)
+    print(f"verify [overseas-only]: now(KST)={now_kst:%Y-%m-%d %H:%M:%S}  expected={expected}")
+    if expected.weekday() >= 5:
+        print(f"  -- expected={expected} weekday={expected.weekday()} → 주말, 섹션 skip")
+        return []
+    return check_overseas_section(cur, expected)
+
+
 def main() -> None:
+    parser = argparse.ArgumentParser(description="일일 적재 freshness 검증")
+    parser.add_argument(
+        "--mode",
+        choices=("full", "overseas-only"),
+        default="full",
+        help="full=국내 EOD+국내지수1분봉 / overseas-only=해외 EOD+intraday",
+    )
+    args = parser.parse_args()
+
     if not os.getenv("DATABASE_URL"):
         print("verify: DATABASE_URL 미설정", file=sys.stderr)
         sys.exit(1)
 
     now_kst = datetime.now(timezone.utc) + timedelta(hours=9)
-    if _FORCE:
-        try:
-            expected = datetime.strptime(_FORCE, "%Y-%m-%d").date()
-            print(f"verify: VERIFY_FORCE_EXPECTED={expected} (override)")
-        except ValueError:
-            print(f"verify: VERIFY_FORCE_EXPECTED 형식 오류 '{_FORCE}'", file=sys.stderr)
-            sys.exit(2)
-    else:
-        expected = compute_expected_from_now(now_kst)
-
-    print(f"verify: now(KST)={now_kst:%Y-%m-%d %H:%M:%S}  expected={expected}")
 
     conn = get_connection()
     try:
         cur = conn.cursor()
-        checks = [
-            ("daily_prices", "date"),
-            ("index_daily_prices", "base_date"),
-        ]
-        failures: list[str] = []
-        for table, col in checks:
-            mx = get_max(cur, table, col)
-            ok = mx == expected
-            mark = "OK " if ok else "!! "
-            print(f"  {mark}{table}.MAX({col}) = {mx}  (expected {expected})")
-            if not ok:
-                failures.append(f"{table}.MAX({col})={mx} != expected {expected}")
-        floor_fail = check_row_count_floor(cur, expected)
-        if floor_fail:
-            failures.append(floor_fail)
-        idx_floor_fail = check_index_row_count_floor(cur, expected)
-        if idx_floor_fail:
-            failures.append(idx_floor_fail)
+        if args.mode == "full":
+            failures = _run_full(cur, now_kst)
+        else:
+            failures = _run_overseas_only(cur, now_kst)
         cur.close()
     finally:
         conn.close()
