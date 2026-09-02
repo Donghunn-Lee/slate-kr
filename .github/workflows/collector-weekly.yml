@@ -53,6 +53,12 @@ jobs:
         run: python fetch_financials.py --periods 1
         continue-on-error: true
 
+      - name: Run fetch_dividends
+        id: fetch_dividends
+        working-directory: collector
+        run: python fetch_dividends.py --years 1
+        continue-on-error: true
+
       # Gate: silent green 방지. success 가 아닌 모든 outcome(failure·cancelled·
       # skipped·기타)을 실패로 판정한다. weekly 는 daily 와 달리 mode/skip 조건이
       # 없으므로 skipped 는 무조건 비정상(상류 취소 징후) — daily 식 조건부 skipped
@@ -72,6 +78,7 @@ jobs:
           check update_corp_codes  "${{ steps.update_corp_codes.outcome }}"
           check fetch_shares       "${{ steps.fetch_shares.outcome }}"
           check fetch_financials   "${{ steps.fetch_financials.outcome }}"
+          check fetch_dividends    "${{ steps.fetch_dividends.outcome }}"
           if [ "$fail" = "1" ]; then
             exit 1
           fi
