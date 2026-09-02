@@ -1,4 +1,5 @@
 import { pool } from "./db";
+import { attachDividends, getDividendsByYear } from "./dividends";
 import type { FinancialPeriod, StockFinancials } from "@/shared/types/stock";
 
 type FinancialRow = {
@@ -54,6 +55,17 @@ const calcPer = (close: number | undefined, eps: number | null): number | null =
 const calcPbr = (close: number | undefined, bps: number | null): number | null => {
   if (close === undefined || bps === null || bps <= 0) return null;
   return close / bps;
+};
+
+// query-time 배당수익률 = dps / 현재가 (소수 규약, formatPercent 가 100× 하여 표시).
+// DART 원본 dividendYield 는 결산 시점 시가 기준이라 별개 값.
+export const calcDividendYield = (
+  close: number | null,
+  dps: number | null,
+): number | null => {
+  if (close === null || close <= 0) return null;
+  if (dps === null || dps <= 0) return null;
+  return dps / close;
 };
 
 const avgOf = (curr: number | null, prev: number | null): number | null => {
@@ -121,6 +133,11 @@ const rowToFinancialPeriod = (
     per: calcPer(close, row.eps),
     pbr: calcPbr(close, row.bps),
     ...calculateDerivedMetrics(raw, prevTotals),
+    // 배당은 annual 만 채우며 attachDividends 가 병합. rowToFinancialPeriod
+    // 단계에서는 항상 null (분기 행은 최종 null 유지, annual 행은 병합 대상).
+    dps: null,
+    payoutRatio: null,
+    dividendYield: null,
   };
 };
 
@@ -213,6 +230,10 @@ const buildQuarterlyPeriods = (
       per: calcPer(q4Close, q4Eps),
       pbr: calcPbr(q4Close, annualRow.bps),
       ...calculateDerivedMetrics(raw, q3PrevTotals),
+      // 분기 행은 배당 null 유지.
+      dps: null,
+      payoutRatio: null,
+      dividendYield: null,
     });
   }
 
@@ -220,12 +241,13 @@ const buildQuarterlyPeriods = (
 };
 
 export const getFinancials = async (ticker: string): Promise<StockFinancials> => {
-  const [[rows], priceMap] = await Promise.all([
+  const [[rows], priceMap, dividendsByYear] = await Promise.all([
     pool.query<FinancialRow[]>(
       "SELECT * FROM financial_statements WHERE ticker = $1 ORDER BY year DESC, quarter DESC",
       [ticker]
     ),
     fetchClosePricesByQuarter(ticker),
+    getDividendsByYear(ticker),
   ]);
 
   const annualRows = rows.filter((r) => r.report_type === "annual").slice(0, 5);
@@ -233,11 +255,12 @@ export const getFinancials = async (ticker: string): Promise<StockFinancials> =>
 
   // 연간: 해당 연도 마지막 거래일 종가 = Q4 마지막 거래일 종가
   // annualRows는 year DESC 정렬이므로 [i+1]이 전년도
-  const annual = annualRows.map((row, i) => {
+  const annualBase = annualRows.map((row, i) => {
     const close = priceMap.get(priceKey(row.year, 4));
     const prevRow = annualRows[i + 1] ?? null;
     return rowToFinancialPeriod(row, close, prevRow);
   });
+  const annual = attachDividends(annualBase, dividendsByYear);
 
   // 연도별 그룹핑 후 단분기 변환
   const yearSet = new Set(quarterRows.map((r) => r.year));

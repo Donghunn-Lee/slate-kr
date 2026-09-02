@@ -64,6 +64,10 @@ export type FinancialPeriod = {
   debtRatio: number | null;
   roe: number | null;
   roa: number | null;
+  // 배당 (연간만 채움 — 분기 행은 항상 null)
+  dps: number | null; // 주당현금배당금(원), 보통주
+  payoutRatio: number | null; // (연결)현금배당성향(%)
+  dividendYield: number | null; // DART 현금배당수익률(%), 결산 시점 시가배당률
 };
 
 export type StockFinancials = {

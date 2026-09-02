@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeTtmEps } from "./financials";
+import { calcDividendYield, computeTtmEps } from "./financials";
 import type { FinancialPeriod } from "@/shared/types/stock";
 
 // computeTtmEps가 실제 참조하는 필드는 quarterly의 year/quarter/eps와 latestAnnual의 eps뿐.
@@ -23,6 +23,9 @@ const makeFP = (o: Partial<FinancialPeriod>): FinancialPeriod => ({
   debtRatio: null,
   roe: null,
   roa: null,
+  dps: null,
+  payoutRatio: null,
+  dividendYield: null,
   ...o,
 });
 
@@ -170,5 +173,24 @@ describe("computeTtmEps", () => {
       expect(r1).toEqual(r2);
       expect(r1.source).toBe("annualized");
     });
+  });
+});
+
+describe("calcDividendYield", () => {
+  it("정상: dps/close (소수 규약, formatPercent 소비 전제)", () => {
+    // 1446원 / 60000원 = 0.0241 → formatPercent 소비 시 "2.41%"
+    expect(calcDividendYield(60000, 1446)).toBeCloseTo(0.0241, 6);
+  });
+
+  it("close === null → null", () => {
+    expect(calcDividendYield(null, 1000)).toBeNull();
+  });
+
+  it("dps === 0 → null (배당 없음)", () => {
+    expect(calcDividendYield(60000, 0)).toBeNull();
+  });
+
+  it("dps === null → null", () => {
+    expect(calcDividendYield(60000, null)).toBeNull();
   });
 });
