@@ -510,6 +510,81 @@ describe("isOverseasIndexHoliday", () => {
   });
 });
 
+// F76 — 해외 4함수의 캘린더 관통 검증. 픽스처는 실전 휴장일:
+//   US 2026-09-07 (Labor Day) closed / JP 2026-09-21 (경로의날)·09-23 (추분) closed(09-22 open) /
+//   CN 2026-10-01~10-08 (국경절 연휴) closed, 10-09 open (실측 미확인 — 캘린더 관통만 검증).
+describe("해외 4함수 캘린더 관통 (F76)", () => {
+  const cal: MarketCalendar = {
+    US: { "2026-09-07": false },
+    JP: { "2026-09-21": false, "2026-09-22": true, "2026-09-23": false },
+    CN: {
+      "2026-10-01": false, "2026-10-02": false, "2026-10-03": false,
+      "2026-10-04": false, "2026-10-05": false, "2026-10-06": false,
+      "2026-10-07": false, "2026-10-08": false, "2026-10-09": true,
+    },
+  };
+
+  it("getOverseasIndexSessionState('SPX', 2026-09-07 ET 장중, cal) → closed", () => {
+    // 09-07 EDT 15:00 UTC = 11:00 ET (Labor Day, 캘린더 closed).
+    expect(
+      getOverseasIndexSessionState("SPX", utc(2026, 9, 7, 15, 0), cal),
+    ).toBe("closed");
+  });
+
+  it("minutesSinceOverseasIndexClose('SPX', 09-07 마감 후, cal) → null (주말과 동일)", () => {
+    // 09-07 EDT 20:05 UTC = 16:05 ET (마감 5분 후). 캘린더 전달 시 null.
+    expect(
+      minutesSinceOverseasIndexClose("SPX", utc(2026, 9, 7, 20, 5), cal),
+    ).toBeNull();
+    // 캘린더 미전달 시에도 US 는 정적 NYSE 표 폴백으로 09-07 Labor Day 인식 → null.
+    expect(
+      minutesSinceOverseasIndexClose("SPX", utc(2026, 9, 7, 20, 5)),
+    ).toBeNull();
+  });
+
+  it("getOverseasIndexTradingDate('SHCOMP', 10-05 장중, cal) → 2026-09-30 (연휴 전 마지막 거래일)", () => {
+    // 10-05 월 04:00 UTC = 12:00 SHCOMP. 캘린더로 10-01~10-04 전부 closed → findRecent
+    // 는 09-30 (Wed 평일 무휴장) 반환.
+    expect(
+      getOverseasIndexTradingDate("SHCOMP", utc(2026, 10, 5, 4, 0), cal),
+    ).toBe("2026-09-30");
+  });
+
+  it("getPreviousOverseasIndexTradingDate('NI225', '2026-09-24', cal) → 2026-09-22", () => {
+    // 09-24 → shift -1 = 09-23 (JP 캘린더 closed) → shift -1 = 09-22 (JP 캘린더 open).
+    expect(
+      getPreviousOverseasIndexTradingDate("NI225", "2026-09-24", cal),
+    ).toBe("2026-09-22");
+  });
+
+  it("캘린더 미전달 시 기존 동작 유지 — SPX 는 정적 NYSE 표로 09-07 여전히 closed", () => {
+    // 정적 usMarketHolidays.ts 에 09-07 Labor Day 포함 → 폴백 경로도 동일 결과.
+    expect(getOverseasIndexSessionState("SPX", utc(2026, 9, 7, 15, 0))).toBe(
+      "closed",
+    );
+  });
+
+  it("캘린더 미전달 시 JP 는 폴백 없음 — 09-23 평일이면 regular 시각대엔 regular", () => {
+    // 09-23 수 06:30 UTC = 15:30 JST 마감 경계 미포함 → closed. 06:00 UTC = 15:00 JST 는
+    // regular. 이 케이스는 폴백 부재 확인용.
+    expect(
+      getOverseasIndexSessionState("NI225", utc(2026, 9, 23, 6, 0)),
+    ).toBe("regular");
+    // 캘린더 전달 시 휴장으로 뒤바뀐다.
+    expect(
+      getOverseasIndexSessionState("NI225", utc(2026, 9, 23, 6, 0), cal),
+    ).toBe("closed");
+  });
+
+  it("getPreviousOverseasIndexTradingDate('DAX', ...) — DE 는 XETRA 정적 표로 계속 처리", () => {
+    // 12-28 → shift -1 = 12-27 (Sun) → -1 = 12-26 (Sat) → -1 = 12-25 (XETRA closed) →
+    // -1 = 12-24 (XETRA closed) → -1 = 12-23 (Wed 평일 무휴장) 반환.
+    expect(
+      getPreviousOverseasIndexTradingDate("DAX", "2026-12-28"),
+    ).toBe("2026-12-23");
+  });
+});
+
 describe("isKrxBeforeMarketOpen", () => {
   it("pre → true (NXT 프리마켓 실봉 유입 차단 대상)", () => {
     expect(isKrxBeforeMarketOpen("pre")).toBe(true);

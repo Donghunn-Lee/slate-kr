@@ -2,6 +2,7 @@ import { revalidateTag, unstable_cache } from "next/cache";
 import { NextResponse } from "next/server";
 
 import { getOverseasIndexIntradayPrices } from "@/lib/indices";
+import { getMarketCalendar } from "@/lib/marketCalendar";
 import {
   getOverseasIndexSessionState,
   getOverseasIndexTradingDate,
@@ -85,13 +86,16 @@ const allFailed = (): Record<OverseasIntradayCode, boolean> =>
   >;
 
 export const GET = async () => {
+  // 요청 시작에서 캘린더 1회 로드 (memo). 지수별 세션·거래일·마감 경과 산출에 관통.
+  const calendar = await getMarketCalendar();
+  const now = new Date();
   // 코드별 세션·거래일 산출. marketOpen 은 7종 중 하나라도 regular 면 true —
   // 훅 폴링 게이트가 단일 boolean 이므로 aggregate 유지.
   const perCode = OVERSEAS_INTRADAY_CODES.map((code) => ({
     code,
-    session: getOverseasIndexSessionState(code),
-    tradingDate: getOverseasIndexTradingDate(code),
-    sinceClose: minutesSinceOverseasIndexClose(code),
+    session: getOverseasIndexSessionState(code, now, calendar),
+    tradingDate: getOverseasIndexTradingDate(code, now, calendar),
+    sinceClose: minutesSinceOverseasIndexClose(code, now, calendar),
   }));
   const marketOpen = perCode.some((p) => p.session === "regular");
 

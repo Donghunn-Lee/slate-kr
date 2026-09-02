@@ -325,7 +325,8 @@ export const isOverseasIndexHoliday = (
 // ── 해외 지수별 세션 (거래소 TZ 로컬) ─────────────────
 // US 세션과 대칭: DST 는 IANA DB(`OVERSEAS_INDEX_TIMEZONE[code]`) 에 위임하고
 // open/close 는 지수별 상수 테이블(`OVERSEAS_INDEX_OPEN_LOCAL`·`CLOSE_LOCAL`)
-// 을 그대로 읽는다. 휴장 캘린더는 US 만 유지 — 아시아·유럽은 주말만 skip.
+// 을 그대로 읽는다. 휴장 판정은 `isOverseasIndexHoliday` 로 위임 — 캘린더 우선,
+// 미전달 시 시장별 정적 폴백(US NYSE / DE XETRA / JP·HK·CN 없음).
 // 점심 휴장은 regular 로 취급 (KIS 응답이 점심 봉을 반환하지 않아 자연 갭).
 
 export type OverseasIndexSessionState = "regular" | "closed";
@@ -372,64 +373,76 @@ const hhmmToMinutes = (hhmm: string): number =>
 export const getOverseasIndexSessionState = (
   code: OverseasIndexCode,
   now: Date = new Date(),
+  calendar?: MarketCalendar,
 ): OverseasIndexSessionState => {
-  const { day, minutes } = toOverseasLocalParts(code, now);
+  const { day, minutes, date } = toOverseasLocalParts(code, now);
   if (day === 0 || day === 6) return "closed";
+  if (isOverseasIndexHoliday(code, date, calendar)) return "closed";
   const open = hhmmToMinutes(OVERSEAS_INDEX_OPEN_LOCAL[code]);
   const close = hhmmToMinutes(OVERSEAS_INDEX_CLOSE_LOCAL[code]);
   return minutes >= open && minutes < close ? "regular" : "closed";
 };
 
-// 당일 해외 지수 정규장 마감 이후 경과 분(거래소 로컬). 개장 전·주말이면 null.
-// 휴장 캘린더는 `getOverseasIndexSessionState` 와 동일 정책(주말만 skip) — US 휴장은
-// 미반영이나 마감 개념이 성립하지 않는 날이라 소비처에서 문제 되지 않는다.
+// 당일 해외 지수 정규장 마감 이후 경과 분(거래소 로컬). 개장 전·주말·휴장일이면 null.
+// 캘린더 행 있음 → is_open 우선. 행 없음 → 시장별 정적 폴백(US NYSE / DE XETRA /
+// JP·HK·CN 폴백 없음). 휴장일 반환값은 주말과 동일 규칙.
 export const minutesSinceOverseasIndexClose = (
   code: OverseasIndexCode,
   now: Date = new Date(),
+  calendar?: MarketCalendar,
 ): number | null => {
-  const { day, minutes } = toOverseasLocalParts(code, now);
+  const { day, minutes, date } = toOverseasLocalParts(code, now);
   if (day === 0 || day === 6) return null;
+  if (isOverseasIndexHoliday(code, date, calendar)) return null;
   const close = hhmmToMinutes(OVERSEAS_INDEX_CLOSE_LOCAL[code]);
   if (minutes < close) return null;
   return minutes - close;
 };
 
-const isOverseasTradingDay = (yyyyMmDd: string): boolean => {
+const isOverseasTradingDay = (
+  code: OverseasIndexCode,
+  yyyyMmDd: string,
+  calendar?: MarketCalendar,
+): boolean => {
   const [y, m, d] = yyyyMmDd.split("-").map(Number);
   const day = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
-  return day !== 0 && day !== 6;
+  if (day === 0 || day === 6) return false;
+  return !isOverseasIndexHoliday(code, yyyyMmDd, calendar);
 };
 
-const findRecentOverseasTradingDay = (fromDate: string): string => {
+const findRecentOverseasTradingDay = (
+  code: OverseasIndexCode,
+  fromDate: string,
+  calendar?: MarketCalendar,
+): string => {
   let d = fromDate;
   for (let i = 0; i < 15; i++) {
-    if (isOverseasTradingDay(d)) return d;
+    if (isOverseasTradingDay(code, d, calendar)) return d;
     d = shiftUsDate(d, -1);
   }
   return d;
 };
 
 // "최근 세션의 거래일" — 국내 `getKrxTradingDate` 와 동일 의미.
-// regular · 마감 후(로컬 자정 전) = 오늘(로컬 캘린더). 그 외(개장 전·주말·US 휴장)
-// = 어제부터 역방향으로 첫 트레이딩 데이(주말 skip). 마감 후 당일 유지가 있어야
+// regular · 마감 후(로컬 자정 전) = 오늘(로컬 캘린더). 그 외(개장 전·주말·휴장)
+// = 어제부터 역방향으로 첫 트레이딩 데이(주말·휴장 skip). 마감 후 당일 유지가 있어야
 // 세션 캐시 키·DB 창 축이 로컬 자정을 세션 경계로 삼는다.
 export const getOverseasIndexTradingDate = (
   code: OverseasIndexCode,
   now: Date = new Date(),
+  calendar?: MarketCalendar,
 ): string => {
   const { date } = toOverseasLocalParts(code, now);
-  if (getOverseasIndexSessionState(code, now) === "regular") return date;
-  if (minutesSinceOverseasIndexClose(code, now) !== null) return date;
-  return findRecentOverseasTradingDay(shiftUsDate(date, -1));
+  if (getOverseasIndexSessionState(code, now, calendar) === "regular") return date;
+  if (minutesSinceOverseasIndexClose(code, now, calendar) !== null) return date;
+  return findRecentOverseasTradingDay(code, shiftUsDate(date, -1), calendar);
 };
 
-// fromDate 직전 트레이딩 데이 (지수별 캘린더). US 지수는 휴장 캘린더까지 반영해
-// getPreviousUsTradingDate 로 위임, 그 외 거래소는 휴장 캘린더 부재로 주말만 skip.
+// fromDate 직전 트레이딩 데이 (지수별 캘린더). `isOverseasIndexHoliday` 로 시장별
+// 폴백(US NYSE / DE XETRA / JP·HK·CN 폴백 없음) 을 일반화.
 export const getPreviousOverseasIndexTradingDate = (
   code: OverseasIndexCode,
   fromDate: string,
-): string => {
-  const tz = OVERSEAS_INDEX_TIMEZONE[code];
-  if (tz === "America/New_York") return getPreviousUsTradingDate(fromDate);
-  return findRecentOverseasTradingDay(shiftUsDate(fromDate, -1));
-};
+  calendar?: MarketCalendar,
+): string =>
+  findRecentOverseasTradingDay(code, shiftUsDate(fromDate, -1), calendar);

@@ -14,6 +14,7 @@ import {
   type DomesticIndexCode,
   type OverseasIntradayCode,
 } from "@/shared/constants/indices";
+import type { MarketCalendar } from "@/shared/types/marketCalendar";
 import {
   getKrxTradingDate,
   getOverseasIndexTradingDate,
@@ -126,12 +127,17 @@ const parseTsStrToFakeUtcSec = (tsStr: string): number =>
 const readOverseasIntradayFromDb = async (
   indexCode: OverseasIntradayCode,
   tradingDate: string, // 'YYYY-MM-DD' (거래소 로컬 캘린더의 최근 세션 거래일)
+  calendar?: MarketCalendar,
 ): Promise<ChartBar[]> => {
   try {
     // 창 축은 "이전 거래일 00:00 부터" — 캘린더 산술로 잡으면 로컬 자정~개장 사이
     // 직전 세션이 창 밖으로 밀린다. 국내 `readDomesticIntradayFromDb` 의 `$2::date`
-    // 바인딩 패턴 동형.
-    const prevTradingDate = getPreviousOverseasIndexTradingDate(indexCode, tradingDate);
+    // 바인딩 패턴 동형. 휴장일 캘린더 반영으로 F76 대응.
+    const prevTradingDate = getPreviousOverseasIndexTradingDate(
+      indexCode,
+      tradingDate,
+      calendar,
+    );
     const [rows] = await pool.query<OverseasIntradayRow[]>(
       `SELECT to_char(ts, 'YYYYMMDDHH24MISS') AS ts_str, open, high, low, close
        FROM overseas_index_intraday
@@ -201,10 +207,14 @@ export const toIntradaySnapshots = (
 //   [] 또는 배열 — 정상. degraded (한쪽 실패) 도 성공으로 취급.
 export const getOverseasIndexIntradayPrices = async (
   indexCode: OverseasIntradayCode,
-  tradingDate: string = getOverseasIndexTradingDate(indexCode),
+  tradingDate?: string,
 ): Promise<IndexIntradaySnapshot[] | null> => {
+  // 캘린더는 모듈 memo — 시그니처로 뚫지 않는다 (route unstable_cache 캐시 키 오염 방지).
+  const calendar = await getMarketCalendar();
+  const resolvedTradingDate =
+    tradingDate ?? getOverseasIndexTradingDate(indexCode, new Date(), calendar);
   const [dbBars, liveBars] = await Promise.all([
-    readOverseasIntradayFromDb(indexCode, tradingDate),
+    readOverseasIntradayFromDb(indexCode, resolvedTradingDate, calendar),
     fetchOverseasIndexIntradayChart(indexCode),
   ]);
 
