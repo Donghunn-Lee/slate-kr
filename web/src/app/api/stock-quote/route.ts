@@ -5,6 +5,7 @@ import {
   fetchQuoteSnapshot,
   isSnapshotSession,
 } from "@/lib/quoteSnapshots";
+import { getMarketCalendar } from "@/lib/marketCalendar";
 import { getKrxSessionState, getKrxTradingDate } from "@/shared/utils/market";
 import type { QuoteMarket } from "@/shared/utils/market";
 import type { StockQuote } from "@/shared/types/quote";
@@ -24,13 +25,16 @@ export const GET = async (req: NextRequest) => {
   // market 미지정은 세션 결정 경로(regular=J, 그 외=NX)로 흐른다 — 하위호환.
   const market = parseMarket(req.nextUrl.searchParams.get("market"));
 
+  // 요청 시작에서 캘린더 1회 로드 (memo). 세션·거래일 산출에 관통.
+  const calendar = await getMarketCalendar();
+  const now = new Date();
   // 세션/거래일은 순수 KST 시계 함수 — KIS 응답 무관. try 밖에서 계산해
   // catch 경로에서도 그대로 재사용 (초기 로드 스켈레톤 게이트 해소용).
-  const session = getKrxSessionState();
+  const session = getKrxSessionState(now, calendar);
   // 폴링 게이트: 활성 세션(regular/after/pre)만 true. after_close는 1회 호출 후 정지.
   const marketOpen =
     session === "regular" || session === "after" || session === "pre";
-  const date = getKrxTradingDate();
+  const date = getKrxTradingDate(now, calendar);
 
   try {
     // KRX 탭: 정규장 J 호출만 유효. 그 외 세션엔 KRX 라이브가 없어 quote:null 로 흘리고

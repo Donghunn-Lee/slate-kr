@@ -8,6 +8,7 @@ import {
   toKisDate,
 } from "./kis-quote-fetch";
 import { fetchOverseasIndexIntradayChart } from "./kis-overseas-quote-fetch";
+import { getMarketCalendar } from "./marketCalendar";
 import {
   OVERSEAS_INDEX_CLOSE_LOCAL,
   type DomesticIndexCode,
@@ -290,7 +291,9 @@ export const getIndexIntradayPrices = async (
   indexCode: DomesticIndexCode,
   now: Date = new Date(),
 ): Promise<IndexIntradaySnapshot[] | null> => {
-  const tradingDate = getKrxTradingDate(now);
+  // 캘린더는 모듈 memo — 시그니처로 뚫지 않는다 (route unstable_cache 캐시 키 오염 방지).
+  const calendar = await getMarketCalendar();
+  const tradingDate = getKrxTradingDate(now, calendar);
   const targetDate = toKisDate(tradingDate);
   const iscd = ISCD_BY_INDEX[indexCode];
 

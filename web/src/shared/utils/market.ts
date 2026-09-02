@@ -43,10 +43,14 @@ const toKstParts = (now: Date): KstParts => {
 // KST 기준. 주말 + 2026 평일 공휴일 휴장. (after_close 자정 경계는 F14)
 // regular 09:00~15:30 / after 15:30~20:00 / after_close 20:00~06:00(자정 넘김) /
 // preopen 06:00~08:00 + 08:50~09:00 / pre 08:00~08:50
-export const getKrxSessionState = (now: Date = new Date()): KrxSession => {
+// calendar 미전달 시 KRX_HOLIDAYS_2026 정적 표 폴백 (isKrxHoliday 내부).
+export const getKrxSessionState = (
+  now: Date = new Date(),
+  calendar?: MarketCalendar,
+): KrxSession => {
   const { day, minutes, date } = toKstParts(now);
   if (day === 0 || day === 6) return "closed";
-  if (isKrxHoliday(date)) return "closed";
+  if (isKrxHoliday(date, calendar)) return "closed";
   if (minutes >= REGULAR_START_MINUTES && minutes < REGULAR_END_MINUTES) return "regular";
   if (minutes >= REGULAR_END_MINUTES && minutes < AFTER_END_MINUTES) return "after";
   if (minutes >= AFTER_END_MINUTES || minutes < DAWN_END_MINUTES) return "after_close";
@@ -56,8 +60,10 @@ export const getKrxSessionState = (now: Date = new Date()): KrxSession => {
   return "closed";
 };
 
-export const isKrxMarketOpen = (now: Date = new Date()): boolean =>
-  getKrxSessionState(now) === "regular";
+export const isKrxMarketOpen = (
+  now: Date = new Date(),
+  calendar?: MarketCalendar,
+): boolean => getKrxSessionState(now, calendar) === "regular";
 
 // KRX 정규장 / NXT 확장 세션(프리·애프터) 두 시장 축.
 // 세션별 기본값: regular 는 KRX, 그 외는 NXT 확장 세션이 유일한 라이브 소스.
@@ -77,14 +83,20 @@ export const isKrxActiveSession = (session: KrxSession | undefined): boolean =>
 // preopen 창을 세분화. NXT 프리 존재 가능성이 다르다.
 // 아침(06:00~08:00): NXT 프리 미개시 → 오늘 봉 자체 없음. 전일 스냅샷 fallback 대상.
 // 늦은(08:50~09:00): NXT 종목은 08:00~08:50 봉이 이미 쌓임. 라벨은 붙되 차트는 유지.
-export const isKrxEarlyPreopen = (now: Date = new Date()): boolean => {
-  if (getKrxSessionState(now) !== "preopen") return false;
+export const isKrxEarlyPreopen = (
+  now: Date = new Date(),
+  calendar?: MarketCalendar,
+): boolean => {
+  if (getKrxSessionState(now, calendar) !== "preopen") return false;
   const { minutes } = toKstParts(now);
   return minutes < PRE_START_MINUTES;
 };
 
-export const isKrxLatePreopen = (now: Date = new Date()): boolean => {
-  if (getKrxSessionState(now) !== "preopen") return false;
+export const isKrxLatePreopen = (
+  now: Date = new Date(),
+  calendar?: MarketCalendar,
+): boolean => {
+  if (getKrxSessionState(now, calendar) !== "preopen") return false;
   const { minutes } = toKstParts(now);
   return minutes >= PRE_END_MINUTES;
 };
@@ -113,18 +125,24 @@ const shiftKstDate = (yyyyMmDd: string, deltaDays: number): string => {
   return `${d0.getUTCFullYear()}-${pad(d0.getUTCMonth() + 1)}-${pad(d0.getUTCDate())}`;
 };
 
-const isKrxTradingDay = (yyyyMmDd: string): boolean => {
+const isKrxTradingDay = (
+  yyyyMmDd: string,
+  calendar?: MarketCalendar,
+): boolean => {
   const [y, m, d] = yyyyMmDd.split("-").map(Number);
   const day = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
   if (day === 0 || day === 6) return false;
-  return !isKrxHoliday(yyyyMmDd);
+  return !isKrxHoliday(yyyyMmDd, calendar);
 };
 
 // fromDate 부터 역방향으로 첫 트레이딩 데이. 연휴 최대 14일 백투백까지 안전.
-const findRecentTradingDay = (fromDate: string): string => {
+const findRecentTradingDay = (
+  fromDate: string,
+  calendar?: MarketCalendar,
+): string => {
   let d = fromDate;
   for (let i = 0; i < 15; i++) {
-    if (isKrxTradingDay(d)) return d;
+    if (isKrxTradingDay(d, calendar)) return d;
     d = shiftKstDate(d, -1);
   }
   return d;
@@ -134,33 +152,44 @@ const findRecentTradingDay = (fromDate: string): string => {
 // regular/after/pre = 오늘 (pre는 NXT 프리마켓 트레이드가 오늘 세션에 귀속).
 // after_close 20:00~24:00 = 오늘, 00:00~06:00 = 이전 완결 거래일(자정 넘김 세션).
 // preopen/closed = 이전 완결 거래일 (활성 시세 없음, 최근 완결일 스냅샷).
-export const getKrxTradingDate = (now: Date = new Date()): string => {
-  const session = getKrxSessionState(now);
+export const getKrxTradingDate = (
+  now: Date = new Date(),
+  calendar?: MarketCalendar,
+): string => {
+  const session = getKrxSessionState(now, calendar);
   const { minutes, date } = toKstParts(now);
   if (session === "regular" || session === "after" || session === "pre") return date;
   if (session === "after_close" && minutes >= AFTER_END_MINUTES) return date;
-  return findRecentTradingDay(shiftKstDate(date, -1));
+  return findRecentTradingDay(shiftKstDate(date, -1), calendar);
 };
 
 // fromDate 직전 거래일. intraday 이전 세션 경계 계산용.
-export const getPreviousKrxTradingDate = (fromDate: string): string =>
-  findRecentTradingDay(shiftKstDate(fromDate, -1));
+export const getPreviousKrxTradingDate = (
+  fromDate: string,
+  calendar?: MarketCalendar,
+): string => findRecentTradingDay(shiftKstDate(fromDate, -1), calendar);
 
 // 지수 라벨용 "가장 최근 완결 정규장 마감일".
 // 오늘이 거래일이고 15:30 지났으면 오늘, 그 외(개장 전·주말·휴장·다음날 새벽/오전)엔 지난 거래일.
 // getKrxTradingDate 와 다른 점: pre(08:00~08:50 NXT 프리마켓)에서도 지난 마감일을 반환 —
 // 지수는 정규장 개장 전까지 어제 종가가 최신 완결값이므로.
-export const getKrxLastCloseDate = (now: Date = new Date()): string => {
+export const getKrxLastCloseDate = (
+  now: Date = new Date(),
+  calendar?: MarketCalendar,
+): string => {
   const { minutes, date } = toKstParts(now);
-  if (isKrxTradingDay(date) && minutes >= REGULAR_END_MINUTES) return date;
-  return findRecentTradingDay(shiftKstDate(date, -1));
+  if (isKrxTradingDay(date, calendar) && minutes >= REGULAR_END_MINUTES) return date;
+  return findRecentTradingDay(shiftKstDate(date, -1), calendar);
 };
 
 // 당일 KRX 정규장 마감(15:30) 이후 경과 분. 개장 전·자정 넘김·주말·휴장이면 null —
 // 전일 마감까지 소급해 계산하지 않는다(당일 마감 후 확정 프린트 도달 창에만 관심).
-export const minutesSinceKrxClose = (now: Date = new Date()): number | null => {
+export const minutesSinceKrxClose = (
+  now: Date = new Date(),
+  calendar?: MarketCalendar,
+): number | null => {
   const { date, minutes } = toKstParts(now);
-  if (!isKrxTradingDay(date)) return null;
+  if (!isKrxTradingDay(date, calendar)) return null;
   if (minutes < REGULAR_END_MINUTES) return null;
   return minutes - REGULAR_END_MINUTES;
 };

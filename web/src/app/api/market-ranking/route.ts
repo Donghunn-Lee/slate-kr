@@ -3,6 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { fetchRanking } from "@/lib/kis-ranking-fetch";
 import { pool } from "@/lib/db";
+import { getMarketCalendar } from "@/lib/marketCalendar";
 import {
   getKrxSessionState,
   getKrxTradingDate,
@@ -144,10 +145,13 @@ export const GET = async (req: NextRequest) => {
     );
   }
 
+  // 요청 시작에서 캘린더 1회 로드 (memo). 세션·거래일·marketOpen 산출에 관통.
+  const calendar = await getMarketCalendar();
+  const now = new Date();
   // 세션/marketOpen 은 순수 KST 시계 — try 밖에서 계산해 catch 경로에도 그대로 얹는다 (#077).
-  const session = getKrxSessionState();
-  const marketOpen = isKrxMarketOpen();
-  const tradingDate = getKrxTradingDate();
+  const session = getKrxSessionState(now, calendar);
+  const marketOpen = isKrxMarketOpen(now, calendar);
+  const tradingDate = getKrxTradingDate(now, calendar);
 
   try {
     const { fetcher, key } = getCachedFetcher(kind, session, tradingDate);

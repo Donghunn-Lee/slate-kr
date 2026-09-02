@@ -3,6 +3,7 @@ import {
   fetchStockIntradayChart,
   type StockIntradayChartResult,
 } from "@/lib/kis-quote-fetch";
+import { getMarketCalendar } from "@/lib/marketCalendar";
 import { getKrxSessionState, getKrxTradingDate } from "@/shared/utils/market";
 
 export const dynamic = "force-dynamic";
@@ -36,9 +37,13 @@ export const GET = async (req: NextRequest) => {
     );
   }
 
-  const session = getKrxSessionState();
+  // 요청 시작에서 캘린더 1회 로드 (memo). 세션·거래일 산출에 관통.
+  // fetchStockIntradayChart 내부의 시계 함수는 함수 스코프에서 자체 로드 (memo hit).
+  const calendar = await getMarketCalendar();
+  const now = new Date();
+  const session = getKrxSessionState(now, calendar);
   // fallback 응답 date — 실패 시 세션 기준 오늘/직전 거래일. 성공 시 result.tradingDate 사용.
-  const fallbackDate = getKrxTradingDate();
+  const fallbackDate = getKrxTradingDate(now, calendar);
 
   try {
     const result = await dedupedFetch(ticker);

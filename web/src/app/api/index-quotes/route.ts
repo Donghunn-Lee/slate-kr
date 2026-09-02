@@ -2,6 +2,7 @@ import { revalidateTag, unstable_cache } from "next/cache";
 import { NextResponse } from "next/server";
 import { fetchIndexQuote } from "@/lib/kis-quote-fetch";
 import { getLatestIndexPrice } from "@/lib/indices";
+import { getMarketCalendar } from "@/lib/marketCalendar";
 import {
   getKrxSessionState,
   getKrxTradingDate,
@@ -86,9 +87,12 @@ const resolveLive = (
 };
 
 export const GET = async () => {
-  const session = getKrxSessionState();
-  const tradingDate = getKrxTradingDate();
-  const sinceClose = minutesSinceKrxClose();
+  // 요청 시작에서 캘린더 1회 로드 (memo). 세션·거래일·마감 경과·marketOpen 산출에 관통.
+  const calendar = await getMarketCalendar();
+  const now = new Date();
+  const session = getKrxSessionState(now, calendar);
+  const tradingDate = getKrxTradingDate(now, calendar);
+  const sinceClose = minutesSinceKrxClose(now, calendar);
 
   try {
     const [liveResults, fallbackResults] = await Promise.all([
@@ -114,7 +118,7 @@ export const GET = async () => {
 
     return NextResponse.json({
       quotes,
-      marketOpen: isKrxMarketOpen(),
+      marketOpen: isKrxMarketOpen(now, calendar),
       session,
       date: tradingDate,
     });

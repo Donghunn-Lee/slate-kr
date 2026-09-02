@@ -24,6 +24,7 @@ import {
   isKrxEarlyPreopen,
   isKrxLatePreopen,
 } from "@/shared/utils/market";
+import { getMarketCalendar } from "@/lib/marketCalendar";
 import { mergeChartBars } from "@/shared/utils/toEndLabelBars";
 
 const BASE_URL = "https://openapi.koreainvestment.com:9443";
@@ -397,8 +398,9 @@ export const fetchIndexMinuteBarsRaw = async (
   url.searchParams.set("FID_INPUT_HOUR_1", String(intervalSec));
   url.searchParams.set("FID_PW_DATA_INCU_YN", "Y");
   url.searchParams.set("FID_ETC_CLS_CODE", "0");
+  const calendar = await getMarketCalendar();
   const urlDate =
-    targetDate !== null && getKrxSessionState(now) === "closed"
+    targetDate !== null && getKrxSessionState(now, calendar) === "closed"
       ? targetDate
       : null;
   if (urlDate !== null) {
@@ -1036,10 +1038,12 @@ export const fetchStockIntradayChart = async (
     return null;
   }
 
-  const session = getKrxSessionState(now);
-  const todayTradingDate = getKrxTradingDate(now); // active 세션이면 오늘, 아니면 직전 거래일
-  const earlyPreopen = isKrxEarlyPreopen(now);
-  const latePreopen = isKrxLatePreopen(now);
+  // 캘린더는 모듈 memo — 시그니처로 뚫지 않는다.
+  const calendar = await getMarketCalendar();
+  const session = getKrxSessionState(now, calendar);
+  const todayTradingDate = getKrxTradingDate(now, calendar); // active 세션이면 오늘, 아니면 직전 거래일
+  const earlyPreopen = isKrxEarlyPreopen(now, calendar);
+  const latePreopen = isKrxLatePreopen(now, calendar);
 
   const isNxt = await probeNxtEligibilityMemoized(
     ticker,
@@ -1051,7 +1055,7 @@ export const fetchStockIntradayChart = async (
 
   // 아침 프리오픈: NXT 프리 미개시 → 오늘 봉 자체 없음. 바로 전일 스냅샷으로.
   if (earlyPreopen) {
-    const prevDate = getPreviousKrxTradingDate(todayTradingDate);
+    const prevDate = getPreviousKrxTradingDate(todayTradingDate, calendar);
     const bars = await fetchPreviousDaySnapshot(
       ticker,
       toKisDate(prevDate),
@@ -1109,7 +1113,7 @@ export const fetchStockIntradayChart = async (
   // 전일 tail source date. 등락률 초기화(08:00) ~ 애프터 마감(20:00) 동안 "어제 마감 → 오늘"
   // 연속 컨텍스트 30봉 prepend. after_close 는 오늘 완결본 그대로 (tail 없음).
   const tailSourceDate = isActiveOrLatePreopen
-    ? getPreviousKrxTradingDate(barsDate)
+    ? getPreviousKrxTradingDate(barsDate, calendar)
     : null;
 
   // 라이브 fan-out + 전일 tail 병렬 fetch — 지연 최소화.
