@@ -1,11 +1,14 @@
 import {
   OVERSEAS_INDEX_CLOSE_LOCAL,
+  OVERSEAS_INDEX_MARKET,
   OVERSEAS_INDEX_OPEN_LOCAL,
   OVERSEAS_INDEX_TIMEZONE,
   type OverseasIndexCode,
 } from "@/shared/constants/indices";
+import type { MarketCalendar } from "@/shared/types/marketCalendar";
 import { isKrxHoliday } from "./krxHolidays";
 import { isUsMarketHoliday } from "./usMarketHolidays";
+import { isXetraHoliday } from "./xetraHolidays";
 
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
@@ -273,6 +276,22 @@ export const getGlobalOverseasSessionState = (
 
 export const isGlobalOverseasActive = (now: Date = new Date()): boolean =>
   getGlobalOverseasSessionState(now) === "active";
+
+// 해외 지수의 휴장일 판정 (거래소 로컬 캘린더 일자 기준).
+// 캘린더 행 있음 → is_open 값이 정본. 행 없음 → 시장별 정적 폴백:
+//   US → NYSE 정적 표, DE → XETRA 정적 표, JP/HK/CN → 폴백 없음(false).
+export const isOverseasIndexHoliday = (
+  code: OverseasIndexCode,
+  localDateStr: string,
+  calendar?: MarketCalendar,
+): boolean => {
+  const market = OVERSEAS_INDEX_MARKET[code];
+  if (market === "DE") return isXetraHoliday(localDateStr);
+  const isOpen = calendar?.[market]?.[localDateStr];
+  if (isOpen !== undefined) return !isOpen;
+  if (market === "US") return isUsMarketHoliday(localDateStr);
+  return false;
+};
 
 // ── 해외 지수별 세션 (거래소 TZ 로컬) ─────────────────
 // US 세션과 대칭: DST 는 IANA DB(`OVERSEAS_INDEX_TIMEZONE[code]`) 에 위임하고

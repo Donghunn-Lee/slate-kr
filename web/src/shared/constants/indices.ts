@@ -1,3 +1,5 @@
+import type { TradingMarket } from "@/shared/types/marketCalendar";
+
 // Single source of truth for indices. `IndexCode`, `DomesticIndexCode`, `OverseasIndexCode`,
 // `INDEX_LABEL`, region partitions, and getIndexMeta() all derive from INDEX_REGISTRY —
 // do not maintain parallel lists elsewhere.
@@ -104,6 +106,23 @@ export const OVERSEAS_INDEX_CLOSE_LOCAL: Record<OverseasIndexCode, string> = {
   HSI: "1600",
   SHCOMP: "1500",
   DAX: "1730",
+};
+
+// 해외 지수 → market_trading_days 시장 코드 매핑. isOverseasIndexHoliday 가
+// 이 매핑으로 캘린더 조회 키를 정한다. DE 는 KIS CTOS5011R 미커버로 캘린더 부재
+// 시장 — XETRA 정적 표(shared/utils/xetraHolidays.ts) 로만 판정.
+export const OVERSEAS_INDEX_MARKET: Record<
+  OverseasIndexCode,
+  Exclude<TradingMarket, "KRX"> | "DE"
+> = {
+  SPX: "US",
+  ".DJI": "US",
+  COMP: "US",
+  NDX: "US",
+  NI225: "JP",
+  HSI: "HK",
+  SHCOMP: "CN",
+  DAX: "DE",
 };
 
 // market-local 정규장 개장 시각 (HHMM). `getOverseasIndexSessionState` 가 open 경계로

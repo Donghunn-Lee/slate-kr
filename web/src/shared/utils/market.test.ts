@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import type { MarketCalendar } from "@/shared/types/marketCalendar";
 import {
   getKrxSessionState,
   getOverseasIndexSessionState,
@@ -11,6 +12,7 @@ import {
   isKrxBeforeMarketOpen,
   isKrxEarlyPreopen,
   isKrxLatePreopen,
+  isOverseasIndexHoliday,
   isUsMarketOpen,
   minutesSinceKrxClose,
   minutesSinceOverseasIndexClose,
@@ -445,6 +447,66 @@ describe("minutesSinceOverseasIndexClose", () => {
     expect(
       minutesSinceOverseasIndexClose("SPX", utc(2026, 12, 15, 21, 5)),
     ).toBe(5);
+  });
+});
+
+// isOverseasIndexHoliday — 캘린더 우선순위 · 시장별 정적 폴백 (US NYSE / DE XETRA / JP·HK·CN 폴백 없음).
+describe("isOverseasIndexHoliday", () => {
+  it("US 캘린더 없음 + NYSE 휴장일 (2026-09-07 Labor Day) → true (정적 폴백)", () => {
+    expect(isOverseasIndexHoliday("SPX", "2026-09-07")).toBe(true);
+  });
+
+  it("US 캘린더 없음 + 평일 → false", () => {
+    expect(isOverseasIndexHoliday("SPX", "2026-09-08")).toBe(false);
+  });
+
+  it("US 캘린더 open + NYSE 정적 휴장일 → false (캘린더가 정적 표를 이긴다)", () => {
+    const cal: MarketCalendar = { US: { "2026-09-07": true } };
+    expect(isOverseasIndexHoliday("SPX", "2026-09-07", cal)).toBe(false);
+  });
+
+  it("US 캘린더 closed + 평일 → true", () => {
+    const cal: MarketCalendar = { US: { "2026-09-08": false } };
+    expect(isOverseasIndexHoliday("NDX", "2026-09-08", cal)).toBe(true);
+  });
+
+  it("DE 2026-12-24 → true (XETRA 정적 표, 캘린더 무관)", () => {
+    expect(isOverseasIndexHoliday("DAX", "2026-12-24")).toBe(true);
+  });
+
+  it("DE 12/25 → true / 12/31 → true / 12/28 (Mon) → false", () => {
+    expect(isOverseasIndexHoliday("DAX", "2026-12-25")).toBe(true);
+    expect(isOverseasIndexHoliday("DAX", "2026-12-31")).toBe(true);
+    expect(isOverseasIndexHoliday("DAX", "2026-12-28")).toBe(false);
+  });
+
+  it("JP 캘린더 없음 → false (정적 폴백 없음)", () => {
+    expect(isOverseasIndexHoliday("NI225", "2026-09-23")).toBe(false);
+  });
+
+  it("JP 캘린더 closed → true", () => {
+    const cal: MarketCalendar = { JP: { "2026-09-23": false } };
+    expect(isOverseasIndexHoliday("NI225", "2026-09-23", cal)).toBe(true);
+  });
+
+  it("HK 캘린더 closed → true / open → false / 부재 → false", () => {
+    const cal: MarketCalendar = { HK: { "2026-10-01": false, "2026-10-02": true } };
+    expect(isOverseasIndexHoliday("HSI", "2026-10-01", cal)).toBe(true);
+    expect(isOverseasIndexHoliday("HSI", "2026-10-02", cal)).toBe(false);
+    expect(isOverseasIndexHoliday("HSI", "2026-10-05", cal)).toBe(false);
+  });
+
+  it("CN 캘린더 closed → true / 캘린더 부재 → false (정적 폴백 없음)", () => {
+    const cal: MarketCalendar = { CN: { "2026-10-01": false } };
+    expect(isOverseasIndexHoliday("SHCOMP", "2026-10-01", cal)).toBe(true);
+    expect(isOverseasIndexHoliday("SHCOMP", "2026-10-02")).toBe(false);
+  });
+
+  it("다른 시장 행만 있음 → 조회 시장은 정적 폴백 경로", () => {
+    // US 는 NYSE 정적 표, JP 는 폴백 없음.
+    const cal: MarketCalendar = { KRX: { "2026-09-07": false } };
+    expect(isOverseasIndexHoliday("SPX", "2026-09-07", cal)).toBe(true);
+    expect(isOverseasIndexHoliday("NI225", "2026-09-07", cal)).toBe(false);
   });
 });
 
