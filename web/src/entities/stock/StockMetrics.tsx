@@ -1,8 +1,8 @@
 import type { StockPriceSnapshot, FinancialPeriod } from "@/shared/types/stock";
 import { getLatestPrice } from "@/lib/prices";
-import { getFinancials, computeTtmEps } from "@/lib/financials";
+import { calcDividendYield, getFinancials, computeTtmEps } from "@/lib/financials";
 import { getListedAt } from "@/lib/stocks";
-import { formatRatio, formatEps } from "@/shared/format";
+import { formatRatio, formatEps, formatPercent } from "@/shared/format";
 import { isNonKrwTicker } from "@/shared/constants/nonKrwTickers";
 import { NonKrwNotice } from "./NonKrwNotice";
 import { StockPanel } from "./StockPanel";
@@ -54,6 +54,7 @@ export const StockMetrics = async ({ ticker }: StockMetricsProps) => {
   const currentPrice = price?.close ?? null;
   const displayEps = ttm.value;
   const displayBps = latestAnnual?.bps ?? null;
+  const displayDps = latestAnnual?.dps ?? null;
 
   const per =
     currentPrice !== null && displayEps !== null && displayEps > 0
@@ -64,6 +65,8 @@ export const StockMetrics = async ({ ticker }: StockMetricsProps) => {
     currentPrice !== null && displayBps !== null && displayBps > 0
       ? currentPrice / displayBps
       : null;
+
+  const dividendYield = calcDividendYield(currentPrice, displayDps);
 
   const sourceLabel = (() => {
     if (ttm.source === "ttm") return "최근 4분기 기준";
@@ -90,11 +93,13 @@ export const StockMetrics = async ({ ticker }: StockMetricsProps) => {
       ) : !hasData ? (
         <p className="text-body text-muted-foreground">지표 데이터 없음</p>
       ) : (
-        <div className="grid grid-cols-2 gap-x-8 gap-y-5 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-x-8 gap-y-5 sm:grid-cols-3 lg:grid-cols-6">
           <MetricItem label="PER" value={formatRatio(per)} />
           <MetricItem label="PBR" value={formatRatio(pbr)} />
           <MetricItem label="EPS" value={formatEps(displayEps)} />
           <MetricItem label="BPS" value={formatEps(displayBps)} />
+          <MetricItem label="DPS" value={formatEps(displayDps)} />
+          <MetricItem label="시가배당률" value={formatPercent(dividendYield)} />
         </div>
       )}
     </StockPanel>

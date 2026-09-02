@@ -16,6 +16,8 @@ type MetricRow = {
   label: string;
   getValue: (p: FinancialPeriod) => string;
   getRaw: (p: FinancialPeriod) => number | null;
+  // 분기 행에는 배당 필드가 항상 null 이라 렌더에서 제외한다.
+  annualOnly?: boolean;
 };
 
 const METRIC_ROWS: MetricRow[] = [
@@ -49,6 +51,25 @@ const METRIC_ROWS: MetricRow[] = [
   { label: "BPS(원)", getValue: (p) => formatEps(p.bps, false), getRaw: (p) => p.bps },
   { label: "PER(배)", getValue: (p) => formatRatio(p.per, 2, false), getRaw: (p) => p.per },
   { label: "PBR(배)", getValue: (p) => formatRatio(p.pbr, 2, false), getRaw: (p) => p.pbr },
+  // 배당 (연간만 채움)
+  {
+    label: "DPS(원)",
+    getValue: (p) => formatEps(p.dps, false),
+    getRaw: (p) => p.dps,
+    annualOnly: true,
+  },
+  {
+    label: "배당수익률(%)",
+    getValue: (p) => formatPercent(p.dividendYield, false),
+    getRaw: (p) => p.dividendYield,
+    annualOnly: true,
+  },
+  {
+    label: "배당성향(%)",
+    getValue: (p) => formatPercent(p.payoutRatio, false),
+    getRaw: (p) => p.payoutRatio,
+    annualOnly: true,
+  },
   // 재무 건전성
   {
     label: "자산총계",
@@ -87,7 +108,11 @@ const FinancialsTable = ({ periods, mode, compact }: FinancialsTableProps) => {
   }
 
   const ordered = [...periods].reverse();
-  const rows = compact ? METRIC_ROWS.filter((r) => SUMMARY_LABELS.has(r.label)) : METRIC_ROWS;
+  const baseRows = compact
+    ? METRIC_ROWS.filter((r) => SUMMARY_LABELS.has(r.label))
+    : METRIC_ROWS;
+  const rows =
+    mode === "quarterly" ? baseRows.filter((r) => !r.annualOnly) : baseRows;
   const hasQ4 = mode === "quarterly" && ordered.some((p) => p.quarter === 4);
 
   return (
