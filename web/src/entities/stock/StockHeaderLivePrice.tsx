@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { useState } from "react";
 import { useStockQuote } from "@/features/stock-quote/useStockQuote";
 import { PriceChange } from "@/shared/components/PriceChange";
+import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
 import type { QuoteMarket } from "@/shared/utils/market";
 import {
   defaultMarketForSession,
@@ -45,17 +46,18 @@ export const StockHeaderLivePrice = ({
   initialDate,
   nxEligible,
 }: StockHeaderLivePriceProps) => {
+  const calendar = useMarketCalendar();
   const showToggle = nxEligible === true;
 
   // 마운트 시 클라 세션 1회로 기본 탭 결정 — 이후 세션 전환에도 사용자 선택 유지.
   const [market, setMarket] = useState<QuoteMarket>(() =>
-    defaultMarketForSession(getKrxSessionState()),
+    defaultMarketForSession(getKrxSessionState(new Date(), calendar)),
   );
 
   const marketArg: QuoteMarket | undefined = showToggle ? market : undefined;
 
   // KRX 탭 비-regular 는 서버 응답이 항상 quote:null → 폴링 비활성.
-  const clientSession = getKrxSessionState();
+  const clientSession = getKrxSessionState(new Date(), calendar);
   const isKrxOffRegular = showToggle && market === "krx" && clientSession !== "regular";
 
   const { data, dataUpdatedAt } = useStockQuote(ticker, {

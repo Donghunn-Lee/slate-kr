@@ -5,6 +5,7 @@ import Link from "next/link";
 import { PriceChart } from "@/entities/chart/PriceChart";
 import { useStockQuote } from "@/features/stock-quote/useStockQuote";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
+import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
 import {
   defaultMarketForSession,
   getKrxSessionState,
@@ -49,9 +50,10 @@ export const StockChart = ({
   interactive = true,
   nxEligible,
 }: StockChartProps) => {
+  const calendar = useMarketCalendar();
   // 헤더 폴링 캐시를 subscribe (네트워크 추가 0). NXT 취급 종목은 시장 축 정합을 위해
   // 세션 기본 market 을 명시.
-  const subscribeMarket = nxEligible === true ? defaultMarketForSession(getKrxSessionState()) : undefined;
+  const subscribeMarket = nxEligible === true ? defaultMarketForSession(getKrxSessionState(new Date(), calendar)) : undefined;
   const { data } = useStockQuote(ticker, { subscribeOnly: true, market: subscribeMarket });
   const isMobile = useIsMobile();
 

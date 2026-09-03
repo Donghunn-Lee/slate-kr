@@ -22,6 +22,7 @@ import {
 } from "@/shared/constants/indices";
 import { INDEX_MINI_INTERVAL_MIN } from "@/shared/constants/chart";
 import { useNow } from "@/shared/hooks/useNow";
+import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
 import { getKrxLastCloseDate, isKrxBeforeMarketOpen } from "@/shared/utils/market";
 import { cn } from "@/lib/utils";
 import { useIndexQuotes, type IndexCellData } from "./useIndexQuotes";
@@ -177,7 +178,8 @@ const MarketStatus = ({
   fallbackDate?: string;
 }) => {
   const now = useNow();
-  const referenceDate = hasLive && now ? getKrxLastCloseDate(now) : fallbackDate;
+  const calendar = useMarketCalendar();
+  const referenceDate = hasLive && now ? getKrxLastCloseDate(now, calendar) : fallbackDate;
   if (marketOpen) {
     return (
       <div className="flex items-center gap-1.5 text-body-sm text-muted-foreground">

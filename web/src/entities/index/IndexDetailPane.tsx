@@ -27,6 +27,7 @@ import {
   getKrxSessionState,
 } from "@/shared/utils/market";
 import { useNow } from "@/shared/hooks/useNow";
+import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
 import { cn } from "@/lib/utils";
 import { IndexChartDynamic } from "./IndexChartDynamic";
 
@@ -159,6 +160,7 @@ export const IndexDetailPane = ({
   statsByIndex,
   volumeByIndex,
 }: IndexDetailPaneProps) => {
+  const calendar = useMarketCalendar();
   const meta = getIndexMeta(selected);
   const isDomestic = meta.region === "domestic";
   const isOverseasIntraday = isOverseasIntradayCode(selected);
@@ -194,9 +196,9 @@ export const IndexDetailPane = ({
 
   // 라벨은 request time 기준: 국내는 client clock 으로 세션 판정, 해외는 quote.time 판정.
   const now = useNow();
-  const isKrxRegular = isDomestic && now !== null && getKrxSessionState(now) === "regular";
+  const isKrxRegular = isDomestic && now !== null && getKrxSessionState(now, calendar) === "regular";
   // 국내 마감 라벨의 기준일(MM-dd). pre 세션에서도 전일 반환하는 getKrxLastCloseDate 사용.
-  const domesticLastCloseMd = now ? getKrxLastCloseDate(now).slice(5) : null;
+  const domesticLastCloseMd = now ? getKrxLastCloseDate(now, calendar).slice(5) : null;
 
   // 해외 표시 상태 판정 (live/closed/eod_only). 시각 포맷은 formatOverseasQuoteTime 재사용.
   const overseasState = !isDomestic

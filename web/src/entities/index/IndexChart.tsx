@@ -34,6 +34,7 @@ import {
   type OverseasIntradayCode,
 } from "@/shared/constants/indices";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
+import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
 import type {
   ChartBar,
   IndexDailySnapshot,
@@ -180,6 +181,7 @@ export const IndexChart = ({
   interactive = true,
   intradayEnabled = true,
 }: IndexChartProps) => {
+  const calendar = useMarketCalendar();
   const [viewMode, setViewMode] = useState<ViewMode>("full");
   const [granularity, setGranularity] = useState<Granularity>("day");
   const [intradayInterval, setIntradayInterval] = useState<number>(
@@ -289,7 +291,7 @@ export const IndexChart = ({
               indexCode as OverseasIntradayCode,
               liveDate,
             )
-          : getPreviousKrxTradingDate(liveDate),
+          : getPreviousKrxTradingDate(liveDate, calendar),
       )
     : undefined;
 
