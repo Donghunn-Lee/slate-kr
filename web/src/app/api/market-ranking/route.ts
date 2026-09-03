@@ -14,19 +14,22 @@ import { krxIndexRankingRevalidate } from "@/lib/sessionCache";
 import type {
   Market,
   MarketRankingItem,
-  MarketRankingKind,
+  ExtendedMarketRankingKind,
 } from "@/shared/types/ranking";
 import type { StockSummary } from "@/shared/types/stock";
 
 export const dynamic = "force-dynamic";
 
-// kind × market 조합 = 4 × 3 = 12 유한 key. 모두 flat 문자열로 상수화 → 캐시 hit 율 유지.
+// kind × market 조합: (fluctuation×2) + (volume×2) + market-cap + top-interest = 6 → × 3 market = 18.
+// 모두 flat 문자열로 상수화 → 캐시 hit 율 유지.
 // URL 파라미터는 by=shares|value (kind="volume" 과의 명명 중복 해소), lib 은 by=volume|value 유지.
-const flatKey = (k: MarketRankingKind): string => {
+const flatKey = (k: ExtendedMarketRankingKind): string => {
   const suffix = `-${k.market}`;
-  return k.kind === "fluctuation"
-    ? `fluc-${k.direction}${suffix}`
-    : `vol-${k.by === "volume" ? "shares" : "value"}${suffix}`;
+  if (k.kind === "fluctuation") return `fluc-${k.direction}${suffix}`;
+  if (k.kind === "volume")
+    return `vol-${k.by === "volume" ? "shares" : "value"}${suffix}`;
+  if (k.kind === "market-cap") return `mcap${suffix}`;
+  return `interest${suffix}`;
 };
 
 const parseMarket = (raw: string | null): Market => {
@@ -34,7 +37,7 @@ const parseMarket = (raw: string | null): Market => {
   return "all"; // default (raw === null || "all" 포함)
 };
 
-const parseKind = (params: URLSearchParams): MarketRankingKind | null => {
+const parseKind = (params: URLSearchParams): ExtendedMarketRankingKind | null => {
   const kind = params.get("kind");
   const market = parseMarket(params.get("market"));
   if (kind === "fluctuation") {
@@ -50,6 +53,8 @@ const parseKind = (params: URLSearchParams): MarketRankingKind | null => {
     if (by === "value") return { kind, by: "value", market };
     return null;
   }
+  if (kind === "market-cap") return { kind, market };
+  if (kind === "top-interest") return { kind, market };
   return null;
 };
 
@@ -84,7 +89,7 @@ const enrichWithMarket = async (
 // fetchRanking 은 discriminated union 반환 — 캐시에는 items | null 로 축소해 저장.
 // 실패 kind 세부(token/http/business/…) 는 lib 에서 이미 console.error, route/클라이언트는 failed 만 소비.
 const runFetch = async (
-  kind: MarketRankingKind,
+  kind: ExtendedMarketRankingKind,
 ): Promise<MarketRankingItem[] | null> => {
   const r = await fetchRanking(kind);
   if (!r.ok) return null;
@@ -108,7 +113,7 @@ const cacheKeyOf = (
 ): string => `${key}::${session}::${tradingDate}`;
 
 const getCachedFetcher = (
-  kind: MarketRankingKind,
+  kind: ExtendedMarketRankingKind,
   session: KrxSession,
   tradingDate: string,
 ): { fetcher: RankingFetcher; key: string } => {
