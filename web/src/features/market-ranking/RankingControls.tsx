@@ -2,27 +2,6 @@
 
 import { cn } from "@/lib/utils";
 
-type TabButtonProps = {
-  active: boolean;
-  onClick: () => void;
-  children: string;
-};
-
-export const TabButton = ({ active, onClick, children }: TabButtonProps) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className={cn(
-      "border-b-2 pb-2 text-body transition-colors",
-      active
-        ? "border-foreground font-medium text-foreground"
-        : "border-transparent text-muted-foreground hover:text-foreground",
-    )}
-  >
-    {children}
-  </button>
-);
-
 type PillProps = {
   active: boolean;
   onClick: () => void;

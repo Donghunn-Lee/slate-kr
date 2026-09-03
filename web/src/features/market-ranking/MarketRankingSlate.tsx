@@ -9,7 +9,8 @@ import { formatMarketCap } from "@/shared/format";
 import type { PriceSign } from "@/shared/types/quote";
 import type { Market, MarketRankingItem } from "@/shared/types/ranking";
 import { cn } from "@/lib/utils";
-import { Pill, TabButton } from "./RankingControls";
+import { Pill } from "./RankingControls";
+import { RankingTabStrip, type RankingTabItem } from "./RankingTabStrip";
 import { useMarketRanking } from "./useMarketRanking";
 
 const TOP_N = 5;
@@ -114,6 +115,11 @@ const MARKET_LABEL: Record<Market, string> = {
 };
 const MARKETS: readonly Market[] = ["all", "kospi", "kosdaq"];
 
+const TAB_ITEMS: readonly RankingTabItem<TabId>[] = [
+  { id: "fluctuation", label: "등락률" },
+  { id: "volume", label: "거래량" },
+];
+
 // "전체 보기" 링크가 현재 필터를 그대로 페이지에 전달. route 계약과 동일한 파라미터 명명.
 const toRankingHref = (
   tab: TabId,
@@ -183,20 +189,11 @@ export const MarketRankingSlate = () => {
           ))}
         </div>
         <div className="mb-4 flex items-end justify-between gap-3 border-b border-border/60">
-          <div className="flex items-center gap-5">
-            <TabButton
-              active={tab === "fluctuation"}
-              onClick={() => setTab("fluctuation")}
-            >
-              등락률
-            </TabButton>
-            <TabButton
-              active={tab === "volume"}
-              onClick={() => setTab("volume")}
-            >
-              거래량
-            </TabButton>
-          </div>
+          <RankingTabStrip
+            items={TAB_ITEMS}
+            activeId={tab}
+            onSelect={setTab}
+          />
           <div className="flex items-center gap-1 pb-1.5">
             {tab === "fluctuation" ? (
               <>

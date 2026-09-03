@@ -8,8 +8,9 @@ import type { TickerDisclosureCount } from "@/app/api/disclosures/recent-count/r
 import { StockPanel } from "@/entities/stock/StockPanel";
 import { cn } from "@/lib/utils";
 import type { Market, MarketRankingKind } from "@/shared/types/ranking";
-import { Pill, TabButton } from "./RankingControls";
+import { Pill } from "./RankingControls";
 import { RankingHeader, RankingRow, RankingRowSkeleton } from "./RankingRow";
+import { RankingTabStrip, type RankingTabItem } from "./RankingTabStrip";
 import { useMarketRanking } from "./useMarketRanking";
 
 type RankingViewProps = {
@@ -22,6 +23,11 @@ const MARKET_LABEL: Record<Market, string> = {
   kosdaq: "KOSDAQ",
 };
 const MARKETS: readonly Market[] = ["all", "kospi", "kosdaq"];
+
+const TAB_ITEMS: readonly RankingTabItem<MarketRankingKind["kind"]>[] = [
+  { id: "fluctuation", label: "등락률" },
+  { id: "volume", label: "거래량" },
+];
 
 const SKELETON_ROWS = 10;
 
@@ -125,20 +131,11 @@ export const RankingView = ({ initialKind }: RankingViewProps) => {
         ))}
       </div>
       <div className="mb-3 flex items-end justify-between gap-3 border-b border-border/60 sm:mb-4">
-        <div className="flex items-center gap-5">
-          <TabButton
-            active={kind.kind === "fluctuation"}
-            onClick={() => handleTab("fluctuation")}
-          >
-            등락률
-          </TabButton>
-          <TabButton
-            active={kind.kind === "volume"}
-            onClick={() => handleTab("volume")}
-          >
-            거래량
-          </TabButton>
-        </div>
+        <RankingTabStrip
+          items={TAB_ITEMS}
+          activeId={kind.kind}
+          onSelect={handleTab}
+        />
         <div className="flex items-center gap-1 pb-1.5">
           {kind.kind === "fluctuation" ? (
             <>
