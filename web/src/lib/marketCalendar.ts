@@ -4,12 +4,12 @@ import type {
   TradingMarket,
 } from "@/shared/types/marketCalendar";
 
-// market_trading_days 원시 row. trade_date 는 Neon HTTP driver 특성상
-// string("YYYY-MM-DD" 계열) 또는 Date 인스턴스 어느 쪽으로도 도달할 수 있어
-// 파싱은 rowsToCalendar 에서 방어적으로 normalize.
+// market_trading_days 원시 row. trade_date 는 SELECT 에서 to_char 로 강제
+// "YYYY-MM-DD" 문자열 수신 — Neon HTTP 가 DATE 를 로컬 midnight Date 로 파싱해
+// 이후 UTC 기반 문자열화 시 TZ 오프셋만큼 shift 되는 경로를 원천 차단.
 export type MarketTradingDayRow = {
   market: string;
-  trade_date: unknown;
+  trade_date: string;
   is_open: boolean;
 };
 
@@ -24,17 +24,10 @@ const TRADING_MARKETS: readonly TradingMarket[] = [
 const isTradingMarket = (v: string): v is TradingMarket =>
   (TRADING_MARKETS as readonly string[]).includes(v);
 
-// Postgres DATE → "YYYY-MM-DD". TZ 변환 개입 금지 — 문자열이면 앞 10자, Date 면
-// UTC ISO 앞 10자(Neon 은 DATE 를 UTC 자정 Date 로 돌려주므로 원본 캘린더 일자 복원).
-const toDateKey = (v: unknown): string | null => {
-  if (typeof v === "string") {
-    return v.length >= 10 ? v.slice(0, 10) : null;
-  }
-  if (v instanceof Date) {
-    return v.toISOString().slice(0, 10);
-  }
-  return null;
-};
+// SELECT to_char 로 이미 "YYYY-MM-DD" 문자열이 도달한다는 계약을 정규식으로 확인.
+// 예상 밖 형식(스키마 변경·수동 SELECT 등)은 조용히 skip.
+const DATE_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
+const toDateKey = (v: string): string | null => (DATE_KEY_RE.test(v) ? v : null);
 
 export const rowsToCalendar = (
   rows: readonly MarketTradingDayRow[],
@@ -94,7 +87,7 @@ export const getMarketCalendar = async (): Promise<MarketCalendar> => {
   const { from, to } = calendarRange(new Date(nowMs));
   try {
     const [rows] = await pool.query<MarketTradingDayRow[]>(
-      "SELECT market, trade_date, is_open FROM market_trading_days WHERE trade_date BETWEEN $1 AND $2",
+      "SELECT market, to_char(trade_date, 'YYYY-MM-DD') AS trade_date, is_open FROM market_trading_days WHERE trade_date BETWEEN $1 AND $2",
       [from, to],
     );
     const value = rowsToCalendar(rows);

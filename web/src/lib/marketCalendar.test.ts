@@ -16,9 +16,9 @@ describe("rowsToCalendar", () => {
     expect(cal.KRX?.["2026-09-24"]).toBe(false);
   });
 
-  it("Date 인스턴스 trade_date (UTC 자정) → 원본 캘린더 일자 복원", () => {
+  it("string 'YYYY-MM-DD' trade_date (해외 시장) → 그대로 key", () => {
     const rows: MarketTradingDayRow[] = [
-      { market: "US", trade_date: new Date("2026-09-07T00:00:00Z"), is_open: false },
+      { market: "US", trade_date: "2026-09-07", is_open: false },
     ];
     const cal = rowsToCalendar(rows);
     expect(cal.US?.["2026-09-07"]).toBe(false);
@@ -52,11 +52,11 @@ describe("rowsToCalendar", () => {
     expect(Object.keys(cal)).toEqual(["KRX"]);
   });
 
-  it("잘못된 trade_date (null / 짧은 문자열 / 숫자) → 해당 row skip", () => {
+  it("잘못된 형식 문자열 (2026/09/04 · 빈 문자열 · 짧은 문자열) → 해당 row skip", () => {
     const rows: MarketTradingDayRow[] = [
-      { market: "KRX", trade_date: null, is_open: true },
+      { market: "KRX", trade_date: "2026/09/04", is_open: true },
+      { market: "KRX", trade_date: "", is_open: true },
       { market: "KRX", trade_date: "26-09", is_open: true },
-      { market: "KRX", trade_date: 20260901, is_open: true },
       { market: "KRX", trade_date: "2026-09-01", is_open: false },
     ];
     const cal = rowsToCalendar(rows);
