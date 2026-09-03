@@ -7,6 +7,7 @@ import { BottomTabBar } from "@/components/layout/BottomTabBar";
 import { RecentVisitedBar } from "@/components/layout/RecentVisitedBar";
 import { Footer } from "@/components/layout/Footer";
 import { IosInputZoomFix } from "@/shared/components/IosInputZoomFix";
+import { getMarketCalendar } from "@/lib/marketCalendar";
 
 const suit = localFont({
   src: "../../public/fonts/SUIT-Variable.woff2",
@@ -40,11 +41,12 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const calendar = await getMarketCalendar();
   return (
     <html lang="ko" suppressHydrationWarning className={suit.variable}>
       <body className="flex min-h-screen flex-col pb-[calc(3.5rem+env(safe-area-inset-bottom))] font-sans antialiased md:pb-0">
-        <Providers>
+        <Providers calendar={calendar}>
           <IosInputZoomFix />
           <Navbar />
           <RecentVisitedBar />
