@@ -6,7 +6,7 @@ import { format, parseISO, subMonths, subYears } from "date-fns";
 type DailyPriceRow = {
   id: number;
   ticker: string;
-  date: Date;
+  date: string;
   open: number;
   high: number;
   low: number;
@@ -15,13 +15,19 @@ type DailyPriceRow = {
   market_cap: number | null;
 };
 
+// 아래 SELECT 들이 공유하는 컬럼 리스트. DATE 는 to_char 로 문자열 수신 —
+// Neon HTTP 가 DATE 를 로컬 midnight Date 로 파싱하는 경로를 원천 차단해
+// 환경 TZ 와 무관하게 저장된 캘린더 일자를 그대로 얻는다.
+const DAILY_PRICE_COLUMNS =
+  "id, ticker, to_char(date, 'YYYY-MM-DD') AS date, open, high, low, close, volume, market_cap";
+
 // pykrx 백필이 무거래일에 남긴 open=high=low=0 fill 봉(#120)을 서빙 경계에서 flat(close)로 정규화.
 // DB 원본은 as-is 유지 — 캔들 축 붕괴·52주 저가 0원만 방지한다. 부분 0(예: open만 0)은 통과.
 export const rowToSnapshot = (row: DailyPriceRow): StockPriceSnapshot => {
   const isFlatFill = row.open === 0 && row.high === 0 && row.low === 0;
   return {
     ticker: row.ticker,
-    date: format(new Date(row.date), "yyyy-MM-dd"),
+    date: row.date,
     open: isFlatFill ? row.close : row.open,
     high: isFlatFill ? row.close : row.high,
     low: isFlatFill ? row.close : row.low,
@@ -36,7 +42,7 @@ export const rowToSnapshot = (row: DailyPriceRow): StockPriceSnapshot => {
 const fetchDailyPricesRaw = cache(
   async (ticker: string, limit: number): Promise<DailyPriceRow[]> => {
     const [rows] = await pool.query<DailyPriceRow[]>(
-      "SELECT * FROM daily_prices WHERE ticker = $1 ORDER BY date DESC LIMIT $2",
+      `SELECT ${DAILY_PRICE_COLUMNS} FROM daily_prices WHERE ticker = $1 ORDER BY date DESC LIMIT $2`,
       [ticker, limit],
     );
     return rows;
@@ -53,24 +59,19 @@ export const getDailyPrices = async (
   return rows.map(rowToSnapshot);
 };
 
-// KST 축으로 강제된 최신 거래일 문자열.
-// rowToSnapshot 의 date-fns format 은 서버 로컬 TZ 종속 → 등식 비교 용도에는 부적합.
-// row.date 는 Neon HTTP 가 UTC midnight 으로 파싱한 Date 이므로, UTC 컴포넌트를 직접 추출하면
-// KST 거래일과 동일한 원 date 문자열을 재조립할 수 있다.
-const pad2 = (n: number): string => String(n).padStart(2, "0");
-
+// 최신 거래일 문자열. SELECT to_char 로 DATE 를 문자열 수신하므로 원 저장 일자를
+// 환경 TZ 와 무관하게 그대로 돌려준다.
 export const getLatestKstDate = async (ticker: string): Promise<string | null> => {
   // limit=2 로 고정 — 헤더가 getDailyPrices(ticker, 2) 를 호출하는 경로와 캐시 키가 일치해야
   // 요청 단위 dedupe 가 성립하고 추가 SQL 이 발생하지 않는다.
   const rows = await fetchDailyPricesRaw(ticker, 2);
   if (rows.length === 0) return null;
-  const d = new Date(rows[0].date);
-  return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
+  return rows[0].date;
 };
 
 export const getLatestPrice = cache(async (ticker: string): Promise<StockPriceSnapshot | null> => {
   const [rows] = await pool.query<DailyPriceRow[]>(
-    "SELECT * FROM daily_prices WHERE ticker = $1 ORDER BY date DESC LIMIT 1",
+    `SELECT ${DAILY_PRICE_COLUMNS} FROM daily_prices WHERE ticker = $1 ORDER BY date DESC LIMIT 1`,
     [ticker]
   );
 
@@ -137,7 +138,7 @@ export const getLatestPricesByTickers = async (
 export const getPricesForStats = async (ticker: string): Promise<StockPriceSnapshot[]> => {
   try {
     const [rows] = await pool.query<DailyPriceRow[]>(
-      "SELECT * FROM daily_prices WHERE ticker = $1 AND date >= CURRENT_DATE - INTERVAL '13 months' ORDER BY date ASC",
+      `SELECT ${DAILY_PRICE_COLUMNS} FROM daily_prices WHERE ticker = $1 AND date >= CURRENT_DATE - INTERVAL '13 months' ORDER BY date ASC`,
       [ticker]
     );
     return rows.map(rowToSnapshot);

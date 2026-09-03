@@ -24,7 +24,7 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
   let marketAction: MarketActionStatus | null = null;
   // null 은 "판정 불가" — 토글 미노출로 폴백된다. 예외도 동일 처리.
   let nxEligible: boolean | null = null;
-  // rowToSnapshot 의 date-fns format 은 서버 로컬 TZ 종속 — 등식 비교용은 KST 축 강제값을 쓴다.
+  // SELECT to_char 로 문자열 수신하는 최신 거래일. 환경 TZ 와 무관하게 저장 일자 그대로.
   let initialKstDate: string | null = null;
 
   try {

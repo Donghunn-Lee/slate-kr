@@ -7,7 +7,7 @@ type DailyPriceRow = Parameters<typeof rowToSnapshot>[0];
 const mkRow = (o: Partial<DailyPriceRow>): DailyPriceRow => ({
   id: 1,
   ticker: "TEST",
-  date: new Date("2026-01-15T00:00:00Z"),
+  date: "2026-01-15",
   open: 100,
   high: 110,
   low: 90,
@@ -82,7 +82,7 @@ describe("rowToSnapshot", () => {
 
   it("volume·marketCap·date 매핑 보존 (marketCap null 포함)", () => {
     const snap = rowToSnapshot(
-      mkRow({ date: new Date("2024-03-05T00:00:00Z"), volume: 7, market_cap: null })
+      mkRow({ date: "2024-03-05", volume: 7, market_cap: null })
     );
     expect(snap.date).toBe("2024-03-05");
     expect(snap.volume).toBe(7);
