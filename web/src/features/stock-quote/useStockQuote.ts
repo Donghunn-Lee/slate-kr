@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { StockQuote } from "@/shared/types/quote";
+import type { MarketCalendar } from "@/shared/types/marketCalendar";
 import type { KrxSession, QuoteMarket } from "@/shared/utils/market";
 import { getKrxSessionState, isKrxActiveSession } from "@/shared/utils/market";
+import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
 
 export type StockQuoteResponse = {
   quote: StockQuote | null;
@@ -27,7 +29,8 @@ const POLL_INTERVAL_MS = 60_000;
 
 // market.ts 의 isKrxActiveSession 을 클라 시계에 얹은 얇은 어댑터.
 // useStockIntraday(서버 응답 session 을 인자로 넘김)와 동일 술어를 공유.
-const isActiveSession = () => isKrxActiveSession(getKrxSessionState());
+const isActiveSession = (calendar?: MarketCalendar) =>
+  isKrxActiveSession(getKrxSessionState(new Date(), calendar));
 
 // 클라이언트 시계 기준 60초 폴링. 서버 응답의 marketOpen 에 의존하지 않으므로
 // preopen → regular 같은 세션 전환 시에도 페이지 새로고침 없이 자동 재개된다.
@@ -37,6 +40,7 @@ export const useStockQuote = (
   options: UseStockQuoteOptions = {},
 ) => {
   const { subscribeOnly = false, market, enabled = true } = options;
+  const calendar = useMarketCalendar();
   // market undefined 는 "auto" sentinel 로 캐시 키 안정화 (미지정 경로가 지정 경로와 섞이지 않게).
   const marketKey: QuoteMarket | "auto" = market ?? "auto";
 
@@ -55,10 +59,10 @@ export const useStockQuote = (
   useEffect(() => {
     if (subscribeOnly || !enabled) return;
     const id = setInterval(() => {
-      if (isActiveSession()) void query.refetch();
+      if (isActiveSession(calendar)) void query.refetch();
     }, POLL_INTERVAL_MS);
     return () => clearInterval(id);
-  }, [ticker, subscribeOnly, enabled, marketKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [ticker, subscribeOnly, enabled, marketKey, calendar]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return query;
 };

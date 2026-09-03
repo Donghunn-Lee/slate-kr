@@ -290,6 +290,7 @@ export const IndexChart = ({
           ? getPreviousOverseasIndexTradingDate(
               indexCode as OverseasIntradayCode,
               liveDate,
+              calendar,
             )
           : getPreviousKrxTradingDate(liveDate, calendar),
       )
