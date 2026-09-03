@@ -4,13 +4,16 @@ export type Market = "all" | "kospi" | "kosdaq";
 
 export type MarketRankingKind =
   | { kind: "fluctuation"; direction: "up" | "down"; market: Market }
-  | { kind: "volume"; by: "volume" | "value"; market: Market };
-
-// UI 는 좁은 MarketRankingKind 만 참조. fetch·route 층 확장을 위한 상위 union.
-export type ExtendedMarketRankingKind =
-  | MarketRankingKind
+  | { kind: "volume"; by: "volume" | "value"; market: Market }
   | { kind: "market-cap"; market: Market }
   | { kind: "top-interest"; market: Market };
+
+export const RANKING_KIND_IDS = [
+  "fluctuation",
+  "volume",
+  "market-cap",
+  "top-interest",
+] as const satisfies readonly MarketRankingKind["kind"][];
 
 // changeSign 은 KIS prdy_vrss_sign 원본 문자열 (1=상한, 2=상승, 3=보합, 4=하한, 5=하락).
 // PriceChange 로 넘길 때 up/down/flat 정규화가 필요하면 소비 계층에서 처리한다.

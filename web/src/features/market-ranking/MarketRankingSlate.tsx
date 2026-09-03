@@ -1,23 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { StockPanel } from "@/entities/stock/StockPanel";
 import { PriceChange } from "@/shared/components/PriceChange";
 import { formatMarketCap } from "@/shared/format";
 import type { PriceSign } from "@/shared/types/quote";
-import type { Market, MarketRankingItem } from "@/shared/types/ranking";
+import type { Market, MarketRankingItem, MarketRankingKind } from "@/shared/types/ranking";
 import { cn } from "@/lib/utils";
 import { Pill } from "./RankingControls";
 import { RankingTabStrip, type RankingTabItem } from "./RankingTabStrip";
+import {
+  RANKING_TABS,
+  resolveRankingTab,
+  toRankingHref,
+  toRankingKind,
+  type RankingTabId,
+} from "./rankingTabs";
 import { useMarketRanking } from "./useMarketRanking";
 
 const TOP_N = 5;
-
-type TabId = "fluctuation" | "volume";
-type Direction = "up" | "down";
-type VolumeBy = "volume" | "value";
 
 // KIS prdy_vrss_sign(1상한/2상승/3보합/4하한/5하락) → PriceChange 가 소비하는 PriceSign.
 // 순위는 lib 계층에서 원본 문자열 보존 — 소비 경계에서 정규화(중복 로직 신설 대신 소수 매핑 유지).
@@ -32,13 +35,39 @@ const compactShares = (n: number): string => {
   return n.toLocaleString("ko-KR") + "주";
 };
 
+// 값 부재는 "—". fluctuation 은 별도 값 열이 없어 secondary 자체를 null 로 둔다.
+const resolveSecondary = (
+  item: MarketRankingItem,
+  kind: MarketRankingKind,
+): string | null => {
+  switch (kind.kind) {
+    case "fluctuation":
+      return null;
+    case "volume":
+      if (kind.by === "volume") {
+        return item.volume !== undefined ? compactShares(item.volume) : "—";
+      }
+      return item.tradeValue !== undefined
+        ? formatMarketCap(item.tradeValue)
+        : "—";
+    case "market-cap":
+      return item.marketCap !== undefined
+        ? formatMarketCap(item.marketCap)
+        : "—";
+    case "top-interest":
+      return item.interestCount !== undefined
+        ? item.interestCount.toLocaleString("ko-KR")
+        : "—";
+  }
+};
+
 type RowProps = {
   item: MarketRankingItem;
-  secondary: string | null; // "4,293만주" | "614억원" | null
+  secondary: string | null;
 };
 
 // 좌측 순위 전용 컬럼 + 우측 콘텐츠. rank 는 숫자만, mono/muted, 세로 중앙 정렬.
-// 상단 mini row: 좌=시장구분(KOSPI/KOSDAQ), 우=secondary(거래량/거래대금). 양쪽 다 없으면 mini row 자체를 생략.
+// 상단 mini row: 좌=시장구분(KOSPI/KOSDAQ), 우=secondary(현재 탭 값 열). 양쪽 다 없으면 mini row 자체를 생략.
 const Row = ({ item, secondary }: RowProps) => (
   <li className="group relative -mx-6 bg-transparent px-6 transition-colors hover:bg-muted/40">
     <div className="flex items-stretch gap-3 border-b border-subtle py-1.5 group-last:border-b-0">
@@ -115,40 +144,18 @@ const MARKET_LABEL: Record<Market, string> = {
 };
 const MARKETS: readonly Market[] = ["all", "kospi", "kosdaq"];
 
-const TAB_ITEMS: readonly RankingTabItem<TabId>[] = [
-  { id: "fluctuation", label: "등락률" },
-  { id: "volume", label: "거래량" },
-];
-
-// "전체 보기" 링크가 현재 필터를 그대로 페이지에 전달. route 계약과 동일한 파라미터 명명.
-const toRankingHref = (
-  tab: TabId,
-  direction: Direction,
-  by: VolumeBy,
-  market: Market,
-): string => {
-  const p = new URLSearchParams();
-  if (tab === "fluctuation") {
-    p.set("kind", "fluctuation");
-    p.set("direction", direction);
-  } else {
-    p.set("kind", "volume");
-    p.set("by", by === "volume" ? "shares" : "value");
-  }
-  p.set("market", market);
-  return `/ranking?${p.toString()}`;
-};
+const TAB_ITEMS: readonly RankingTabItem<RankingTabId>[] = RANKING_TABS.map(
+  (t) => ({ id: t.id, label: t.label }),
+);
 
 export const MarketRankingSlate = () => {
-  const [tab, setTab] = useState<TabId>("fluctuation");
-  const [direction, setDirection] = useState<Direction>("up");
-  const [by, setBy] = useState<VolumeBy>("volume");
+  const [tabId, setTabId] = useState<RankingTabId>(RANKING_TABS[0].id);
   const [market, setMarket] = useState<Market>("all");
 
-  const kind =
-    tab === "fluctuation"
-      ? ({ kind: "fluctuation", direction, market } as const)
-      : ({ kind: "volume", by, market } as const);
+  const kind = useMemo(
+    () => toRankingKind(resolveRankingTab(tabId), market),
+    [tabId, market],
+  );
 
   const { items, failed, isLoading, isError, isPlaceholderData } =
     useMarketRanking(kind);
@@ -169,7 +176,7 @@ export const MarketRankingSlate = () => {
             </span>
           )}
           <Link
-            href={toRankingHref(tab, direction, by, market)}
+            href={toRankingHref(tabId, market)}
             className="flex items-center gap-1 text-caption text-muted-foreground transition-colors hover:text-foreground"
           >
             전체 보기 <ArrowRight className="h-3 w-3" />
@@ -179,48 +186,17 @@ export const MarketRankingSlate = () => {
       <StockPanel>
         <div className="mb-3 flex flex-wrap items-center gap-1">
           {MARKETS.map((m) => (
-            <Pill
-              key={m}
-              active={market === m}
-              onClick={() => setMarket(m)}
-            >
+            <Pill key={m} active={market === m} onClick={() => setMarket(m)}>
               {MARKET_LABEL[m]}
             </Pill>
           ))}
         </div>
-        <div className="mb-4 flex items-end justify-between gap-3 border-b border-border/60">
+        <div className="mb-4 flex items-end gap-3 border-b border-border/60">
           <RankingTabStrip
             items={TAB_ITEMS}
-            activeId={tab}
-            onSelect={setTab}
+            activeId={tabId}
+            onSelect={setTabId}
           />
-          <div className="flex items-center gap-1 pb-1.5">
-            {tab === "fluctuation" ? (
-              <>
-                <Pill
-                  active={direction === "up"}
-                  onClick={() => setDirection("up")}
-                >
-                  상승
-                </Pill>
-                <Pill
-                  active={direction === "down"}
-                  onClick={() => setDirection("down")}
-                >
-                  하락
-                </Pill>
-              </>
-            ) : (
-              <>
-                <Pill active={by === "volume"} onClick={() => setBy("volume")}>
-                  거래량
-                </Pill>
-                <Pill active={by === "value"} onClick={() => setBy("value")}>
-                  거래대금
-                </Pill>
-              </>
-            )}
-          </div>
         </div>
 
         {isLoading ? (
@@ -240,19 +216,13 @@ export const MarketRankingSlate = () => {
               isPlaceholderData && "opacity-70",
             )}
           >
-            {rows.map((item) => {
-              const secondary =
-                tab === "volume"
-                  ? by === "volume"
-                    ? item.volume !== undefined
-                      ? compactShares(item.volume)
-                      : null
-                    : item.tradeValue !== undefined
-                      ? formatMarketCap(item.tradeValue)
-                      : null
-                  : null;
-              return <Row key={item.ticker} item={item} secondary={secondary} />;
-            })}
+            {rows.map((item) => (
+              <Row
+                key={item.ticker}
+                item={item}
+                secondary={resolveSecondary(item, kind)}
+              />
+            ))}
           </ul>
         )}
       </StockPanel>

@@ -41,33 +41,58 @@ const shareInWan = (n: number): string => {
 const valueInEok = (n: number): string =>
   Math.round(n / 100_000_000).toLocaleString("ko-KR");
 
-const isValueMode = (kind: MarketRankingKind): boolean =>
-  kind.kind === "volume" && kind.by === "value";
+const EMPTY_CELL = { mobile: "—", desktop: "—" } as const;
 
-type VolumeText = { mobile: string; desktop: string };
-const resolveVolumeTexts = (
+type MetricCell = { mobile: string; desktop: string };
+const resolveMetricCell = (
   item: MarketRankingItem,
   kind: MarketRankingKind,
-): VolumeText => {
-  if (isValueMode(kind)) {
-    if (item.tradeValue === undefined) return { mobile: "", desktop: "" };
-    return {
-      mobile: valueInEok(item.tradeValue),
-      desktop: formatMarketCap(item.tradeValue),
-    };
+): MetricCell => {
+  switch (kind.kind) {
+    case "fluctuation":
+      return item.volume !== undefined
+        ? { mobile: shareInWan(item.volume), desktop: compactShares(item.volume) }
+        : EMPTY_CELL;
+    case "volume":
+      if (kind.by === "value") {
+        return item.tradeValue !== undefined
+          ? {
+              mobile: valueInEok(item.tradeValue),
+              desktop: formatMarketCap(item.tradeValue),
+            }
+          : EMPTY_CELL;
+      }
+      return item.volume !== undefined
+        ? { mobile: shareInWan(item.volume), desktop: compactShares(item.volume) }
+        : EMPTY_CELL;
+    case "market-cap": {
+      if (item.marketCap === undefined) return EMPTY_CELL;
+      const mobile = valueInEok(item.marketCap);
+      return { mobile, desktop: formatMarketCap(item.marketCap) };
+    }
+    case "top-interest": {
+      if (item.interestCount === undefined) return EMPTY_CELL;
+      const text = item.interestCount.toLocaleString("ko-KR");
+      return { mobile: text, desktop: text };
+    }
   }
-  if (item.volume === undefined) return { mobile: "", desktop: "" };
-  return {
-    mobile: shareInWan(item.volume),
-    desktop: compactShares(item.volume),
-  };
 };
 
-type VolumeLabel = { mobile: string; desktop: string };
-const volumeLabels = (kind: MarketRankingKind): VolumeLabel =>
-  isValueMode(kind)
-    ? { mobile: "거래대금(억)", desktop: "거래대금" }
-    : { mobile: "거래량(만)", desktop: "거래량" };
+type MetricLabel = { mobile: string; desktop: string };
+const metricLabels = (kind: MarketRankingKind): MetricLabel => {
+  switch (kind.kind) {
+    case "fluctuation":
+      return { mobile: "거래량(만)", desktop: "거래량" };
+    case "volume":
+      return kind.by === "value"
+        ? { mobile: "거래대금(억)", desktop: "거래대금" }
+        : { mobile: "거래량(만)", desktop: "거래량" };
+    case "market-cap":
+      return { mobile: "시총(억)", desktop: "시가총액" };
+    case "top-interest":
+      return { mobile: "등록 수", desktop: "등록 수" };
+  }
+};
 
 // < sm(<640): 5컬럼 (순위/종목명/현재가/등락률/거래량) 최대 압축, text-xs.
 // sm~md(640~767): 6컬럼 (+ 등락 풀·최근 공시). sm 구간 공백이 남던 문제 해소.
@@ -85,7 +110,7 @@ type RankingHeaderProps = {
 };
 
 export const RankingHeader = ({ kind }: RankingHeaderProps) => {
-  const labels = volumeLabels(kind);
+  const labels = metricLabels(kind);
   return (
     <div
       className={cn(
@@ -116,7 +141,7 @@ type RankingRowProps = {
 
 export const RankingRow = ({ item, disclosure, kind }: RankingRowProps) => {
   const sign = toPriceSign(item.changeSign);
-  const volTexts = resolveVolumeTexts(item, kind);
+  const metricCell = resolveMetricCell(item, kind);
   const count = disclosure?.count ?? null;
   const disclosureText = count !== null && count > 0 ? `${count}건` : "";
 
@@ -161,8 +186,8 @@ export const RankingRow = ({ item, disclosure, kind }: RankingRowProps) => {
           />
         </div>
         <span className="justify-self-end text-xs tabular-nums text-muted-foreground sm:text-sm md:text-[11px]">
-          <span className="sm:hidden">{volTexts.mobile}</span>
-          <span className="hidden sm:inline">{volTexts.desktop}</span>
+          <span className="sm:hidden">{metricCell.mobile}</span>
+          <span className="hidden sm:inline">{metricCell.desktop}</span>
         </span>
         <span className="hidden justify-self-end sm:block">
           {count !== null && count > 0 ? (

@@ -1,23 +1,23 @@
 import { describe, it, expect } from "vitest";
 import { normalizeRow } from "./kis-ranking-fetch";
-import type { ExtendedMarketRankingKind } from "@/shared/types/ranking";
+import type { MarketRankingKind } from "@/shared/types/ranking";
 
 // 픽스처는 실 KIS 응답 상위 3행에서 발췌.
 
-const FLUCTUATION_KIND: ExtendedMarketRankingKind = {
+const FLUCTUATION_KIND: MarketRankingKind = {
   kind: "fluctuation",
   direction: "up",
   market: "all",
 };
 
-const VOLUME_KIND: ExtendedMarketRankingKind = {
+const VOLUME_KIND: MarketRankingKind = {
   kind: "volume",
   by: "value",
   market: "all",
 };
 
-const MCAP_KIND: ExtendedMarketRankingKind = { kind: "market-cap", market: "all" };
-const INTEREST_KIND: ExtendedMarketRankingKind = { kind: "top-interest", market: "all" };
+const MCAP_KIND: MarketRankingKind = { kind: "market-cap", market: "all" };
+const INTEREST_KIND: MarketRankingKind = { kind: "top-interest", market: "all" };
 
 describe("normalizeRow — fluctuation", () => {
   it("정상 row 매핑 (marketCap·interestCount 미포함)", () => {

@@ -1,9 +1,9 @@
 import { z } from "zod";
 import { getKisToken } from "@/lib/kis-token";
 import type {
-  ExtendedMarketRankingKind,
   Market,
   MarketRankingItem,
+  MarketRankingKind,
 } from "@/shared/types/ranking";
 
 const BASE_URL = "https://openapi.koreainvestment.com:9443";
@@ -156,7 +156,7 @@ const buildTopInterestParams = (market: Market): Record<string, string> => ({
 });
 
 const resolveRequest = (
-  kind: ExtendedMarketRankingKind,
+  kind: MarketRankingKind,
 ): { path: string; trId: string; params: Record<string, string> } => {
   if (kind.kind === "fluctuation") {
     return {
@@ -197,7 +197,7 @@ const numOrNull = (s: string): number | null => {
 // export 는 테스트용 (다른 lib 에서 import 하지 말 것).
 export const normalizeRow = (
   raw: unknown,
-  kind: ExtendedMarketRankingKind,
+  kind: MarketRankingKind,
 ): MarketRankingItem | null => {
   if (kind.kind === "fluctuation") {
     const parsed = FluctuationRowSchema.safeParse(raw);
@@ -267,7 +267,7 @@ export const normalizeRow = (
 
 // 1콜당 최대 30행 그대로 반환. slice / 카테고리 라벨링은 상위 계층에서.
 export const fetchRanking = async (
-  kind: ExtendedMarketRankingKind,
+  kind: MarketRankingKind,
 ): Promise<RankingFetchResult> => {
   const tokenResult = await getKisToken();
   if (!tokenResult.ok) {

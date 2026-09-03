@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { RankingView } from "@/features/market-ranking/RankingView";
-import type { Market, MarketRankingKind } from "@/shared/types/ranking";
+import {
+  resolveRankingTab,
+  type RankingTabDef,
+} from "@/features/market-ranking/rankingTabs";
+import type { Market } from "@/shared/types/ranking";
 
 type RankingSearchParams = {
-  kind?: string;
-  direction?: string;
-  by?: string;
+  tab?: string;
   market?: string;
 };
 
@@ -18,51 +20,42 @@ const parseMarket = (raw: string | undefined): Market => {
   return "all";
 };
 
-// 유효하지 않으면 기본값 폴백. throw 하지 않는다 — 잘못된 URL 로 페이지가 죽으면 안 된다.
-const parseKind = (params: RankingSearchParams): MarketRankingKind => {
-  const market = parseMarket(params.market);
-  if (params.kind === "volume") {
-    const by = params.by === "value" ? "value" : "volume";
-    return { kind: "volume", by, market };
-  }
-  const direction = params.direction === "down" ? "down" : "up";
-  return { kind: "fluctuation", direction, market };
-};
-
-const kindLabel = (k: MarketRankingKind): string => {
-  if (k.kind === "fluctuation") {
-    return k.direction === "up" ? "상승률 순위" : "하락률 순위";
-  }
-  return k.by === "value" ? "거래대금 순위" : "거래량 순위";
-};
-
 const marketLabel = (m: Market): string => {
   if (m === "kospi") return "KOSPI";
   if (m === "kosdaq") return "KOSDAQ";
   return "전체";
 };
 
-const buildTitle = (k: MarketRankingKind): string => {
-  const base = kindLabel(k);
-  return k.market === "all" ? base : `${marketLabel(k.market)} ${base}`;
+// metadata 제목 전용: "상승"/"하락" 단독은 어색해 "…률"로 부풀린다. 그 외는 label 그대로.
+const titleTerm = (tab: RankingTabDef): string => {
+  if (tab.id === "up") return "상승률";
+  if (tab.id === "down") return "하락률";
+  return tab.label;
+};
+
+const buildTitle = (tab: RankingTabDef, m: Market): string => {
+  const term = titleTerm(tab);
+  return m === "all" ? `${term} 순위` : `${marketLabel(m)} ${term} 순위`;
 };
 
 export const generateMetadata = async ({
   searchParams,
 }: RankingPageProps): Promise<Metadata> => {
   const params = await searchParams;
-  const kind = parseKind(params);
-  return { title: `${buildTitle(kind)} — SlateKR` };
+  const tab = resolveRankingTab(params.tab);
+  const market = parseMarket(params.market);
+  return { title: `${buildTitle(tab, market)} — SlateKR` };
 };
 
 export default async function RankingPage({ searchParams }: RankingPageProps) {
   const params = await searchParams;
-  const initialKind = parseKind(params);
+  const tab = resolveRankingTab(params.tab);
+  const market = parseMarket(params.market);
 
   return (
     <main className="container mx-auto max-w-4xl space-y-3 px-4 py-5 sm:space-y-4 sm:py-8">
       <h1 className="text-xl font-bold sm:text-2xl">시장 순위</h1>
-      <RankingView initialKind={initialKind} />
+      <RankingView initialTabId={tab.id} initialMarket={market} />
     </main>
   );
 }

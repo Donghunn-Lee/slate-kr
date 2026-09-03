@@ -62,23 +62,30 @@ export const RankingTabStrip = <TId extends string>({
     el.scrollBy({ left: dir === "left" ? -delta : delta, behavior: "smooth" });
   };
 
+  // chevron 화살표: 탭의 border-b-2 + pb-1.5 공간을 그대로 얹어 세로 중심을 텍스트 중심에 맞춘다.
+  // items-center 로 아이콘을 chevron 내부 세로 중앙에 두면 tab text center 와 sub-px 로 정렬.
   const chevronClass = cn(
-    "hidden md:flex items-end pb-1.5 text-muted-foreground transition-colors",
+    "flex shrink-0 items-center border-b-2 border-transparent pb-1.5 text-muted-foreground transition-colors",
     "hover:text-foreground disabled:cursor-default disabled:opacity-30",
     "disabled:hover:text-muted-foreground",
   );
 
+  // overflow 가 있을 때만 canLeft·canRight 중 하나 이상이 true. 없으면 화살표 자체 미렌더.
+  const hasOverflow = avail.canLeft || avail.canRight;
+
   return (
     <div className={cn("flex min-w-0 flex-1 items-end", className)}>
-      <button
-        type="button"
-        aria-label="이전 카테고리"
-        onClick={() => scrollByHalf("left")}
-        disabled={!avail.canLeft}
-        className={chevronClass}
-      >
-        <ChevronLeft className="h-4 w-4" />
-      </button>
+      {hasOverflow && (
+        <button
+          type="button"
+          aria-label="이전 카테고리"
+          onClick={() => scrollByHalf("left")}
+          disabled={!avail.canLeft}
+          className={chevronClass}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+      )}
       <div className="relative min-w-0 flex-1">
         <div
           ref={scrollRef}
@@ -112,15 +119,17 @@ export const RankingTabStrip = <TId extends string>({
           <div className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-elevated to-transparent" />
         )}
       </div>
-      <button
-        type="button"
-        aria-label="다음 카테고리"
-        onClick={() => scrollByHalf("right")}
-        disabled={!avail.canRight}
-        className={chevronClass}
-      >
-        <ChevronRight className="h-4 w-4" />
-      </button>
+      {hasOverflow && (
+        <button
+          type="button"
+          aria-label="다음 카테고리"
+          onClick={() => scrollByHalf("right")}
+          disabled={!avail.canRight}
+          className={chevronClass}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      )}
     </div>
   );
 };

@@ -11,19 +11,18 @@ import {
   type KrxSession,
 } from "@/shared/utils/market";
 import { krxIndexRankingRevalidate } from "@/lib/sessionCache";
-import type {
-  Market,
-  MarketRankingItem,
-  ExtendedMarketRankingKind,
+import {
+  RANKING_KIND_IDS,
+  type Market,
+  type MarketRankingItem,
+  type MarketRankingKind,
 } from "@/shared/types/ranking";
 import type { StockSummary } from "@/shared/types/stock";
 
 export const dynamic = "force-dynamic";
 
-// kind × market 조합: (fluctuation×2) + (volume×2) + market-cap + top-interest = 6 → × 3 market = 18.
-// 모두 flat 문자열로 상수화 → 캐시 hit 율 유지.
 // URL 파라미터는 by=shares|value (kind="volume" 과의 명명 중복 해소), lib 은 by=volume|value 유지.
-const flatKey = (k: ExtendedMarketRankingKind): string => {
+const flatKey = (k: MarketRankingKind): string => {
   const suffix = `-${k.market}`;
   if (k.kind === "fluctuation") return `fluc-${k.direction}${suffix}`;
   if (k.kind === "volume")
@@ -37,7 +36,7 @@ const parseMarket = (raw: string | null): Market => {
   return "all"; // default (raw === null || "all" 포함)
 };
 
-const parseKind = (params: URLSearchParams): ExtendedMarketRankingKind | null => {
+const parseKind = (params: URLSearchParams): MarketRankingKind | null => {
   const kind = params.get("kind");
   const market = parseMarket(params.get("market"));
   if (kind === "fluctuation") {
@@ -89,7 +88,7 @@ const enrichWithMarket = async (
 // fetchRanking 은 discriminated union 반환 — 캐시에는 items | null 로 축소해 저장.
 // 실패 kind 세부(token/http/business/…) 는 lib 에서 이미 console.error, route/클라이언트는 failed 만 소비.
 const runFetch = async (
-  kind: ExtendedMarketRankingKind,
+  kind: MarketRankingKind,
 ): Promise<MarketRankingItem[] | null> => {
   const r = await fetchRanking(kind);
   if (!r.ok) return null;
@@ -113,7 +112,7 @@ const cacheKeyOf = (
 ): string => `${key}::${session}::${tradingDate}`;
 
 const getCachedFetcher = (
-  kind: ExtendedMarketRankingKind,
+  kind: MarketRankingKind,
   session: KrxSession,
   tradingDate: string,
 ): { fetcher: RankingFetcher; key: string } => {
@@ -143,8 +142,7 @@ export const GET = async (req: NextRequest) => {
   if (!kind) {
     return NextResponse.json(
       {
-        error:
-          "invalid ranking params (kind=fluctuation&direction=up|down or kind=volume&by=shares|value, optional market=all|kospi|kosdaq)",
+        error: `invalid ranking params (kind=${RANKING_KIND_IDS.join("|")}, optional market=all|kospi|kosdaq; fluctuation needs direction=up|down, volume needs by=shares|value)`,
       },
       { status: 400 },
     );

@@ -15,24 +15,36 @@ type MarketRankingResponse = {
 
 const POLL_INTERVAL_MS = 60_000;
 
-// kind × market = 12 유한 조합에 대해 queryKey 를 안정 문자열로 분리. 탭/시장 전환 시
+// kind × market 조합에 대해 queryKey 를 안정 문자열로 분리. 탭/시장 전환 시
 // 이전 query 는 gcTime 지나며 자연 정리 — 동시 콜 폴링 방지.
 const toKeyString = (k: MarketRankingKind): string => {
   const suffix = `-${k.market}`;
-  return k.kind === "fluctuation"
-    ? `fluc-${k.direction}${suffix}`
-    : `vol-${k.by === "volume" ? "shares" : "value"}${suffix}`;
+  switch (k.kind) {
+    case "fluctuation":
+      return `fluc-${k.direction}${suffix}`;
+    case "volume":
+      return `vol-${k.by === "volume" ? "shares" : "value"}${suffix}`;
+    case "market-cap":
+      return `mcap${suffix}`;
+    case "top-interest":
+      return `interest${suffix}`;
+  }
 };
 
-// URL 파라미터 명은 route 계약 그대로 (kind=fluctuation&direction=… / kind=volume&by=shares|value / market=…).
+// URL 파라미터 명은 route 계약 그대로 (kind=…&direction=…|by=…&market=…).
 const toSearchParams = (k: MarketRankingKind): string => {
   const p = new URLSearchParams();
-  if (k.kind === "fluctuation") {
-    p.set("kind", "fluctuation");
-    p.set("direction", k.direction);
-  } else {
-    p.set("kind", "volume");
-    p.set("by", k.by === "volume" ? "shares" : "value");
+  p.set("kind", k.kind);
+  switch (k.kind) {
+    case "fluctuation":
+      p.set("direction", k.direction);
+      break;
+    case "volume":
+      p.set("by", k.by === "volume" ? "shares" : "value");
+      break;
+    case "market-cap":
+    case "top-interest":
+      break;
   }
   p.set("market", k.market);
   return p.toString();

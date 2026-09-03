@@ -7,14 +7,22 @@ import { RefreshCw, WifiOff } from "lucide-react";
 import type { TickerDisclosureCount } from "@/app/api/disclosures/recent-count/route";
 import { StockPanel } from "@/entities/stock/StockPanel";
 import { cn } from "@/lib/utils";
-import type { Market, MarketRankingKind } from "@/shared/types/ranking";
+import type { Market } from "@/shared/types/ranking";
 import { Pill } from "./RankingControls";
 import { RankingHeader, RankingRow, RankingRowSkeleton } from "./RankingRow";
 import { RankingTabStrip, type RankingTabItem } from "./RankingTabStrip";
+import {
+  RANKING_TABS,
+  resolveRankingTab,
+  toRankingHref,
+  toRankingKind,
+  type RankingTabId,
+} from "./rankingTabs";
 import { useMarketRanking } from "./useMarketRanking";
 
 type RankingViewProps = {
-  initialKind: MarketRankingKind;
+  initialTabId: RankingTabId;
+  initialMarket: Market;
 };
 
 const MARKET_LABEL: Record<Market, string> = {
@@ -24,36 +32,30 @@ const MARKET_LABEL: Record<Market, string> = {
 };
 const MARKETS: readonly Market[] = ["all", "kospi", "kosdaq"];
 
-const TAB_ITEMS: readonly RankingTabItem<MarketRankingKind["kind"]>[] = [
-  { id: "fluctuation", label: "등락률" },
-  { id: "volume", label: "거래량" },
-];
+const TAB_ITEMS: readonly RankingTabItem<RankingTabId>[] = RANKING_TABS.map(
+  (t) => ({ id: t.id, label: t.label }),
+);
 
 const SKELETON_ROWS = 10;
 
-// 홈 슬레이트/route 계약과 동일한 URL 파라미터 명명: kind, direction, by=shares|value, market.
-const toSearchParams = (k: MarketRankingKind): string => {
-  const p = new URLSearchParams();
-  if (k.kind === "fluctuation") {
-    p.set("kind", "fluctuation");
-    p.set("direction", k.direction);
-  } else {
-    p.set("kind", "volume");
-    p.set("by", k.by === "volume" ? "shares" : "value");
-  }
-  p.set("market", k.market);
-  return p.toString();
-};
-
-export const RankingView = ({ initialKind }: RankingViewProps) => {
+export const RankingView = ({
+  initialTabId,
+  initialMarket,
+}: RankingViewProps) => {
   const router = useRouter();
-  const [kind, setKind] = useState<MarketRankingKind>(initialKind);
+  const [tabId, setTabId] = useState<RankingTabId>(initialTabId);
+  const [market, setMarket] = useState<Market>(initialMarket);
+
+  const kind = useMemo(
+    () => toRankingKind(resolveRankingTab(tabId), market),
+    [tabId, market],
+  );
 
   // 단방향 sync (state → URL). useSearchParams 를 소스로 삼지 않음 — 매 필터 변경이
   // 서버 왕복이 되어 keepPreviousData 로 잡은 전환 깜빡임(#079)을 되살린다.
   useEffect(() => {
-    router.replace(`/ranking?${toSearchParams(kind)}`, { scroll: false });
-  }, [kind, router]);
+    router.replace(toRankingHref(tabId, market), { scroll: false });
+  }, [tabId, market, router]);
 
   const {
     items,
@@ -86,89 +88,25 @@ export const RankingView = ({ initialKind }: RankingViewProps) => {
     [disclosureQuery.data],
   );
 
-  const handleTab = (t: "fluctuation" | "volume") => {
-    if (t === kind.kind) return;
-    setKind(
-      t === "fluctuation"
-        ? {
-            kind: "fluctuation",
-            direction: "up",
-            market: kind.market,
-          }
-        : { kind: "volume", by: "volume", market: kind.market },
-    );
-  };
-
-  const handleMarket = (m: Market) => {
-    if (m === kind.market) return;
-    setKind({ ...kind, market: m });
-  };
-
-  const handleDirection = (d: "up" | "down") => {
-    if (kind.kind !== "fluctuation" || kind.direction === d) return;
-    setKind({ ...kind, direction: d });
-  };
-
-  const handleBy = (b: "volume" | "value") => {
-    if (kind.kind !== "volume" || kind.by === b) return;
-    setKind({ ...kind, by: b });
-  };
-
   const showFailure = !isLoading && (isError || failed);
   const showEmpty = !isLoading && !showFailure && items.length === 0;
+  const showResults = !isLoading && !showFailure && !showEmpty;
 
   return (
     <StockPanel className="p-4 md:p-6">
       <div className="mb-2 flex flex-wrap items-center gap-1 sm:mb-3">
         {MARKETS.map((m) => (
-          <Pill
-            key={m}
-            active={kind.market === m}
-            onClick={() => handleMarket(m)}
-          >
+          <Pill key={m} active={market === m} onClick={() => setMarket(m)}>
             {MARKET_LABEL[m]}
           </Pill>
         ))}
       </div>
-      <div className="mb-3 flex items-end justify-between gap-3 border-b border-border/60 sm:mb-4">
+      <div className="mb-3 flex items-end gap-3 border-b border-border/60 sm:mb-4">
         <RankingTabStrip
           items={TAB_ITEMS}
-          activeId={kind.kind}
-          onSelect={handleTab}
+          activeId={tabId}
+          onSelect={setTabId}
         />
-        <div className="flex items-center gap-1 pb-1.5">
-          {kind.kind === "fluctuation" ? (
-            <>
-              <Pill
-                active={kind.direction === "up"}
-                onClick={() => handleDirection("up")}
-              >
-                상승
-              </Pill>
-              <Pill
-                active={kind.direction === "down"}
-                onClick={() => handleDirection("down")}
-              >
-                하락
-              </Pill>
-            </>
-          ) : (
-            <>
-              <Pill
-                active={kind.by === "volume"}
-                onClick={() => handleBy("volume")}
-              >
-                거래량
-              </Pill>
-              <Pill
-                active={kind.by === "value"}
-                onClick={() => handleBy("value")}
-              >
-                거래대금
-              </Pill>
-            </>
-          )}
-        </div>
       </div>
 
       {isLoading ? (
@@ -233,6 +171,12 @@ export const RankingView = ({ initialKind }: RankingViewProps) => {
             ))}
           </ul>
         </>
+      )}
+
+      {showResults && (
+        <p className="mt-3 text-caption text-muted-foreground">
+          KRX 기준 집계 · 관심종목은 KIS 고객 등록 수 기준
+        </p>
       )}
     </StockPanel>
   );
