@@ -34,6 +34,9 @@ const mkFP = (o: Partial<FinancialPeriod>): FinancialPeriod => ({
   dps: null,
   payoutRatio: null,
   dividendYield: null,
+  revenueGrowth: null,
+  operatingProfitGrowth: null,
+  netIncomeGrowth: null,
   ...o,
 });
 

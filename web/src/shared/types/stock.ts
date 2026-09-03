@@ -68,6 +68,10 @@ export type FinancialPeriod = {
   dps: number | null; // 주당현금배당금(원), 보통주
   payoutRatio: number | null; // (연결)현금배당성향(%)
   dividendYield: number | null; // DART 현금배당수익률(%), 결산 시점 시가배당률
+  // 성장률 (전년 / 전년 동분기 대비, query-time 파생 — 비교 대상 부재·기준값 ≤ 0 이면 null)
+  revenueGrowth: number | null;
+  operatingProfitGrowth: number | null;
+  netIncomeGrowth: number | null;
 };
 
 export type StockFinancials = {

@@ -68,6 +68,34 @@ export const calcDividendYield = (
   return dps / close;
 };
 
+// YoY 성장률 = (cur - prev) / prev. 소수 규약 (formatPercent 100×).
+// 기준값이 0 이하이면 부호가 뒤집혀 의미 없어 null (흑자전환/적자전환은 표기하지 않는다).
+export const calcGrowth = (cur: number | null, prev: number | null): number | null => {
+  if (cur === null || prev === null || prev <= 0) return null;
+  return (cur - prev) / prev;
+};
+
+// 입력 배열 내부에서 비교 행(annual: 전년, quarter: 전년 동분기)을 찾아 3필드 채움.
+// 원본 배열/요소 불변, 입력 순서 그대로 반환. annual·quarterly 를 섞어 넣지 말 것.
+export const attachGrowthRates = (
+  periods: readonly FinancialPeriod[],
+): FinancialPeriod[] => {
+  const byKey = new Map<string, FinancialPeriod>();
+  for (const p of periods) {
+    byKey.set(`${p.year}-${p.quarter ?? "A"}`, p);
+  }
+  return periods.map((p) => {
+    const prevKey = `${p.year - 1}-${p.quarter ?? "A"}`;
+    const prev = byKey.get(prevKey);
+    return {
+      ...p,
+      revenueGrowth: prev ? calcGrowth(p.revenue, prev.revenue) : null,
+      operatingProfitGrowth: prev ? calcGrowth(p.operatingProfit, prev.operatingProfit) : null,
+      netIncomeGrowth: prev ? calcGrowth(p.netIncome, prev.netIncome) : null,
+    };
+  });
+};
+
 const avgOf = (curr: number | null, prev: number | null): number | null => {
   if (curr === null) return null;
   if (prev === null) return curr; // 전기 데이터 없으면 기말 단순 폴백
@@ -138,6 +166,10 @@ const rowToFinancialPeriod = (
     dps: null,
     payoutRatio: null,
     dividendYield: null,
+    // 성장률은 attachGrowthRates 가 배열 단위로 채움.
+    revenueGrowth: null,
+    operatingProfitGrowth: null,
+    netIncomeGrowth: null,
   };
 };
 
@@ -234,6 +266,9 @@ const buildQuarterlyPeriods = (
       dps: null,
       payoutRatio: null,
       dividendYield: null,
+      revenueGrowth: null,
+      operatingProfitGrowth: null,
+      netIncomeGrowth: null,
     });
   }
 
@@ -260,20 +295,22 @@ export const getFinancials = async (ticker: string): Promise<StockFinancials> =>
     const prevRow = annualRows[i + 1] ?? null;
     return rowToFinancialPeriod(row, close, prevRow);
   });
-  const annual = attachDividends(annualBase, dividendsByYear);
+  const annualWithDividends = attachDividends(annualBase, dividendsByYear);
+  const annual = attachGrowthRates(annualWithDividends);
 
   // 연도별 그룹핑 후 단분기 변환
   const yearSet = new Set(quarterRows.map((r) => r.year));
-  const quarterly: FinancialPeriod[] = [];
+  const quarterlyBase: FinancialPeriod[] = [];
   for (const year of yearSet) {
     const yearQuarters = quarterRows.filter((r) => r.year === year);
     const annualForYear = annualRows.find((r) => r.year === year) ?? null;
     const prevAnnualForYear = annualRows.find((r) => r.year === year - 1) ?? null;
-    quarterly.push(
+    quarterlyBase.push(
       ...buildQuarterlyPeriods(yearQuarters, annualForYear, priceMap, prevAnnualForYear)
     );
   }
-  quarterly.sort((a, b) => b.year - a.year || (b.quarter ?? 0) - (a.quarter ?? 0));
+  quarterlyBase.sort((a, b) => b.year - a.year || (b.quarter ?? 0) - (a.quarter ?? 0));
+  const quarterly = attachGrowthRates(quarterlyBase);
 
   return { annual, quarterly };
 };

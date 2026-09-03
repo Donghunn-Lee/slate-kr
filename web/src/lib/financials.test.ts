@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { calcDividendYield, computeTtmEps } from "./financials";
+import { attachGrowthRates, calcDividendYield, calcGrowth, computeTtmEps } from "./financials";
 import type { FinancialPeriod } from "@/shared/types/stock";
 
 // computeTtmEps가 실제 참조하는 필드는 quarterly의 year/quarter/eps와 latestAnnual의 eps뿐.
@@ -26,6 +26,9 @@ const makeFP = (o: Partial<FinancialPeriod>): FinancialPeriod => ({
   dps: null,
   payoutRatio: null,
   dividendYield: null,
+  revenueGrowth: null,
+  operatingProfitGrowth: null,
+  netIncomeGrowth: null,
   ...o,
 });
 
@@ -192,5 +195,98 @@ describe("calcDividendYield", () => {
 
   it("dps === null → null", () => {
     expect(calcDividendYield(60000, null)).toBeNull();
+  });
+});
+
+describe("calcGrowth", () => {
+  it("정상: (cur - prev) / prev, 소수 규약", () => {
+    // 120 → 150: +25%. formatPercent 소비 시 "25.00%"
+    expect(calcGrowth(150, 120)).toBeCloseTo(0.25, 6);
+  });
+
+  it("prev === 0 → null (0 나눗셈·발산)", () => {
+    expect(calcGrowth(100, 0)).toBeNull();
+  });
+
+  it("prev < 0 → null (부호 뒤집힘, 흑자전환 표기 미도입)", () => {
+    expect(calcGrowth(100, -50)).toBeNull();
+  });
+
+  it("cur === null → null", () => {
+    expect(calcGrowth(null, 100)).toBeNull();
+  });
+
+  it("prev === null → null", () => {
+    expect(calcGrowth(100, null)).toBeNull();
+  });
+});
+
+describe("attachGrowthRates", () => {
+  it("연간 3개년: 최고령 연도는 비교 대상 없어 null, 나머지는 전년 대비", () => {
+    const periods = [
+      makeFP({ year: 2025, revenue: 150, operatingProfit: 60, netIncome: 40 }),
+      makeFP({ year: 2024, revenue: 120, operatingProfit: 50, netIncome: 30 }),
+      makeFP({ year: 2023, revenue: 100, operatingProfit: 40, netIncome: 20 }),
+    ];
+    const out = attachGrowthRates(periods);
+    expect(out[0].revenueGrowth).toBeCloseTo(0.25, 6);
+    expect(out[0].operatingProfitGrowth).toBeCloseTo(0.2, 6);
+    expect(out[0].netIncomeGrowth).toBeCloseTo(1 / 3, 6);
+    expect(out[1].revenueGrowth).toBeCloseTo(0.2, 6);
+    expect(out[1].operatingProfitGrowth).toBeCloseTo(0.25, 6);
+    expect(out[1].netIncomeGrowth).toBeCloseTo(0.5, 6);
+    // 최고령 = 2023, 2022 없음 → 전부 null
+    expect(out[2].revenueGrowth).toBeNull();
+    expect(out[2].operatingProfitGrowth).toBeNull();
+    expect(out[2].netIncomeGrowth).toBeNull();
+  });
+
+  it("분기: 전년 동분기 매칭 (Q4 포함, 전분기 대비가 아니라 전년 동분기 대비)", () => {
+    // 순서 뒤섞음: attachGrowthRates 는 정렬 가정 없음.
+    const periods = [
+      makeFP({ year: 2025, quarter: 4, reportType: "quarter", revenue: 200, operatingProfit: 80, netIncome: 50 }),
+      makeFP({ year: 2024, quarter: 4, reportType: "quarter", revenue: 160, operatingProfit: 40, netIncome: 25 }),
+      makeFP({ year: 2025, quarter: 1, reportType: "quarter", revenue: 110, operatingProfit: 22, netIncome: 11 }),
+      makeFP({ year: 2024, quarter: 1, reportType: "quarter", revenue: 100, operatingProfit: 20, netIncome: 10 }),
+    ];
+    const out = attachGrowthRates(periods);
+    // 2025Q4 vs 2024Q4
+    expect(out[0].revenueGrowth).toBeCloseTo(0.25, 6);
+    expect(out[0].operatingProfitGrowth).toBeCloseTo(1.0, 6);
+    expect(out[0].netIncomeGrowth).toBeCloseTo(1.0, 6);
+    // 2024Q4 는 전년 Q4 없음 → null
+    expect(out[1].revenueGrowth).toBeNull();
+    // 2025Q1 vs 2024Q1
+    expect(out[2].revenueGrowth).toBeCloseTo(0.1, 6);
+    expect(out[2].operatingProfitGrowth).toBeCloseTo(0.1, 6);
+    expect(out[2].netIncomeGrowth).toBeCloseTo(0.1, 6);
+    // 2024Q1 는 전년 Q1 없음 → null
+    expect(out[3].revenueGrowth).toBeNull();
+    // 입력 순서 그대로 반환
+    expect(out.map((p) => `${p.year}Q${p.quarter}`)).toEqual([
+      "2025Q4",
+      "2024Q4",
+      "2025Q1",
+      "2024Q1",
+    ]);
+  });
+
+  it("비교 행 없는 단독 행 → 3필드 null", () => {
+    const periods = [makeFP({ year: 2025, revenue: 100, operatingProfit: 50, netIncome: 20 })];
+    const out = attachGrowthRates(periods);
+    expect(out[0].revenueGrowth).toBeNull();
+    expect(out[0].operatingProfitGrowth).toBeNull();
+    expect(out[0].netIncomeGrowth).toBeNull();
+  });
+
+  it("원본 배열·원본 요소 mutate 금지", () => {
+    const orig2025 = makeFP({ year: 2025, revenue: 150 });
+    const orig2024 = makeFP({ year: 2024, revenue: 120 });
+    const periods = [orig2025, orig2024];
+    const out = attachGrowthRates(periods);
+    expect(out).not.toBe(periods);
+    expect(out[0]).not.toBe(orig2025);
+    expect(orig2025.revenueGrowth).toBeNull();
+    expect(orig2024.revenueGrowth).toBeNull();
   });
 });
