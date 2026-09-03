@@ -24,6 +24,11 @@ const METRIC_ROWS: MetricRow[] = [
   // 손익
   { label: "매출", getValue: (p) => formatFinancial(p.revenue, false), getRaw: (p) => p.revenue },
   {
+    label: "매출증가율(%)",
+    getValue: (p) => formatPercent(p.revenueGrowth, false),
+    getRaw: (p) => p.revenueGrowth,
+  },
+  {
     label: "영업이익",
     getValue: (p) => formatFinancial(p.operatingProfit, false),
     getRaw: (p) => p.operatingProfit,
@@ -34,6 +39,11 @@ const METRIC_ROWS: MetricRow[] = [
     getRaw: (p) => p.operatingMargin,
   },
   {
+    label: "영업이익증가율(%)",
+    getValue: (p) => formatPercent(p.operatingProfitGrowth, false),
+    getRaw: (p) => p.operatingProfitGrowth,
+  },
+  {
     label: "당기순이익",
     getValue: (p) => formatFinancial(p.netIncome, false),
     getRaw: (p) => p.netIncome,
@@ -42,6 +52,11 @@ const METRIC_ROWS: MetricRow[] = [
     label: "순이익률(%)",
     getValue: (p) => formatPercent(p.netMargin, false),
     getRaw: (p) => p.netMargin,
+  },
+  {
+    label: "순이익증가율(%)",
+    getValue: (p) => formatPercent(p.netIncomeGrowth, false),
+    getRaw: (p) => p.netIncomeGrowth,
   },
   // 수익성
   { label: "ROE(%)", getValue: (p) => formatPercent(p.roe, false), getRaw: (p) => p.roe },
@@ -159,6 +174,11 @@ const FinancialsTable = ({ periods, mode, compact }: FinancialsTableProps) => {
           ))}
         </tbody>
       </table>
+      {!compact && (
+        <p className="mt-3 text-caption text-muted-foreground">
+          증가율: 연간은 전년 대비, 분기는 전년 동분기 대비. 기준값이 0 이하이면 표시하지 않음
+        </p>
+      )}
       {hasQ4 && (
         <p className={`${compact ? "mt-2" : "mt-3"} text-caption text-muted-foreground`}>
           Q4는 연간 실적에서 Q1–Q3 누계를 차감해 산출한 값입니다
