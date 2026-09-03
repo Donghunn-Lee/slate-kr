@@ -42,7 +42,7 @@ const getCachedFetcher = (
   const cached = fetchers.get(key);
   if (cached) return cached;
   const fresh = unstable_cache(
-    () => getIndexIntradayPrices(code),
+    () => getIndexIntradayPrices(code, session),
     ["index-intraday", code, session, tradingDate],
     {
       revalidate: krxIndexRankingRevalidate(session, minutesSinceClose),

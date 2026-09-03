@@ -16,9 +16,12 @@ import {
 } from "@/shared/constants/indices";
 import type { MarketCalendar } from "@/shared/types/marketCalendar";
 import {
+  getKrxSessionState,
   getKrxTradingDate,
   getOverseasIndexTradingDate,
   getPreviousOverseasIndexTradingDate,
+  isKrxBeforeMarketOpen,
+  type KrxSession,
 } from "@/shared/utils/market";
 import type {
   ChartBar,
@@ -299,10 +302,17 @@ const readDomesticIntradayFromDb = async (
 
 export const getIndexIntradayPrices = async (
   indexCode: DomesticIndexCode,
+  session?: KrxSession,
   now: Date = new Date(),
 ): Promise<IndexIntradaySnapshot[] | null> => {
   // 캘린더는 모듈 memo — 시그니처로 뚫지 않는다 (route unstable_cache 캐시 키 오염 방지).
   const calendar = await getMarketCalendar();
+  // 개장 전(pre · preopen) 은 세션 판정만으로 빈 배열 반환 — DB/KIS 호출 스킵.
+  // pre 는 지수 봉 자체가 없고, preopen 은 getKrxTradingDate 가 전일로 넘어가
+  // 전일 봉이 오늘로 오해될 여지가 있어 개장 전 상태로 통일한다.
+  // null(양쪽 실패) 과 구분하기 위해 [] 를 반환 — 소비측 failed:false 유지.
+  const resolvedSession = session ?? getKrxSessionState(now, calendar);
+  if (isKrxBeforeMarketOpen(resolvedSession)) return [];
   const tradingDate = getKrxTradingDate(now, calendar);
   const targetDate = toKisDate(tradingDate);
   const iscd = ISCD_BY_INDEX[indexCode];

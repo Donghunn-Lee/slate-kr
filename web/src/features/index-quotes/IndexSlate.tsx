@@ -22,7 +22,7 @@ import {
 } from "@/shared/constants/indices";
 import { INDEX_MINI_INTERVAL_MIN } from "@/shared/constants/chart";
 import { useNow } from "@/shared/hooks/useNow";
-import { getKrxLastCloseDate } from "@/shared/utils/market";
+import { getKrxLastCloseDate, isKrxBeforeMarketOpen } from "@/shared/utils/market";
 import { cn } from "@/lib/utils";
 import { useIndexQuotes, type IndexCellData } from "./useIndexQuotes";
 import { useIndexIntraday } from "./useIndexIntraday";
@@ -59,9 +59,10 @@ type IndexCellProps = {
   prevClose: number | null;
   intradayFailed: boolean;
   intradayLoading: boolean;
+  isPreopen: boolean;
 };
 
-const IndexCell = ({ label, cell, bars, prevClose, intradayFailed, intradayLoading }: IndexCellProps) => (
+const IndexCell = ({ label, cell, bars, prevClose, intradayFailed, intradayLoading, isPreopen }: IndexCellProps) => (
   <div className="flex flex-col gap-2 px-4 py-3 md:gap-3 md:px-6 md:py-4">
     <div>
       <div className="text-body font-bold text-muted-foreground">{label}</div>
@@ -112,7 +113,7 @@ const IndexCell = ({ label, cell, bars, prevClose, intradayFailed, intradayLoadi
         </div>
       )}
     </div>
-    <IndexMiniChart bars={bars} prevClose={prevClose} failed={intradayFailed} isLoading={intradayLoading} />
+    <IndexMiniChart bars={bars} prevClose={prevClose} failed={intradayFailed} isLoading={intradayLoading} isPreopen={isPreopen} />
   </div>
 );
 
@@ -163,25 +164,33 @@ const formatClock = (d: Date): string =>
 // 마감 라벨 기준일: quote live 존재 시 셀 값은 당일 종가 → 오늘 거래일(getKrxLastCloseDate).
 // live 없이 EOD fallback 으로 강등된 경우엔 셀 값 자체가 전일 → fallback.date 유지.
 // (마감 직후~EOD 적재 전 구간에서 셀 값/기준일 불일치 회피.)
+// 라벨 우선순위: marketOpen(실시간) → beforeOpen(개장 전) → 그 외(장 마감).
 const MarketStatus = ({
   marketOpen,
+  beforeOpen,
   hasLive,
   fallbackDate,
 }: {
   marketOpen: boolean;
+  beforeOpen: boolean;
   hasLive: boolean;
   fallbackDate?: string;
 }) => {
   const now = useNow();
   const referenceDate = hasLive && now ? getKrxLastCloseDate(now) : fallbackDate;
-  return marketOpen ? (
-    <div className="flex items-center gap-1.5 text-body-sm text-muted-foreground">
-      <span className="inline-block size-1.5 rounded-full bg-emerald-500" aria-hidden />
-      <span>실시간{now ? ` · ${formatClock(now)}` : ""}</span>
-    </div>
-  ) : (
+  if (marketOpen) {
+    return (
+      <div className="flex items-center gap-1.5 text-body-sm text-muted-foreground">
+        <span className="inline-block size-1.5 rounded-full bg-emerald-500" aria-hidden />
+        <span>실시간{now ? ` · ${formatClock(now)}` : ""}</span>
+      </div>
+    );
+  }
+  const label = beforeOpen ? "개장 전" : "장 마감";
+  return (
     <div className="text-body-sm text-muted-foreground">
-      장 마감{referenceDate ? ` · 기준일 ${referenceDate}` : ""}
+      {label}
+      {referenceDate ? ` · 기준일 ${referenceDate}` : ""}
     </div>
   );
 };
@@ -204,6 +213,9 @@ const derivePrevClose = (
 export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
   const { data, isLoading, isError } = useIndexQuotes();
   const { data: intraday, isLoading: intradayLoading } = useIndexIntraday();
+  // 국내 개장 전(pre · preopen). intraday 서버가 [] 를 돌려주므로 미니차트 empty
+  // 문구를 "장중 데이터 없음" 대신 "개장 전" 으로 대체하고 헤더 라벨도 3-state 로 확장.
+  const beforeOpen = isKrxBeforeMarketOpen(data?.session);
 
   const displayByCode = useMemo<Record<DomesticIndexCode, DomesticDisplay>>(() => {
     const out = {} as Record<DomesticIndexCode, DomesticDisplay>;
@@ -225,6 +237,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
           {data ? (
             <MarketStatus
               marketOpen={data.marketOpen}
+              beforeOpen={beforeOpen}
               hasLive={data.quotes.KOSPI.live !== null}
               fallbackDate={data.quotes.KOSPI.fallback?.date}
             />
@@ -260,6 +273,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                     prevClose={displayByCode.KOSPI.prevClose}
                     intradayFailed={intraday?.failed.KOSPI ?? false}
                     intradayLoading={intradayLoading}
+                    isPreopen={beforeOpen}
                   />
                   <MiniIndexCell
                     label={INDEX_LABEL.KOSPI200}
@@ -280,6 +294,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                     prevClose={displayByCode.KOSDAQ.prevClose}
                     intradayFailed={intraday?.failed.KOSDAQ ?? false}
                     intradayLoading={intradayLoading}
+                    isPreopen={beforeOpen}
                   />
                   <MiniIndexCell
                     label={INDEX_LABEL.KOSDAQ150}
@@ -315,6 +330,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                   prevClose={displayByCode.KOSPI.prevClose}
                   intradayFailed={intraday?.failed.KOSPI ?? false}
                   intradayLoading={intradayLoading}
+                  isPreopen={beforeOpen}
                 />
                 <IndexCell
                   label={INDEX_LABEL.KOSDAQ}
@@ -323,6 +339,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                   prevClose={displayByCode.KOSDAQ.prevClose}
                   intradayFailed={intraday?.failed.KOSDAQ ?? false}
                   intradayLoading={intradayLoading}
+                  isPreopen={beforeOpen}
                 />
               </div>
               <div className="grid grid-cols-2 divide-x divide-border/60">

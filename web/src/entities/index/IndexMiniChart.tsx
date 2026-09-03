@@ -24,6 +24,9 @@ type IndexMiniChartProps = {
   // 부모 useIndexIntraday 첫 응답 도착 전 구간. quote 훅이 먼저 도착해도
   // bars=[] 로 "장중 데이터 없음" 플래시가 나지 않도록 여기서 국소 placeholder 로 대체.
   isLoading: boolean;
+  // 국내 개장 전(pre · preopen) 여부. 빈 empty 문구를 "장중 데이터 없음" 대신
+  // "개장 전" 으로 대체 — 서버가 개장 전 국내 지수를 [] 로 통일 반환하기 때문.
+  isPreopen?: boolean;
 };
 
 type BaselinePalette = {
@@ -71,7 +74,7 @@ const kstDateKey = (t: number): string => {
   return `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
 };
 
-export const IndexMiniChart = ({ bars, prevClose, failed, isLoading }: IndexMiniChartProps) => {
+export const IndexMiniChart = ({ bars, prevClose, failed, isLoading, isPreopen = false }: IndexMiniChartProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { resolvedTheme } = useTheme();
   const isMobile = useIsMobile();
@@ -229,7 +232,7 @@ export const IndexMiniChart = ({ bars, prevClose, failed, isLoading }: IndexMini
         className="flex items-center justify-center text-micro text-muted-foreground"
         style={{ height }}
       >
-        {failed ? "차트를 불러오지 못했어요" : "장중 데이터 없음"}
+        {failed ? "차트를 불러오지 못했어요" : isPreopen ? "개장 전" : "장중 데이터 없음"}
       </div>
     );
   }

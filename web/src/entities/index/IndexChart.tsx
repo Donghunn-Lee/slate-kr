@@ -599,7 +599,9 @@ export const IndexChart = ({
           className="flex w-full items-center justify-center rounded-md text-body text-muted-foreground"
           style={{ height: chartHeight }}
         >
-          당일 인트라데이 데이터 없음
+          {!isOverseasIndex && isKrxBeforeMarketOpen(quotesData?.session)
+            ? "개장 전"
+            : "당일 인트라데이 데이터 없음"}
         </div>
       ) : (
         <PriceChart
