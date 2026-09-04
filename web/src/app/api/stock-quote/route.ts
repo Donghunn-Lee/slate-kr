@@ -37,14 +37,11 @@ export const GET = async (req: NextRequest) => {
   const date = getKrxTradingDate(now, calendar);
 
   try {
-    // KRX 탭: 정규장 J 호출만 유효. 그 외 세션엔 KRX 라이브가 없어 quote:null 로 흘리고
-    // 클라가 SSR EOD 값을 그대로 표시한다.
+    // KRX 탭은 세션 게이트 없이 J 채널을 호출한다. stale 판정(SSR initialDate 대비)은
+    // 클라이언트 소관 — route 는 krx→J 매핑만 담당.
     if (market === "krx") {
-      let quote: StockQuote | null = null;
-      if (session === "regular") {
-        quote = await fetchStockQuote(ticker, "J");
-      }
-      const failed = session === "regular" && quote === null;
+      const quote = await fetchStockQuote(ticker, "J");
+      const failed = quote === null;
       return NextResponse.json({ quote, marketOpen, session, date, failed });
     }
 
