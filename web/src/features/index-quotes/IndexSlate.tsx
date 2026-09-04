@@ -315,6 +315,8 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                     bars={displayByCode.KOSPI200.bars}
                     prevClose={displayByCode.KOSPI200.prevClose}
                     intradayFailed={intraday?.failed.KOSPI200 ?? false}
+                    intradayLoading={intradayLoading}
+                    isPreopen={beforeOpen}
                     formatPrice={formatKrw}
                     renderLiveValue={renderDomesticLive}
                     priceClassName="md:text-xl md:font-medium"
@@ -336,6 +338,8 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                     bars={displayByCode.KOSDAQ150.bars}
                     prevClose={displayByCode.KOSDAQ150.prevClose}
                     intradayFailed={intraday?.failed.KOSDAQ150 ?? false}
+                    intradayLoading={intradayLoading}
+                    isPreopen={beforeOpen}
                     formatPrice={formatKrw}
                     renderLiveValue={renderDomesticLive}
                     priceClassName="md:text-xl md:font-medium"
@@ -383,6 +387,8 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                   bars={displayByCode.KOSPI200.bars}
                   prevClose={displayByCode.KOSPI200.prevClose}
                   intradayFailed={intraday?.failed.KOSPI200 ?? false}
+                  intradayLoading={intradayLoading}
+                  isPreopen={beforeOpen}
                   formatPrice={formatKrw}
                   renderLiveValue={renderDomesticLive}
                   priceClassName="md:text-xl md:font-medium"
@@ -393,6 +399,8 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                   bars={displayByCode.KOSDAQ150.bars}
                   prevClose={displayByCode.KOSDAQ150.prevClose}
                   intradayFailed={intraday?.failed.KOSDAQ150 ?? false}
+                  intradayLoading={intradayLoading}
+                  isPreopen={beforeOpen}
                   formatPrice={formatKrw}
                   renderLiveValue={renderDomesticLive}
                   priceClassName="md:text-xl md:font-medium"

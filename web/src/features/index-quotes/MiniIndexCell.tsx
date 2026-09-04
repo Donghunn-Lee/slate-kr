@@ -24,6 +24,12 @@ type MiniIndexCellProps = {
   bars: ChartBar[];
   prevClose: number | null;
   intradayFailed: boolean;
+  // useIndexIntraday 첫 응답 도착 전 구간. IndexSparkline empty 문구 플래시 방지용
+  // 스켈레톤 게이트. 미전달 시 false — 기존 동작 유지.
+  intradayLoading?: boolean;
+  // 국내 개장 전(pre · preopen) 여부. IndexSparkline empty 문구를 "장중 데이터 없음"
+  // 대신 "개장 전" 으로 대체. 상단 IndexCell 과 동형.
+  isPreopen?: boolean;
   // 값 문자열 포맷 — 국내(KRW, 콤마)·해외(소숫점 2자리 등) 케이스별 주입.
   formatPrice: (v: number) => string;
   // 라이브 값 렌더 방식 — 국내는 카운트업 애니메이션 노드, 해외는 formatPrice 결과 텍스트.
@@ -45,6 +51,8 @@ export const MiniIndexCell = ({
   bars,
   prevClose,
   intradayFailed,
+  intradayLoading = false,
+  isPreopen = false,
   formatPrice,
   renderLiveValue,
   labelClassName,
@@ -117,7 +125,13 @@ export const MiniIndexCell = ({
       )}
     </div>
     <div className="min-w-[50px] flex-1 md:min-h-[60px] md:min-w-[90px] md:self-stretch">
-      <IndexSparkline bars={bars} prevClose={prevClose} failed={intradayFailed} />
+      <IndexSparkline
+        bars={bars}
+        prevClose={prevClose}
+        failed={intradayFailed}
+        isPreopen={isPreopen}
+        isLoading={intradayLoading}
+      />
     </div>
   </div>
 );

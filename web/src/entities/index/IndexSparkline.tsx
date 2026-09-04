@@ -17,8 +17,15 @@ type IndexSparklineProps = {
   // 전일 종가 (부모가 snapshot 첫 봉의 close - change 로 유도).
   // null 이면 무채색 AreaSeries fallback (신규 지수 등 직전 세션 row 부재).
   prevClose: number | null;
-  // useIndexIntraday failed[cellKey] 파생 — 실패면 빈 슬롯으로 두어 텍스트 블록 무영향.
+  // useIndexIntraday failed[cellKey] 파생. IndexMiniChart 와 동일한 empty 문구
+  // 정책으로 정렬 — 실패 시 안내 문구를 슬롯 내부에 표시.
   failed?: boolean;
+  // 국내 개장 전(pre · preopen) 여부. 서버가 개장 전 국내 지수를 [] 로 반환하므로
+  // empty 문구를 "장중 데이터 없음" 대신 "개장 전" 으로 대체.
+  isPreopen?: boolean;
+  // 부모 useIndexIntraday 첫 응답 도착 전 구간. bars=[] 로 empty 문구가 로딩 중
+  // 플래시로 나지 않도록 국소 skeleton 으로 대체.
+  isLoading?: boolean;
 };
 
 // 전일종가 기준 위/아래 2색. IndexMiniChart · PriceChart 팔레트와 동일 hex.
@@ -56,7 +63,13 @@ const kstDateKey = (t: number): string => {
   return `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
 };
 
-export const IndexSparkline = ({ bars, prevClose, failed = false }: IndexSparklineProps) => {
+export const IndexSparkline = ({
+  bars,
+  prevClose,
+  failed = false,
+  isPreopen = false,
+  isLoading = false,
+}: IndexSparklineProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { resolvedTheme } = useTheme();
 
@@ -186,9 +199,28 @@ export const IndexSparkline = ({ bars, prevClose, failed = false }: IndexSparkli
     };
   }, [sessionBars, prevClose, resolvedTheme]);
 
-  // 실패·데이터 없음 → 슬롯만 비워둠(레이아웃 유지, 텍스트 블록 무영향).
+  // loading > empty 우선순위. IndexMiniChart 와 동일 정책·문구로 정렬 —
+  // 하단 페어 셀에서 정보 상태(로딩·실패·개장 전·데이터 없음)를 값 영역과 대칭으로 노출.
+  if (isLoading && sessionBars.length === 0) {
+    return (
+      <div
+        className={`w-full animate-pulse rounded bg-muted ${BASE_HEIGHT_CLS}`}
+        aria-hidden
+      />
+    );
+  }
   if (failed || sessionBars.length === 0) {
-    return <div className={BASE_HEIGHT_CLS} aria-hidden />;
+    return (
+      <div
+        className={`flex items-center justify-center text-micro text-muted-foreground ${BASE_HEIGHT_CLS}`}
+      >
+        {failed
+          ? "차트를 불러오지 못했어요"
+          : isPreopen
+            ? "개장 전"
+            : "장중 데이터 없음"}
+      </div>
+    );
   }
 
   return (
