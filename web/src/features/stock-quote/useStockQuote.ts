@@ -23,6 +23,9 @@ type UseStockQuoteOptions = {
   market?: QuoteMarket;
   // false 로 두면 fetch·폴링 모두 중단 (응답이 항상 null 로 확정된 경우 낭비 방지).
   enabled?: boolean;
+  // 확정 종가 date. 값이 바뀌면 queryKey 가 갱신되어 새 캐시 슬롯에서 초기 fetch 1회 발생.
+  // undefined 는 queryKey 미포함 — 다른 호출처 캐시 키와 정합 유지.
+  closeDate?: string;
 };
 
 const POLL_INTERVAL_MS = 60_000;
@@ -39,13 +42,15 @@ export const useStockQuote = (
   ticker: string,
   options: UseStockQuoteOptions = {},
 ) => {
-  const { subscribeOnly = false, market, enabled = true } = options;
+  const { subscribeOnly = false, market, enabled = true, closeDate } = options;
   const calendar = useMarketCalendar();
   // market undefined 는 "auto" sentinel 로 캐시 키 안정화 (미지정 경로가 지정 경로와 섞이지 않게).
   const marketKey: QuoteMarket | "auto" = market ?? "auto";
 
   const query = useQuery<StockQuoteResponse>({
-    queryKey: ["stock-quote", ticker, marketKey],
+    queryKey: closeDate
+      ? ["stock-quote", ticker, marketKey, closeDate]
+      : ["stock-quote", ticker, marketKey],
     queryFn: async () => {
       const params = new URLSearchParams({ ticker });
       if (market) params.set("market", market);

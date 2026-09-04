@@ -8,8 +8,8 @@ import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
 import type { QuoteMarket } from "@/shared/utils/market";
 import {
   defaultMarketForSession,
+  getKrxLastCloseDate,
   getKrxSessionState,
-  getKstDateAndMinutes,
 } from "@/shared/utils/market";
 import { cn } from "@/lib/utils";
 import { PriceCountUp } from "./PriceCountUp";
@@ -56,13 +56,23 @@ export const StockHeaderLivePrice = ({
 
   const marketArg: QuoteMarket | undefined = showToggle ? market : undefined;
 
-  // KRX 탭 비-regular 는 서버 응답이 항상 quote:null → 폴링 비활성.
-  const clientSession = getKrxSessionState(new Date(), calendar);
+  const now = new Date();
+  const clientSession = getKrxSessionState(now, calendar);
+  const lastCloseDate = getKrxLastCloseDate(now, calendar);
   const isKrxOffRegular = showToggle && market === "krx" && clientSession !== "regular";
+  // EOD 미적재 창(15:30 통과 후 daily_prices 갱신 전): initialDate 가 lastCloseDate 보다
+  // 뒤처지면 KRX 확정 종가 1회 조회로 라벨/값을 격상.
+  const isKrxDelayWindow =
+    isKrxOffRegular && initialDate !== null && initialDate < lastCloseDate;
 
   const { data, dataUpdatedAt } = useStockQuote(ticker, {
     market: marketArg,
-    enabled: !isKrxOffRegular,
+    // 지연 창엔 fetch 를 살려두고 폴링만 정지 (subscribeOnly).
+    enabled: !isKrxOffRegular || isKrxDelayWindow,
+    // subscribeOnly 는 setInterval 만 끄고 useQuery 초기 fetch 1회는 그대로 발생.
+    subscribeOnly: isKrxDelayWindow,
+    // 15:30 통과로 lastCloseDate 가 오늘로 바뀌면 queryKey 갱신 → 확정 종가 재조회 1회.
+    closeDate: market === "krx" ? lastCloseDate : undefined,
   });
 
   const live = data?.quote ?? null;
@@ -76,8 +86,10 @@ export const StockHeaderLivePrice = ({
   const preReset = isPreMarketReset(session, live);
   const closedLike = isClosedLikeMiss(session, live, isFailedQuote);
 
-  // KRX 탭 비-regular 는 라이브 응답이 없으므로 SSR initial 값 강제.
-  const forceInitial = showToggle && market === "krx" && clientSession !== "regular";
+  // 지연 창 fetch 성공 시 표시 가격·라벨 날짜·labelSession 세 축을 함께 격상. 실패(live=null)
+  // 는 아래 forceInitial 로 자연 폴백 → "전일 종가" 라벨 유지(실패 은폐 금지).
+  const useLiveKrxClose = isKrxDelayWindow && live !== null;
+  const forceInitial = isKrxOffRegular && !useLiveKrxClose;
 
   const displayPrice = forceInitial
     ? initialPrice
@@ -101,7 +113,6 @@ export const StockHeaderLivePrice = ({
         ? initialChangeRate
         : live?.changeRate ?? initialChangeRate;
 
-  const kstToday = getKstDateAndMinutes().date;
   // 비-regular KRX 강제 케이스는 서버 응답 대신 clientSession 을 라벨에 넘긴다.
   const labelSession = forceInitial ? clientSession : session;
   const { labelText, timeText } = computeHeaderLabel({
@@ -109,8 +120,9 @@ export const StockHeaderLivePrice = ({
     market: marketArg ?? "nxt", // 미지정 경로는 NXT 매핑과 동형.
     live,
     isFailedQuote,
-    initialDate,
-    kstToday,
+    // 지연 창 fetch 성공 시 initialDate 를 lastCloseDate 로 격상 → "장 마감·15:30".
+    initialDate: useLiveKrxClose ? lastCloseDate : initialDate,
+    kstToday: lastCloseDate,
     updatedAtText,
   });
 

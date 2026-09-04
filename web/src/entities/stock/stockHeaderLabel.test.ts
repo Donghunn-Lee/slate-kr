@@ -122,6 +122,24 @@ describe("computeHeaderLabel · KRX 탭", () => {
       ),
     ).toEqual({ labelText: "전일 종가", timeText: "08.25" });
   });
+
+  // 지연 창(EOD 미적재 · initialDate < lastCloseDate) 흐름 — 호출측이 kstToday=lastCloseDate 축으로
+  // 넘긴다. fetch 성공/실패는 initialDate 인자의 격상 여부로 함수에 전달됨.
+  it("KRX 지연 창 · fetch 미시도/실패 (initialDate 뒤처짐) → 전일 종가", () => {
+    expect(
+      computeHeaderLabel(
+        krx({ session: "after", live: null, initialDate: "2026-08-25", kstToday: KST_TODAY }),
+      ),
+    ).toEqual({ labelText: "전일 종가", timeText: "08.25" });
+  });
+
+  it("KRX 지연 창 · fetch 성공 (initialDate = lastCloseDate 로 격상) → 장 마감 · 15:30", () => {
+    expect(
+      computeHeaderLabel(
+        krx({ session: "after", live: q(), initialDate: KST_TODAY, kstToday: KST_TODAY }),
+      ),
+    ).toEqual({ labelText: "장 마감", timeText: "15:30" });
+  });
 });
 
 // undefined session — 초기 로드 스켈레톤 게이트. NXT 탭에서만 발생 (KRX 는 initialDate 로 즉시).
