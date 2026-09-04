@@ -25,6 +25,7 @@ import {
   isKrxLatePreopen,
 } from "@/shared/utils/market";
 import { getMarketCalendar } from "@/lib/marketCalendar";
+import { fetchNxEligible } from "@/lib/quoteSnapshots";
 import { mergeChartBars } from "@/shared/utils/toEndLabelBars";
 
 const BASE_URL = "https://openapi.koreainvestment.com:9443";
@@ -49,7 +50,7 @@ const MULTI_QUOTE_LIMIT = 30; // KIS 공식 상한
 
 // 종목 1분봉 fan-out anchors — 각 anchor 는 (anchor-30min, anchor] 창의 30개 봉을 반환.
 // NXT 거래가능 종목은 UN 로 25개(08:00~20:00) 전체 요청, 비NXT 종목은 J 로 13개
-// (09:30~15:30) 정규장만 요청. eligibility 는 probeNxtEligibility 로 판정.
+// (09:30~15:30) 정규장만 요청. eligibility 는 quote_snapshots.nx_eligible 로 판정.
 type MinuteMarketDiv = "J" | "UN";
 const STOCK_INTRADAY_ANCHORS_NXT: readonly string[] = [
   "080000",
@@ -93,10 +94,6 @@ const STOCK_INTRADAY_ANCHORS_REGULAR: readonly string[] = [
   "150000",
   "153000",
 ] as const;
-// NXT eligibility probe anchor — 미들데이. 어느 세션이든 (KIS docstring: 미래 anchor 는
-// 현재 시각으로 clamp) 실거래 시간대 데이터를 반환. NXT 종목이면 UN 응답이 실봉,
-// 비NXT 종목이면 sentinel(OHL=0) → callStockMinuteAnchor 내부 필터로 [] 반환.
-const NXT_PROBE_ANCHOR = "120000";
 // 확장 세션 상한 (NXT 애프터 종료). 세션 종료 후 anchor 필터 상한으로 사용.
 const AFTER_END_MIN = 20 * 60;
 
@@ -900,48 +897,6 @@ const callStockDailyMinuteAnchor = async (
   }
 };
 
-// NXT 거래가능 판정 — 미들데이 UN anchor 1콜 → sentinel 필터 후 실봉이 남아있으면
-// NXT 종목. KIS 종목 마스터에 NXT 플래그가 없어 데이터 파생으로 감지 (agent 조사 확인).
-// null(요청 실패) → 보수적으로 비NXT 취급 (정규장 J 만 요청, 확장 세션 봉 손실 감수).
-const probeNxtEligibility = async (
-  ticker: string,
-  token: string,
-  appKey: string,
-  appSecret: string,
-): Promise<boolean> => {
-  const bars = await callStockMinuteAnchor(
-    ticker,
-    NXT_PROBE_ANCHOR,
-    "UN",
-    token,
-    appKey,
-    appSecret,
-  );
-  return bars !== null && bars.length > 0;
-};
-
-// NXT 판정은 tradingDate 내 불변 (상장/해지가 아닌 이상) — 종목당 하루 1회 probe 로 충분.
-// 종목당 {tradingDate,value} 하나만 유지. 서버 인스턴스가 다음날까지 살아도 date
-// 미스매치로 자동 재조회. Map 크기는 유니크 티커 수로 상한.
-const nxtEligibilityByTicker = new Map<
-  string,
-  { tradingDate: string; value: boolean }
->();
-
-const probeNxtEligibilityMemoized = async (
-  ticker: string,
-  tradingDate: string,
-  token: string,
-  appKey: string,
-  appSecret: string,
-): Promise<boolean> => {
-  const cached = nxtEligibilityByTicker.get(ticker);
-  if (cached && cached.tradingDate === tradingDate) return cached.value;
-  const value = await probeNxtEligibility(ticker, token, appKey, appSecret);
-  nxtEligibilityByTicker.set(ticker, { tradingDate, value });
-  return value;
-};
-
 // 전일 스냅샷 fallback — FHKST03010230 anchor 세트로 직전 완결 거래일 분봉을 가져온다.
 // closed(주말·공휴일) 경로와 preopen(아침·늦은 프리오픈에서 오늘 봉이 없는 경우) 경로가
 // 공유. NXT 판정은 호출측에서 넘겨받는다 (route 응답 date 정합을 위해 target 도 인자로).
@@ -1045,13 +1000,9 @@ export const fetchStockIntradayChart = async (
   const earlyPreopen = isKrxEarlyPreopen(now, calendar);
   const latePreopen = isKrxLatePreopen(now, calendar);
 
-  const isNxt = await probeNxtEligibilityMemoized(
-    ticker,
-    todayTradingDate,
-    tokenResult.token,
-    appKey,
-    appSecret,
-  );
+  // NXT 판정 소스: quote_snapshots.nx_eligible (20:10 KST 캡처). 상장 당일은 익일 인식,
+  // 스냅샷 부재(신규 종목·캡처 실패) → 비NXT (정규장 J 만 요청, 확장 세션 봉 손실 감수).
+  const isNxt = (await fetchNxEligible(ticker)) ?? false;
 
   // 아침 프리오픈: NXT 프리 미개시 → 오늘 봉 자체 없음. 바로 전일 스냅샷으로.
   if (earlyPreopen) {
