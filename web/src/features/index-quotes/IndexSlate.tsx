@@ -191,7 +191,7 @@ const MarketStatus = ({
     return (
       <div className="flex items-center gap-1.5 text-body-sm text-muted-foreground">
         <span className="inline-block size-1.5 rounded-full bg-emerald-500" aria-hidden />
-        <span>실시간{now ? ` · ${formatClock(now)}` : ""}</span>
+        <span>장중{now ? ` · ${formatClock(now)}` : ""}</span>
       </div>
     );
   }

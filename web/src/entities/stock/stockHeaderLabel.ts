@@ -54,7 +54,7 @@ export const computeHeaderLabel = ({
 }: HeaderLabelInput): HeaderLabelResult => {
   if (market === "krx") {
     if (session === "regular") {
-      return { labelText: "실시간", timeText: updatedAtText };
+      return { labelText: "장중", timeText: updatedAtText };
     }
     // 비-regular KRX 탭 — 라이브 쿼리 비활성이므로 SSR 기반 표기만.
     if (initialDate === null) return { labelText: "장 마감", timeText: "" };
@@ -70,7 +70,7 @@ export const computeHeaderLabel = ({
   const labelText = closedLike
     ? "장 마감"
     : session === "regular"
-      ? "실시간"
+      ? "장중"
       : session === "after"
         ? "애프터마켓"
         : session === "after_close" || session === "closed"

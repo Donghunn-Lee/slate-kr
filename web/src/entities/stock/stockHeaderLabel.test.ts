@@ -46,9 +46,9 @@ describe("computeHeaderLabel · NXT 탭", () => {
     label: string;
     time: string;
   }> = [
-    { name: "regular · live 있음", session: "regular", live: q(), label: "실시간", time: UPDATED_AT },
-    { name: "regular · live=null · !failed", session: "regular", live: null, label: "실시간", time: "" },
-    { name: "regular · live=null · failed", session: "regular", live: null, failed: true, label: "실시간", time: "" },
+    { name: "regular · live 있음", session: "regular", live: q(), label: "장중", time: UPDATED_AT },
+    { name: "regular · live=null · !failed", session: "regular", live: null, label: "장중", time: "" },
+    { name: "regular · live=null · failed", session: "regular", live: null, failed: true, label: "장중", time: "" },
     { name: "after · live 있음", session: "after", live: q(), label: "애프터마켓", time: UPDATED_AT },
     { name: "after · live=null · !failed → closedLike", session: "after", live: null, label: "장 마감", time: "15:30" },
     { name: "after · live=null · failed", session: "after", live: null, failed: true, label: "애프터마켓", time: "" },
@@ -77,9 +77,9 @@ describe("computeHeaderLabel · NXT 탭", () => {
 
 // ── KRX 탭 ──────────────────────────────────────────────
 describe("computeHeaderLabel · KRX 탭", () => {
-  it("regular · live 있음 → '실시간' · updatedAtText", () => {
+  it("regular · live 있음 → '장중' · updatedAtText", () => {
     expect(computeHeaderLabel(krx({ session: "regular", live: q() }))).toEqual({
-      labelText: "실시간",
+      labelText: "장중",
       timeText: UPDATED_AT,
     });
   });
@@ -87,7 +87,7 @@ describe("computeHeaderLabel · KRX 탭", () => {
   it("regular · live=null · failed → 라벨 유지 (실패 배지는 컴포넌트가 담당)", () => {
     expect(
       computeHeaderLabel(krx({ session: "regular", live: null, isFailedQuote: true })),
-    ).toEqual({ labelText: "실시간", timeText: UPDATED_AT });
+    ).toEqual({ labelText: "장중", timeText: UPDATED_AT });
   });
 
   it("비-regular · initialDate == today → '장 마감' · '15:30'", () => {

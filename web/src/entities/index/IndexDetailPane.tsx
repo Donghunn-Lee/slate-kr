@@ -249,7 +249,7 @@ export const IndexDetailPane = ({
     ? now === null
       ? "장 마감"
       : isKrxRegular
-        ? `실시간 · ${formatClock(now)}`
+        ? `장중 · ${formatClock(now)}`
         : domesticSourceLabel
     : overseasState?.kind === "live" && overseasKstTime
       ? `${overseasKstTime} 기준`

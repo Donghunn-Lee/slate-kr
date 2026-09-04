@@ -30,6 +30,9 @@ export default function CreditsPage() {
               </div>
             ))}
           </dl>
+          <p className="mt-3 text-caption text-muted-foreground">
+            장중 시세는 60초 간격으로 갱신됩니다.
+          </p>
         </StockPanel>
       </section>
 
