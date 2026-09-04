@@ -25,6 +25,7 @@ import { resolveOverseasDisplayState } from "@/shared/utils/resolveOverseasDispl
 import {
   getKrxLastCloseDate,
   getKrxSessionState,
+  getKstDateAndMinutes,
 } from "@/shared/utils/market";
 import { useNow } from "@/shared/hooks/useNow";
 import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
@@ -192,13 +193,25 @@ export const IndexDetailPane = ({
     overseasQuote,
     overseasLatestBar,
     latestDaily,
+    session: data?.session,
   });
 
   // 라벨은 request time 기준: 국내는 client clock 으로 세션 판정, 해외는 quote.time 판정.
   const now = useNow();
   const isKrxRegular = isDomestic && now !== null && getKrxSessionState(now, calendar) === "regular";
-  // 국내 마감 라벨의 기준일(MM-dd). pre 세션에서도 전일 반환하는 getKrxLastCloseDate 사용.
-  const domesticLastCloseMd = now ? getKrxLastCloseDate(now, calendar).slice(5) : null;
+  // 국내 마감 라벨 소스: pre 세션에서도 전일 반환하는 getKrxLastCloseDate 사용.
+  // 종목 헤더(`stockHeaderLabel.ts`)와 동일한 MM.DD 포맷·today-vs-past 규칙을 공유.
+  const domesticLastCloseDate = now ? getKrxLastCloseDate(now, calendar) : null;
+  const kstToday = now ? getKstDateAndMinutes(now).date : null;
+  const domesticSourceIsToday =
+    domesticLastCloseDate !== null &&
+    kstToday !== null &&
+    domesticLastCloseDate === kstToday;
+  const domesticSourceLabel = domesticSourceIsToday
+    ? "장 마감 · 15:30"
+    : domesticLastCloseDate
+      ? `전일 종가 · ${domesticLastCloseDate.slice(5, 7)}.${domesticLastCloseDate.slice(8, 10)}`
+      : "장 마감";
 
   // 해외 표시 상태 판정 (live/closed/eod_only). 시각 포맷은 formatOverseasQuoteTime 재사용.
   const overseasState = !isDomestic
@@ -237,12 +250,12 @@ export const IndexDetailPane = ({
       ? "장 마감"
       : isKrxRegular
         ? `실시간 · ${formatClock(now)}`
-        : `장 마감 · ${domesticLastCloseMd} 15:30`
+        : domesticSourceLabel
     : overseasState?.kind === "live" && overseasKstTime
       ? `${overseasKstTime} 기준`
       : overseasState?.kind === "closed" && overseasKstTime
         ? `장 마감 · ${overseasKstTime}`
-        : `전일 종가 · 기준일 ${overseasRefDate ?? "—"}`;
+        : `전일 종가 · ${overseasRefDate ?? "—"}`;
 
   return (
     <StockPanel variant="lavender" className="overflow-hidden p-0">

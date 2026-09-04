@@ -74,6 +74,7 @@ export const IndexChipStrip = ({
           ] ?? null,
       overseasLatestBar,
       latestDaily,
+      session: data?.session,
     });
     const isSelected = selected === code;
     const showSkeleton = isDomestic && isLoading && !cell;

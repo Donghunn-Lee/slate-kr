@@ -190,4 +190,105 @@ describe("buildIndexCell", () => {
     });
     expect(cell).toBeUndefined();
   });
+
+  it("국내 · preopen + live+fallback → 등락은 fallback, 가격은 live 유지", () => {
+    // preopen 창의 KIS live 는 전일 종가를 가격으로, 등락은 0/0.00% 로 반환.
+    // 사용자에게 유용한 값은 "직전 세션 실등락" — buildIndexCell 이 fallback 등락으로 스왑.
+    const dc: IndexCellData = {
+      live: domesticCell({ price: 2800, change: 0, changeRate: 0, sign: "flat" }).live,
+      fallback: {
+        indexCode: "KOSPI",
+        date: "2026-09-03",
+        open: 2790,
+        high: 2820,
+        low: 2785,
+        close: 2800,
+        change: 15,
+        changeRate: 0.54,
+      },
+    };
+    const cell = buildIndexCell({
+      isDomestic: true,
+      name: "코스피",
+      domesticCell: dc,
+      overseasQuote: null,
+      overseasLatestBar: null,
+      latestDaily: null,
+      session: "preopen",
+    });
+    expect(cell?.live?.price).toBe(2800);
+    expect(cell?.live?.change).toBe(15);
+    expect(cell?.live?.changeRate).toBe(0.54);
+    expect(cell?.live?.sign).toBe("up");
+    expect(cell?.fallback).toBe(dc.fallback);
+  });
+
+  it("국내 · pre + live+fallback (하락) → sign='down'", () => {
+    const dc: IndexCellData = {
+      live: domesticCell({ change: 0, changeRate: 0, sign: "flat" }).live,
+      fallback: {
+        indexCode: "KOSPI",
+        date: "2026-09-03",
+        open: 2810,
+        high: 2820,
+        low: 2790,
+        close: 2800,
+        change: -12,
+        changeRate: -0.43,
+      },
+    };
+    const cell = buildIndexCell({
+      isDomestic: true,
+      name: "코스피",
+      domesticCell: dc,
+      overseasQuote: null,
+      overseasLatestBar: null,
+      latestDaily: null,
+      session: "pre",
+    });
+    expect(cell?.live?.change).toBe(-12);
+    expect(cell?.live?.sign).toBe("down");
+  });
+
+  it("국내 · regular → 스왑 없음 (동일 참조 반환)", () => {
+    const dc = domesticCell();
+    const cell = buildIndexCell({
+      isDomestic: true,
+      name: "코스피",
+      domesticCell: dc,
+      overseasQuote: null,
+      overseasLatestBar: null,
+      latestDaily: null,
+      session: "regular",
+    });
+    expect(cell).toBe(dc);
+  });
+
+  it("국내 · preopen 이지만 fallback 없음 → 스왑 없음 (동일 참조)", () => {
+    const dc = domesticCell();
+    const cell = buildIndexCell({
+      isDomestic: true,
+      name: "코스피",
+      domesticCell: dc,
+      overseasQuote: null,
+      overseasLatestBar: null,
+      latestDaily: null,
+      session: "preopen",
+    });
+    expect(cell).toBe(dc);
+  });
+
+  it("국내 · preopen 이지만 live 없음 → 스왑 없음 (동일 참조)", () => {
+    const dc: IndexCellData = { live: null, fallback: null };
+    const cell = buildIndexCell({
+      isDomestic: true,
+      name: "코스피",
+      domesticCell: dc,
+      overseasQuote: null,
+      overseasLatestBar: null,
+      latestDaily: null,
+      session: "preopen",
+    });
+    expect(cell).toBe(dc);
+  });
 });

@@ -23,7 +23,12 @@ import {
 import { INDEX_MINI_INTERVAL_MIN } from "@/shared/constants/chart";
 import { useNow } from "@/shared/hooks/useNow";
 import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
-import { getKrxLastCloseDate, isKrxBeforeMarketOpen } from "@/shared/utils/market";
+import {
+  getKrxLastCloseDate,
+  getKstDateAndMinutes,
+  isKrxBeforeMarketOpen,
+} from "@/shared/utils/market";
+import { buildIndexCell } from "@/shared/utils/buildIndexCell";
 import { cn } from "@/lib/utils";
 import { useIndexQuotes, type IndexCellData } from "./useIndexQuotes";
 import { useIndexIntraday } from "./useIndexIntraday";
@@ -165,7 +170,9 @@ const formatClock = (d: Date): string =>
 // 마감 라벨 기준일: quote live 존재 시 셀 값은 당일 종가 → 오늘 거래일(getKrxLastCloseDate).
 // live 없이 EOD fallback 으로 강등된 경우엔 셀 값 자체가 전일 → fallback.date 유지.
 // (마감 직후~EOD 적재 전 구간에서 셀 값/기준일 불일치 회피.)
-// 라벨 우선순위: marketOpen(실시간) → beforeOpen(개장 전) → 그 외(장 마감).
+// 라벨 규칙: 표시 값이 당일 세션 값이면 `장 마감 · 15:30`, 다른 날이면 `전일 종가 · MM.DD`.
+// 개장 전 창(pre/preopen)은 `개장 전 · [source]` 로 상태 접두어 부착. 종목 헤더
+// (`stockHeaderLabel.ts`) 와 MM.DD 포맷 통일.
 const MarketStatus = ({
   marketOpen,
   beforeOpen,
@@ -188,13 +195,20 @@ const MarketStatus = ({
       </div>
     );
   }
-  const label = beforeOpen ? "개장 전" : "장 마감";
-  return (
-    <div className="text-body-sm text-muted-foreground">
-      {label}
-      {referenceDate ? ` · 기준일 ${referenceDate}` : ""}
-    </div>
-  );
+  const kstToday = now ? getKstDateAndMinutes(now).date : null;
+  const sourceIsToday =
+    referenceDate !== undefined && kstToday !== null && referenceDate === kstToday;
+  const sourceLabel = sourceIsToday
+    ? "장 마감 · 15:30"
+    : referenceDate
+      ? `전일 종가 · ${referenceDate.slice(5, 7)}.${referenceDate.slice(8, 10)}`
+      : null;
+  const text = beforeOpen
+    ? sourceLabel
+      ? `개장 전 · ${sourceLabel}`
+      : "개장 전"
+    : sourceLabel ?? "장 마감";
+  return <div className="text-body-sm text-muted-foreground">{text}</div>;
 };
 
 const EMPTY_BARS: ChartBar[] = [];
@@ -230,6 +244,24 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
     }
     return out;
   }, [intraday]);
+
+  // pre/preopen 창의 등락 스왑을 /indices 표면과 동일하게 buildIndexCell 로 통과 —
+  // 홈과 상세 표면이 같은 셀 규칙을 공유하도록 한다.
+  const cellByCode = useMemo<Record<DomesticIndexCode, IndexCellData | undefined> | null>(() => {
+    if (!data) return null;
+    const out = {} as Record<DomesticIndexCode, IndexCellData | undefined>;
+    for (const code of DOMESTIC_INDEX_CODES) {
+      out[code] = buildIndexCell({
+        isDomestic: true,
+        name: INDEX_LABEL[code],
+        domesticCell: data.quotes[code],
+        overseasLatestBar: null,
+        latestDaily: null,
+        session: data.session,
+      });
+    }
+    return out;
+  }, [data]);
 
   return (
     <section>
@@ -270,7 +302,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                 <div className="flex flex-col divide-y divide-border/60">
                   <IndexCell
                     label={INDEX_LABEL.KOSPI}
-                    cell={data.quotes.KOSPI}
+                    cell={cellByCode?.KOSPI ?? data.quotes.KOSPI}
                     bars={displayByCode.KOSPI.bars}
                     prevClose={displayByCode.KOSPI.prevClose}
                     intradayFailed={intraday?.failed.KOSPI ?? false}
@@ -279,7 +311,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                   />
                   <MiniIndexCell
                     label={INDEX_LABEL.KOSPI200}
-                    cell={data.quotes.KOSPI200}
+                    cell={cellByCode?.KOSPI200 ?? data.quotes.KOSPI200}
                     bars={displayByCode.KOSPI200.bars}
                     prevClose={displayByCode.KOSPI200.prevClose}
                     intradayFailed={intraday?.failed.KOSPI200 ?? false}
@@ -291,7 +323,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                 <div className="flex flex-col divide-y divide-border/60">
                   <IndexCell
                     label={INDEX_LABEL.KOSDAQ}
-                    cell={data.quotes.KOSDAQ}
+                    cell={cellByCode?.KOSDAQ ?? data.quotes.KOSDAQ}
                     bars={displayByCode.KOSDAQ.bars}
                     prevClose={displayByCode.KOSDAQ.prevClose}
                     intradayFailed={intraday?.failed.KOSDAQ ?? false}
@@ -300,7 +332,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                   />
                   <MiniIndexCell
                     label={INDEX_LABEL.KOSDAQ150}
-                    cell={data.quotes.KOSDAQ150}
+                    cell={cellByCode?.KOSDAQ150 ?? data.quotes.KOSDAQ150}
                     bars={displayByCode.KOSDAQ150.bars}
                     prevClose={displayByCode.KOSDAQ150.prevClose}
                     intradayFailed={intraday?.failed.KOSDAQ150 ?? false}
@@ -327,7 +359,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
               <div className="grid grid-cols-2 divide-x divide-border/60">
                 <IndexCell
                   label={INDEX_LABEL.KOSPI}
-                  cell={data.quotes.KOSPI}
+                  cell={cellByCode?.KOSPI ?? data.quotes.KOSPI}
                   bars={displayByCode.KOSPI.bars}
                   prevClose={displayByCode.KOSPI.prevClose}
                   intradayFailed={intraday?.failed.KOSPI ?? false}
@@ -336,7 +368,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                 />
                 <IndexCell
                   label={INDEX_LABEL.KOSDAQ}
-                  cell={data.quotes.KOSDAQ}
+                  cell={cellByCode?.KOSDAQ ?? data.quotes.KOSDAQ}
                   bars={displayByCode.KOSDAQ.bars}
                   prevClose={displayByCode.KOSDAQ.prevClose}
                   intradayFailed={intraday?.failed.KOSDAQ ?? false}
@@ -347,7 +379,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
               <div className="grid grid-cols-2 divide-x divide-border/60">
                 <MiniIndexCell
                   label={INDEX_LABEL.KOSPI200}
-                  cell={data.quotes.KOSPI200}
+                  cell={cellByCode?.KOSPI200 ?? data.quotes.KOSPI200}
                   bars={displayByCode.KOSPI200.bars}
                   prevClose={displayByCode.KOSPI200.prevClose}
                   intradayFailed={intraday?.failed.KOSPI200 ?? false}
@@ -357,7 +389,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                 />
                 <MiniIndexCell
                   label={INDEX_LABEL.KOSDAQ150}
-                  cell={data.quotes.KOSDAQ150}
+                  cell={cellByCode?.KOSDAQ150 ?? data.quotes.KOSDAQ150}
                   bars={displayByCode.KOSDAQ150.bars}
                   prevClose={displayByCode.KOSDAQ150.prevClose}
                   intradayFailed={intraday?.failed.KOSDAQ150 ?? false}
