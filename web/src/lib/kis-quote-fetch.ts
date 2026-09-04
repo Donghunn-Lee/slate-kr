@@ -49,10 +49,13 @@ const TR_ID_MULTI_PRICE = "FHKST11300006";
 const MULTI_QUOTE_LIMIT = 30; // KIS 공식 상한
 
 // 종목 1분봉 fan-out anchors — 각 anchor 는 (anchor-30min, anchor] 창의 30개 봉을 반환.
-// NXT 거래가능 종목은 UN 로 25개(08:00~20:00) 전체 요청, 비NXT 종목은 J 로 13개
-// (09:30~15:30) 정규장만 요청. eligibility 는 quote_snapshots.nx_eligible 로 판정.
+// NXT 거래가능 종목은 UN 로 25개(08:00~20:00) 전체 요청, 비NXT 종목은 J 로 14개
+// (09:00~15:30) 정규장만 요청. eligibility 는 quote_snapshots.nx_eligible 로 판정.
+// 비NXT 첫 anchor 는 "090000" — "093000" 창 (09:00, 09:30] 이 좌개라 START 090000
+// 봉을 배제하므로 KRX 첫 체결 봉(END 09:01) 이 사라진다. 응답의 창 밖 tail 봉은
+// NXT 세트가 이미 처리하는 backfill 패턴과 동일.
 type MinuteMarketDiv = "J" | "UN";
-const STOCK_INTRADAY_ANCHORS_NXT: readonly string[] = [
+export const STOCK_INTRADAY_ANCHORS_NXT: readonly string[] = [
   "080000",
   "083000",
   "090000",
@@ -79,7 +82,8 @@ const STOCK_INTRADAY_ANCHORS_NXT: readonly string[] = [
   "193000",
   "200000",
 ] as const;
-const STOCK_INTRADAY_ANCHORS_REGULAR: readonly string[] = [
+export const STOCK_INTRADAY_ANCHORS_REGULAR: readonly string[] = [
+  "090000",
   "093000",
   "100000",
   "103000",

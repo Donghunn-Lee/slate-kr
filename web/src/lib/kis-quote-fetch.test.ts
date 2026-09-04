@@ -7,9 +7,36 @@ import {
   mergeAndSortIntradayBars,
   parseDailyMinuteRows,
   parseIndexMinuteRows,
+  STOCK_INTRADAY_ANCHORS_NXT,
+  STOCK_INTRADAY_ANCHORS_REGULAR,
   toKisDate,
 } from "./kis-quote-fetch";
 import type { ChartBar } from "@/shared/types/quote";
+
+// ── 라이브 fan-out anchor 세트 pin ─────────────────────────────
+// "093000" 창 (09:00, 09:30] 은 START 090000 봉을 배제 → KRX 첫 체결 봉(END 09:01)
+// 이 누락되므로 "090000" 을 첫 anchor 로 pin.
+describe("STOCK_INTRADAY_ANCHORS_REGULAR", () => {
+  it("첫 anchor 는 '090000' (KRX 개장 봉 커버)", () => {
+    expect(STOCK_INTRADAY_ANCHORS_REGULAR[0]).toBe("090000");
+  });
+
+  it("길이 14 (09:00 + 30분 간격 093000~153000)", () => {
+    expect(STOCK_INTRADAY_ANCHORS_REGULAR).toHaveLength(14);
+  });
+
+  it("오름차순 · 중복 없음", () => {
+    const arr = [...STOCK_INTRADAY_ANCHORS_REGULAR];
+    expect(arr).toEqual([...arr].sort());
+    expect(new Set(arr).size).toBe(arr.length);
+  });
+});
+
+describe("STOCK_INTRADAY_ANCHORS_NXT", () => {
+  it("'090000' 포함 (NXT 프리 → 정규장 경계 봉 커버)", () => {
+    expect(STOCK_INTRADAY_ANCHORS_NXT).toContain("090000");
+  });
+});
 
 // ── 순수 selectors ────────────────────────────────────────────
 describe("getClosedFallbackAnchors", () => {
