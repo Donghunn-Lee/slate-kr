@@ -67,12 +67,15 @@ def fetch_stock_amount(corp_code: str) -> Tuple[Optional[int], Optional[str]]:
     if data.get("status") != "000":
         return None, "status"
 
-    # 보통주 / 의결권있는 주식 행의 istc_totqy 사용.
-    # 대형 지주·제조사는 "의결권 있는 (\n)주식" 템플릿을 쓰고 공백·개행 위치가 filer별로
-    # 다르므로 se 의 모든 공백을 제거한 뒤 접두어로 매칭.
+    # 보통주 / 의결권 있는 주식 행의 istc_totqy 사용.
+    # filer 별로 "보통주식", "의결권 있는", "의결권이 있는", "의결권이 있는주식(보통주)" 등
+    # 표기·조사·공백이 제각각이라 접두어 열거는 지속 확장이 필요. 공백을 지운 뒤
+    # 보통주 접두어이거나 "의결권"으로 시작하며 "있는"만 포함(있는-없는 배타)하는 행으로 판정.
     for item in data.get("list", []):
         se = "".join((item.get("se") or "").split())
-        if se.startswith("보통주") or se.startswith("의결권있는"):
+        if se.startswith("보통주") or (
+            se.startswith("의결권") and "있는" in se and "없는" not in se
+        ):
             raw = item.get("istc_totqy", "").replace(",", "").strip()
             try:
                 val = int(raw)
