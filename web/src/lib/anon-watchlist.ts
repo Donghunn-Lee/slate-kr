@@ -3,16 +3,11 @@ import { z } from "zod";
 import { pool } from "./db";
 import {
   watchlistSnapshotSchema,
+  type AnonWatchlistRecord,
   type WatchlistSnapshot,
 } from "@/shared/types/watchlist";
 
 const anonIdSchema = z.uuid();
-
-export type AnonWatchlistRecord = {
-  snapshot: WatchlistSnapshot;
-  version: number;
-  updatedAt: string; // ISO
-};
 
 export type AnonWatchlistReadResult =
   | { ok: true; data: AnonWatchlistRecord | null }

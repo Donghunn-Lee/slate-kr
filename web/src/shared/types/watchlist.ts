@@ -38,3 +38,22 @@ export const watchlistSnapshotSchema = z
   .strict();
 
 export type WatchlistSnapshot = z.infer<typeof watchlistSnapshotSchema>;
+
+export type AnonWatchlistRecord = {
+  snapshot: WatchlistSnapshot;
+  version: number;
+  updatedAt: string;
+};
+
+export type WatchlistGetResponse =
+  | { ok: true; data: AnonWatchlistRecord | null }
+  | { ok: false; error: { kind: "db_error" } };
+
+export type WatchlistPutResponse =
+  | { ok: true; data: { version: number; updatedAt: string } }
+  | {
+      ok: false;
+      error: {
+        kind: "too_large" | "invalid_json" | "invalid_snapshot" | "db_error";
+      };
+    };
