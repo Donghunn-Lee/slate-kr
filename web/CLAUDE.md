@@ -34,7 +34,7 @@ AI 없이도 설득력 있어야 한다. AI는 투자 판단 도구가 아니라
 - **종목 상세**: Server Components + streaming, 섹션 단위 Suspense, generateMetadata
 - **정규화 레이어**: DB Row → 도메인 모델 변환, 순수 함수, Zod 검증
 - **fallback 구조**: 섹션별 독립 loading/error/empty, 부분 실패가 전체 실패로 번지지 않는 구조
-- **관심종목**: Zustand persist, localStorage 기반 저장
+- **관심종목**: Zustand persist(localStorage) + 익명 쿠키 기반 서버 스냅샷 저장(`anon_watchlists` JSONB 1행), 로그인 없는 식별
 - **공시**: 유형 분류, 체크포인트 배지, 요청형 AI 공시 요약
 - **AI 공시 요약**: `POST /api/disclosure-summary` API Route, Gemini 기반, DART 원문 ZIP 추출 → 요약 → DB 캐시, 3필드 구조화 출력(`headline / facts[] / detail`), Zod 스키마 단일 소스(`z.toJSONSchema` → Gemini `responseJsonSchema`, 응답도 같은 스키마로 `safeParse`), discriminated union 결과 타입(`SummarizeResult`), `not_summarizable` 분기(FINANCIAL 카테고리 차단), row 인라인 확장 UI (`DisclosuresSection` 내 `DisclosureItem` + `DisclosureSummaryBody`), 503 retry 로직
 - **재무 슬레이트**: 5년 연간 + 분기(Q1~Q4, Q4는 연간−Q1~Q3 파생), 20개 지표(배당 3행은 연간 전용, 성장률 3행은 YoY query-time 파생), 연간/분기 토글, 행=항목·열=기간 축 구조
@@ -56,6 +56,7 @@ AI 없이도 설득력 있어야 한다. AI는 투자 판단 도구가 아니라
 - **DB**: PostgreSQL on Neon (@neondatabase/serverless, lib/db.ts)
   - neon() 호환 래퍼: 기존 `[rows, null]` 패턴 유지
   - placeholder: `$1, $2` (PostgreSQL 스타일)
+- **DB 마이그레이션**: `web/sql/*.sql`에 DDL 추적. Neon 콘솔 수동 적용 (자동 실행 도구 없음)
 - **데이터 수집**: Python (collector/)
   - 일일: fetch_prices.py (KIS, 국내 종목 EOD) / fetch_index_prices.py (KIS, 국내 지수 4종 EOD)
     / fetch_overseas_indices.py (KIS, 해외 지수 8종) / verify_daily_freshness.py (적재 검증)
@@ -213,6 +214,16 @@ DB / 외부 API
   조회 실패(null) 시 revalidateTag로 즉시 축출 (unstable_cache는 null도 캐시하므로)
 - lib/ DB 조회 유틸은 React.cache(요청 단위 memo)만 사용 —
   시간 기반 캐시는 페이지/route 층 소관
+
+### 관심종목 동기화 (X7)
+
+- SoT는 Zustand 스토어. 서버는 스냅샷 백업 — 로드 성공 시 서버가 로컬을 덮는다(서버 우선 단방향)
+- 익명 식별: `slatekr_uid`(httpOnly UUID) + `slatekr_sync=1`(JS 판독 마커). PUT 첫 성공 시 lazy 발급.
+  마커 없으면 GET 자체를 생략한다. 기능성 쿠키라 동의 배너 없음 — /credits 고지로 갈음
+- `GET/PUT /api/watchlist`: `force-dynamic` + `private, no-store`. 스키마는 `shared/types/watchlist.ts` Zod 단일 소스
+- GET 실패 시 쓰기 차단(`blocked`) — stale 로컬로 서버를 덮지 않는다. PUT 실패는 롤백 + toast
+- 재PUT 루프 차단은 "현재 스냅샷 == 마지막 확정 스냅샷이면 skip" 1규칙. jsonb 키 순서 미보존 → 정렬 정규화 후 비교
+- TanStack useMutation 미사용 — 서버 상태 SoT가 아니므로 raw fetch
 
 ---
 
