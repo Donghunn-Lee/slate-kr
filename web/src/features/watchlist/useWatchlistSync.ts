@@ -122,22 +122,37 @@ export const useWatchlistSync = () => {
       } else {
         const kind = result && !result.ok ? result.error.kind : "network";
         console.error(`[watchlist-sync] put failed: ${kind}`);
-        if (lastConfirmedRef.current !== null) {
-          useWatchlistStore.getState().replaceAll(lastConfirmedRef.current);
-        }
         rescheduleRef.current = false;
-        setStatus("error");
-        toast.error(
-          "관심종목을 저장하지 못했어요. 변경 전으로 되돌렸어요."
-        );
+        if (lastConfirmedRef.current === null) {
+          // 마이그레이션 첫 PUT 실패 — 되돌릴 대상이 없다. 로컬을 baseline 으로
+          // 승격해 이후 mutation 이 다음 PUT 을 유발하게 두고 배지로만 알린다.
+          lastConfirmedRef.current = snapshot;
+          setStatus("error");
+        } else {
+          useWatchlistStore.getState().replaceAll(lastConfirmedRef.current);
+          setStatus("error");
+          toast.error(
+            "관심종목을 저장하지 못했어요. 변경 전으로 되돌렸어요."
+          );
+        }
       }
     };
 
     const runLoad = async () => {
       if (!hasSyncMarker()) {
-        // 서버에 없음이 확정 — 로컬 스냅샷을 baseline 으로 잡고 첫 mutation 이 PUT 을 유발한다.
-        lastConfirmedRef.current = selectSnapshot(useWatchlistStore.getState());
+        // 서버에 없음이 확정. 로컬이 비어 있으면 baseline = 로컬, PUT 없음.
+        // 비어 있지 않으면 baseline 을 null 로 잡아 flush 가 전체 스냅샷을 올리게 한다
+        // — 명시 마이그레이션. 성공하면 응답 쿠키가 마커를 세팅한다.
+        const local = selectSnapshot(useWatchlistStore.getState());
+        const isEmpty = local.memberships.length === 0 && local.groups.length <= 1;
+        if (isEmpty) {
+          lastConfirmedRef.current = local;
+          setStatus("synced");
+          return;
+        }
+        lastConfirmedRef.current = null;
         setStatus("synced");
+        scheduleFlush();
         return;
       }
 

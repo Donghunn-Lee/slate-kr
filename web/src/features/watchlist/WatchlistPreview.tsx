@@ -30,6 +30,8 @@ export function WatchlistPreview() {
   const groups = useWatchlistStore((s) => s.groups);
   const memberships = useWatchlistStore((s) => s.memberships);
   const stockMeta = useWatchlistStore((s) => s.stockMeta);
+  const syncStatus = useWatchlistStore((s) => s.syncStatus);
+  const showSyncBadge = syncStatus === "blocked" || syncStatus === "error";
 
   const sortedGroups = useMemo(
     () => [...groups].sort((a, b) => a.order - b.order),
@@ -123,7 +125,17 @@ export function WatchlistPreview() {
   return (
     <section className="flex h-full flex-col">
       <div className="mb-4 flex items-center justify-between gap-2">
-        <h2 className="text-value font-semibold text-foreground">내 관심종목</h2>
+        <div className="flex min-w-0 items-center gap-2">
+          <h2 className="text-value font-semibold text-foreground">내 관심종목</h2>
+          {showSyncBadge && (
+            <span
+              title="관심종목이 이 브라우저에만 저장되어 있어요"
+              className="rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-micro leading-none text-muted-foreground"
+            >
+              서버 저장 안 됨
+            </span>
+          )}
+        </div>
         <Link
           href="/watchlist"
           className="flex shrink-0 items-center gap-1 text-caption text-muted-foreground transition-colors hover:text-foreground"

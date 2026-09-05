@@ -4,10 +4,12 @@ import { MAX_WATCHLIST_SIZE } from "@/features/watchlist/store/watchlistSnapshot
 const marketSchema = z.enum(["KOSPI", "KOSDAQ"]);
 const tickerSchema = z.string().regex(/^[0-9A-Z]{6}$/);
 
+export const MAX_GROUP_NAME_LENGTH = 100;
+
 export const watchlistGroupSchema = z
   .object({
     id: z.uuid(),
-    name: z.string().max(100),
+    name: z.string().max(MAX_GROUP_NAME_LENGTH),
     order: z.number().int(),
     createdAt: z.number().int(),
   })

@@ -48,9 +48,10 @@ import {
   removeMembershipIn,
   renameGroupIn,
 } from "./store/watchlistSnapshot";
-import type {
-  WatchlistGroup,
-  WatchlistSnapshot,
+import {
+  MAX_GROUP_NAME_LENGTH,
+  type WatchlistGroup,
+  type WatchlistSnapshot,
 } from "@/shared/types/watchlist";
 
 type GroupManagementModalProps = {
@@ -115,6 +116,7 @@ const GroupNameInline = ({
       }}
       onBlur={commit}
       aria-label={ariaLabel}
+      maxLength={MAX_GROUP_NAME_LENGTH}
       className={cn("h-7 text-sm", className)}
     />
   );

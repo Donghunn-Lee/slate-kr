@@ -25,6 +25,8 @@ const WatchlistPage = () => {
   const groups = useWatchlistStore((s) => s.groups);
   const stockMeta = useWatchlistStore((s) => s.stockMeta);
   const removeMembership = useWatchlistStore((s) => s.removeMembership);
+  const syncStatus = useWatchlistStore((s) => s.syncStatus);
+  const showSyncBadge = syncStatus === "blocked" || syncStatus === "error";
   const recentVisited = useRecentVisitedStore((s) => s.items);
 
   const sortedGroups = useMemo(() => [...groups].sort((a, b) => a.order - b.order), [groups]);
@@ -124,7 +126,17 @@ const WatchlistPage = () => {
 
   return (
     <main className="container mx-auto max-w-4xl space-y-3 px-4 py-5 sm:space-y-4 sm:py-8">
-      <h1 className="text-xl font-bold sm:text-2xl">관심종목</h1>
+      <div className="flex items-center gap-2">
+        <h1 className="text-xl font-bold sm:text-2xl">관심종목</h1>
+        {showSyncBadge && (
+          <span
+            title="관심종목이 이 브라우저에만 저장되어 있어요"
+            className="rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-micro leading-none text-muted-foreground"
+          >
+            서버 저장 안 됨
+          </span>
+        )}
+      </div>
 
       <nav aria-label="관심종목 그룹" className="flex items-center gap-1 overflow-x-auto md:hidden">
         {tabs.map((t) => (
