@@ -17,6 +17,7 @@ jobs:
       DATABASE_URL: ${{ secrets.NEON_DIRECT_URL }}
       DART_API_KEY: ${{ secrets.DART_API_KEY }}
       FSS_API_KEY: ${{ secrets.FSS_API_KEY }}
+      KRX_OPEN_API_KEY: ${{ secrets.KRX_OPEN_API_KEY }}
 
     steps:
       - uses: actions/checkout@v5
@@ -33,6 +34,12 @@ jobs:
         id: fetch_stocks
         working-directory: collector
         run: python fetch_stocks.py
+        continue-on-error: true
+
+      - name: Run fetch_listed_at
+        id: fetch_listed_at
+        working-directory: collector
+        run: python fetch_listed_at.py
         continue-on-error: true
 
       - name: Run update_corp_codes
@@ -75,6 +82,7 @@ jobs:
             fi
           }
           check fetch_stocks       "${{ steps.fetch_stocks.outcome }}"
+          check fetch_listed_at    "${{ steps.fetch_listed_at.outcome }}"
           check update_corp_codes  "${{ steps.update_corp_codes.outcome }}"
           check fetch_shares       "${{ steps.fetch_shares.outcome }}"
           check fetch_financials   "${{ steps.fetch_financials.outcome }}"
