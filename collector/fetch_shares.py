@@ -11,7 +11,7 @@ import time
 from datetime import datetime
 import requests
 from dotenv import load_dotenv
-from typing import Optional
+from typing import Optional, Tuple
 
 from db import get_connection
 
@@ -45,11 +45,11 @@ def get_latest_bsns_year() -> str:
     return str(today.year - 1 if today.month >= 4 else today.year - 2)
 
 
-def fetch_stock_amount(corp_code: str) -> Optional[int]:
+def fetch_stock_amount(corp_code: str) -> Tuple[Optional[int], Optional[str]]:
     """
     반환값 규약:
-      양수 int : 발행주식총수 (success)
-      None     : DART 미공시 / 보통주 행 없음 (skip)
+      (int, None)     : 발행주식총수 (success)
+      (None, reason)  : skip — reason ∈ {"status", "no_row", "parse"}
     네트워크 오류 등 요청 자체 실패 시 예외를 상위로 전파.
     """
     res = requests.get(
@@ -65,20 +65,22 @@ def fetch_stock_amount(corp_code: str) -> Optional[int]:
     data = res.json()
 
     if data.get("status") != "000":
-        return None
+        return None, "status"
 
-    # 보통주 행의 istc_totqy(발행주식총수) 사용
+    # 보통주 / 의결권있는 주식 행의 istc_totqy 사용.
+    # 대형 지주·제조사는 "의결권 있는 (\n)주식" 템플릿을 쓰고 공백·개행 위치가 filer별로
+    # 다르므로 se 의 모든 공백을 제거한 뒤 접두어로 매칭.
     for item in data.get("list", []):
-        se = (item.get("se") or "").strip()
-        if se.startswith("보통주"):
+        se = "".join((item.get("se") or "").split())
+        if se.startswith("보통주") or se.startswith("의결권있는"):
             raw = item.get("istc_totqy", "").replace(",", "").strip()
             try:
                 val = int(raw)
-                return val if val > 0 else None
+                return (val, None) if val > 0 else (None, "parse")
             except (ValueError, TypeError):
-                return None
+                return None, "parse"
 
-    return None
+    return None, "no_row"
 
 
 def main():
@@ -93,10 +95,11 @@ def main():
     logger.info("대상 종목: %d개", total)
 
     success, skip, error = 0, 0, 0
+    skip_reasons = {"status": 0, "no_row": 0, "parse": 0, "cap": 0}
 
     for i, (ticker, corp_code) in enumerate(rows, 1):
         try:
-            amount = fetch_stock_amount(corp_code)
+            amount, reason = fetch_stock_amount(corp_code)
         except Exception as e:
             logger.error("요청 실패 %s (%s): %s", ticker, corp_code, e)
             error += 1
@@ -112,6 +115,7 @@ def main():
                 f"{SHARES_CAP:,.0f}",
             )
             amount = None
+            reason = "cap"
 
         if amount is not None:
             try:
@@ -128,6 +132,7 @@ def main():
         else:
             logger.debug("DART 미공시 또는 보통주 행 없음, 스킵: %s", ticker)
             skip += 1
+            skip_reasons[reason] += 1
 
         if i % 100 == 0:
             logger.info(
@@ -141,7 +146,16 @@ def main():
 
         time.sleep(0.2)
 
-    logger.info("완료: 성공=%d, 스킵=%d, 오류=%d", success, skip, error)
+    logger.info(
+        "완료: 성공=%d, 스킵=%d (status=%d, 행미발견=%d, 파싱=%d, CAP=%d), 오류=%d",
+        success,
+        skip,
+        skip_reasons["status"],
+        skip_reasons["no_row"],
+        skip_reasons["parse"],
+        skip_reasons["cap"],
+        error,
+    )
     cursor.close()
     conn.close()
 
