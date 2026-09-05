@@ -1,27 +1,4 @@
-export type WatchlistGroup = {
-  id: string;
-  name: string;
-  order: number;
-  createdAt: number;
-};
-
-export type Membership = {
-  groupId: string;
-  ticker: string;
-  addedAt: number;
-  order: number;
-};
-
-export type StockMeta = {
-  name: string;
-  market: "KOSPI" | "KOSDAQ";
-};
-
-export type WatchlistSnapshot = {
-  groups: WatchlistGroup[];
-  memberships: Membership[];
-  stockMeta: Record<string, StockMeta>;
-};
+import type { WatchlistSnapshot } from "@/shared/types/watchlist";
 
 export const MAX_WATCHLIST_SIZE = 100;
 
@@ -180,4 +157,33 @@ export const removeMembershipIn = (
     memberships: nextMemberships,
     stockMeta: nextStockMeta,
   };
+};
+
+export const selectSnapshot = (s: {
+  groups: WatchlistSnapshot["groups"];
+  memberships: WatchlistSnapshot["memberships"];
+  stockMeta: WatchlistSnapshot["stockMeta"];
+}): WatchlistSnapshot => ({
+  groups: s.groups,
+  memberships: s.memberships,
+  stockMeta: s.stockMeta,
+});
+
+// Postgres jsonb는 객체 키 순서를 보존하지 않으므로 stockMeta 키를 정렬한 뒤 비교.
+// 배열(groups·memberships) 순서는 order 필드와 무관하게 의미가 있어 그대로 비교.
+export const isSnapshotEqual = (
+  a: WatchlistSnapshot | null,
+  b: WatchlistSnapshot | null
+): boolean => {
+  if (a === null || b === null) return a === b;
+  const normalize = (s: WatchlistSnapshot) => ({
+    groups: s.groups,
+    memberships: s.memberships,
+    stockMeta: Object.fromEntries(
+      Object.keys(s.stockMeta)
+        .sort()
+        .map((k) => [k, s.stockMeta[k]])
+    ),
+  });
+  return JSON.stringify(normalize(a)) === JSON.stringify(normalize(b));
 };

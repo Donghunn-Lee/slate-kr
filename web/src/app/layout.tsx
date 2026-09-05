@@ -7,6 +7,7 @@ import { BottomTabBar } from "@/components/layout/BottomTabBar";
 import { RecentVisitedBar } from "@/components/layout/RecentVisitedBar";
 import { Footer } from "@/components/layout/Footer";
 import { IosInputZoomFix } from "@/shared/components/IosInputZoomFix";
+import { WatchlistSync } from "@/features/watchlist/WatchlistSync";
 import { getMarketCalendar } from "@/lib/marketCalendar";
 
 const suit = localFont({
@@ -48,6 +49,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className="flex min-h-screen flex-col pb-[calc(3.5rem+env(safe-area-inset-bottom))] font-sans antialiased md:pb-0">
         <Providers calendar={calendar}>
           <IosInputZoomFix />
+          <WatchlistSync />
           <Navbar />
           <RecentVisitedBar />
           <div className="flex-1">{children}</div>

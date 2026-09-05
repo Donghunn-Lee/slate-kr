@@ -51,7 +51,7 @@ import {
 import type {
   WatchlistGroup,
   WatchlistSnapshot,
-} from "./store/watchlistSnapshot";
+} from "@/shared/types/watchlist";
 
 type GroupManagementModalProps = {
   open: boolean;

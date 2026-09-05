@@ -37,6 +37,9 @@ export const watchlistSnapshotSchema = z
   })
   .strict();
 
+export type WatchlistGroup = z.infer<typeof watchlistGroupSchema>;
+export type Membership = z.infer<typeof membershipSchema>;
+export type StockMeta = z.infer<typeof stockMetaSchema>;
 export type WatchlistSnapshot = z.infer<typeof watchlistSnapshotSchema>;
 
 export type AnonWatchlistRecord = {

@@ -14,14 +14,14 @@ import type {
   StockMeta,
   WatchlistGroup,
   WatchlistSnapshot,
-} from "./watchlistSnapshot";
+} from "@/shared/types/watchlist";
 
 export type {
   Membership,
   StockMeta,
   WatchlistGroup,
   WatchlistSnapshot,
-} from "./watchlistSnapshot";
+} from "@/shared/types/watchlist";
 export { MAX_WATCHLIST_SIZE } from "./watchlistSnapshot";
 
 export type WatchlistItem = {
@@ -31,12 +31,22 @@ export type WatchlistItem = {
   addedAt: number;
 };
 
+export type WatchlistSyncStatus =
+  | "idle"
+  | "loading"
+  | "synced"
+  | "blocked"
+  | "error";
+
 const DEFAULT_GROUP_NAME = "내 관심 종목";
 
 type WatchlistState = {
   groups: WatchlistGroup[];
   memberships: Membership[];
   stockMeta: Record<string, StockMeta>;
+
+  syncStatus: WatchlistSyncStatus;
+  setSyncStatus: (status: WatchlistSyncStatus) => void;
 
   createGroup: (name: string) => void;
   renameGroup: (id: string, name: string) => void;
@@ -73,6 +83,9 @@ export const useWatchlistStore = create<WatchlistState>()(
       groups: [createDefaultGroup()],
       memberships: [],
       stockMeta: {},
+
+      syncStatus: "idle",
+      setSyncStatus: (status) => set({ syncStatus: status }),
 
       createGroup: (name) => set((s) => createGroupIn(s, name)),
       renameGroup: (id, name) => set((s) => renameGroupIn(s, id, name)),
@@ -130,6 +143,11 @@ export const useWatchlistStore = create<WatchlistState>()(
     {
       name: "slatekr-watchlist",
       version: 2,
+      partialize: (s) => ({
+        groups: s.groups,
+        memberships: s.memberships,
+        stockMeta: s.stockMeta,
+      }),
       migrate: (persistedState, version) => {
         if (version === 0) {
           const old = persistedState as { items?: WatchlistItem[] };
