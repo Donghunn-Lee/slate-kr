@@ -43,10 +43,10 @@ const fetchDailyPricesRaw = cache(
   async (ticker: string, limit: number): Promise<DailyPriceRow[]> => {
     const [rows] = await pool.query<DailyPriceRow[]>(
       `SELECT ${DAILY_PRICE_COLUMNS} FROM daily_prices WHERE ticker = $1 ORDER BY date DESC LIMIT $2`,
-      [ticker, limit],
+      [ticker, limit]
     );
     return rows;
-  },
+  }
 );
 
 export const getDailyPrices = async (
@@ -123,8 +123,7 @@ export const getLatestPricesByTickers = async (
   for (const row of rows) {
     const prev = row.prev_close;
     const change = prev === null ? null : row.close - prev;
-    const changeRate =
-      prev === null || prev === 0 ? null : ((row.close - prev) / prev) * 100;
+    const changeRate = prev === null || prev === 0 ? null : ((row.close - prev) / prev) * 100;
     result[row.ticker] = {
       close: row.close,
       change,
@@ -136,15 +135,11 @@ export const getLatestPricesByTickers = async (
 };
 
 export const getPricesForStats = async (ticker: string): Promise<StockPriceSnapshot[]> => {
-  try {
-    const [rows] = await pool.query<DailyPriceRow[]>(
-      `SELECT ${DAILY_PRICE_COLUMNS} FROM daily_prices WHERE ticker = $1 AND date >= CURRENT_DATE - INTERVAL '13 months' ORDER BY date ASC`,
-      [ticker]
-    );
-    return rows.map(rowToSnapshot);
-  } catch {
-    return [];
-  }
+  const [rows] = await pool.query<DailyPriceRow[]>(
+    `SELECT ${DAILY_PRICE_COLUMNS} FROM daily_prices WHERE ticker = $1 AND date >= CURRENT_DATE - INTERVAL '13 months' ORDER BY date ASC`,
+    [ticker]
+  );
+  return rows.map(rowToSnapshot);
 };
 
 // 계산에 필요한 최소 필드만 요구 — 지수(IndexDailySnapshot) 등 다른 도메인 시계열도
