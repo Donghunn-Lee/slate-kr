@@ -69,7 +69,8 @@ def fetch_stock_amount(corp_code: str) -> Optional[int]:
 
     # 보통주 행의 istc_totqy(발행주식총수) 사용
     for item in data.get("list", []):
-        if item.get("se") == "보통주":
+        se = (item.get("se") or "").strip()
+        if se.startswith("보통주"):
             raw = item.get("istc_totqy", "").replace(",", "").strip()
             try:
                 val = int(raw)
