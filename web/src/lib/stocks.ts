@@ -26,7 +26,9 @@ export const getStockByTicker = cache(async (ticker: string): Promise<StockSumma
   const row = rows[0];
   const latestPrice = await getLatestPrice(row.ticker);
   const marketCap =
-    row.shares != null && latestPrice != null ? Number(row.shares) * latestPrice.close : null;
+    row.shares != null && Number(row.shares) > 0 && latestPrice != null
+      ? Number(row.shares) * latestPrice.close
+      : null;
 
   return {
     ticker: row.ticker,
