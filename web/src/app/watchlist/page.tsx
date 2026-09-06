@@ -12,6 +12,7 @@ import {
   type WatchlistItem,
 } from "@/features/watchlist/store/useWatchlistStore";
 import { useRecentVisitedStore } from "@/features/search/useRecentVisitedStore";
+import { useMemoStore } from "@/features/memo/store/useMemoStore";
 import { LIVE_TICKER_LIMIT, useMultiQuote } from "@/features/multi-quote/useMultiQuote";
 import { WatchlistRow, WatchlistRowSkeleton } from "@/entities/watchlist/WatchlistRow";
 import { StockPanel } from "@/entities/stock/StockPanel";
@@ -28,6 +29,7 @@ const WatchlistPage = () => {
   const syncStatus = useWatchlistStore((s) => s.syncStatus);
   const showSyncBadge = syncStatus === "blocked" || syncStatus === "error";
   const recentVisited = useRecentVisitedStore((s) => s.items);
+  const memos = useMemoStore((s) => s.memos);
 
   const sortedGroups = useMemo(() => [...groups].sort((a, b) => a.order - b.order), [groups]);
 
@@ -206,6 +208,7 @@ const WatchlistPage = () => {
                         liveQuote={liveQuotes[item.ticker]}
                         isLiveFailed={liveFailed[item.ticker] ?? false}
                         disclosure={countsMap[item.ticker]}
+                        hasMemo={item.ticker in memos}
                         onRemove={
                           isRecentTab || !currentGroup
                             ? undefined

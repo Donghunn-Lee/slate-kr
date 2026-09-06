@@ -2,7 +2,7 @@
 
 import type { MouseEvent } from "react";
 import Link from "next/link";
-import { Trash2 } from "lucide-react";
+import { NotebookText, Trash2 } from "lucide-react";
 import type { TickerPriceSummary } from "@/app/api/prices/route";
 import type { TickerDisclosureCount } from "@/app/api/disclosures/recent-count/route";
 import type { WatchlistItem } from "@/features/watchlist/store/useWatchlistStore";
@@ -17,6 +17,7 @@ type WatchlistRowProps = {
   // stock-quote(#077) StockHeaderLivePrice 배지 문자·색 동형.
   isLiveFailed?: boolean;
   disclosure?: TickerDisclosureCount;
+  hasMemo?: boolean;
   onRemove?: () => void;
 };
 
@@ -26,6 +27,7 @@ export const WatchlistRow = ({
   liveQuote,
   isLiveFailed = false,
   disclosure,
+  hasMemo = false,
   onRemove,
 }: WatchlistRowProps) => {
   const handleRemove = (e: MouseEvent) => {
@@ -56,11 +58,17 @@ export const WatchlistRow = ({
             <span className="shrink-0 font-mono text-[11px] leading-none text-muted-foreground md:text-xs">
               {item.ticker} · {item.market}
             </span>
-            <div className="ml-auto flex shrink-0 items-center gap-2">
+            <div className="ml-auto flex shrink-0 items-center gap-3">
               {isLiveFailed && (
                 <span className="rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-micro leading-none text-muted-foreground">
                   일시 지연
                 </span>
+              )}
+              {hasMemo && (
+                <div className="flex items-center gap-1.5 text-[11px] leading-none md:text-xs">
+                  <span className="text-muted-foreground">메모</span>
+                  <NotebookText className="h-4 w-4 text-sky-accent" />
+                </div>
               )}
               {disclosure?.count != null && disclosure.count > 0 && (
                 <div className="flex items-center gap-1.5 text-[11px] leading-none md:text-xs">
