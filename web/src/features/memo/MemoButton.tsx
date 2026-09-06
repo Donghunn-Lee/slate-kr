@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useSyncExternalStore } from "react";
-import { Check, NotebookPen, NotebookText, X } from "lucide-react";
+import { Check, NotebookPen, NotebookText, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -28,6 +28,7 @@ export const MemoButton = ({ ticker, name, market }: MemoButtonProps) => {
   );
 
   const [open, setOpen] = useState(false);
+  const [view, setView] = useState<"edit" | "confirm">("edit");
   const [draft, setDraft] = useState("");
   const memo = useMemoStore((s) => s.memos[ticker]);
   const syncStatus = useMemoStore((s) => s.syncStatus);
@@ -38,6 +39,7 @@ export const MemoButton = ({ ticker, name, market }: MemoButtonProps) => {
 
   const handleOpenChange = (next: boolean) => {
     if (next) setDraft(memo?.body ?? "");
+    else setView("edit");
     setOpen(next);
   };
 
@@ -59,13 +61,19 @@ export const MemoButton = ({ ticker, name, market }: MemoButtonProps) => {
     setOpen(false);
   };
 
+  const handleConfirmDelete = () => {
+    setMemo(ticker, { body: "", name, market });
+    setOpen(false);
+  };
+
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button
-          variant={hasMemo ? "secondary" : "outline"}
+          variant="outline"
           size="sm"
           aria-label={label}
+          className="aria-expanded:bg-background aria-expanded:text-foreground"
         >
           {hasMemo ? (
             <NotebookText className="text-sky-accent" />
@@ -81,49 +89,53 @@ export const MemoButton = ({ ticker, name, market }: MemoButtonProps) => {
       >
         <PopoverHeader className="flex flex-row items-center justify-between gap-2 px-3 pt-3 pb-2">
           <PopoverTitle>메모</PopoverTitle>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => setOpen(false)}
-            aria-label="닫기"
-          >
-            <X />
-          </Button>
-        </PopoverHeader>
-        <div className="px-3 pb-3">
-          <Textarea
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            maxLength={MAX_MEMO_BODY_LENGTH}
-            rows={6}
-            className="resize-none"
-            aria-label="메모 본문"
-          />
-          <div className="mt-2 flex items-center justify-between gap-2">
-            <div className="flex min-w-0 items-center gap-2">
-              <span className="text-caption text-muted-foreground tabular-nums">
-                {draft.length}/{MAX_MEMO_BODY_LENGTH}
-              </span>
-              {showSyncBadge && (
-                <span
-                  title="메모가 이 브라우저에만 저장되어 있어요"
-                  className="rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-micro leading-none text-muted-foreground"
-                >
-                  서버 저장 안 됨
-                </span>
-              )}
-            </div>
-            <div className="flex shrink-0 items-center gap-1">
+          <div className="flex items-center gap-1">
+            {hasMemo && view === "edit" && (
               <Button
                 type="button"
                 variant="ghost"
                 size="icon-sm"
-                onClick={() => setOpen(false)}
-                aria-label="취소"
+                onClick={() => setView("confirm")}
+                aria-label="메모 삭제"
               >
-                <X />
+                <Trash2 />
               </Button>
+            )}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setOpen(false)}
+              aria-label="닫기"
+            >
+              <X />
+            </Button>
+          </div>
+        </PopoverHeader>
+        {view === "edit" ? (
+          <div className="px-3 pb-3">
+            <Textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              maxLength={MAX_MEMO_BODY_LENGTH}
+              rows={6}
+              className="resize-none text-micro"
+              aria-label="메모 본문"
+            />
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="text-micro tabular-nums text-muted-foreground">
+                  {draft.length}/{MAX_MEMO_BODY_LENGTH}
+                </span>
+                {showSyncBadge && (
+                  <span
+                    title="메모가 이 브라우저에만 저장되어 있어요"
+                    className="rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-micro leading-none text-muted-foreground"
+                  >
+                    서버 저장 안 됨
+                  </span>
+                )}
+              </div>
               <Button
                 type="button"
                 variant="ghost"
@@ -136,7 +148,29 @@ export const MemoButton = ({ ticker, name, market }: MemoButtonProps) => {
               </Button>
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="px-3 pb-3">
+            <p className="text-body">정말 메모를 삭제할까요?</p>
+            <div className="mt-3 flex items-center justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setView("edit")}
+              >
+                취소
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={handleConfirmDelete}
+              >
+                삭제
+              </Button>
+            </div>
+          </div>
+        )}
       </PopoverContent>
     </Popover>
   );
