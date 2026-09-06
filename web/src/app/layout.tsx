@@ -8,6 +8,7 @@ import { RecentVisitedBar } from "@/components/layout/RecentVisitedBar";
 import { Footer } from "@/components/layout/Footer";
 import { IosInputZoomFix } from "@/shared/components/IosInputZoomFix";
 import { WatchlistSync } from "@/features/watchlist/WatchlistSync";
+import { MemoSync } from "@/features/memo/MemoSync";
 import { getMarketCalendar } from "@/lib/marketCalendar";
 
 const suit = localFont({
@@ -50,6 +51,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <Providers calendar={calendar}>
           <IosInputZoomFix />
           <WatchlistSync />
+          <MemoSync />
           <Navbar />
           <RecentVisitedBar />
           <div className="flex-1">{children}</div>
