@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { parsePutBody } from "./parsePutBody";
+import { watchlistSnapshotSchema } from "@/shared/types/watchlist";
 
 const GID = "11111111-1111-4111-8111-111111111111";
 
@@ -15,7 +16,10 @@ const validSnapshot = {
 
 describe("parsePutBody", () => {
   it("returns snapshot for a valid JSON body", () => {
-    const result = parsePutBody(JSON.stringify(validSnapshot));
+    const result = parsePutBody(
+      JSON.stringify(validSnapshot),
+      watchlistSnapshotSchema
+    );
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.snapshot.memberships[0].ticker).toBe("005930");
@@ -25,22 +29,25 @@ describe("parsePutBody", () => {
   it("returns 413 too_large when body exceeds 64KB", () => {
     // 64KB + 1 ASCII byte body — parse는 시도조차 하지 않는다.
     const oversized = "x".repeat(64 * 1024 + 1);
-    const result = parsePutBody(oversized);
+    const result = parsePutBody(oversized, watchlistSnapshotSchema);
     expect(result).toEqual({ ok: false, status: 413, kind: "too_large" });
   });
 
   it("returns 400 invalid_json when body is not JSON", () => {
-    const result = parsePutBody("not json");
+    const result = parsePutBody("not json", watchlistSnapshotSchema);
     expect(result).toEqual({ ok: false, status: 400, kind: "invalid_json" });
   });
 
   it("returns 400 invalid_snapshot when JSON does not match schema", () => {
-    const result = parsePutBody(JSON.stringify({}));
+    const result = parsePutBody(JSON.stringify({}), watchlistSnapshotSchema);
     expect(result).toEqual({ ok: false, status: 400, kind: "invalid_snapshot" });
   });
 
   it("returns 400 invalid_snapshot for extra top-level keys (strict guard)", () => {
-    const result = parsePutBody(JSON.stringify({ ...validSnapshot, extra: 1 }));
+    const result = parsePutBody(
+      JSON.stringify({ ...validSnapshot, extra: 1 }),
+      watchlistSnapshotSchema
+    );
     expect(result).toEqual({ ok: false, status: 400, kind: "invalid_snapshot" });
   });
 });

@@ -1,11 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { readAnonId, writeAnonCookies } from "@/lib/anon-id";
 import { getAnonWatchlist, upsertAnonWatchlist } from "@/lib/anon-watchlist";
-import type {
-  WatchlistGetResponse,
-  WatchlistPutResponse,
+import { parsePutBody } from "@/lib/parsePutBody";
+import {
+  watchlistSnapshotSchema,
+  type WatchlistGetResponse,
+  type WatchlistPutResponse,
 } from "@/shared/types/watchlist";
-import { parsePutBody } from "./parsePutBody";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +38,7 @@ export const GET = async () => {
 
 export const PUT = async (req: NextRequest) => {
   const text = await req.text();
-  const parsed = parsePutBody(text);
+  const parsed = parsePutBody(text, watchlistSnapshotSchema);
   if (!parsed.ok) {
     return json<WatchlistPutResponse>(
       { ok: false, error: { kind: parsed.kind } },
