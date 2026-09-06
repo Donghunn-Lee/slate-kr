@@ -34,7 +34,7 @@ AI 없이도 설득력 있어야 한다. AI는 투자 판단 도구가 아니라
 - **종목 상세**: Server Components + streaming, 섹션 단위 Suspense, generateMetadata
 - **정규화 레이어**: DB Row → 도메인 모델 변환, 순수 함수, Zod 검증
 - **fallback 구조**: 섹션별 독립 loading/error/empty, 부분 실패가 전체 실패로 번지지 않는 구조
-- **관심종목**: Zustand persist(localStorage) + 익명 쿠키 기반 서버 스냅샷 저장(`anon_watchlists` JSONB 1행), 로그인 없는 식별
+- **관심종목**: Zustand persist(localStorage) + 익명 쿠키 기반 서버 스냅샷 저장(`anon_watchlists` JSONB 1행), 로그인 없는 식별, 종목별 메모(서버 동기화 구조 재사용)
 - **공시**: 유형 분류, 체크포인트 배지, 요청형 AI 공시 요약
 - **AI 공시 요약**: `POST /api/disclosure-summary` API Route, Gemini 기반, DART 원문 ZIP 추출 → 요약 → DB 캐시, 3필드 구조화 출력(`headline / facts[] / detail`), Zod 스키마 단일 소스(`z.toJSONSchema` → Gemini `responseJsonSchema`, 응답도 같은 스키마로 `safeParse`), discriminated union 결과 타입(`SummarizeResult`), `not_summarizable` 분기(FINANCIAL 카테고리 차단), row 인라인 확장 UI (`DisclosuresSection` 내 `DisclosureItem` + `DisclosureSummaryBody`), 503 retry 로직
 - **재무 슬레이트**: 5년 연간 + 분기(Q1~Q4, Q4는 연간−Q1~Q3 파생), 20개 지표(배당 3행은 연간 전용, 성장률 3행은 YoY query-time 파생), 연간/분기 토글, 행=항목·열=기간 축 구조
@@ -225,6 +225,14 @@ DB / 외부 API
 - 재PUT 루프 차단은 "현재 스냅샷 == 마지막 확정 스냅샷이면 skip" 1규칙. jsonb 키 순서 미보존 → 정렬 정규화 후 비교
 - TanStack useMutation 미사용 — 서버 상태 SoT가 아니므로 raw fetch
 
+### 종목별 메모 (X8)
+
+- 관심종목과 독립. 서버는 `anon_memos` JSONB 스냅샷 1행, 서버 우선 단방향 덮어쓰기. 익명 쿠키(`slatekr_uid` + `slatekr_sync=1`)는 관심종목과 공용 — `lib/anon-id`
+- 스냅샷: `Record<ticker, { body, name, market, updatedAt }>`. body ≤ 500자, 항목 ≤ 200. 빈 본문 = 키 삭제(클라 책임 — 서버는 empty body 스키마 위반으로 거부)
+- `useMemoSync`는 `useWatchlistSync` 복제 단순판. 공용 훅으로 뽑지 않는다(사용처 2번째, 3번째부터 추상화 판단). 마이그레이션·dirtyDuringLoad 분기 없음
+- 편집은 종목 상세 헤더 `MemoButton` Popover만. 관심종목 행은 "메모" 라벨 표시 전용(비링크). `/watchlist`에 "메모" 고정 탭(최근 조회와 동급, 스토어 밖 상수 키)
+- `parsePutBody`는 `lib/` 공용 — 스냅샷 스키마를 인자로 받아 워치리스트·메모 route에서 공유
+
 ---
 
 ## 디자인 언어 — Slate 패널
@@ -308,7 +316,7 @@ SlateKR의 UI는 "slate(판)" 개념을 기반으로 한다.
 
 사용자 관점 도메인 단위로 표기한다. 폴더 이름과 반드시 일치할 필요는 없다.
 
-- **도메인 scope**: `home` / `indices` / `stock` / `chart` / `search` / `watchlist` / `ranking` / `disclosure` / `layout` / `ui` / `styleguide` / `api`
+- **도메인 scope**: `home` / `indices` / `stock` / `chart` / `search` / `watchlist` / `memo` / `ranking` / `disclosure` / `layout` / `ui` / `styleguide` / `api`
 - **디렉토리 scope** (도메인 성격 없음): `collector` / `ci`
 - **`web`**: 2개 이상 도메인을 관통하는 변경에만 사용한다. 단일 도메인이면 그 도메인 scope를 쓴다.
 
