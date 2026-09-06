@@ -28,6 +28,12 @@ export function Navbar() {
           >
             관심종목
           </Link>
+          <Link
+            href="/stocks/indices"
+            className="hidden transition-colors hover:text-foreground md:inline"
+          >
+            주요 지수
+          </Link>
           <a
             href="https://github.com/Donghunn-Lee/slate-kr"
             target="_blank"
