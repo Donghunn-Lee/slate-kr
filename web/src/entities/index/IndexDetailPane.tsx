@@ -207,6 +207,11 @@ export const IndexDetailPane = ({
     domesticLastCloseDate !== null &&
     kstToday !== null &&
     domesticLastCloseDate === kstToday;
+  // 장중 시각은 클라 시계가 아닌 셀 fetchedAt — 응답이 서버 캐시 히트여도 라벨이
+  // 실제 시세 조립 시각을 가리키게 한다.
+  const domesticFetchedAt = isDomestic
+    ? data?.quotes[selected as DomesticIndexCode]?.fetchedAt ?? null
+    : null;
   const domesticSourceLabel = domesticSourceIsToday
     ? "장 마감 · 15:30"
     : domesticLastCloseDate
@@ -249,7 +254,9 @@ export const IndexDetailPane = ({
     ? now === null
       ? "장 마감"
       : isKrxRegular
-        ? `장중 · ${formatClock(now)}`
+        ? domesticFetchedAt !== null
+          ? `장중 · ${formatClock(new Date(domesticFetchedAt))}`
+          : "장중"
         : domesticSourceLabel
     : overseasState?.kind === "live" && overseasKstTime
       ? `${overseasKstTime} 기준`

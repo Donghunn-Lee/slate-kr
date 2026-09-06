@@ -173,16 +173,20 @@ const formatClock = (d: Date): string =>
 // 라벨 규칙: 표시 값이 당일 세션 값이면 `장 마감 · 15:30`, 다른 날이면 `전일 종가 · MM.DD`.
 // 개장 전 창(pre/preopen)은 `개장 전 · [source]` 로 상태 접두어 부착. 종목 헤더
 // (`stockHeaderLabel.ts`) 와 MM.DD 포맷 통일.
+// 장중 시각은 클라 시계가 아닌 셀 fetchedAt — 응답이 서버 캐시 히트여도 라벨이
+// 실제 시세 조립 시각을 가리키게 한다.
 const MarketStatus = ({
   marketOpen,
   beforeOpen,
   hasLive,
   fallbackDate,
+  fetchedAt,
 }: {
   marketOpen: boolean;
   beforeOpen: boolean;
   hasLive: boolean;
   fallbackDate?: string;
+  fetchedAt: number | null;
 }) => {
   const now = useNow();
   const calendar = useMarketCalendar();
@@ -191,7 +195,7 @@ const MarketStatus = ({
     return (
       <div className="flex items-center gap-1.5 text-body-sm text-muted-foreground">
         <span className="inline-block size-1.5 rounded-full bg-emerald-500" aria-hidden />
-        <span>장중{now ? ` · ${formatClock(now)}` : ""}</span>
+        <span>장중{fetchedAt !== null ? ` · ${formatClock(new Date(fetchedAt))}` : ""}</span>
       </div>
     );
   }
@@ -263,6 +267,16 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
     return out;
   }, [data]);
 
+  // 헤더는 4셀을 한 시각으로 대표하므로 가장 오래된 fetchedAt 을 택한다 —
+  // 어떤 셀보다도 새 시각을 주장하지 않도록.
+  const oldestFetchedAt = useMemo<number | null>(() => {
+    if (!data) return null;
+    const stamps = DOMESTIC_INDEX_CODES.map(
+      (code) => data.quotes[code].fetchedAt,
+    ).filter((t): t is number => t !== null);
+    return stamps.length > 0 ? Math.min(...stamps) : null;
+  }, [data]);
+
   return (
     <section>
       <div className="mb-4 flex items-center justify-between">
@@ -274,6 +288,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
               beforeOpen={beforeOpen}
               hasLive={data.quotes.KOSPI.live !== null}
               fallbackDate={data.quotes.KOSPI.fallback?.date}
+              fetchedAt={oldestFetchedAt}
             />
           ) : null}
         </div>
