@@ -73,7 +73,6 @@ export const MemoButton = ({ ticker, name, market }: MemoButtonProps) => {
           variant="outline"
           size="sm"
           aria-label={label}
-          className="aria-expanded:bg-background aria-expanded:text-foreground"
         >
           {hasMemo ? (
             <NotebookText className="text-sky-accent" />
