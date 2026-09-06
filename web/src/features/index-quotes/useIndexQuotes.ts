@@ -6,6 +6,10 @@ import type { KrxSession } from "@/shared/utils/market";
 export type IndexCellData = {
   live: IndexQuote | null;
   fallback: IndexDailySnapshot | null;
+  // 셀 데이터를 조립한 시각 (epoch ms) — 클라 수신 시각이 아니라 서버 캐시 단위
+  // 내부에서 캡처된 값이라 캐시 히트 시에도 원 시각이 유지된다.
+  // 해외 셀은 서버 조립 시각이 없어 null (buildIndexCell).
+  fetchedAt: number | null;
 };
 
 export type IndexQuotesResponse = {

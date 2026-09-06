@@ -50,6 +50,7 @@ const domesticCell = (
     ...over,
   },
   fallback: null,
+  fetchedAt: 1_757_000_000_000,
 });
 
 const overseasQuote = (over: Partial<IndexQuote> = {}): IndexQuote => ({
@@ -206,6 +207,7 @@ describe("buildIndexCell", () => {
         change: 15,
         changeRate: 0.54,
       },
+      fetchedAt: 1_757_000_000_000,
     };
     const cell = buildIndexCell({
       isDomestic: true,
@@ -221,6 +223,7 @@ describe("buildIndexCell", () => {
     expect(cell?.live?.changeRate).toBe(0.54);
     expect(cell?.live?.sign).toBe("up");
     expect(cell?.fallback).toBe(dc.fallback);
+    expect(cell?.fetchedAt).toBe(dc.fetchedAt);
   });
 
   it("국내 · pre + live+fallback (하락) → sign='down'", () => {
@@ -236,6 +239,7 @@ describe("buildIndexCell", () => {
         change: -12,
         changeRate: -0.43,
       },
+      fetchedAt: 1_757_000_000_000,
     };
     const cell = buildIndexCell({
       isDomestic: true,
@@ -279,7 +283,7 @@ describe("buildIndexCell", () => {
   });
 
   it("국내 · preopen 이지만 live 없음 → 스왑 없음 (동일 참조)", () => {
-    const dc: IndexCellData = { live: null, fallback: null };
+    const dc: IndexCellData = { live: null, fallback: null, fetchedAt: null };
     const cell = buildIndexCell({
       isDomestic: true,
       name: "코스피",

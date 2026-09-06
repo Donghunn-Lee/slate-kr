@@ -58,6 +58,7 @@ export const buildIndexCell = ({
           sign: change > 0 ? "up" : change < 0 ? "down" : "flat",
         },
         fallback: domesticCell.fallback,
+        fetchedAt: domesticCell.fetchedAt,
       };
     }
     return domesticCell;
@@ -67,6 +68,7 @@ export const buildIndexCell = ({
       // quote.name 은 KIS 응답 hts_kor_isnm — 호출측 name(INDEX_LABEL[code]) 을 우선.
       live: { ...overseasQuote, name },
       fallback: null,
+      fetchedAt: null,
     };
   }
   if (overseasLatestBar) {
@@ -90,8 +92,9 @@ export const buildIndexCell = ({
         time: null,
       },
       fallback: null,
+      fetchedAt: null,
     };
   }
-  if (latestDaily) return { live: null, fallback: latestDaily };
+  if (latestDaily) return { live: null, fallback: latestDaily, fetchedAt: null };
   return undefined;
 };
