@@ -40,10 +40,10 @@ export default function CreditsPage() {
         <h2 className="text-lg font-semibold">쿠키 사용 안내</h2>
         <StockPanel>
           <p className="text-body">
-            관심종목 서버 저장을 위해 익명 식별 쿠키(1년)를 사용합니다.
+            관심종목·메모 서버 저장을 위해 익명 식별 쿠키(1년)를 사용합니다.
           </p>
           <p className="mt-2 text-body">
-            개인정보는 수집하지 않으며, 쿠키를 삭제하면 서버에 저장된 관심종목과의 연결이 끊깁니다.
+            개인정보는 수집하지 않으며, 쿠키를 삭제하면 서버에 저장된 관심종목·메모와의 연결이 끊깁니다.
           </p>
         </StockPanel>
       </section>

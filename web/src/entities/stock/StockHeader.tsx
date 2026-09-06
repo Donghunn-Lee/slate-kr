@@ -8,6 +8,7 @@ import { fetchStockMarketAction } from "@/lib/kis-quote-fetch";
 import { fetchNxEligible } from "@/lib/quoteSnapshots";
 import { formatVolume, formatMarketCap } from "@/shared/format";
 import { WatchlistButton } from "@/features/watchlist/WatchlistButton";
+import { MemoButton } from "@/features/memo/MemoButton";
 import { StockPanel } from "./StockPanel";
 import { StockHeaderLivePrice } from "./StockHeaderLivePrice";
 import { MarketActionBadge } from "./MarketActionBadge";
@@ -96,7 +97,10 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
               </a>
             )}
           </div>
-          <WatchlistButton ticker={ticker} name={stock.name} market={stock.market} />
+          <div className="flex items-center gap-2">
+            <MemoButton ticker={ticker} name={stock.name} market={stock.market} />
+            <WatchlistButton ticker={ticker} name={stock.name} market={stock.market} />
+          </div>
         </div>
         <p className="mt-3 text-body text-muted-foreground">
           {hasError ? "가격 데이터를 불러오지 못했습니다" : "가격 데이터 없음"}
@@ -134,7 +138,10 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
             </a>
           )}
         </div>
-        <WatchlistButton ticker={ticker} name={stock.name} market={stock.market} />
+        <div className="flex items-center gap-2">
+          <MemoButton ticker={ticker} name={stock.name} market={stock.market} />
+          <WatchlistButton ticker={ticker} name={stock.name} market={stock.market} />
+        </div>
       </div>
 
       <StockHeaderLivePrice
