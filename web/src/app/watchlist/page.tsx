@@ -13,6 +13,7 @@ import {
 } from "@/features/watchlist/store/useWatchlistStore";
 import { useRecentVisitedStore } from "@/features/search/useRecentVisitedStore";
 import { useMemoStore } from "@/features/memo/store/useMemoStore";
+import { selectMemoItems } from "@/features/memo/store/selectMemoItems";
 import { LIVE_TICKER_LIMIT, useMultiQuote } from "@/features/multi-quote/useMultiQuote";
 import { WatchlistRow, WatchlistRowSkeleton } from "@/entities/watchlist/WatchlistRow";
 import { StockPanel } from "@/entities/stock/StockPanel";
@@ -21,6 +22,7 @@ import { GroupManagementModal } from "@/features/watchlist/GroupManagementModal"
 import { cn } from "@/lib/utils";
 
 const RECENT_TAB = "recent" as const;
+const MEMO_TAB = "memo" as const;
 
 const WatchlistPage = () => {
   const groups = useWatchlistStore((s) => s.groups);
@@ -38,23 +40,34 @@ const WatchlistPage = () => {
 
   const effectiveTab = useMemo(() => {
     if (selectedTab === RECENT_TAB) return RECENT_TAB;
+    if (selectedTab === MEMO_TAB) return MEMO_TAB;
     return sortedGroups.find((g) => g.id === selectedTab)?.id ?? RECENT_TAB;
   }, [selectedTab, sortedGroups]);
 
   const isRecentTab = effectiveTab === RECENT_TAB;
+  const isMemoTab = effectiveTab === MEMO_TAB;
+  const isFixedTab = isRecentTab || isMemoTab;
 
   const currentGroup = useMemo(
-    () => (isRecentTab ? null : (sortedGroups.find((g) => g.id === effectiveTab) ?? null)),
-    [isRecentTab, sortedGroups, effectiveTab]
+    () => (isFixedTab ? null : (sortedGroups.find((g) => g.id === effectiveTab) ?? null)),
+    [isFixedTab, sortedGroups, effectiveTab]
   );
 
   const groupMemberships = useWatchlistStore(
-    useShallow((s) => (isRecentTab ? [] : selectTickersByGroup(s, effectiveTab)))
+    useShallow((s) => (isFixedTab ? [] : selectTickersByGroup(s, effectiveTab)))
   );
 
   const displayItems = useMemo<WatchlistItem[]>(() => {
     if (isRecentTab) {
       return recentVisited.map((v, idx) => ({
+        ticker: v.ticker,
+        name: v.name,
+        market: v.market,
+        addedAt: -idx,
+      }));
+    }
+    if (isMemoTab) {
+      return selectMemoItems(memos).map((v, idx) => ({
         ticker: v.ticker,
         name: v.name,
         market: v.market,
@@ -68,7 +81,7 @@ const WatchlistPage = () => {
         return { ticker: m.ticker, name: meta.name, market: meta.market, addedAt: m.addedAt };
       })
       .filter((x): x is WatchlistItem => x !== null);
-  }, [isRecentTab, recentVisited, groupMemberships, stockMeta]);
+  }, [isRecentTab, isMemoTab, recentVisited, memos, groupMemberships, stockMeta]);
 
   const tickersKey = displayItems.map((i) => i.ticker).join(",");
 
@@ -110,10 +123,13 @@ const WatchlistPage = () => {
   );
   const { quotes: liveQuotes, failed: liveFailed } = useMultiQuote(liveTickers);
 
-  const tabs: Array<{ key: string; label: string }> = [
+  const fixedTabs: Array<{ key: string; label: string }> = [
     { key: RECENT_TAB, label: "최근 조회" },
-    ...sortedGroups.map((g) => ({ key: g.id, label: g.name })),
+    { key: MEMO_TAB, label: "메모" },
   ];
+  const groupTabs: Array<{ key: string; label: string }> = sortedGroups.map(
+    (g) => ({ key: g.id, label: g.name })
+  );
 
   const tabButtonClass = (selected: boolean, layout: "horizontal" | "vertical") =>
     cn(
@@ -124,7 +140,17 @@ const WatchlistPage = () => {
         : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
     );
 
-  const emptyMessage = isRecentTab ? "최근 조회한 종목이 없습니다" : "이 그룹에 종목이 없습니다";
+  const emptyMessage = isRecentTab
+    ? "최근 조회한 종목이 없습니다"
+    : isMemoTab
+      ? "메모한 종목이 없습니다"
+      : "이 그룹에 종목이 없습니다";
+
+  const currentTabLabel = isRecentTab
+    ? "최근 조회"
+    : isMemoTab
+      ? "메모"
+      : (currentGroup?.name ?? null);
 
   return (
     <main className="container mx-auto max-w-4xl space-y-3 px-4 py-5 sm:space-y-4 sm:py-8">
@@ -141,7 +167,20 @@ const WatchlistPage = () => {
       </div>
 
       <nav aria-label="관심종목 그룹" className="flex items-center gap-1 overflow-x-auto md:hidden">
-        {tabs.map((t) => (
+        {fixedTabs.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => setSelectedTab(t.key)}
+            className={tabButtonClass(effectiveTab === t.key, "horizontal")}
+          >
+            {t.label}
+          </button>
+        ))}
+        {groupTabs.length > 0 && (
+          <span aria-hidden className="mx-1 h-5 w-px shrink-0 bg-border" />
+        )}
+        {groupTabs.map((t) => (
           <button
             key={t.key}
             type="button"
@@ -156,7 +195,23 @@ const WatchlistPage = () => {
       <div className="flex gap-6">
         <aside className="hidden w-44 shrink-0 md:block">
           <ul className="space-y-1" aria-label="관심종목 그룹">
-            {tabs.map((t) => (
+            {fixedTabs.map((t) => (
+              <li key={t.key}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTab(t.key)}
+                  className={tabButtonClass(effectiveTab === t.key, "vertical")}
+                >
+                  {t.label}
+                </button>
+              </li>
+            ))}
+            {groupTabs.length > 0 && (
+              <li aria-hidden>
+                <div className="my-1 h-px bg-border" />
+              </li>
+            )}
+            {groupTabs.map((t) => (
               <li key={t.key}>
                 <button
                   type="button"
@@ -172,11 +227,11 @@ const WatchlistPage = () => {
 
         <section className="min-w-0 flex-1">
           <header className="mb-3 flex h-8 items-center gap-2">
-            {isRecentTab ? (
-              <h2 className="text-sm font-medium text-foreground">최근 조회</h2>
-            ) : currentGroup ? (
-              <h2 className="truncate text-sm font-medium text-foreground">{currentGroup.name}</h2>
-            ) : null}
+            {currentTabLabel !== null && (
+              <h2 className="truncate text-sm font-medium text-foreground">
+                {currentTabLabel}
+              </h2>
+            )}
             <Button
               type="button"
               variant="ghost"
@@ -210,7 +265,7 @@ const WatchlistPage = () => {
                         disclosure={countsMap[item.ticker]}
                         hasMemo={item.ticker in memos}
                         onRemove={
-                          isRecentTab || !currentGroup
+                          isFixedTab || !currentGroup
                             ? undefined
                             : () => removeMembership(item.ticker, currentGroup.id)
                         }
@@ -225,7 +280,7 @@ const WatchlistPage = () => {
       <GroupManagementModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        initialGroupId={isRecentTab ? null : effectiveTab}
+        initialGroupId={isFixedTab ? null : effectiveTab}
       />
     </main>
   );
