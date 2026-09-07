@@ -27,6 +27,7 @@ import {
   getKrxLastCloseDate,
   getKstDateAndMinutes,
   isKrxBeforeMarketOpen,
+  isKrxOpeningWindow,
 } from "@/shared/utils/market";
 import { buildIndexCell } from "@/shared/utils/buildIndexCell";
 import { cn } from "@/lib/utils";
@@ -233,9 +234,14 @@ const derivePrevClose = (
 export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
   const { data, isLoading, isError } = useIndexQuotes();
   const { data: intraday, isLoading: intradayLoading } = useIndexIntraday();
+  const now = useNow();
+  const calendar = useMarketCalendar();
   // 국내 개장 전(pre · preopen). intraday 서버가 [] 를 돌려주므로 미니차트 empty
   // 문구를 "장중 데이터 없음" 대신 "개장 전" 으로 대체하고 헤더 라벨도 3-state 로 확장.
   const beforeOpen = isKrxBeforeMarketOpen(data?.session);
+  // 개장 전 창 판정은 클라 시계 축. now=null(SSR·첫 렌더)은 false 로 흘려 hydration 유지.
+  const openingWindow =
+    now !== null && isKrxOpeningWindow(data?.session, now, calendar);
 
   const displayByCode = useMemo<Record<DomesticIndexCode, DomesticDisplay>>(() => {
     const out = {} as Record<DomesticIndexCode, DomesticDisplay>;
@@ -249,7 +255,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
     return out;
   }, [intraday]);
 
-  // pre/preopen 창의 등락 스왑을 /indices 표면과 동일하게 buildIndexCell 로 통과 —
+  // 개장 전 등락 규칙을 /indices 표면과 동일하게 buildIndexCell 로 통과 —
   // 홈과 상세 표면이 같은 셀 규칙을 공유하도록 한다.
   const cellByCode = useMemo<Record<DomesticIndexCode, IndexCellData | undefined> | null>(() => {
     if (!data) return null;
@@ -262,10 +268,11 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
         overseasLatestBar: null,
         latestDaily: null,
         session: data.session,
+        openingWindow,
       });
     }
     return out;
-  }, [data]);
+  }, [data, openingWindow]);
 
   // 헤더는 4셀을 한 시각으로 대표하므로 가장 오래된 fetchedAt 을 택한다 —
   // 어떤 셀보다도 새 시각을 주장하지 않도록.

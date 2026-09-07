@@ -26,6 +26,7 @@ import {
   getKrxLastCloseDate,
   getKrxSessionState,
   getKstDateAndMinutes,
+  isKrxOpeningWindow,
 } from "@/shared/utils/market";
 import { useNow } from "@/shared/hooks/useNow";
 import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
@@ -162,6 +163,7 @@ export const IndexDetailPane = ({
   volumeByIndex,
 }: IndexDetailPaneProps) => {
   const calendar = useMarketCalendar();
+  const now = useNow();
   const meta = getIndexMeta(selected);
   const isDomestic = meta.region === "domestic";
   const isOverseasIntraday = isOverseasIntradayCode(selected);
@@ -194,10 +196,12 @@ export const IndexDetailPane = ({
     overseasLatestBar,
     latestDaily,
     session: data?.session,
+    // 개장 전 창 판정은 클라 시계 축. now=null(SSR·첫 렌더)은 false.
+    openingWindow:
+      now !== null && isKrxOpeningWindow(data?.session, now, calendar),
   });
 
   // 라벨은 request time 기준: 국내는 client clock 으로 세션 판정, 해외는 quote.time 판정.
-  const now = useNow();
   const isKrxRegular = isDomestic && now !== null && getKrxSessionState(now, calendar) === "regular";
   // 국내 마감 라벨 소스: pre 세션에서도 전일 반환하는 getKrxLastCloseDate 사용.
   // 종목 헤더(`stockHeaderLabel.ts`)와 동일한 MM.DD 포맷·today-vs-past 규칙을 공유.

@@ -23,6 +23,9 @@ import { useIndexQuotes } from "@/features/index-quotes/useIndexQuotes";
 import { useOverseasIndexIntraday } from "@/features/index-quotes/useOverseasIndexIntraday";
 import { useOverseasIndexQuotes } from "@/features/index-quotes/useOverseasIndexQuotes";
 import { buildIndexCell } from "@/shared/utils/buildIndexCell";
+import { isKrxOpeningWindow } from "@/shared/utils/market";
+import { useNow } from "@/shared/hooks/useNow";
+import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
 import { cn } from "@/lib/utils";
 
 type IndexRailProps = {
@@ -56,6 +59,11 @@ export const IndexRail = ({
   const overseasIntradayQuery = useOverseasIndexIntraday();
   // 해외 quote 폴링 (8종 라이브). DetailPane·홈 IndexChipStrip 과 queryKey 공유 → dedup.
   const overseasQuotesQuery = useOverseasIndexQuotes();
+  // 개장 전 창 판정은 클라 시계 축. now=null(SSR·첫 렌더)은 false 로 흘려 hydration 유지.
+  const now = useNow();
+  const calendar = useMarketCalendar();
+  const openingWindow =
+    now !== null && isKrxOpeningWindow(data?.session, now, calendar);
   // 두 섹션 모두 기본 열림. 사용자가 접으면 그 상태를 유지 — 선택 지수가 있는
   // 섹션을 강제로 다시 열지는 않는다(선택 이동 자체는 하이라이트로 충분).
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>(
@@ -112,6 +120,7 @@ export const IndexRail = ({
                   overseasLatestBar,
                   latestDaily,
                   session: data?.session,
+                  openingWindow,
                 });
                 const isSelected = selected === code;
                 const showSkeleton = isDomestic && isLoading && !cell;

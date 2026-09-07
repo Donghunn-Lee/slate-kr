@@ -17,6 +17,9 @@ import { useIndexQuotes } from "@/features/index-quotes/useIndexQuotes";
 import { useOverseasIndexIntraday } from "@/features/index-quotes/useOverseasIndexIntraday";
 import { useOverseasIndexQuotes } from "@/features/index-quotes/useOverseasIndexQuotes";
 import { buildIndexCell } from "@/shared/utils/buildIndexCell";
+import { isKrxOpeningWindow } from "@/shared/utils/market";
+import { useNow } from "@/shared/hooks/useNow";
+import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
 import { cn } from "@/lib/utils";
 
 type IndexChipStripProps = {
@@ -39,6 +42,11 @@ export const IndexChipStrip = ({
   const overseasIntradayQuery = useOverseasIndexIntraday();
   const overseasQuotesQuery = useOverseasIndexQuotes();
   const selectedRef = useRef<HTMLButtonElement | null>(null);
+  // 개장 전 창 판정은 클라 시계 축. now=null(SSR·첫 렌더)은 false 로 흘려 hydration 유지.
+  const now = useNow();
+  const calendar = useMarketCalendar();
+  const openingWindow =
+    now !== null && isKrxOpeningWindow(data?.session, now, calendar);
 
   // 초기 마운트 및 selected 변경 시 선택 칩을 가시 영역으로. inline: "nearest" +
   // block: "nearest" 로 이미 보이는 축은 스크롤 유발 없음 — URL ?index= 초기값이
@@ -75,6 +83,7 @@ export const IndexChipStrip = ({
       overseasLatestBar,
       latestDaily,
       session: data?.session,
+      openingWindow,
     });
     const isSelected = selected === code;
     const showSkeleton = isDomestic && isLoading && !cell;

@@ -110,6 +110,16 @@ export const isKrxBeforeMarketOpen = (
   session: KrxSession | undefined,
 ): boolean => session === "pre" || session === "preopen";
 
+// 개장 전 표시 창 — pre(08:00~08:50) + 늦은 preopen(08:50~09:00).
+// 이 창은 KRX 기준가가 이미 오늘 거래일로 리셋된 구간이라 전일 일중 등락을 얹으면
+// 오늘 등락으로 오독된다. 이른 preopen(06:00~08:00)은 제외 — 직전 마감 표면을 유지.
+// session 은 서버 응답 축, 늦은 preopen 판정만 클라 시계로 좁힌다.
+export const isKrxOpeningWindow = (
+  session: KrxSession | undefined,
+  now: Date = new Date(),
+  calendar?: MarketCalendar,
+): boolean => session === "pre" || isKrxLatePreopen(now, calendar);
+
 // KST 캘린더 일자와 분(0~1439) — 세션 무관, 순수 KST 파싱만.
 export const getKstDateAndMinutes = (
   now: Date = new Date(),

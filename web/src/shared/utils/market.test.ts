@@ -12,6 +12,7 @@ import {
   isKrxBeforeMarketOpen,
   isKrxEarlyPreopen,
   isKrxLatePreopen,
+  isKrxOpeningWindow,
   isOverseasIndexHoliday,
   isUsMarketOpen,
   minutesSinceKrxClose,
@@ -606,5 +607,29 @@ describe("isKrxBeforeMarketOpen", () => {
   });
   it("undefined → false (초기 로드 스켈레톤 · 게이트 오작동 방지)", () => {
     expect(isKrxBeforeMarketOpen(undefined)).toBe(false);
+  });
+});
+
+describe("isKrxOpeningWindow", () => {
+  it("07:59 preopen → false (이른 preopen 은 직전 마감 표면 유지)", () => {
+    expect(isKrxOpeningWindow("preopen", kst(2026, 7, 23, 7, 59))).toBe(false);
+  });
+  it("08:00 pre → true (창 시작 경계 포함)", () => {
+    expect(isKrxOpeningWindow("pre", kst(2026, 7, 23, 8, 0))).toBe(true);
+  });
+  it("08:49 pre → true", () => {
+    expect(isKrxOpeningWindow("pre", kst(2026, 7, 23, 8, 49))).toBe(true);
+  });
+  it("08:50 preopen → true (늦은 preopen 진입)", () => {
+    expect(isKrxOpeningWindow("preopen", kst(2026, 7, 23, 8, 50))).toBe(true);
+  });
+  it("08:59 preopen → true", () => {
+    expect(isKrxOpeningWindow("preopen", kst(2026, 7, 23, 8, 59))).toBe(true);
+  });
+  it("09:00 regular → false (정규장은 라이브 등락 그대로)", () => {
+    expect(isKrxOpeningWindow("regular", kst(2026, 7, 23, 9, 0))).toBe(false);
+  });
+  it("closed → false (주말·공휴일)", () => {
+    expect(isKrxOpeningWindow("closed", kst(2026, 7, 26, 8, 55))).toBe(false);
   });
 });
