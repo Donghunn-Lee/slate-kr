@@ -117,7 +117,7 @@ const GroupNameInline = ({
       onBlur={commit}
       aria-label={ariaLabel}
       maxLength={MAX_GROUP_NAME_LENGTH}
-      className={cn("h-7 text-sm", className)}
+      className={cn("h-7 text-body", className)}
     />
   );
 };
@@ -225,12 +225,9 @@ export const GroupManagementModal = ({
       .map((m) => {
         const meta = local.stockMeta[m.ticker];
         if (!meta) return null;
-        return { ticker: m.ticker, name: meta.name, market: meta.market };
+        return { ticker: m.ticker, name: meta.name };
       })
-      .filter(
-        (x): x is { ticker: string; name: string; market: "KOSPI" | "KOSDAQ" } =>
-          x !== null
-      );
+      .filter((x): x is { ticker: string; name: string } => x !== null);
   }, [local.memberships, local.stockMeta, selectedGroup]);
 
   const showDropdown =
@@ -377,7 +374,7 @@ export const GroupManagementModal = ({
         <DialogContent className="flex h-[85dvh] max-h-[90dvh] flex-col sm:h-[680px] sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>관심종목 그룹 관리</DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-body">
               그룹 추가·이름 변경·순서 변경과 그룹 내 종목 편집을 한 곳에서 진행합니다.
             </DialogDescription>
           </DialogHeader>
@@ -396,7 +393,7 @@ export const GroupManagementModal = ({
                         type="button"
                         onClick={() => setSelectedId(g.id)}
                         className={cn(
-                          "block w-full truncate rounded-md px-2 py-1.5 text-left text-sm transition-colors",
+                          "block w-full truncate rounded-md px-2 py-1.5 text-left text-body transition-colors",
                           isSelected ? "bg-muted" : "hover:bg-muted/40"
                         )}
                       >
@@ -417,7 +414,7 @@ export const GroupManagementModal = ({
                   <button
                     type="button"
                     onClick={() => setIsCreating(true)}
-                    className="flex w-full items-center gap-1 rounded-md px-3 py-2 text-left text-sm text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                    className="flex w-full items-center gap-1 rounded-md px-3 py-2 text-left text-body text-muted-foreground hover:bg-muted/40 hover:text-foreground"
                   >
                     <Plus className="size-4" />
                     그룹 추가
@@ -437,11 +434,11 @@ export const GroupManagementModal = ({
                       ariaLabel="그룹 이름 변경"
                     />
                   ) : selectedGroup ? (
-                    <div className="truncate text-sm font-medium">
+                    <div className="truncate text-body font-medium">
                       {selectedGroup.name}
                     </div>
                   ) : (
-                    <div className="truncate text-sm text-muted-foreground">
+                    <div className="truncate text-body text-muted-foreground">
                       관심 그룹 선택
                     </div>
                   )}
@@ -501,7 +498,7 @@ export const GroupManagementModal = ({
               </div>
 
               {!selectedGroup ? (
-                <p className="mt-3 text-sm text-muted-foreground">
+                <p className="mt-3 text-body text-muted-foreground">
                   왼쪽에서 그룹을 선택하거나 새로 만드세요.
                 </p>
               ) : (
@@ -518,17 +515,17 @@ export const GroupManagementModal = ({
                       onFocus={() => setSearchDismissed(false)}
                       onKeyDown={handleSearchKeyDown}
                       autoComplete="off"
-                      className="h-8 text-sm"
+                      className="h-8 text-body"
                       aria-label="종목 검색"
                     />
                     {showDropdown && (
                       <div className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-md border bg-popover shadow-md">
                         {searchLoading ? (
-                          <div className="px-3 py-2 text-sm text-muted-foreground">
+                          <div className="px-3 py-2 text-body text-muted-foreground">
                             검색 중...
                           </div>
                         ) : searchResults.length === 0 ? (
-                          <div className="px-3 py-2 text-sm text-muted-foreground">
+                          <div className="px-3 py-2 text-body text-muted-foreground">
                             검색 결과가 없습니다
                           </div>
                         ) : (
@@ -557,7 +554,7 @@ export const GroupManagementModal = ({
                                     }}
                                     onMouseEnter={() => setActiveIndex(index)}
                                     className={cn(
-                                      "flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors",
+                                      "flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-body transition-colors",
                                       added
                                         ? active
                                           ? "bg-muted/60 text-muted-foreground"
@@ -571,15 +568,12 @@ export const GroupManagementModal = ({
                                       <span className="truncate font-medium">
                                         {r.name}
                                       </span>
-                                      <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                                      <span className="shrink-0 font-mono text-caption text-muted-foreground">
                                         {r.ticker}
-                                      </span>
-                                      <span className="shrink-0 text-[10px] text-muted-foreground">
-                                        {r.market}
                                       </span>
                                     </div>
                                     {added && (
-                                      <span className="shrink-0 text-xs text-muted-foreground">
+                                      <span className="shrink-0 text-caption text-muted-foreground">
                                         등록됨
                                       </span>
                                     )}
@@ -593,12 +587,12 @@ export const GroupManagementModal = ({
                     )}
                   </div>
 
-                  <div className="mt-3 shrink-0 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                  <div className="mt-3 shrink-0 text-micro font-medium uppercase tracking-wider text-muted-foreground">
                     목록
                   </div>
                   <div className="mt-2 min-h-0 flex-1 overflow-y-auto">
                     {selectedTickers.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-body text-muted-foreground">
                         이 그룹에 종목이 없습니다.
                       </p>
                     ) : (
@@ -609,15 +603,12 @@ export const GroupManagementModal = ({
                           return (
                             <li
                               key={t.ticker}
-                              className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 hover:bg-muted/40"
+                              className="flex items-center justify-between gap-2 rounded-md px-2 py-1 hover:bg-muted/40"
                             >
                               <div className="flex min-w-0 items-center gap-2">
-                                <span className="truncate text-sm">{t.name}</span>
-                                <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                                <span className="truncate text-body">{t.name}</span>
+                                <span className="shrink-0 font-mono text-caption text-muted-foreground">
                                   {t.ticker}
-                                </span>
-                                <span className="shrink-0 text-[10px] text-muted-foreground">
-                                  {t.market}
                                 </span>
                               </div>
                               <div className="flex items-center gap-1">
