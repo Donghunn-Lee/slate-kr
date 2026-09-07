@@ -70,7 +70,7 @@ export const GET = async (req: NextRequest) => {
       }
     }
 
-    return NextResponse.json({ quotes, failed, marketOpen, session });
+    return NextResponse.json({ quotes, failed, marketOpen, session, tradingDate: date });
   } catch (err: unknown) {
     // 200 + quotes:{ticker:null...} + failed:{ticker:true...} 로 collapse.
     // single stock-quote(#077) 동형 — 소비측이 세션 라벨은 유지한 채 종목별 "일시 지연"
@@ -82,6 +82,7 @@ export const GET = async (req: NextRequest) => {
       failed: Object.fromEntries(tickers.map((t) => [t, true])),
       marketOpen,
       session,
+      tradingDate: date,
     });
   }
 };

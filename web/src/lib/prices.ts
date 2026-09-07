@@ -85,6 +85,8 @@ export const getLatestPrice = cache(async (ticker: string): Promise<StockPriceSn
 // 결과에서 누락된 ticker(시세 없음)는 caller 가 부재로 처리한다.
 export type LatestPriceSummary = {
   close: number;
+  // close 가 속한 거래일.
+  date: string;
   change: number | null;
   changeRate: number | null;
   volume: number;
@@ -93,6 +95,7 @@ export type LatestPriceSummary = {
 type LatestPriceRow = {
   ticker: string;
   close: number;
+  date: string;
   volume: number;
   prev_close: number | null;
 };
@@ -106,14 +109,14 @@ export const getLatestPricesByTickers = async (
 
   const [rows] = await pool.query<LatestPriceRow[]>(
     `WITH ranked AS (
-       SELECT ticker, close, volume,
+       SELECT ticker, close, volume, to_char(date, 'YYYY-MM-DD') AS date,
               LAG(close) OVER (PARTITION BY ticker ORDER BY date) AS prev_close,
               ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY date DESC) AS rn
        FROM daily_prices
        WHERE ticker IN (${placeholders})
          AND date >= CURRENT_DATE - INTERVAL '10 days'
      )
-     SELECT ticker, close, volume, prev_close
+     SELECT ticker, close, volume, prev_close, date
      FROM ranked
      WHERE rn = 1`,
     tickers
@@ -126,6 +129,7 @@ export const getLatestPricesByTickers = async (
     const changeRate = prev === null || prev === 0 ? null : ((row.close - prev) / prev) * 100;
     result[row.ticker] = {
       close: row.close,
+      date: row.date,
       change,
       changeRate,
       volume: row.volume,

@@ -13,6 +13,8 @@ export type TickerPriceSummary = {
   prevClose: number | null;
   change: number | null;
   changePct: number | null;
+  // close 가 속한 거래일.
+  date: string;
 };
 
 // GET /api/prices?tickers=005930,000660,035420
@@ -32,7 +34,9 @@ export async function GET(req: NextRequest) {
     const placeholders = tickers.map((_, i) => `$${i + 1}`).join(",");
 
     const [rows] = await pool.query<PriceRow[]>(
-      `SELECT p1.ticker, p1.close, p1.date
+      // date 는 to_char 로 문자열 수신 — Neon HTTP 가 DATE 를 로컬 midnight Date 로
+      // 파싱해 환경 TZ 만큼 어긋나는 경로를 차단한다.
+      `SELECT p1.ticker, p1.close, to_char(p1.date, 'YYYY-MM-DD') AS date
        FROM daily_prices p1
        INNER JOIN (
          SELECT ticker, MAX(date) AS max_date
@@ -87,6 +91,7 @@ export async function GET(req: NextRequest) {
         prevClose,
         change,
         changePct,
+        date: row.date,
       };
     });
 
