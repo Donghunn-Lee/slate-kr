@@ -382,10 +382,10 @@ export const GroupManagementModal = ({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto md:grid-cols-[14rem_1fr] md:overflow-visible">
+          <div className="grid min-h-0 flex-1 gap-4 overflow-hidden md:grid-cols-[14rem_1fr] md:overflow-visible">
             <div className="flex min-h-0 flex-col gap-1">
               <ul
-                className="min-h-0 flex-1 space-y-1 pr-1 md:overflow-y-auto"
+                className="max-h-36 min-h-0 flex-1 space-y-1 overflow-y-auto pr-1 md:max-h-none"
                 aria-label="관심종목 그룹 목록"
               >
                 {sortedGroups.map((g) => {
@@ -596,7 +596,7 @@ export const GroupManagementModal = ({
                   <div className="mt-3 shrink-0 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                     목록
                   </div>
-                  <div className="mt-2 min-h-0 flex-1 md:overflow-y-auto">
+                  <div className="mt-2 min-h-0 flex-1 overflow-y-auto">
                     {selectedTickers.length === 0 ? (
                       <p className="text-sm text-muted-foreground">
                         이 그룹에 종목이 없습니다.
