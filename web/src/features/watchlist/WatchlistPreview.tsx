@@ -5,7 +5,9 @@ import Link from "next/link";
 import { ArrowRight, Star } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { StockPanel } from "@/entities/stock/StockPanel";
+import { NxtSourceBadge } from "@/shared/components/NxtSourceBadge";
 import { PriceChange } from "@/shared/components/PriceChange";
+import { shouldShowNxtSourceBadge } from "@/shared/utils/shouldShowNxtSourceBadge";
 import { LIVE_TICKER_LIMIT, useMultiQuote } from "@/features/multi-quote/useMultiQuote";
 import { useWatchlistStore, type WatchlistItem } from "./store/useWatchlistStore";
 import type { TickerPriceSummary } from "@/app/api/prices/route";
@@ -81,9 +83,12 @@ export function WatchlistPreview() {
 
   // /watchlist 페이지와 동일 정책 — 그룹당 최대 100개까지 저장 가능하므로 KIS 멀티 견적
   // 30개 상한을 초과할 수 있다. 초과분은 EOD 폴백으로만 노출.
-  const { quotes: liveQuotes, failed: liveFailed } = useMultiQuote(
-    items.slice(0, LIVE_TICKER_LIMIT).map((p) => p.ticker)
-  );
+  const {
+    quotes: liveQuotes,
+    failed: liveFailed,
+    session,
+    tradingDate,
+  } = useMultiQuote(items.slice(0, LIVE_TICKER_LIMIT).map((p) => p.ticker));
 
   // 스크롤 오버플로우 감지 — 넘칠 때만 하단 fade 마스크 노출.
   // 리스트가 없는 렌더에서는 ref 가 없고 fade 도 렌더되지 않으므로 상태 리셋 불필요.
@@ -198,6 +203,12 @@ export function WatchlistPreview() {
                     const p = pricesMap[item.ticker];
                     const live = liveQuotes[item.ticker] ?? null;
                     const isLiveFailed = liveFailed[item.ticker] ?? false;
+                    const isNxtSourced = shouldShowNxtSourceBadge({
+                      quote: live,
+                      eod: p,
+                      session,
+                      tradingDate,
+                    });
                     const displayPrice = live ? live.price : (p?.close ?? null);
                     const displayChange = live ? live.change : (p?.change ?? null);
                     const displayChangeRate = live
@@ -210,12 +221,13 @@ export function WatchlistPreview() {
                         className="group relative bg-transparent px-6 transition-colors hover:bg-muted/40"
                       >
                         <div className="border-b border-subtle py-1.5 group-last:border-b-0">
-                          <div className="mb-0.5 flex items-center justify-between gap-2">
+                          <div className="mb-0.5 flex items-center gap-2">
                             <span className="text-[10px] leading-none tracking-wide text-muted-foreground">
                               {item.market}
                             </span>
+                            {isNxtSourced && <NxtSourceBadge />}
                             {isLiveFailed && (
-                              <span className="shrink-0 rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-[10px] leading-none text-muted-foreground">
+                              <span className="ml-auto shrink-0 rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-[10px] leading-none text-muted-foreground">
                                 일시 지연
                               </span>
                             )}

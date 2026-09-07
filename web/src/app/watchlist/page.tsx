@@ -16,6 +16,7 @@ import { useMemoStore } from "@/features/memo/store/useMemoStore";
 import { selectMemoItems } from "@/features/memo/store/selectMemoItems";
 import { LIVE_TICKER_LIMIT, useMultiQuote } from "@/features/multi-quote/useMultiQuote";
 import { WatchlistRow, WatchlistRowSkeleton } from "@/entities/watchlist/WatchlistRow";
+import { shouldShowNxtSourceBadge } from "@/shared/utils/shouldShowNxtSourceBadge";
 import { StockPanel } from "@/entities/stock/StockPanel";
 import { Button } from "@/components/ui/button";
 import { GroupManagementModal } from "@/features/watchlist/GroupManagementModal";
@@ -121,7 +122,12 @@ const WatchlistPage = () => {
     () => displayItems.slice(0, LIVE_TICKER_LIMIT).map((i) => i.ticker),
     [displayItems]
   );
-  const { quotes: liveQuotes, failed: liveFailed } = useMultiQuote(liveTickers);
+  const {
+    quotes: liveQuotes,
+    failed: liveFailed,
+    session,
+    tradingDate,
+  } = useMultiQuote(liveTickers);
 
   const fixedTabs: Array<{ key: string; label: string }> = [
     { key: RECENT_TAB, label: "최근 조회" },
@@ -262,6 +268,12 @@ const WatchlistPage = () => {
                         price={pricesMap[item.ticker]}
                         liveQuote={liveQuotes[item.ticker]}
                         isLiveFailed={liveFailed[item.ticker] ?? false}
+                        isNxtSourced={shouldShowNxtSourceBadge({
+                          quote: liveQuotes[item.ticker],
+                          eod: pricesMap[item.ticker],
+                          session,
+                          tradingDate,
+                        })}
                         disclosure={countsMap[item.ticker]}
                         hasMemo={item.ticker in memos}
                         onRemove={

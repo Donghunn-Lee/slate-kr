@@ -9,6 +9,8 @@ export type MultiQuoteResponse = {
   failed: Record<string, boolean>;
   marketOpen: boolean;
   session: KrxSession;
+  // 요청 시각 기준 KRX 거래일. quote 가 속한 거래일과는 별개 축이다.
+  tradingDate: string;
 };
 
 const POLL_INTERVAL_MS = 60_000;
@@ -26,6 +28,7 @@ type UseMultiQuoteResult = {
   failed: Record<string, boolean>;
   marketOpen: boolean;
   session: KrxSession | undefined;
+  tradingDate: string | undefined;
   isLoading: boolean;
 };
 
@@ -51,6 +54,7 @@ export const useMultiQuote = (tickers: string[]): UseMultiQuoteResult => {
     failed: query.data?.failed ?? {},
     marketOpen: query.data?.marketOpen ?? false,
     session: query.data?.session,
+    tradingDate: query.data?.tradingDate,
     isLoading: query.isLoading,
   };
 };

@@ -7,6 +7,7 @@ import type { TickerPriceSummary } from "@/app/api/prices/route";
 import type { TickerDisclosureCount } from "@/app/api/disclosures/recent-count/route";
 import type { WatchlistItem } from "@/features/watchlist/store/useWatchlistStore";
 import type { StockQuote } from "@/shared/types/quote";
+import { NxtSourceBadge } from "@/shared/components/NxtSourceBadge";
 import { PriceChange } from "@/shared/components/PriceChange";
 
 type WatchlistRowProps = {
@@ -16,6 +17,8 @@ type WatchlistRowProps = {
   // route catch/부분 실패 신호. true → EOD 값 유지 + "일시 지연" 배지.
   // stock-quote(#077) StockHeaderLivePrice 배지 문자·색 동형.
   isLiveFailed?: boolean;
+  // 표시 중인 가격이 KRX 종가와 다른 채널 체결인지. 판정은 shouldShowNxtSourceBadge 소관.
+  isNxtSourced?: boolean;
   disclosure?: TickerDisclosureCount;
   hasMemo?: boolean;
   onRemove?: () => void;
@@ -26,6 +29,7 @@ export const WatchlistRow = ({
   price,
   liveQuote,
   isLiveFailed = false,
+  isNxtSourced = false,
   disclosure,
   hasMemo = false,
   onRemove,
@@ -58,6 +62,9 @@ export const WatchlistRow = ({
             <span className="shrink-0 font-mono text-[11px] leading-none text-muted-foreground md:text-xs">
               {item.ticker} · {item.market}
             </span>
+            {/* 종목코드·시장구분과 같은 "이 값이 어디서 왔나" 계열이라 좌측 메타 끝에 붙인다.
+                `·` 로 잇지 않는 것은 KOSPI 와 동급의 시장명으로 읽히는 것을 막기 위해서다. */}
+            {isNxtSourced && <NxtSourceBadge />}
             <div className="ml-auto flex shrink-0 items-center gap-3">
               {isLiveFailed && (
                 <span className="rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-micro leading-none text-muted-foreground">
