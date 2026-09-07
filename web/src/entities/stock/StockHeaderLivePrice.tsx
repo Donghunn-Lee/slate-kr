@@ -86,8 +86,11 @@ export const StockHeaderLivePrice = ({
 
   // 토글이 없는 종목은 KRX 축이 사실이므로 "krx" 고정 — computeHeaderLabel 이 쓰는
   // marketArg ?? "nxt" 를 그대로 넘기면 비NXT 종목이 NXT 보존 예외로 수렴한다.
+  // 개장 전 창의 KRX 탭은 쿼리가 꺼져 session 이 undefined 라 서버 세션 축 술어에 닿지
+  // 않는다. 응답이 없을 때만 clientSession 으로 대체 — 응답이 있으면 서버 세션이 정본이라
+  // isClosedLikeMiss 와의 상호배타(같은 세션 축)가 그대로 유지된다.
   const preReset = isPreMarketReset(
-    session,
+    session ?? clientSession,
     showToggle ? market : "krx",
     now,
     calendar,
@@ -105,18 +108,20 @@ export const StockHeaderLivePrice = ({
       ? initialPrice
       : live?.price ?? initialPrice;
 
-  const displayChange = forceInitial
-    ? initialChange
-    : preReset
-      ? 0
+  // 창 리셋을 forceInitial 보다 앞에 둔다 — 개장 전 창의 KRX 탭은 forceInitial 도 참이라
+  // 순서가 뒤면 전일 등락이 그대로 이긴다. forceInitial 은 창 밖 비-regular 구간에서만 남는다.
+  const displayChange = preReset
+    ? 0
+    : forceInitial
+      ? initialChange
       : closedLike
         ? initialChange
         : live?.change ?? initialChange;
 
-  const displayChangeRate = forceInitial
-    ? initialChangeRate
-    : preReset
-      ? 0
+  const displayChangeRate = preReset
+    ? 0
+    : forceInitial
+      ? initialChangeRate
       : closedLike
         ? initialChangeRate
         : live?.changeRate ?? initialChangeRate;

@@ -133,6 +133,42 @@ describe("computeHeaderLabel · KRX 탭", () => {
     ).toEqual({ labelText: "전일 종가", timeText: "08.25" });
   });
 
+  // 개장 전 창(08:00~09:00) — 값이 0 으로 리셋되는 구간이라 라벨도 "개장 전" 축이어야 한다.
+  // initialDate 가 어느 쪽이든(오늘 축 격상·전일 잔존) 창이 이긴다.
+  it("개장 전 창 → '개장 전' · '' (initialDate 무관)", () => {
+    for (const s of ["pre", "preopen"] as const) {
+      for (const initialDate of [KST_TODAY, "2026-08-25", null]) {
+        expect(
+          computeHeaderLabel(
+            krx({ session: s, live: null, initialDate, openingWindow: true }),
+          ),
+        ).toEqual({ labelText: "개장 전", timeText: "" });
+      }
+    }
+  });
+
+  it("개장 전 창 · 응답 없음(쿼리 비활성) → '개장 전' · ''", () => {
+    expect(
+      computeHeaderLabel(
+        krx({ session: undefined, live: null, initialDate: KST_TODAY, openingWindow: true }),
+      ),
+    ).toEqual({ labelText: "개장 전", timeText: "" });
+  });
+
+  it("개장 전 창 · stale 응답 regular → '개장 전' (창이 세션보다 앞선다)", () => {
+    expect(
+      computeHeaderLabel(krx({ session: "regular", live: q(), openingWindow: true })),
+    ).toEqual({ labelText: "개장 전", timeText: "" });
+  });
+
+  it("개장 전 창 · 지연 창 fetch 성공 → 값 0 과 같은 축의 '개장 전' (값·라벨 일치)", () => {
+    expect(
+      computeHeaderLabel(
+        krx({ session: "pre", live: q(), initialDate: KST_TODAY, kstToday: KST_TODAY, openingWindow: true }),
+      ),
+    ).toEqual({ labelText: "개장 전", timeText: "" });
+  });
+
   // 지연 창(EOD 미적재 · initialDate < lastCloseDate) 흐름 — 호출측이 kstToday=lastCloseDate 축으로
   // 넘긴다. fetch 성공/실패는 initialDate 인자의 격상 여부로 함수에 전달됨.
   it("KRX 지연 창 · fetch 미시도/실패 (initialDate 뒤처짐) → 전일 종가", () => {

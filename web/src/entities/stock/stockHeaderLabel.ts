@@ -71,6 +71,11 @@ export const computeHeaderLabel = ({
   openingWindow,
 }: HeaderLabelInput): HeaderLabelResult => {
   if (market === "krx") {
+    // 개장 전 창(08:00~09:00) 은 KRX 기준가가 이미 오늘 거래일로 리셋된 구간 — 표시 값도
+    // 0 으로 리셋되므로 라벨이 전일 마감 축에 남으면 값·라벨이 어긋난다.
+    // 세션보다 창을 앞세운다: 창은 벽시계 사실이고, 이 구간의 KRX 탭 session 은 쿼리가
+    // 꺼져 undefined 이거나 직전 세션 응답으로 stale 할 수 있다.
+    if (openingWindow) return { labelText: "개장 전", timeText: "" };
     if (session === "regular") {
       return { labelText: "장중", timeText: updatedAtText };
     }

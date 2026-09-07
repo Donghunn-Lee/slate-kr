@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { StockQuote } from "@/shared/types/quote";
 import type { KrxSession, QuoteMarket } from "@/shared/utils/market";
+import { getKrxSessionState } from "@/shared/utils/market";
 import { isClosedLikeMiss, isPreMarketReset } from "./StockHeaderLivePrice";
 
 // 명시적 UTC epoch 로 KST 로컬 시각을 유도 (KST = UTC+9, DST 없음).
@@ -91,6 +92,48 @@ describe("isPreMarketReset — 창 안 market × live 조합", () => {
   }
 });
 
+// 컴포넌트가 술어에 넘기는 세션 축. 응답이 없을 때만(KRX 탭 개장 전 창은 enabled:false 라
+// session 이 영영 undefined) 클라 시계 세션으로 대체한다.
+const tabSession = (
+  session: KrxSession | undefined,
+  now: Date,
+): KrxSession => session ?? getKrxSessionState(now);
+
+// KRX 탭 개장 전 창 — 쿼리가 꺼져 서버 세션이 오지 않는 경로.
+// NXT 상장 종목의 KRX 탭이 전일 축(등락 잔존)으로 남던 회귀를 고정한다.
+describe("isPreMarketReset — 응답 없는 KRX 탭의 클라 세션 축 폴백", () => {
+  const cases: {
+    name: string;
+    session: KrxSession | undefined;
+    market: QuoteMarket;
+    now: Date;
+    expected: boolean;
+  }[] = [
+    { name: "08:20 · 응답 없음 · KRX 탭", session: undefined, market: "krx", now: t(8, 20), expected: true },
+    { name: "08:55 · 응답 없음 · KRX 탭", session: undefined, market: "krx", now: t(8, 55), expected: true },
+    { name: "07:30 · 응답 없음 · KRX 탭 (이른 preopen 은 창 밖)", session: undefined, market: "krx", now: t(7, 30), expected: false },
+    { name: "10:00 · 응답 없음 · KRX 탭 (정규장)", session: undefined, market: "krx", now: t(10, 0), expected: false },
+    { name: "16:00 · 응답 없음 · KRX 탭 (after)", session: undefined, market: "krx", now: t(16, 0), expected: false },
+    { name: "08:20 · 응답 없음 · NXT 탭 (탭 보존 예외 유지)", session: undefined, market: "nxt", now: t(8, 20), expected: false },
+    { name: "08:55 · 응답 없음 · NXT 탭", session: undefined, market: "nxt", now: t(8, 55), expected: false },
+    { name: "휴장일 08:30 · 응답 없음 · KRX 탭", session: undefined, market: "krx", now: kst(2026, 1, 1, 8, 30), expected: false },
+    { name: "토요일 08:30 · 응답 없음 · KRX 탭", session: undefined, market: "krx", now: kst(2026, 7, 25, 8, 30), expected: false },
+    // 지연 창(EOD 미적재)은 fetch 가 살아있어 서버 세션이 온다 — 그 축이 그대로 정본.
+    { name: "08:20 · 지연 창 응답 pre · KRX 탭", session: "pre", market: "krx", now: t(8, 20), expected: true },
+    { name: "08:55 · 지연 창 응답 preopen · KRX 탭", session: "preopen", market: "krx", now: t(8, 55), expected: true },
+    // 응답이 있으면 stale 이어도 서버 세션이 이긴다 (isClosedLikeMiss 와 같은 축 유지).
+    { name: "08:55 · stale 응답 after_close · KRX 탭", session: "after_close", market: "krx", now: t(8, 55), expected: false },
+  ];
+
+  for (const c of cases) {
+    it(`${c.name} → ${c.expected}`, () => {
+      expect(
+        isPreMarketReset(tabSession(c.session, c.now), c.market, c.now),
+      ).toBe(c.expected);
+    });
+  }
+});
+
 describe("isClosedLikeMiss — after 계열/closed 의 KRX-only 폴백 창", () => {
   it("after · live=null · !failed → true", () => {
     expect(isClosedLikeMiss("after", null, false)).toBe(true);
@@ -124,9 +167,11 @@ describe("isClosedLikeMiss — after 계열/closed 의 KRX-only 폴백 창", () 
 // 두 술어가 상호 배타적이어야 표시 분기(preReset / closedLike)가 안전하다.
 // 두 술어 모두 세션 집합이 서로 겹치지 않으므로, 서버 세션이 클라 시계와 어긋난
 // 조합(폴링이 멈춘 구간의 stale 응답) 까지 포함해 시각 전 범위를 훑는다.
+// preReset 은 컴포넌트와 같은 tabSession 축으로 호출한다 — 응답 없는 축이 끼어들어도
+// 배타성이 유지되는지가 폴백의 안전 조건이다.
 describe("두 술어의 상호 배타성", () => {
-  const SESSIONS: KrxSession[] = [
-    "regular", "after", "after_close", "pre", "preopen", "closed",
+  const SESSIONS: (KrxSession | undefined)[] = [
+    "regular", "after", "after_close", "pre", "preopen", "closed", undefined,
   ];
   const NOWS: Date[] = [
     t(7, 30), t(8, 20), t(8, 55), t(10, 0), t(16, 0), t(21, 0),
@@ -139,9 +184,9 @@ describe("두 술어의 상호 배타성", () => {
   for (const s of SESSIONS) {
     for (const market of MARKETS) {
       for (const live of LIVES) {
-        it(`${s} · ${market} · live=${live === null ? "null" : "quote"} → 어느 시각에도 동시 true 없음`, () => {
+        it(`${s ?? "undefined"} · ${market} · live=${live === null ? "null" : "quote"} → 어느 시각에도 동시 true 없음`, () => {
           for (const now of NOWS) {
-            const pre = isPreMarketReset(s, market, now);
+            const pre = isPreMarketReset(tabSession(s, now), market, now);
             const closed = isClosedLikeMiss(s, live, false);
             expect(pre && closed).toBe(false);
           }
