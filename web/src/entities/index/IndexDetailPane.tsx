@@ -185,6 +185,10 @@ export const IndexDetailPane = ({
     ? null
     : overseasQuotesQuery.data?.quotes[selected as OverseasIndexCode] ?? null;
 
+  // 개장 전 창 판정은 클라 시계 축. now=null(SSR·첫 렌더)은 false.
+  const openingWindow =
+    now !== null && isKrxOpeningWindow(data?.session, now, calendar);
+
   // 셀 합성 규칙은 buildIndexCell 참조 (Rail·홈과 공용).
   const cell = buildIndexCell({
     isDomestic,
@@ -196,9 +200,7 @@ export const IndexDetailPane = ({
     overseasLatestBar,
     latestDaily,
     session: data?.session,
-    // 개장 전 창 판정은 클라 시계 축. now=null(SSR·첫 렌더)은 false.
-    openingWindow:
-      now !== null && isKrxOpeningWindow(data?.session, now, calendar),
+    openingWindow,
   });
 
   // 라벨은 request time 기준: 국내는 client clock 으로 세션 판정, 해외는 quote.time 판정.
@@ -216,6 +218,11 @@ export const IndexDetailPane = ({
   const domesticFetchedAt = isDomestic
     ? data?.quotes[selected as DomesticIndexCode]?.fetchedAt ?? null
     : null;
+  // 개장 전 창은 오늘 거래일 기준가로 리셋된 상태 — 날짜를 오늘로 표기하고
+  // 값 출처(전일 종가)는 붙이지 않는다.
+  const domesticOpeningLabel = kstToday
+    ? `개장 전 · ${kstToday.slice(5, 7)}.${kstToday.slice(8, 10)}`
+    : "개장 전";
   const domesticSourceLabel = domesticSourceIsToday
     ? "장 마감 · 15:30"
     : domesticLastCloseDate
@@ -261,7 +268,9 @@ export const IndexDetailPane = ({
         ? domesticFetchedAt !== null
           ? `장중 · ${formatClock(new Date(domesticFetchedAt))}`
           : "장중"
-        : domesticSourceLabel
+        : openingWindow
+          ? domesticOpeningLabel
+          : domesticSourceLabel
     : overseasState?.kind === "live" && overseasKstTime
       ? `${overseasKstTime} 기준`
       : overseasState?.kind === "closed" && overseasKstTime

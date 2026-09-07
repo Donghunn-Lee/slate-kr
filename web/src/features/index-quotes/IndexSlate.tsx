@@ -172,19 +172,20 @@ const formatClock = (d: Date): string =>
 // live 없이 EOD fallback 으로 강등된 경우엔 셀 값 자체가 전일 → fallback.date 유지.
 // (마감 직후~EOD 적재 전 구간에서 셀 값/기준일 불일치 회피.)
 // 라벨 규칙: 표시 값이 당일 세션 값이면 `장 마감 · 15:30`, 다른 날이면 `전일 종가 · MM.DD`.
-// 개장 전 창(pre/preopen)은 `개장 전 · [source]` 로 상태 접두어 부착. 종목 헤더
-// (`stockHeaderLabel.ts`) 와 MM.DD 포맷 통일.
+// 개장 전 창은 오늘 거래일 기준가로 리셋된 상태라 `개장 전 · MM.DD` 로 오늘 날짜만
+// 표기하고 값 출처(전일 종가)는 붙이지 않는다. 종목 헤더(`stockHeaderLabel.ts`) 와
+// MM.DD 포맷 통일.
 // 장중 시각은 클라 시계가 아닌 셀 fetchedAt — 응답이 서버 캐시 히트여도 라벨이
 // 실제 시세 조립 시각을 가리키게 한다.
 const MarketStatus = ({
   marketOpen,
-  beforeOpen,
+  openingWindow,
   hasLive,
   fallbackDate,
   fetchedAt,
 }: {
   marketOpen: boolean;
-  beforeOpen: boolean;
+  openingWindow: boolean;
   hasLive: boolean;
   fallbackDate?: string;
   fetchedAt: number | null;
@@ -208,9 +209,9 @@ const MarketStatus = ({
     : referenceDate
       ? `전일 종가 · ${referenceDate.slice(5, 7)}.${referenceDate.slice(8, 10)}`
       : null;
-  const text = beforeOpen
-    ? sourceLabel
-      ? `개장 전 · ${sourceLabel}`
+  const text = openingWindow
+    ? kstToday
+      ? `개장 전 · ${kstToday.slice(5, 7)}.${kstToday.slice(8, 10)}`
       : "개장 전"
     : sourceLabel ?? "장 마감";
   return <div className="text-body-sm text-muted-foreground">{text}</div>;
@@ -292,7 +293,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
           {data ? (
             <MarketStatus
               marketOpen={data.marketOpen}
-              beforeOpen={beforeOpen}
+              openingWindow={openingWindow}
               hasLive={data.quotes.KOSPI.live !== null}
               fallbackDate={data.quotes.KOSPI.fallback?.date}
               fetchedAt={oldestFetchedAt}
