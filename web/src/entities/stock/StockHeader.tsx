@@ -10,6 +10,7 @@ import { formatVolume, formatMarketCap } from "@/shared/format";
 import { WatchlistButton } from "@/features/watchlist/WatchlistButton";
 import { MemoButton } from "@/features/memo/MemoButton";
 import { StockPanel } from "./StockPanel";
+import { StockHeaderBaseDate } from "./StockHeaderBaseDate";
 import { StockHeaderLivePrice } from "./StockHeaderLivePrice";
 import { MarketActionBadge } from "./MarketActionBadge";
 
@@ -156,7 +157,7 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
       <div className="mt-3 flex flex-wrap gap-4 text-body text-muted-foreground">
         <span>거래량 {formatVolume(latest.volume)}</span>
         <span>시가총액 {formatMarketCap(stock.marketCap)}</span>
-        <span>기준일 {latest.date}</span>
+        <StockHeaderBaseDate latestDate={latest.date} />
       </div>
     </StockPanel>
   );

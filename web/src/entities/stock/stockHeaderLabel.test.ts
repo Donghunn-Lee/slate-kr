@@ -27,6 +27,7 @@ const nxt = (over: Partial<HeaderLabelInput> = {}): HeaderLabelInput => ({
   initialDate: KST_TODAY,
   kstToday: KST_TODAY,
   updatedAtText: UPDATED_AT,
+  openingWindow: false,
   ...over,
 });
 
@@ -43,6 +44,7 @@ describe("computeHeaderLabel · NXT 탭", () => {
     session: KrxSession;
     live: StockQuote | null;
     failed?: boolean;
+    openingWindow?: boolean;
     label: string;
     time: string;
   }> = [
@@ -55,10 +57,13 @@ describe("computeHeaderLabel · NXT 탭", () => {
     { name: "after_close · live 있음", session: "after_close", live: q(), label: "애프터마켓 종가", time: "20:00" },
     { name: "after_close · live=null · !failed → closedLike", session: "after_close", live: null, label: "장 마감", time: "15:30" },
     { name: "after_close · live=null · failed", session: "after_close", live: null, failed: true, label: "애프터마켓 종가", time: "" },
-    { name: "pre · live 있음", session: "pre", live: q(), label: "프리마켓", time: UPDATED_AT },
-    { name: "pre · live=null → preReset", session: "pre", live: null, label: "장 시작 전", time: "" },
-    { name: "preopen · live 있음", session: "preopen", live: q(), label: "장 시작 전", time: "" },
-    { name: "preopen · live=null", session: "preopen", live: null, label: "장 시작 전", time: "" },
+    { name: "pre · live 있음", session: "pre", live: q(), openingWindow: true, label: "프리마켓", time: UPDATED_AT },
+    { name: "pre · live=null → preReset", session: "pre", live: null, openingWindow: true, label: "개장 전", time: "" },
+    { name: "늦은 preopen · live 있음", session: "preopen", live: q(), openingWindow: true, label: "개장 전", time: "" },
+    { name: "늦은 preopen · live=null", session: "preopen", live: null, openingWindow: true, label: "개장 전", time: "" },
+    // 이른 preopen(06:00~08:00) 은 리셋 창 밖이라 값이 전일 종가 그대로 — 라벨도 마감 계열로 낙하.
+    { name: "이른 preopen · live 있음", session: "preopen", live: q(), openingWindow: false, label: "장 마감", time: "" },
+    { name: "이른 preopen · live=null", session: "preopen", live: null, openingWindow: false, label: "장 마감", time: "" },
     { name: "closed · live 있음", session: "closed", live: q(), label: "애프터마켓 종가", time: "20:00" },
     { name: "closed · live=null · !failed → closedLike", session: "closed", live: null, label: "장 마감", time: "15:30" },
     // failed=true 는 closedLike 를 무너뜨려 세션 명시 라벨("애프터마켓 종가")로 흐른다.
@@ -68,7 +73,12 @@ describe("computeHeaderLabel · NXT 탭", () => {
   for (const c of cases) {
     it(c.name, () => {
       const r = computeHeaderLabel(
-        nxt({ session: c.session, live: c.live, isFailedQuote: c.failed ?? false }),
+        nxt({
+          session: c.session,
+          live: c.live,
+          isFailedQuote: c.failed ?? false,
+          openingWindow: c.openingWindow ?? false,
+        }),
       );
       expect(r).toEqual({ labelText: c.label, timeText: c.time });
     });

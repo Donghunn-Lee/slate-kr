@@ -1,15 +1,26 @@
 import type { StockQuote } from "@/shared/types/quote";
+import type { MarketCalendar } from "@/shared/types/marketCalendar";
 import type { KrxSession, QuoteMarket } from "@/shared/utils/market";
+import { isKrxBeforeMarketOpen, isKrxOpeningWindow } from "@/shared/utils/market";
 
-// 정규장 개장 전 KRX 기준 0% 리셋 창.
-//   - preopen (06:00~08:00, 08:50~09:00): 세션 자체가 리셋 창.
-//   - pre (08:00~08:50) + live=null: KRX-only 종목 (NX 응답 iscd=null → normalize=null).
-//     NXT 상장 종목은 live 실봉이 있어 리셋 대신 프리마켓 값 표시로 흘린다.
+// 정규장 개장 전 KRX 기준 0% 리셋 창 — 지수 표면과 같은 08:00~09:00.
+// 06:00~08:00 은 KRX 기준가가 아직 전일 축이라 리셋 대상이 아니다.
+// live !== null 은 제외: NXT 상장 종목은 08:00~08:50 실거래가 있어 프리마켓 값을 그대로 쓴다.
+// (KRX-only 종목은 NX 응답 iscd=null → normalize=null 로 live 가 비어 리셋 경로에 들어온다.)
+// now=null(SSR·첫 렌더)은 false — 클라 시계가 서기 전엔 창 판정을 하지 않는다.
+// 세션 게이트를 앞에 두는 이유: isKrxOpeningWindow 의 늦은 preopen 항은 세션을 보지
+// 않고 클라 시계만 본다. preopen 구간엔 폴링이 멈춰 서버 세션이 전날 저녁 값으로 남을
+// 수 있고, 그 조합에서 isClosedLikeMiss 와 동시에 true 가 되면 값·라벨이 어긋난다.
 export const isPreMarketReset = (
   session: KrxSession | undefined,
   live: StockQuote | null,
+  now: Date | null,
+  calendar?: MarketCalendar,
 ): boolean =>
-  session === "preopen" || (session === "pre" && live === null);
+  now !== null &&
+  live === null &&
+  isKrxBeforeMarketOpen(session) &&
+  isKrxOpeningWindow(session, now, calendar);
 
 // after 계열 + closed 의 KRX-only 폴백 창 — 직전 거래일 값 보존 + "장 마감" 라벨.
 // pre 는 isPreMarketReset 이 처리하므로 여기서 제외.
@@ -33,6 +44,9 @@ export type HeaderLabelInput = {
   initialDate: string | null; // SSR daily_prices 최신 행 date ('YYYY-MM-DD')
   kstToday: string; // 클라 시계 KST 오늘 ('YYYY-MM-DD')
   updatedAtText: string; // TanStack dataUpdatedAt HH:mm:ss
+  // 개장 전 창(08:00~09:00) 여부. preopen 세션은 06:00~08:00 도 포함하므로
+  // 세션만으로는 두 창을 가를 수 없다.
+  openingWindow: boolean;
 };
 
 export type HeaderLabelResult = {
@@ -51,6 +65,7 @@ export const computeHeaderLabel = ({
   initialDate,
   kstToday,
   updatedAtText,
+  openingWindow,
 }: HeaderLabelInput): HeaderLabelResult => {
   if (market === "krx") {
     if (session === "regular") {
@@ -77,10 +92,10 @@ export const computeHeaderLabel = ({
           ? "애프터마켓 종가"
           : session === "pre"
             ? live === null
-              ? "장 시작 전"
+              ? "개장 전"
               : "프리마켓"
-            : session === "preopen"
-              ? "장 시작 전"
+            : session === "preopen" && openingWindow
+              ? "개장 전"
               : "장 마감";
 
   let timeText = "";

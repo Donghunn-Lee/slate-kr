@@ -10,6 +10,7 @@ import {
   defaultMarketForSession,
   getKrxLastCloseDate,
   getKrxSessionState,
+  isKrxOpeningWindow,
 } from "@/shared/utils/market";
 import { cn } from "@/lib/utils";
 import { PriceCountUp } from "./PriceCountUp";
@@ -83,7 +84,7 @@ export const StockHeaderLivePrice = ({
   // 세션 라벨은 유지한 채 "일시 지연" 배지만 얹기 위한 축.
   const isFailedQuote = data?.failed ?? false;
 
-  const preReset = isPreMarketReset(session, live);
+  const preReset = isPreMarketReset(session, live, now, calendar);
   const closedLike = isClosedLikeMiss(session, live, isFailedQuote);
 
   // 지연 창 fetch 성공 시 표시 가격·라벨 날짜·labelSession 세 축을 함께 격상. 실패(live=null)
@@ -124,6 +125,7 @@ export const StockHeaderLivePrice = ({
     initialDate: useLiveKrxClose ? lastCloseDate : initialDate,
     kstToday: lastCloseDate,
     updatedAtText,
+    openingWindow: isKrxOpeningWindow(labelSession, now, calendar),
   });
 
   // 초기 로드 스켈레톤 — 토글 미노출 종목·NXT 탭. KRX 탭은 initial 값으로 즉시 표시.

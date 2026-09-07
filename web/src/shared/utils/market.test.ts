@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { MarketCalendar } from "@/shared/types/marketCalendar";
 import {
   getKrxSessionState,
+  getKrxTradingDate,
   getOverseasIndexSessionState,
   getOverseasIndexTradingDate,
   getPreviousOverseasIndexTradingDate,
@@ -631,5 +632,26 @@ describe("isKrxOpeningWindow", () => {
   });
   it("closed → false (주말·공휴일)", () => {
     expect(isKrxOpeningWindow("closed", kst(2026, 7, 26, 8, 55))).toBe(false);
+  });
+});
+
+// 종목 헤더 기준일이 이 축을 쓴다 — 08:50~09:00 만 소비처에서 오늘로 보정한다.
+describe("getKrxTradingDate — 기준일 축", () => {
+  it("07:59 preopen → 직전 거래일 (오늘 세션 미개시)", () => {
+    expect(getKrxTradingDate(kst(2026, 7, 23, 7, 59))).toBe("2026-07-22");
+  });
+  it("08:00 pre → 오늘 (기준가 리셋 시점)", () => {
+    expect(getKrxTradingDate(kst(2026, 7, 23, 8, 0))).toBe("2026-07-23");
+  });
+  it("08:55 preopen → 직전 거래일 (늦은 preopen 은 오늘로 넘어오지 않는다)", () => {
+    expect(getKrxTradingDate(kst(2026, 7, 23, 8, 55))).toBe("2026-07-22");
+  });
+  it("09:10 regular / 20:30 after_close → 오늘", () => {
+    expect(getKrxTradingDate(kst(2026, 7, 23, 9, 10))).toBe("2026-07-23");
+    expect(getKrxTradingDate(kst(2026, 7, 23, 20, 30))).toBe("2026-07-23");
+  });
+  it("토요일 · 휴장일 → 직전 거래일", () => {
+    expect(getKrxTradingDate(kst(2026, 7, 25, 10, 0))).toBe("2026-07-24");
+    expect(getKrxTradingDate(kst(2026, 1, 1, 8, 30))).toBe("2025-12-31");
   });
 });
