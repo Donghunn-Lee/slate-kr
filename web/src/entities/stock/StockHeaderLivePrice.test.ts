@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { StockQuote } from "@/shared/types/quote";
-import type { KrxSession } from "@/shared/utils/market";
+import type { KrxSession, QuoteMarket } from "@/shared/utils/market";
 import { isClosedLikeMiss, isPreMarketReset } from "./StockHeaderLivePrice";
 
 // 명시적 UTC epoch 로 KST 로컬 시각을 유도 (KST = UTC+9, DST 없음).
@@ -27,44 +27,68 @@ const q = (over: Partial<StockQuote> = {}): StockQuote => ({
 });
 
 describe("isPreMarketReset — 정규장 개장 전 KRX 기준 0% 리셋 창", () => {
-  it("07:30 preopen · live=null → false (이른 preopen 은 창 밖)", () => {
-    expect(isPreMarketReset("preopen", null, t(7, 30))).toBe(false);
+  it("07:30 preopen · KRX → false (이른 preopen 은 창 밖)", () => {
+    expect(isPreMarketReset("preopen", "krx", t(7, 30))).toBe(false);
   });
-  it("08:20 pre · live=null → true (KRX-only 종목, NX 응답 null)", () => {
-    expect(isPreMarketReset("pre", null, t(8, 20))).toBe(true);
+  it("08:20 pre · KRX → true", () => {
+    expect(isPreMarketReset("pre", "krx", t(8, 20))).toBe(true);
   });
-  it("08:20 pre · live 있음 → false (NXT 종목은 프리마켓 실봉 표시)", () => {
-    expect(isPreMarketReset("pre", q(), t(8, 20))).toBe(false);
+  it("08:20 pre · NXT → false (프리마켓 실거래 보존)", () => {
+    expect(isPreMarketReset("pre", "nxt", t(8, 20))).toBe(false);
   });
-  it("08:55 preopen · live=null → true (늦은 preopen 도 창 안)", () => {
-    expect(isPreMarketReset("preopen", null, t(8, 55))).toBe(true);
+  it("08:55 preopen · KRX → true (늦은 preopen 도 창 안)", () => {
+    expect(isPreMarketReset("preopen", "krx", t(8, 55))).toBe(true);
   });
-  it("08:55 preopen · live 있음 → false (live 제외 조건은 창 전체에 적용)", () => {
-    expect(isPreMarketReset("preopen", q(), t(8, 55))).toBe(false);
+  it("08:55 preopen · NXT → false (08:50 종가 보존, 창 전체 동일 취급)", () => {
+    expect(isPreMarketReset("preopen", "nxt", t(8, 55))).toBe(false);
   });
   it("09:10 regular → false", () => {
-    expect(isPreMarketReset("regular", q(), t(9, 10))).toBe(false);
-    expect(isPreMarketReset("regular", null, t(9, 10))).toBe(false);
+    expect(isPreMarketReset("regular", "krx", t(9, 10))).toBe(false);
+    expect(isPreMarketReset("regular", "nxt", t(9, 10))).toBe(false);
   });
   it("after / after_close / closed → false (isClosedLikeMiss 경로)", () => {
-    expect(isPreMarketReset("after", null, t(16, 0))).toBe(false);
-    expect(isPreMarketReset("after_close", null, t(21, 0))).toBe(false);
-    expect(isPreMarketReset("closed", null, kst(2026, 7, 25, 10, 0))).toBe(false);
+    expect(isPreMarketReset("after", "krx", t(16, 0))).toBe(false);
+    expect(isPreMarketReset("after_close", "krx", t(21, 0))).toBe(false);
+    expect(isPreMarketReset("closed", "krx", kst(2026, 7, 25, 10, 0))).toBe(false);
   });
   it("휴장일 08:30 → false (창 시각이어도 거래일이 아니면 리셋 없음)", () => {
-    expect(isPreMarketReset("closed", null, kst(2026, 1, 1, 8, 30))).toBe(false);
+    expect(isPreMarketReset("closed", "krx", kst(2026, 1, 1, 8, 30))).toBe(false);
   });
   it("08:55 · 서버 session 이 stale 한 after_close → false (세션 게이트)", () => {
     // preopen 구간엔 폴링이 멈춰 전날 저녁 응답이 남을 수 있다. 시계만 보면 창 안이지만
     // 세션이 개장 전이 아니므로 isClosedLikeMiss 경로에 그대로 맡긴다.
-    expect(isPreMarketReset("after_close", null, t(8, 55))).toBe(false);
+    expect(isPreMarketReset("after_close", "krx", t(8, 55))).toBe(false);
   });
   it("now=null → false (SSR·첫 렌더)", () => {
-    expect(isPreMarketReset("pre", null, null)).toBe(false);
+    expect(isPreMarketReset("pre", "krx", null)).toBe(false);
   });
   it("undefined session · 08:20 → false (초기 로드 스켈레톤)", () => {
-    expect(isPreMarketReset(undefined, null, t(8, 20))).toBe(false);
+    expect(isPreMarketReset(undefined, "krx", t(8, 20))).toBe(false);
   });
+});
+
+// 창 안에서 결과를 가르는 축은 탭 하나뿐 — 종목의 live 유무는 술어 인자가 아니다.
+// NXT 상장 종목의 KRX 탭(live 있음)이 리셋에서 빠지던 회귀를 고정한다.
+// live 열은 "이 상황의 종목에 오늘 값이 있는가" 를 명시할 뿐 호출에 들어가지 않는다.
+describe("isPreMarketReset — 창 안 market × live 조합", () => {
+  const cases: { name: string; market: QuoteMarket; live: string; expected: boolean }[] = [
+    { name: "KRX 탭 · NXT 미상장(live 없음)", market: "krx", live: "null", expected: true },
+    { name: "KRX 탭 · NXT 상장(live 있음)", market: "krx", live: "quote", expected: true },
+    { name: "NXT 탭 · live 없음", market: "nxt", live: "null", expected: false },
+    { name: "NXT 탭 · live 있음", market: "nxt", live: "quote", expected: false },
+  ];
+  const IN_WINDOW: { name: string; session: KrxSession; now: Date }[] = [
+    { name: "08:20 pre", session: "pre", now: t(8, 20) },
+    { name: "08:55 늦은 preopen", session: "preopen", now: t(8, 55) },
+  ];
+
+  for (const w of IN_WINDOW) {
+    for (const c of cases) {
+      it(`${w.name} · ${c.name} → ${c.expected} (live=${c.live} 무관)`, () => {
+        expect(isPreMarketReset(w.session, c.market, w.now)).toBe(c.expected);
+      });
+    }
+  }
 });
 
 describe("isClosedLikeMiss — after 계열/closed 의 KRX-only 폴백 창", () => {
@@ -110,16 +134,19 @@ describe("두 술어의 상호 배타성", () => {
     kst(2026, 1, 1, 8, 30), // 휴장일 · 창 시각
   ];
   const LIVES: (StockQuote | null)[] = [null, q()];
+  const MARKETS: QuoteMarket[] = ["krx", "nxt"];
 
   for (const s of SESSIONS) {
-    for (const live of LIVES) {
-      it(`${s} · live=${live === null ? "null" : "quote"} → 어느 시각에도 동시 true 없음`, () => {
-        for (const now of NOWS) {
-          const pre = isPreMarketReset(s, live, now);
-          const closed = isClosedLikeMiss(s, live, false);
-          expect(pre && closed).toBe(false);
-        }
-      });
+    for (const market of MARKETS) {
+      for (const live of LIVES) {
+        it(`${s} · ${market} · live=${live === null ? "null" : "quote"} → 어느 시각에도 동시 true 없음`, () => {
+          for (const now of NOWS) {
+            const pre = isPreMarketReset(s, market, now);
+            const closed = isClosedLikeMiss(s, live, false);
+            expect(pre && closed).toBe(false);
+          }
+        });
+      }
     }
   }
 });

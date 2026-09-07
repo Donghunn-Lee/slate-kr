@@ -84,7 +84,14 @@ export const StockHeaderLivePrice = ({
   // 세션 라벨은 유지한 채 "일시 지연" 배지만 얹기 위한 축.
   const isFailedQuote = data?.failed ?? false;
 
-  const preReset = isPreMarketReset(session, live, now, calendar);
+  // 토글이 없는 종목은 KRX 축이 사실이므로 "krx" 고정 — computeHeaderLabel 이 쓰는
+  // marketArg ?? "nxt" 를 그대로 넘기면 비NXT 종목이 NXT 보존 예외로 수렴한다.
+  const preReset = isPreMarketReset(
+    session,
+    showToggle ? market : "krx",
+    now,
+    calendar,
+  );
   const closedLike = isClosedLikeMiss(session, live, isFailedQuote);
 
   // 지연 창 fetch 성공 시 표시 가격·라벨 날짜·labelSession 세 축을 함께 격상. 실패(live=null)

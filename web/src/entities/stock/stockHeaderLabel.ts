@@ -5,20 +5,23 @@ import { isKrxBeforeMarketOpen, isKrxOpeningWindow } from "@/shared/utils/market
 
 // 정규장 개장 전 KRX 기준 0% 리셋 창 — 지수 표면과 같은 08:00~09:00.
 // 06:00~08:00 은 KRX 기준가가 아직 전일 축이라 리셋 대상이 아니다.
-// live !== null 은 제외: NXT 상장 종목은 08:00~08:50 실거래가 있어 프리마켓 값을 그대로 쓴다.
-// (KRX-only 종목은 NX 응답 iscd=null → normalize=null 로 live 가 비어 리셋 경로에 들어온다.)
+// 리셋 여부는 탭 축으로 가른다 — KRX 축은 창 전체 리셋, NXT 탭은 창 전체 보존.
+// 창을 둘로 쪼개지 않는 이유: NXT 탭은 pre(08:00~08:50) 실거래 · 늦은 preopen(08:50~09:00)
+// 08:50 종가로 두 구간 모두 표시할 오늘 값이 있다.
+// live 유무는 축이 아니다 — 종목 단위라 NXT 상장 종목의 KRX 탭까지 리셋에서 빼고,
+// quote_snapshots 행 유무에도 흔들린다.
 // now=null(SSR·첫 렌더)은 false — 클라 시계가 서기 전엔 창 판정을 하지 않는다.
 // 세션 게이트를 앞에 두는 이유: isKrxOpeningWindow 의 늦은 preopen 항은 세션을 보지
 // 않고 클라 시계만 본다. preopen 구간엔 폴링이 멈춰 서버 세션이 전날 저녁 값으로 남을
 // 수 있고, 그 조합에서 isClosedLikeMiss 와 동시에 true 가 되면 값·라벨이 어긋난다.
 export const isPreMarketReset = (
   session: KrxSession | undefined,
-  live: StockQuote | null,
+  market: QuoteMarket,
   now: Date | null,
   calendar?: MarketCalendar,
 ): boolean =>
   now !== null &&
-  live === null &&
+  market !== "nxt" &&
   isKrxBeforeMarketOpen(session) &&
   isKrxOpeningWindow(session, now, calendar);
 
