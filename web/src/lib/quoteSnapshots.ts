@@ -44,6 +44,8 @@ export const snapshotToQuote = (row: QuoteSnapshotRow): StockQuote | null => {
     high: 0,
     low: 0,
     volume: row.un_volume,
+    // 수집기가 un_* 단일 축으로만 서빙 값을 채운다 (nx_close 는 판정에 미사용).
+    source: "un",
   };
 };
 

@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { normalizeStockQuote, parseMarketAction } from "./kis-quote";
+import {
+  normalizeMultiQuote,
+  normalizeStockQuote,
+  parseMarketAction,
+} from "./kis-quote";
 
 // KIS FHKST01010100 실응답 실측 픽스처. 필드 결측 · "N"/"Y" · "00"/"01" 표현 준수.
 const FIXTURE_005930_NORMAL = {
@@ -19,6 +23,19 @@ const FIXTURE_005930_NORMAL = {
   short_over_yn: "N",
   sltr_yn: "N",
   mang_issu_cls_code: "N",
+} as const;
+
+// KIS FHKST11300006 output 1행 (멀티 견적, UN 채널 고정).
+const FIXTURE_MULTI_005930 = {
+  inter_shrn_iscd: "005930",
+  inter2_prpr: "281500",
+  inter2_prdy_vrss: "10500",
+  prdy_ctrt: "3.87",
+  prdy_vrss_sign: "2",
+  inter2_oprc: "267000",
+  inter2_hgpr: "285000",
+  inter2_lwpr: "266000",
+  acml_vol: "27746471",
 } as const;
 
 const FIXTURE_230360_SHRUNK = {
@@ -181,35 +198,46 @@ describe("parseMarketAction", () => {
 
 describe("normalizeStockQuote — 폴링 가드", () => {
   it("정상 quote → StockQuote", () => {
-    const result = normalizeStockQuote(FIXTURE_005930_NORMAL);
+    const result = normalizeStockQuote(FIXTURE_005930_NORMAL, "krx");
     expect(result).not.toBeNull();
     expect(result?.ticker).toBe("005930");
     expect(result?.price).toBe(281500);
   });
 
   it("prpr=0 (KIS 정지 종목 반환 케이스) → null (EOD 덮어쓰기 방지)", () => {
-    const result = normalizeStockQuote({
-      ...FIXTURE_005930_NORMAL,
-      stck_prpr: "0",
-    });
+    const result = normalizeStockQuote(
+      { ...FIXTURE_005930_NORMAL, stck_prpr: "0" },
+      "krx",
+    );
     expect(result).toBeNull();
   });
 
   it("prpr 음수 (이례적 오염) → null", () => {
-    const result = normalizeStockQuote({
-      ...FIXTURE_005930_NORMAL,
-      stck_prpr: "-1",
-    });
+    const result = normalizeStockQuote(
+      { ...FIXTURE_005930_NORMAL, stck_prpr: "-1" },
+      "krx",
+    );
     expect(result).toBeNull();
   });
 
   it("응답 축소(230360, stck_shrn_iscd 결측) → null (기존 safeParse 실패 경로)", () => {
-    expect(normalizeStockQuote(FIXTURE_230360_SHRUNK)).toBeNull();
+    expect(normalizeStockQuote(FIXTURE_230360_SHRUNK, "krx")).toBeNull();
   });
 
   it("012170 (iscd_stat=58, prpr=748) → 정상 정규화 (guard 는 prpr>0 만 통과)", () => {
-    const result = normalizeStockQuote(FIXTURE_012170_SUSPENDED);
+    const result = normalizeStockQuote(FIXTURE_012170_SUSPENDED, "krx");
     expect(result).not.toBeNull();
     expect(result?.price).toBe(748);
+  });
+});
+
+describe("source 태깅", () => {
+  it("normalizeStockQuote 는 호출부 채널을 그대로 싣는다", () => {
+    expect(normalizeStockQuote(FIXTURE_005930_NORMAL, "krx")?.source).toBe("krx");
+    expect(normalizeStockQuote(FIXTURE_005930_NORMAL, "nx")?.source).toBe("nx");
+  });
+
+  it("normalizeMultiQuote 는 un 고정 (호출부가 UN 단일 채널)", () => {
+    expect(normalizeMultiQuote(FIXTURE_MULTI_005930)?.source).toBe("un");
   });
 });

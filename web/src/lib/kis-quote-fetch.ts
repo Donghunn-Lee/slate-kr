@@ -575,7 +575,7 @@ export const fetchStockQuote = async (
       return null;
     }
 
-    return normalizeStockQuote(parsed.data.output);
+    return normalizeStockQuote(parsed.data.output, marketDiv === "J" ? "krx" : "nx");
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[kis] stock quote fetch failed: ${message}`);

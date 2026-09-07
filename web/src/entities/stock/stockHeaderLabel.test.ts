@@ -13,6 +13,7 @@ const q = (over: Partial<StockQuote> = {}): StockQuote => ({
   high: 1_736_000,
   low: 1_698_000,
   volume: 100_000,
+  source: "krx",
   ...over,
 });
 

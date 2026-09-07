@@ -29,9 +29,17 @@ export type LiveQuoteCore = {
   low: number;
 };
 
+// 이 quote 가 어느 거래 채널에서 온 값인지. 헤더는 KRX/NXT 탭으로 출처가 명시적이지만
+// 리스트형 표면(관심 행·홈 프리뷰·검색)에는 판정 지점이 없어 값과 함께 실어 나른다.
+//   - "krx": KRX 단독 (KIS FID_COND_MRKT_DIV_CODE=J)
+//   - "nx" : NXT 단독 (=NX)
+//   - "un" : KRX+NXT 통합 (=UN, quote_snapshots 서빙 포함)
+export type QuoteSource = "krx" | "nx" | "un";
+
 export type StockQuote = LiveQuoteCore & {
   ticker: string; // 종목코드 6자리
   volume: number; // 누적 거래량
+  source: QuoteSource; // 가격 출처 채널 (배지 판정은 클라 소관)
 };
 
 export type IndexQuote = LiveQuoteCore & {

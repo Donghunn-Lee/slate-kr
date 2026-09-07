@@ -37,7 +37,13 @@ describe("snapshotToQuote", () => {
       high: 0,
       low: 0,
       volume: 34_401_475,
+      source: "un",
     });
+  });
+
+  it("source 는 un 고정 (스냅샷은 UN 단일 축)", () => {
+    expect(snapshotToQuote(mkRow({}))?.source).toBe("un");
+    expect(snapshotToQuote(mkRow({ un_change: -100 }))?.source).toBe("un");
   });
 
   it("비NXT (nx_eligible=false) → null (isNxtMiss 배지 경로 유지)", () => {

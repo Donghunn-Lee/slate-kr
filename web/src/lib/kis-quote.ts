@@ -3,6 +3,7 @@ import type {
   IndexQuote,
   MarketActionStatus,
   PriceSign,
+  QuoteSource,
   StockQuote,
 } from "@/shared/types/quote";
 
@@ -63,7 +64,12 @@ const IndexQuoteSchema = z.object({
   down_issu_cnt: z.string(),
 });
 
-export const normalizeStockQuote = (raw: unknown): StockQuote | null => {
+// source 는 판정하지 않고 호출부의 요청 채널을 그대로 받는다 — 응답 본문에는 어느
+// FID_COND_MRKT_DIV_CODE 로 물었는지가 실려오지 않는다.
+export const normalizeStockQuote = (
+  raw: unknown,
+  source: QuoteSource,
+): StockQuote | null => {
   const parsed = StockQuoteSchema.safeParse(raw);
   if (!parsed.success) return null;
   const d = parsed.data;
@@ -81,6 +87,7 @@ export const normalizeStockQuote = (raw: unknown): StockQuote | null => {
     high: Number(d.stck_hgpr),
     low: Number(d.stck_lwpr),
     volume: Number(d.acml_vol),
+    source,
   };
 };
 
@@ -132,6 +139,8 @@ export const normalizeMultiQuote = (raw: unknown): StockQuote | null => {
     high: Number(d.inter2_hgpr),
     low: Number(d.inter2_lwpr),
     volume: Number(d.acml_vol),
+    // 유일한 호출부 fetchMultiQuote 가 FID_COND_MRKT_DIV_CODE=UN 고정이라 하드코딩.
+    source: "un",
   };
 };
 
