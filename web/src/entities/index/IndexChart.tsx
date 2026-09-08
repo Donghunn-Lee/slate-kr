@@ -41,6 +41,7 @@ import type {
   IndexIntradaySnapshot,
   IndexQuote,
 } from "@/shared/types/quote";
+import { dateToKstStartSec } from "@/shared/utils/dateToKstStartSec";
 import {
   getPreviousKrxTradingDate,
   getPreviousOverseasIndexTradingDate,
@@ -108,13 +109,6 @@ const LEFT_MARGIN_BARS = 40;
 // 차트 높이 — StockChartTabs 와 동일 축. failed/empty 상태 컨테이너와 PriceChart height 공용.
 const CHART_HEIGHT_MOBILE = 320;
 const CHART_HEIGHT_DESKTOP = 450;
-
-// intraday bar time 은 kis-quote-fetch 의 kstToFakeUtcSec 로 인코딩된 fake-UTC epoch 초.
-// KST 00:00 을 같은 규칙으로 인코딩하면 세션 경계 epoch 를 얻는다.
-const dateToKstStartSec = (yyyyMmDd: string): number => {
-  const [y, m, d] = yyyyMmDd.split("-").map(Number);
-  return Math.floor(Date.UTC(y, m - 1, d) / 1000);
-};
 
 const dailyToBars = (prices: IndexDailySnapshot[]): ChartBar[] =>
   prices.map((p) => ({

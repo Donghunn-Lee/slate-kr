@@ -10,6 +10,7 @@ import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
 import type { ChartBar, IndexDailySnapshot } from "@/shared/types/quote";
 import type { StockPriceSnapshot } from "@/shared/types/stock";
+import { dateToKstStartSec } from "@/shared/utils/dateToKstStartSec";
 import { defaultMarketForSession, getKrxSessionState, isKrxBeforeMarketOpen } from "@/shared/utils/market";
 import { mergeLiveDayBar } from "@/shared/utils/mergeLiveDayBar";
 import { mergeLiveIntradayBar } from "@/shared/utils/mergeLiveIntradayBar";
@@ -355,6 +356,13 @@ export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsPro
     return prev > 0 ? prev : undefined;
   }, [isIntradayView, hasIntraday, isPreviousDay, quoteData]);
 
+  // 전일 tail 봉 dim 경계 — 응답 date(봉이 속한 거래일) 의 KST 자정.
+  // previousDay 응답이면 전 봉이 그 거래일 소속이라 dim 대상이 0건이 된다.
+  const intradayDimBefore =
+    isIntradayView && intradayQuery.data?.date
+      ? dateToKstStartSec(intradayQuery.data.date)
+      : undefined;
+
   const applyBarCountFromInput = (raw: string) => {
     const trimmed = raw.trim();
     if (!trimmed) {
@@ -579,6 +587,7 @@ export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsPro
           maPeriods={effectiveMaPeriods}
           seriesKind={seriesKind}
           baseline={intradayBaseline}
+          dimBefore={intradayDimBefore}
           visibleBars={isIntradayView ? undefined : barCount}
           onVisibleBarsChange={isIntradayView ? undefined : setBarCount}
           resetKey={resetKey}
