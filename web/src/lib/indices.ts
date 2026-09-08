@@ -308,8 +308,7 @@ export const getIndexIntradayPrices = async (
   // 캘린더는 모듈 memo — 시그니처로 뚫지 않는다 (route unstable_cache 캐시 키 오염 방지).
   const calendar = await getMarketCalendar();
   // 개장 전(pre · preopen) 은 세션 판정만으로 빈 배열 반환 — DB/KIS 호출 스킵.
-  // pre 는 지수 봉 자체가 없고, preopen 은 getKrxTradingDate 가 전일로 넘어가
-  // 전일 봉이 오늘로 오해될 여지가 있어 개장 전 상태로 통일한다.
+  // 지수는 정규장에서만 분봉이 생성되므로 개장 전 구간엔 오늘 봉 자체가 없다.
   // null(양쪽 실패) 과 구분하기 위해 [] 를 반환 — 소비측 failed:false 유지.
   const resolvedSession = session ?? getKrxSessionState(now, calendar);
   if (isKrxBeforeMarketOpen(resolvedSession)) return [];

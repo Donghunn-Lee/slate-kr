@@ -1042,7 +1042,7 @@ export const fetchStockIntradayChart = async (
   }
 
   // 활성 세션 + latePreopen + after_close — 라이브 fan-out 경로 진입.
-  const { minutes: nowMin, date: nowKstDate } = getKstDateAndMinutes(now);
+  const { minutes: nowMin } = getKstDateAndMinutes(now);
   const anchorSet = isNxt
     ? STOCK_INTRADAY_ANCHORS_NXT
     : STOCK_INTRADAY_ANCHORS_REGULAR;
@@ -1060,10 +1060,9 @@ export const fetchStockIntradayChart = async (
     (anchor) => anchorToMinutes(anchor) <= cutoffMin,
   );
 
-  // 라이브 봉이 붙는 KST 거래일. 활성 세션 + latePreopen 은 오늘 KST 캘린더 (latePreopen 도
-  // 오늘 08:00~08:50 pre 봉과 quote 축 정합화 위해 오늘로 통일 — getKrxTradingDate 는
-  // preopen 을 전일로 리포트하므로 재계산). after_close 는 completed session 그대로.
-  const barsDate = isActiveOrLatePreopen ? nowKstDate : todayTradingDate;
+  // 라이브 봉이 붙는 KST 거래일. 활성 세션 + latePreopen 이면 오늘, after_close 는
+  // completed session — 둘 다 거래일 축이 그대로 답한다.
+  const barsDate = todayTradingDate;
 
   // 전일 tail source date. 등락률 초기화(08:00) ~ 애프터 마감(20:00) 동안 "어제 마감 → 오늘"
   // 연속 컨텍스트 30봉 prepend. after_close 는 오늘 완결본 그대로 (tail 없음).

@@ -2,11 +2,7 @@
 
 import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
 import { useNow } from "@/shared/hooks/useNow";
-import {
-  getKrxTradingDate,
-  getKstDateAndMinutes,
-  isKrxLatePreopen,
-} from "@/shared/utils/market";
+import { getKrxTradingDate } from "@/shared/utils/market";
 
 type StockHeaderBaseDateProps = {
   // SSR daily_prices 최신 행 date ('YYYY-MM-DD').
@@ -19,12 +15,6 @@ type StockHeaderBaseDateProps = {
 export const StockHeaderBaseDate = ({ latestDate }: StockHeaderBaseDateProps) => {
   const now = useNow();
   const calendar = useMarketCalendar();
-  // getKrxTradingDate 는 08:50~09:00 preopen 을 전일로 보고한다.
-  const baseDate =
-    now === null
-      ? latestDate
-      : isKrxLatePreopen(now, calendar)
-        ? getKstDateAndMinutes(now).date
-        : getKrxTradingDate(now, calendar);
+  const baseDate = now === null ? latestDate : getKrxTradingDate(now, calendar);
   return <span>기준일 {baseDate}</span>;
 };
