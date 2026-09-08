@@ -65,8 +65,10 @@ export const CHART_THEME = {
 
 export type ChartPalette = (typeof CHART_THEME)[keyof typeof CHART_THEME];
 
-// intraday 잠금 뷰: 전일 마지막 세션 봉을 좌측에 흐리게 걸치는 여유. 3600s = 6개 10분봉.
-export const INTRADAY_PREV_LOOKBACK_SEC = 3600;
+// intraday 잠금 뷰 초기 창의 좌측 끝 = 전일 마지막 봉에서 이만큼 되짚은 봉.
+// 초 폭이 아니라 봉 수인 이유: 표면마다 전일 tail 의 실제 시간 길이가 달라(종목은 거래
+// 뜸하면 몇 시간, 해외 지수는 세션 전체) 고정 초 폭은 tail 을 자르거나 오늘을 짓누른다.
+export const INTRADAY_PREV_LOOKBACK_BARS = 30;
 
 // 지수 END 라벨 세션 경계 (HHMMSS ASC). 국내 정규장 마감 15:30 단일.
 // 종목(StockChartTabs) 은 프리·정규·애프터 3경계라 별도.

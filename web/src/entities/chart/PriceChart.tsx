@@ -25,7 +25,7 @@ import {
 } from "lightweight-charts";
 import {
   CHART_THEME,
-  INTRADAY_PREV_LOOKBACK_SEC,
+  INTRADAY_PREV_LOOKBACK_BARS,
   crosshairLocalization,
   type ChartPalette,
 } from "@/shared/constants/chart";
@@ -356,9 +356,9 @@ const chartTickFormatter = (time: Time, tickMarkType: TickMarkType): string => {
   }
 };
 
-// locked 뷰의 가시 범위. from = (전일 마지막 dim 봉 time) − LOOKBACK, to = 최신 봉 + 소폭 추적.
-// anchor 가 last 와 같으면(= 오늘 데이터 없이 마지막 세션 봉만 있음) 좁은 70분 창 대신
-// 전체 봉 범위로 폴백해 주말/장전에도 마지막 세션 전체가 보이게 한다.
+// locked 뷰의 가시 범위. from = 전일 마지막 dim 봉(anchor)에서 LOOKBACK_BARS 만큼
+// 되짚은 봉의 time, to = 최신 봉 + 소폭 추적. 데이터는 전부 시리즈에 넣고 뷰만 좁히므로
+// 좌측으로 팬하면 창 밖 봉도 보인다. anchor 가 없으면(전일 봉 0건) 첫 봉으로 폴백.
 const applyLockedRange = (
   chart: IChartApi,
   bars: ChartBar[],
@@ -368,26 +368,24 @@ const applyLockedRange = (
   const last = bars[bars.length - 1].time;
   if (typeof last !== "number") return;
 
-  let anchor: number | null = null;
+  let anchorIdx = -1;
   if (dimBefore !== undefined) {
     for (let i = bars.length - 1; i >= 0; i--) {
       const t = bars[i].time;
       if (typeof t === "number" && t < dimBefore) {
-        anchor = t;
+        anchorIdx = i;
         break;
       }
     }
   }
 
-  // anchor 가 last 와 동일하면 "전일 tail + 오늘" 컨텍스트가 성립하지 않으므로
-  // 첫 봉을 시작으로 삼는다(= 전체 세션 표시).
-  const hasIntradayContext = anchor !== null && anchor !== last;
-  const first = bars[0].time;
-  const from = hasIntradayContext
-    ? (anchor as number) - INTRADAY_PREV_LOOKBACK_SEC
-    : typeof first === "number"
-      ? first
-      : last;
+  // anchor 포함 LOOKBACK_BARS 개를 담도록 (BARS - 1) 만큼 되짚고, tail 이 그보다
+  // 짧으면 첫 봉으로 클램프 — 라이브러리 좌측 클램프에 기대지 않는다.
+  const fromBar =
+    anchorIdx >= 0
+      ? bars[Math.max(0, anchorIdx - (INTRADAY_PREV_LOOKBACK_BARS - 1))].time
+      : bars[0].time;
+  const from = typeof fromBar === "number" ? fromBar : last;
   const to = last + INTRADAY_BAR_BUFFER_SEC;
 
   chart.timeScale().setVisibleRange({
