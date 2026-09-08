@@ -20,7 +20,10 @@ import { useIndexQuotes } from "@/features/index-quotes/useIndexQuotes";
 import { useOverseasIndexIntraday } from "@/features/index-quotes/useOverseasIndexIntraday";
 import { useOverseasIndexQuotes } from "@/features/index-quotes/useOverseasIndexQuotes";
 import { buildIndexCell } from "@/shared/utils/buildIndexCell";
-import { formatOverseasQuoteTime } from "@/shared/utils/formatOverseasQuoteTime";
+import {
+  formatOverseasQuoteTime,
+  resolveOverseasCloseLabel,
+} from "@/shared/utils/formatOverseasQuoteTime";
 import { resolveOverseasDisplayState } from "@/shared/utils/resolveOverseasDisplayState";
 import {
   getKrxLastCloseDate,
@@ -50,6 +53,10 @@ const formatIndexVolume = (v: number): string => {
   if (man >= 1) return `${Math.round(man).toLocaleString("ko-KR")}만`;
   return v.toLocaleString("ko-KR");
 };
+
+// KIS 체결일(yyyyMMdd)을 일봉 스냅샷 date 와 같은 축('yyyy-MM-dd')으로 맞춘다.
+const toIsoDate = (yyyymmdd: string): string =>
+  `${yyyymmdd.slice(0, 4)}-${yyyymmdd.slice(4, 6)}-${yyyymmdd.slice(6, 8)}`;
 
 const formatReturn = (v: number): string => {
   const sign = v >= 0 ? "+" : "";
@@ -245,6 +252,21 @@ export const IndexDetailPane = ({
       : null;
   // 해외 stats 기준일 — 라이브/EOD 어느 소스든 daily 스냅샷 date 유지 (52주·수익률 계산 기준).
   const overseasRefDate = latestDaily?.date ?? null;
+  // 마감 라벨의 세션 일자 — quote 체결일 우선, 부재(.DJI 계열·미도착)면 일봉 스냅샷 date.
+  // 둘 다 거래소 로컬 일자축이라 그대로 섞어 쓸 수 있다.
+  const overseasSessionDate = isDomestic
+    ? null
+    : overseasState?.kind === "closed" && overseasQuote?.time
+      ? toIsoDate(overseasQuote.time.date)
+      : overseasRefDate;
+  const overseasCloseLabel =
+    overseasSessionDate !== null
+      ? resolveOverseasCloseLabel(
+          overseasSessionDate,
+          selected as OverseasIndexCode,
+          kstToday,
+        )
+      : null;
 
   const stats = statsByIndex[selected];
   const volume = isDomestic ? volumeByIndex[selected] : null;
@@ -273,9 +295,7 @@ export const IndexDetailPane = ({
           : domesticSourceLabel
     : overseasState?.kind === "live" && overseasKstTime
       ? `${overseasKstTime} 기준`
-      : overseasState?.kind === "closed" && overseasKstTime
-        ? `장 마감 · ${overseasKstTime}`
-        : `전일 종가 · ${overseasRefDate ?? "—"}`;
+      : overseasCloseLabel ?? "전일 종가 · —";
 
   return (
     <StockPanel variant="lavender" className="overflow-hidden p-0">
