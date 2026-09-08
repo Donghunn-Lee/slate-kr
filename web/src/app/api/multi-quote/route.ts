@@ -45,7 +45,7 @@ export const GET = async (req: NextRequest) => {
       // 로 서빙 — WatchlistRow 는 live 없으면 EOD price 로 자연 폴백.
       let snapshotServed = false;
       if (isSnapshotSession(session)) {
-        const { byTicker, dateExists } = await fetchQuoteSnapshots(tickers, date);
+        const { byTicker, dateExists } = await fetchQuoteSnapshots(tickers, now, calendar);
         const decision = decideMultiSnapshot(session, tickers, byTicker, dateExists);
         if (decision.kind === "serve") {
           for (const t of tickers) {

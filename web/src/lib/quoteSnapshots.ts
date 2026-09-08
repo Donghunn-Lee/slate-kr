@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { pool } from "./db";
-import type { KrxSession } from "@/shared/utils/market";
+import { getKrxLastCloseDate, type KrxSession } from "@/shared/utils/market";
+import type { MarketCalendar } from "@/shared/types/marketCalendar";
 import type { PriceSign, StockQuote } from "@/shared/types/quote";
 
 // quote_snapshots (수집기 fetch_quote_snapshots.py 산출) 조회 + StockQuote 변환.
@@ -53,6 +54,13 @@ export const snapshotToQuote = (row: QuoteSnapshotRow): StockQuote | null => {
 export const isSnapshotSession = (session: KrxSession | undefined): boolean =>
   session === "after_close" || session === "closed" || session === "preopen";
 
+// 스냅샷 조회 키 축. 캡처본은 직전 정규장 마감 뒤 20:10 산출물이므로 "마지막 마감일"
+// 이 조회 키다 — 응답 date/tradingDate 가 쓰는 거래일 축(getKrxTradingDate)과 별개.
+export const getSnapshotLookupDate = (
+  now: Date = new Date(),
+  calendar?: MarketCalendar,
+): string => getKrxLastCloseDate(now, calendar);
+
 // ── 단건 fetch + 결정 ────────────────────────────────────────
 export type SingleSnapshotDecision =
   | { kind: "serve"; quote: StockQuote | null } // hit 또는 부분 miss(= null)
@@ -71,8 +79,10 @@ export const decideSingleSnapshot = (
 
 export const fetchQuoteSnapshot = async (
   ticker: string,
-  date: string,
+  now: Date,
+  calendar?: MarketCalendar,
 ): Promise<{ row: QuoteSnapshotRow | undefined; dateExists: boolean }> => {
+  const date = getSnapshotLookupDate(now, calendar);
   const [rows] = await pool.query<QuoteSnapshotRow[]>(
     "SELECT * FROM quote_snapshots WHERE ticker = $1 AND date = $2 LIMIT 1",
     [ticker, date],
@@ -128,7 +138,8 @@ export const fetchNxEligible = cache(
 
 export const fetchQuoteSnapshots = async (
   tickers: string[],
-  date: string,
+  now: Date,
+  calendar?: MarketCalendar,
 ): Promise<{
   byTicker: Record<string, QuoteSnapshotRow>;
   dateExists: boolean;
@@ -137,6 +148,7 @@ export const fetchQuoteSnapshots = async (
     // 빈 요청. dateExists 는 상관없음 → false 로 두고 route 가 자연스레 skip.
     return { byTicker: {}, dateExists: false };
   }
+  const date = getSnapshotLookupDate(now, calendar);
   const placeholders = tickers.map((_, i) => `$${i + 1}`).join(",");
   const [rows] = await pool.query<QuoteSnapshotRow[]>(
     `SELECT * FROM quote_snapshots

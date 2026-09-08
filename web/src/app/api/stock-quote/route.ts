@@ -51,7 +51,7 @@ export const GET = async (req: NextRequest) => {
     // live===null 경로에 의존하므로 UI 무변경. market=nxt 도 이 경로 공유
     // (스냅샷 un/nx 컬럼이 실측 완전일치).
     if (isSnapshotSession(session)) {
-      const { row, dateExists } = await fetchQuoteSnapshot(ticker, date);
+      const { row, dateExists } = await fetchQuoteSnapshot(ticker, now, calendar);
       const decision = decideSingleSnapshot(session, row, dateExists);
       if (decision.kind === "serve") {
         return NextResponse.json({

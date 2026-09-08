@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   decideMultiSnapshot,
   decideSingleSnapshot,
+  getSnapshotLookupDate,
   isSnapshotSession,
   snapshotToQuote,
 } from "./quoteSnapshots";
@@ -82,6 +83,28 @@ describe("isSnapshotSession", () => {
   });
   it("undefined 도 false (초기 로드)", () => {
     expect(isSnapshotSession(undefined)).toBe(false);
+  });
+});
+
+// KST = UTC+9.
+const kst = (
+  y: number, m: number, d: number, h: number, min = 0,
+): Date => new Date(Date.UTC(y, m - 1, d, h - 9, min));
+
+// 조회 키는 마지막 마감일 축 — 응답 date 가 쓰는 거래일 축과 갈라져도 캡처본을 따라간다.
+describe("getSnapshotLookupDate", () => {
+  it("20:30 after_close → 오늘 (당일 20:10 캡처본)", () => {
+    expect(getSnapshotLookupDate(kst(2026, 7, 23, 20, 30))).toBe("2026-07-23");
+  });
+  it("02:00 after_close(자정 넘김) → 직전 거래일", () => {
+    expect(getSnapshotLookupDate(kst(2026, 7, 24, 2, 0))).toBe("2026-07-23");
+  });
+  it("07:00 · 08:55 preopen → 직전 거래일 (오늘 캡처본 아직 없음)", () => {
+    expect(getSnapshotLookupDate(kst(2026, 7, 23, 7, 0))).toBe("2026-07-22");
+    expect(getSnapshotLookupDate(kst(2026, 7, 23, 8, 55))).toBe("2026-07-22");
+  });
+  it("토요일 closed → 직전 거래일", () => {
+    expect(getSnapshotLookupDate(kst(2026, 7, 25, 10, 0))).toBe("2026-07-24");
   });
 });
 
