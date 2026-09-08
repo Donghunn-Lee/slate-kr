@@ -188,9 +188,6 @@ export const IndexChart = ({
   const [inputRevertNonce, setInputRevertNonce] = useState(0);
   // 툴바 "기본 배율" 버튼 트리거. 증가 시 PriceChart 가 현재 뷰의 초기 range 재적용.
   const [resetKey, setResetKey] = useState(0);
-  // 사용자가 pan/zoom 을 한 번이라도 했는지 — 버튼 disabled 판정용. PriceChart 첫 조작
-  // 콜백으로 true, 리셋/뷰전환/주기전환/간격전환 시 false.
-  const [hasUserPanned, setHasUserPanned] = useState(false);
   // 좌측 팬 근접 시 opt-in 로 로드된 지수 코드 (또는 null). 훅 enabled 를 현재 indexCode
   // 일치로 파생 → 지수 전환 시 자동으로 비활성 (별도 reset effect 불필요).
   const [historyCode, setHistoryCode] = useState<IndexCode | null>(null);
@@ -202,11 +199,6 @@ export const IndexChart = ({
   useEffect(() => {
     setBarCount(GRANULARITY_DEFAULT_BARS[granularity]);
   }, [granularity]);
-
-  // 뷰/주기/간격 전환 → PriceChart 내부 pan/zoom gate 도 초기화되므로 상위 flag 도 동기 리셋.
-  useEffect(() => {
-    setHasUserPanned(false);
-  }, [viewMode, granularity, intradayInterval]);
 
   // 홈 IndexSlate 와 캐시 공유 (동시 열림 시 네트워크 중복 제거).
   // 국내/해외 훅을 모두 호출하고 지수 리전에 따라 소비 소스를 선택한다.
@@ -547,14 +539,7 @@ export const IndexChart = ({
               // (=사용자 팬/줌 후 갱신된 값) 로 range 를 재계산 → 시각적 변화 거의 없음.
               setBarCount(GRANULARITY_DEFAULT_BARS[granularity]);
               setResetKey((k) => k + 1);
-              setHasUserPanned(false);
             }}
-            // pan/zoom 미조작 & barCount 가 초기값이면 비활성.
-            // intraday 뷰는 봉수 input 이 잠겨 있어 barCount 가 default 유지 → 사실상
-            // hasUserPanned 만 결정. 리셋 클릭 시 resetKey 경로가 runLockedRange 로 복구.
-            disabled={
-              !hasUserPanned && barCount === GRANULARITY_DEFAULT_BARS[granularity]
-            }
           />
         </div>
       </div>
@@ -622,7 +607,6 @@ export const IndexChart = ({
           visibleBars={renderIntraday ? undefined : barCount}
           onVisibleBarsChange={renderIntraday ? undefined : setBarCount}
           resetKey={resetKey}
-          onUserInteract={() => setHasUserPanned(true)}
           onNearLeftEdge={renderIntraday ? undefined : enableHistory}
           leftMarginBars={
             renderIntraday || historyLoaded ? undefined : LEFT_MARGIN_BARS

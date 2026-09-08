@@ -199,9 +199,6 @@ export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsPro
   const [inputRevertNonce, setInputRevertNonce] = useState(0);
   // 툴바 "기본 배율" 버튼 트리거. 증가 시 PriceChart 가 현재 뷰의 초기 range 재적용.
   const [resetKey, setResetKey] = useState(0);
-  // 사용자가 pan/zoom 을 한 번이라도 했는지 — 버튼 disabled 판정용. PriceChart 첫 조작
-  // 콜백으로 true, 리셋/뷰전환/주기전환/간격전환 시 false.
-  const [hasUserPanned, setHasUserPanned] = useState(false);
   const isIntradayView = viewMode === "intraday";
 
   // granularity 전환 시 표시 창을 해당 기본값으로 재설정 — 주기별로 "봉 개수"의 감각이 다르므로
@@ -209,11 +206,6 @@ export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsPro
   useEffect(() => {
     setBarCount(GRANULARITY_DEFAULT_BARS[granularity]);
   }, [granularity]);
-
-  // 뷰/주기/간격 전환 → PriceChart 내부 pan/zoom gate 도 초기화되므로 상위 flag 도 동기 리셋.
-  useEffect(() => {
-    setHasUserPanned(false);
-  }, [viewMode, granularity, intradayInterval]);
 
   // 헤더 폴링과 동일 queryKey 를 subscribe → 네트워크 추가 0.
   // NXT 취급 종목은 헤더가 시장 축으로 캐시를 분리하므로, 세션 기본 market 을 명시 구독한다.
@@ -519,14 +511,7 @@ export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsPro
                   // (=사용자 팬/줌 후 갱신된 값) 로 range 를 재계산 → 시각적 변화 거의 없음.
                   setBarCount(GRANULARITY_DEFAULT_BARS[granularity]);
                   setResetKey((k) => k + 1);
-                  setHasUserPanned(false);
                 }}
-                // pan/zoom 미조작 & barCount 가 초기값이면 비활성.
-                // intraday 뷰는 봉수 input 이 잠겨 있어 barCount 가 default 유지 → 사실상
-                // hasUserPanned 만 결정. 리셋 클릭 시 resetKey 경로가 runLockedRange 로 복구.
-                disabled={
-                  !hasUserPanned && barCount === GRANULARITY_DEFAULT_BARS[granularity]
-                }
               />
             </div>
           </div>
@@ -591,7 +576,6 @@ export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsPro
           visibleBars={isIntradayView ? undefined : barCount}
           onVisibleBarsChange={isIntradayView ? undefined : setBarCount}
           resetKey={resetKey}
-          onUserInteract={() => setHasUserPanned(true)}
         />
       )}
     </>

@@ -69,9 +69,6 @@ type PriceChartProps = {
   // 재적용 (intraday=applyLockedRange, EOD=applyVisibleRange). 0 은 mount 시 no-op —
   // config effect 의 initial 경로가 이미 초기 창을 잡기 때문에 이중 적용 방지.
   resetKey?: number;
-  // 사용자의 첫 pan/zoom 시 1회 통지. 상위 "기본 배율" 버튼 disabled 판정용.
-  // resetKey 증가로 userScrolledRef 가 다시 false 로 초기화되면 이후 첫 조작에서 재발화.
-  onUserInteract?: () => void;
   // 사용자가 좌측 여백(whitespace) 슬롯까지 팬/줌해 들어오면 1회 통지.
   // EOD 뷰 · 사용자 조작 경로 전용 — programmatic range 세팅에서는 발화하지 않는다.
   // bars 배열 참조가 바뀌면 다시 발화 가능 (예: 지수 전환). leftEdgeStatus="error"
@@ -410,7 +407,6 @@ export const PriceChart = ({
   visibleBars,
   onVisibleBarsChange,
   resetKey = 0,
-  onUserInteract,
   onNearLeftEdge,
   leftMarginBars,
   leftEdgeStatus = "idle",
@@ -457,7 +453,6 @@ export const PriceChart = ({
   const lastReportedRef = useRef<number | null | undefined>(undefined);
   // 콜백 최신 참조 — 구독 재설정 없이도 갈아끼울 수 있도록 ref 로.
   const onVisibleBarsChangeRef = useRef(onVisibleBarsChange);
-  const onUserInteractRef = useRef(onUserInteract);
   const onNearLeftEdgeRef = useRef(onNearLeftEdge);
   // 같은 bars 배열에 대해 onNearLeftEdge 는 1회만 발화. bars prop 참조가 바뀌면 해제 —
   // 지수 전환 후 새 지수에서 다시 트리거될 수 있도록.
@@ -514,10 +509,6 @@ export const PriceChart = ({
   useEffect(() => {
     onVisibleBarsChangeRef.current = onVisibleBarsChange;
   }, [onVisibleBarsChange]);
-
-  useEffect(() => {
-    onUserInteractRef.current = onUserInteract;
-  }, [onUserInteract]);
 
   useEffect(() => {
     onNearLeftEdgeRef.current = onNearLeftEdge;
@@ -754,10 +745,7 @@ export const PriceChart = ({
       if (applyingRangeRef.current || !incoming) return;
       const len = barsRef.current.length;
       if (len === 0) return;
-      if (!userScrolledRef.current) {
-        userScrolledRef.current = true;
-        onUserInteractRef.current?.();
-      }
+      userScrolledRef.current = true;
       // barCount 역반영은 EOD 전용 — intraday 는 applyLockedRange 로 창이 고정되어
       // 봉수 프리셋 개념 자체가 없다. dirty 판정(위)은 뷰 무관.
       if (intraday) return;
