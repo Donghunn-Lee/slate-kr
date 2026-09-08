@@ -3,6 +3,7 @@ import type { MarketCalendar } from "@/shared/types/marketCalendar";
 import {
   getKrxSessionState,
   getKrxTradingDate,
+  getGlobalOverseasSessionState,
   getOverseasIndexSessionState,
   getOverseasIndexTradingDate,
   getPreviousOverseasIndexTradingDate,
@@ -393,6 +394,56 @@ describe("minutesSinceKrxClose", () => {
   });
   it("토요일 정오 → null (주말)", () => {
     expect(minutesSinceKrxClose(kst(2026, 7, 25, 12, 0))).toBeNull();
+  });
+});
+
+// 인자는 UTC epoch — 주석의 KST/ET 시각은 그 epoch 의 로컬 환산이다.
+describe("getGlobalOverseasSessionState", () => {
+  // ── 마감 버퍼 경계 (EDT · 마감 KST 05:00) ────────────────
+  it("09-09(수) KST 05:44 = 09-08 16:44 ET (마감 44분 후) → active", () => {
+    expect(getGlobalOverseasSessionState(utc(2026, 9, 8, 20, 44))).toBe("active");
+  });
+
+  it("09-09(수) KST 05:45 = 09-08 16:45 ET (마감 45분 후) → idle", () => {
+    expect(getGlobalOverseasSessionState(utc(2026, 9, 8, 20, 45))).toBe("idle");
+  });
+
+  // ── 마감 버퍼 경계 (EST · 마감 KST 06:00) ────────────────
+  // EST 는 마감이 KST 06:00 — EDT(05:00)보다 1시간 늦다.
+  it("12-10(목) KST 06:00 = 12-09 16:00 EST (마감 시점) → active", () => {
+    expect(getGlobalOverseasSessionState(utc(2026, 12, 9, 21, 0))).toBe("active");
+  });
+
+  it("12-10(목) KST 06:45 = 12-09 16:45 EST (마감 45분 후) → idle", () => {
+    expect(getGlobalOverseasSessionState(utc(2026, 12, 9, 21, 45))).toBe("idle");
+  });
+
+  // ── 창 종료 09:00 KST (도쿄 개장 · DST 없음) ──────────────
+  it("09-09(수) KST 08:59 → idle / 09:00 → active", () => {
+    expect(getGlobalOverseasSessionState(utc(2026, 9, 8, 23, 59))).toBe("idle");
+    expect(getGlobalOverseasSessionState(utc(2026, 9, 9, 0, 0))).toBe("active");
+  });
+
+  it("09-09(수) KST 22:30 = 09:30 ET 개장 → active", () => {
+    expect(getGlobalOverseasSessionState(utc(2026, 9, 9, 13, 30))).toBe("active");
+  });
+
+  // ── 비거래일 (sinceClose=null 을 세션 상태로 가르는 축) ─────
+  it("09-12(토) KST 02:00 = 09-11 13:00 ET 장중 → active", () => {
+    expect(getGlobalOverseasSessionState(utc(2026, 9, 11, 17, 0))).toBe("active");
+  });
+
+  it("09-13(일) KST 06:00 = 09-12 17:00 ET 주말 → idle", () => {
+    expect(getGlobalOverseasSessionState(utc(2026, 9, 12, 21, 0))).toBe("idle");
+  });
+
+  it("09-08(화) KST 06:00 = 09-07 17:00 ET Labor Day → idle (정적 폴백)", () => {
+    expect(getGlobalOverseasSessionState(utc(2026, 9, 7, 21, 0))).toBe("idle");
+  });
+
+  // 비거래일엔 마감 자체가 없어 버퍼 이전 새벽도 휴지다.
+  it("09-08(화) KST 03:00 = 09-07 14:00 ET Labor Day → idle", () => {
+    expect(getGlobalOverseasSessionState(utc(2026, 9, 7, 18, 0))).toBe("idle");
   });
 });
 

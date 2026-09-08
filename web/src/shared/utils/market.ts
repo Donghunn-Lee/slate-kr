@@ -292,12 +292,14 @@ export const getPreviousUsTradingDate = (fromDate: string): string =>
   findRecentUsTradingDay(shiftUsDate(fromDate, -1));
 
 // ── 글로벌 해외지수 coarse 세션 ─────────────────
-// KST 05:45~09:00 은 전 세계 주요 시장(US/EU/아시아) 공통 휴지 구간 → 폴링 중단.
-// 시장별 세션·휴장 캘린더는 만들지 않는다 — 마감 시장은 KIS 가 종가를 반환하므로
-// 값 표시는 성립.
-// 05:45 = US 정규장 마감(EDT 기간 KST 05:00) + 45분 정산 프린트 버퍼.
-// EST 기간(마감 KST 06:00)은 창 시작이 마감보다 앞서므로 이 버퍼로는 커버되지 않는다.
-const GLOBAL_OVERSEAS_IDLE_START_MINUTES = 5 * 60 + 45; // 05:45 KST
+// US 정규장 마감 + 45분 정산 프린트 버퍼 ~ KST 09:00 은 전 세계 주요 시장(US/EU/아시아)
+// 공통 휴지 구간 → 폴링 중단. 앵커는 US 마감 하나 — 시장별 창은 만들지 않는다.
+// 마감 시장은 KIS 가 종가를 반환하므로 값 표시는 성립.
+// 창 시작이 KST 고정 분이 아닌 이유: US 마감의 KST 환산이 DST 로 05:00 ↔ 06:00 을
+// 오가서, 고정 분은 EST 기간에 마감보다 앞선다.
+// 창 종료 09:00 KST 는 고정 — 도쿄 개장은 DST 가 없다.
+// sinceClose=null 은 "마감 전"과 "비거래일" 공용 신호라 세션 상태로 가른다. 비거래일은
+// 마감이 없으므로 창 전체(KST 00:00~09:00)가 휴지다.
 const GLOBAL_OVERSEAS_IDLE_END_MINUTES = 9 * 60; // 09:00 KST
 
 export type GlobalOverseasSession = "active" | "idle";
@@ -306,8 +308,12 @@ export const getGlobalOverseasSessionState = (
   now: Date = new Date(),
 ): GlobalOverseasSession => {
   const { minutes } = toKstParts(now);
-  return minutes >= GLOBAL_OVERSEAS_IDLE_START_MINUTES &&
-    minutes < GLOBAL_OVERSEAS_IDLE_END_MINUTES
+  const sinceClose = minutesSinceOverseasIndexClose("SPX", now);
+  const afterClose =
+    sinceClose !== null
+      ? sinceClose >= 45
+      : getOverseasIndexSessionState("SPX", now) === "closed";
+  return afterClose && minutes < GLOBAL_OVERSEAS_IDLE_END_MINUTES
     ? "idle"
     : "active";
 };
