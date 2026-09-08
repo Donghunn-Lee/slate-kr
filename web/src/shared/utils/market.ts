@@ -159,17 +159,16 @@ const findRecentTradingDay = (
 };
 
 // 실시간 시세가 반영되는 KRX 거래일(KST).
-// regular/after/pre = 오늘 (pre는 NXT 프리마켓 트레이드가 오늘 세션에 귀속).
-// after_close 20:00~24:00 = 오늘, 00:00~06:00 = 이전 완결 거래일(자정 넘김 세션).
-// preopen/closed = 이전 완결 거래일 (활성 시세 없음, 최근 완결일 스냅샷).
+// 오늘이 거래일이고 08:00 이후면 오늘, 그 외에는 직전 거래일.
+// 08:00 은 KRX 기준가가 오늘로 리셋되는 시각 — 그 이후 도달하는 값은 오늘 거래일에 귀속된다.
+// 세션과 독립: preopen 이 06:00~08:00 과 08:50~09:00 두 비연속 구간을 한 이름으로 덮으므로
+// 세션으로 분기하면 거래일 축이 하루를 왕복한다.
 export const getKrxTradingDate = (
   now: Date = new Date(),
   calendar?: MarketCalendar,
 ): string => {
-  const session = getKrxSessionState(now, calendar);
   const { minutes, date } = toKstParts(now);
-  if (session === "regular" || session === "after" || session === "pre") return date;
-  if (session === "after_close" && minutes >= AFTER_END_MINUTES) return date;
+  if (isKrxTradingDay(date, calendar) && minutes >= PRE_START_MINUTES) return date;
   return findRecentTradingDay(shiftKstDate(date, -1), calendar);
 };
 
