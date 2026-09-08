@@ -30,6 +30,8 @@ type MiniIndexCellProps = {
   // 국내 개장 전(pre · preopen) 여부. IndexSparkline empty 문구를 "장중 데이터 없음"
   // 대신 "개장 전" 으로 대체. 상단 IndexCell 과 동형.
   isPreopen?: boolean;
+  // 스파크라인이 그릴 거래일 'YYYY-MM-DD' — bars 에 섞인 전일 tail 을 잘라내는 축.
+  tradingDate?: string;
   // 값 문자열 포맷 — 국내(KRW, 콤마)·해외(소숫점 2자리 등) 케이스별 주입.
   formatPrice: (v: number) => string;
   // 라이브 값 렌더 방식 — 국내는 카운트업 애니메이션 노드, 해외는 formatPrice 결과 텍스트.
@@ -53,6 +55,7 @@ export const MiniIndexCell = ({
   intradayFailed,
   intradayLoading = false,
   isPreopen = false,
+  tradingDate,
   formatPrice,
   renderLiveValue,
   labelClassName,
@@ -131,6 +134,7 @@ export const MiniIndexCell = ({
         failed={intradayFailed}
         isPreopen={isPreopen}
         isLoading={intradayLoading}
+        tradingDate={tradingDate}
       />
     </div>
   </div>

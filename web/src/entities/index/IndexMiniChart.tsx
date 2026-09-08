@@ -25,8 +25,10 @@ type IndexMiniChartProps = {
   // bars=[] 로 "장중 데이터 없음" 플래시가 나지 않도록 여기서 국소 placeholder 로 대체.
   isLoading: boolean;
   // 국내 개장 전(pre · preopen) 여부. 빈 empty 문구를 "장중 데이터 없음" 대신
-  // "개장 전" 으로 대체 — 서버가 개장 전 국내 지수를 [] 로 통일 반환하기 때문.
+  // "개장 전" 으로 대체.
   isPreopen?: boolean;
+  // 그릴 세션의 거래일 'YYYY-MM-DD' (KST). 미전달 시 마지막 봉 날짜로 폴백.
+  tradingDate?: string;
 };
 
 type BaselinePalette = {
@@ -69,28 +71,38 @@ const HEIGHT_PX_MOBILE = 95;
 const FONT_SIZE_MOBILE = 10;
 
 // time 은 KST를 UTC로 위장한 epoch 초이므로 getUTC* 가 원래 KST 컴포넌트를 돌려준다.
+// tradingDate 와 직접 비교하도록 'YYYY-MM-DD' 로 맞춘다.
 const kstDateKey = (t: number): string => {
   const d = new Date(t * 1000);
-  return `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${d.getUTCFullYear()}-${m}-${day}`;
 };
 
-export const IndexMiniChart = ({ bars, prevClose, failed, isLoading, isPreopen = false }: IndexMiniChartProps) => {
+export const IndexMiniChart = ({
+  bars,
+  prevClose,
+  failed,
+  isLoading,
+  isPreopen = false,
+  tradingDate,
+}: IndexMiniChartProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { resolvedTheme } = useTheme();
   const isMobile = useIsMobile();
   const height = isMobile ? HEIGHT_PX_MOBILE : HEIGHT_PX_DESKTOP;
 
-  // 미니는 한 세션(09:00–15:30)만. KIS가 직전 영업일 데이터까지 섞어 보내는 경우 마지막 bar 의
-  // 날짜로 잘라낸다 — 장중엔 오늘, 장 마감 후엔 가장 최근 영업일 세션이 잡힌다.
+  // 미니는 한 세션(09:00–15:30)만. 축은 거래일 — 서버가 전일 tail 까지 함께 서빙하므로
+  // 마지막 봉 날짜로 자르면 개장 전(08:00~09:00)에 전일 세션이 오늘로 오독된다.
   const sessionBars = useMemo(() => {
     if (bars.length === 0) return bars;
     const last = bars[bars.length - 1].time;
     if (typeof last !== "number") return bars;
-    const lastKey = kstDateKey(last);
+    const key = tradingDate ?? kstDateKey(last);
     return bars.filter(
-      (b) => typeof b.time === "number" && kstDateKey(b.time) === lastKey,
+      (b) => typeof b.time === "number" && kstDateKey(b.time) === key,
     );
-  }, [bars]);
+  }, [bars, tradingDate]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -217,7 +229,7 @@ export const IndexMiniChart = ({ bars, prevClose, failed, isLoading, isPreopen =
     };
   }, [sessionBars, prevClose, resolvedTheme, isMobile]);
 
-  if (isLoading && bars.length === 0) {
+  if (isLoading && sessionBars.length === 0) {
     return (
       <div
         className="w-full animate-pulse rounded bg-muted"
@@ -226,7 +238,7 @@ export const IndexMiniChart = ({ bars, prevClose, failed, isLoading, isPreopen =
       />
     );
   }
-  if (bars.length === 0) {
+  if (sessionBars.length === 0) {
     return (
       <div
         className="flex items-center justify-center text-micro text-muted-foreground"

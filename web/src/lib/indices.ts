@@ -16,12 +16,10 @@ import {
 } from "@/shared/constants/indices";
 import type { MarketCalendar } from "@/shared/types/marketCalendar";
 import {
-  getKrxSessionState,
   getKrxTradingDate,
   getOverseasIndexTradingDate,
+  getPreviousKrxTradingDate,
   getPreviousOverseasIndexTradingDate,
-  isKrxBeforeMarketOpen,
-  type KrxSession,
 } from "@/shared/utils/market";
 import type {
   ChartBar,
@@ -248,8 +246,8 @@ export const getOverseasIndexIntradayPrices = async (
 };
 
 // ── 국내 지수 1분 (DB + KIS live tail) ─────────────────
-// tradingDate 1값으로 DB 필터·live 필터 모두 고정 — 세션·일 경계에서 자연 정합.
-// live 호출 게이트 없음.
+// tradingDate 1값이 창의 축 — DB 는 직전 거래일부터(전일 tail), live 는 tradingDate
+// 당일로 필터. 세션·일 경계에서 자연 정합. live 호출 게이트 없음.
 // 실패 계약: live 실패 + DB 빈 배열 → null (소비측 failed).
 // 한쪽만 실패 → degraded 성공 (빈 배열도 정상 응답).
 // 서버 fold 로 15:31·15:32 프린트만 15:30 봉에 흡수. END 라벨·리샘플은 클라 소관 —
@@ -270,8 +268,12 @@ type DomesticIntradayRow = {
 const readDomesticIntradayFromDb = async (
   indexCode: DomesticIndexCode,
   tradingDate: string, // 'YYYY-MM-DD'
+  calendar?: MarketCalendar,
 ): Promise<ChartBar[]> => {
   try {
+    // 창 하한은 직전 거래일 00:00 — 상세 차트가 전일 tail 을 dim 으로 그린다.
+    // 해외 `readOverseasIntradayFromDb` 와 동형(상한 없음).
+    const prevTradingDate = getPreviousKrxTradingDate(tradingDate, calendar);
     const [rows] = await pool.query<DomesticIntradayRow[]>(
       `SELECT to_char(ts, 'YYYYMMDD') AS ts_date,
               to_char(ts, 'HH24MISS') AS ts_time,
@@ -279,9 +281,8 @@ const readDomesticIntradayFromDb = async (
          FROM domestic_index_intraday
         WHERE index_code = $1
           AND ts >= $2::date
-          AND ts <  ($2::date + INTERVAL '1 day')
         ORDER BY ts ASC`,
-      [indexCode, tradingDate],
+      [indexCode, prevTradingDate],
     );
     return rows.map((r) => ({
       time: kstToFakeUtcSec(r.ts_date, r.ts_time),
@@ -302,22 +303,16 @@ const readDomesticIntradayFromDb = async (
 
 export const getIndexIntradayPrices = async (
   indexCode: DomesticIndexCode,
-  session?: KrxSession,
   now: Date = new Date(),
 ): Promise<IndexIntradaySnapshot[] | null> => {
   // 캘린더는 모듈 memo — 시그니처로 뚫지 않는다 (route unstable_cache 캐시 키 오염 방지).
   const calendar = await getMarketCalendar();
-  // 개장 전(pre · preopen) 은 세션 판정만으로 빈 배열 반환 — DB/KIS 호출 스킵.
-  // 지수는 정규장에서만 분봉이 생성되므로 개장 전 구간엔 오늘 봉 자체가 없다.
-  // null(양쪽 실패) 과 구분하기 위해 [] 를 반환 — 소비측 failed:false 유지.
-  const resolvedSession = session ?? getKrxSessionState(now, calendar);
-  if (isKrxBeforeMarketOpen(resolvedSession)) return [];
   const tradingDate = getKrxTradingDate(now, calendar);
   const targetDate = toKisDate(tradingDate);
   const iscd = ISCD_BY_INDEX[indexCode];
 
   const [dbBars, liveBars] = await Promise.all([
-    readDomesticIntradayFromDb(indexCode, tradingDate),
+    readDomesticIntradayFromDb(indexCode, tradingDate, calendar),
     fetchIndexMinuteBarsRaw(iscd, now, 60, targetDate),
   ]);
 

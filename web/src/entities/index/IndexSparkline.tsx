@@ -20,9 +20,11 @@ type IndexSparklineProps = {
   // useIndexIntraday failed[cellKey] 파생. IndexMiniChart 와 동일한 empty 문구
   // 정책으로 정렬 — 실패 시 안내 문구를 슬롯 내부에 표시.
   failed?: boolean;
-  // 국내 개장 전(pre · preopen) 여부. 서버가 개장 전 국내 지수를 [] 로 반환하므로
-  // empty 문구를 "장중 데이터 없음" 대신 "개장 전" 으로 대체.
+  // 국내 개장 전(pre · preopen) 여부. empty 문구를 "장중 데이터 없음" 대신
+  // "개장 전" 으로 대체.
   isPreopen?: boolean;
+  // 그릴 세션의 거래일 'YYYY-MM-DD'. 미전달 시 마지막 봉 날짜로 폴백.
+  tradingDate?: string;
   // 부모 useIndexIntraday 첫 응답 도착 전 구간. bars=[] 로 empty 문구가 로딩 중
   // 플래시로 나지 않도록 국소 skeleton 으로 대체.
   isLoading?: boolean;
@@ -58,9 +60,12 @@ const BASE_HEIGHT_CLS = "h-[60px] md:h-full";
 
 // time 은 벽시계(국내 KST · 해외 ET)를 UTC 로 위장한 epoch 초 → getUTC* 로
 // 원본 시간대 컴포넌트를 복원한다. 아래 세션 필터도 자연스레 해당 캘린더 기준으로 동작.
+// tradingDate 와 직접 비교하도록 'YYYY-MM-DD' 로 맞춘다.
 const kstDateKey = (t: number): string => {
   const d = new Date(t * 1000);
-  return `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${d.getUTCFullYear()}-${m}-${day}`;
 };
 
 export const IndexSparkline = ({
@@ -69,20 +74,22 @@ export const IndexSparkline = ({
   failed = false,
   isPreopen = false,
   isLoading = false,
+  tradingDate,
 }: IndexSparklineProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { resolvedTheme } = useTheme();
 
-  // 마지막 봉의 KST 캘린더 날짜와 같은 세션만 유지 — 전일 데이터 섞임 방지.
+  // 거래일과 같은 날짜의 봉만 유지 — 서버가 함께 서빙하는 전일 tail 을 배제한다.
+  // 마지막 봉 기준으로 자르면 개장 전(08:00~09:00)에 전일 세션이 오늘로 오독된다.
   const sessionBars = useMemo(() => {
     if (bars.length === 0) return bars;
     const last = bars[bars.length - 1].time;
     if (typeof last !== "number") return bars;
-    const lastKey = kstDateKey(last);
+    const key = tradingDate ?? kstDateKey(last);
     return bars.filter(
-      (b) => typeof b.time === "number" && kstDateKey(b.time) === lastKey,
+      (b) => typeof b.time === "number" && kstDateKey(b.time) === key,
     );
-  }, [bars]);
+  }, [bars, tradingDate]);
 
   useEffect(() => {
     if (!containerRef.current) return;

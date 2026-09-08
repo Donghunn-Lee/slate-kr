@@ -67,9 +67,11 @@ type IndexCellProps = {
   intradayFailed: boolean;
   intradayLoading: boolean;
   isPreopen: boolean;
+  // 미니차트가 그릴 거래일 — bars 에 섞인 전일 tail 을 잘라내는 축.
+  tradingDate: string;
 };
 
-const IndexCell = ({ label, cell, bars, prevClose, intradayFailed, intradayLoading, isPreopen }: IndexCellProps) => (
+const IndexCell = ({ label, cell, bars, prevClose, intradayFailed, intradayLoading, isPreopen, tradingDate }: IndexCellProps) => (
   <div className="flex flex-col gap-2 px-4 py-3 md:gap-3 md:px-6 md:py-4">
     <div>
       <div className="text-body font-bold text-muted-foreground">{label}</div>
@@ -120,7 +122,7 @@ const IndexCell = ({ label, cell, bars, prevClose, intradayFailed, intradayLoadi
         </div>
       )}
     </div>
-    <IndexMiniChart bars={bars} prevClose={prevClose} failed={intradayFailed} isLoading={intradayLoading} isPreopen={isPreopen} />
+    <IndexMiniChart bars={bars} prevClose={prevClose} failed={intradayFailed} isLoading={intradayLoading} isPreopen={isPreopen} tradingDate={tradingDate} />
   </div>
 );
 
@@ -331,6 +333,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                     intradayFailed={intraday?.failed.KOSPI ?? false}
                     intradayLoading={intradayLoading}
                     isPreopen={beforeOpen}
+                    tradingDate={data.date}
                   />
                   <MiniIndexCell
                     label={INDEX_LABEL.KOSPI200}
@@ -340,6 +343,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                     intradayFailed={intraday?.failed.KOSPI200 ?? false}
                     intradayLoading={intradayLoading}
                     isPreopen={beforeOpen}
+                    tradingDate={data.date}
                     formatPrice={formatKrw}
                     renderLiveValue={renderDomesticLive}
                     priceClassName="md:text-xl md:font-medium"
@@ -354,6 +358,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                     intradayFailed={intraday?.failed.KOSDAQ ?? false}
                     intradayLoading={intradayLoading}
                     isPreopen={beforeOpen}
+                    tradingDate={data.date}
                   />
                   <MiniIndexCell
                     label={INDEX_LABEL.KOSDAQ150}
@@ -363,6 +368,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                     intradayFailed={intraday?.failed.KOSDAQ150 ?? false}
                     intradayLoading={intradayLoading}
                     isPreopen={beforeOpen}
+                    tradingDate={data.date}
                     formatPrice={formatKrw}
                     renderLiveValue={renderDomesticLive}
                     priceClassName="md:text-xl md:font-medium"
@@ -392,6 +398,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                   intradayFailed={intraday?.failed.KOSPI ?? false}
                   intradayLoading={intradayLoading}
                   isPreopen={beforeOpen}
+                  tradingDate={data.date}
                 />
                 <IndexCell
                   label={INDEX_LABEL.KOSDAQ}
@@ -401,6 +408,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                   intradayFailed={intraday?.failed.KOSDAQ ?? false}
                   intradayLoading={intradayLoading}
                   isPreopen={beforeOpen}
+                  tradingDate={data.date}
                 />
               </div>
               <div className="grid grid-cols-2 divide-x divide-border/60">
@@ -412,6 +420,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                   intradayFailed={intraday?.failed.KOSPI200 ?? false}
                   intradayLoading={intradayLoading}
                   isPreopen={beforeOpen}
+                  tradingDate={data.date}
                   formatPrice={formatKrw}
                   renderLiveValue={renderDomesticLive}
                   priceClassName="md:text-xl md:font-medium"
@@ -424,6 +433,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                   intradayFailed={intraday?.failed.KOSDAQ150 ?? false}
                   intradayLoading={intradayLoading}
                   isPreopen={beforeOpen}
+                  tradingDate={data.date}
                   formatPrice={formatKrw}
                   renderLiveValue={renderDomesticLive}
                   priceClassName="md:text-xl md:font-medium"
