@@ -10,6 +10,7 @@ import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
 import type { ChartBar, IndexDailySnapshot } from "@/shared/types/quote";
 import type { StockPriceSnapshot } from "@/shared/types/stock";
+import { intradayPrevLookbackBars } from "@/shared/constants/chart";
 import { dateToKstStartSec } from "@/shared/utils/dateToKstStartSec";
 import { defaultMarketForSession, getKrxSessionState, isKrxBeforeMarketOpen } from "@/shared/utils/market";
 import { mergeLiveDayBar } from "@/shared/utils/mergeLiveDayBar";
@@ -575,6 +576,7 @@ export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsPro
           dimBefore={intradayDimBefore}
           visibleBars={isIntradayView ? undefined : barCount}
           onVisibleBarsChange={isIntradayView ? undefined : setBarCount}
+          prevLookbackBars={intradayPrevLookbackBars(intradayInterval)}
           resetKey={resetKey}
         />
       )}

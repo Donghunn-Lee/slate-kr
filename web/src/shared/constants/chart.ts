@@ -65,10 +65,15 @@ export const CHART_THEME = {
 
 export type ChartPalette = (typeof CHART_THEME)[keyof typeof CHART_THEME];
 
-// intraday 잠금 뷰 초기 창의 좌측 끝 = 전일 마지막 봉에서 이만큼 되짚은 봉.
-// 초 폭이 아니라 봉 수인 이유: 표면마다 전일 tail 의 실제 시간 길이가 달라(종목은 거래
-// 뜸하면 몇 시간, 해외 지수는 세션 전체) 고정 초 폭은 tail 을 자르거나 오늘을 짓누른다.
-export const INTRADAY_PREV_LOOKBACK_BARS = 30;
+// intraday 잠금 뷰 초기 창의 좌측 끝 = 전일 마지막 봉에서 이만큼 거슬러 올라간 지점.
+// 고정 초 폭이 아닌 이유: 표면마다 전일 tail 의 실제 시간 길이가 달라(종목은 거래 뜸하면
+// 몇 시간, 해외 지수는 세션 전체) 초 폭으로 자르면 tail 이 잘리거나 오늘이 짓눌린다.
+export const INTRADAY_PREV_LOOKBACK_MINUTES = 30;
+
+// 같은 봉 수라도 표시 간격이 커지면 커버하는 시간이 늘어난다. 간격으로 나눠 어느
+// 간격에서나 전일 마지막 LOOKBACK_MINUTES 분이 초기 창에 담기게 한다.
+export const intradayPrevLookbackBars = (intervalMin: number): number =>
+  Math.ceil(INTRADAY_PREV_LOOKBACK_MINUTES / intervalMin);
 
 // 지수 END 라벨 세션 경계 (HHMMSS ASC). 국내 정규장 마감 15:30 단일.
 // 종목(StockChartTabs) 은 프리·정규·애프터 3경계라 별도.

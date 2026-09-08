@@ -25,7 +25,7 @@ import {
 } from "lightweight-charts";
 import {
   CHART_THEME,
-  INTRADAY_PREV_LOOKBACK_BARS,
+  intradayPrevLookbackBars,
   crosshairLocalization,
   type ChartPalette,
 } from "@/shared/constants/chart";
@@ -44,6 +44,9 @@ type PriceChartProps = {
   intraday?: boolean;
   // 이 값 미만 time 을 가진 봉을 흐린 색으로 렌더 (전일 세션 dim).
   dimBefore?: number;
+  // intraday 초기 창이 전일 tail 에서 되짚을 봉 수. 표시 간격에 따라 달라지므로
+  // 간격을 아는 컨테이너가 계산해 넘긴다.
+  prevLookbackBars?: number;
   // 하단 20% overlay 로 거래량 histogram 을 함께 렌더. bars[i].volume 이 없는 봉은 스킵.
   showVolume?: boolean;
   // SMA 오버레이 period 목록. 컨테이너에서 module-level 상수 등 안정 참조로 주입.
@@ -353,13 +356,14 @@ const chartTickFormatter = (time: Time, tickMarkType: TickMarkType): string => {
   }
 };
 
-// locked 뷰의 가시 범위. from = 전일 마지막 dim 봉(anchor)에서 LOOKBACK_BARS 만큼
+// locked 뷰의 가시 범위. from = 전일 마지막 dim 봉(anchor)에서 lookbackBars 만큼
 // 되짚은 봉의 time, to = 최신 봉 + 소폭 추적. 데이터는 전부 시리즈에 넣고 뷰만 좁히므로
 // 좌측으로 팬하면 창 밖 봉도 보인다. anchor 가 없으면(전일 봉 0건) 첫 봉으로 폴백.
 const applyLockedRange = (
   chart: IChartApi,
   bars: ChartBar[],
   dimBefore: number | undefined,
+  lookbackBars: number,
 ) => {
   if (bars.length === 0) return;
   const last = bars[bars.length - 1].time;
@@ -380,7 +384,7 @@ const applyLockedRange = (
   // 짧으면 첫 봉으로 클램프 — 라이브러리 좌측 클램프에 기대지 않는다.
   const fromBar =
     anchorIdx >= 0
-      ? bars[Math.max(0, anchorIdx - (INTRADAY_PREV_LOOKBACK_BARS - 1))].time
+      ? bars[Math.max(0, anchorIdx - (lookbackBars - 1))].time
       : bars[0].time;
   const from = typeof fromBar === "number" ? fromBar : last;
   const to = last + INTRADAY_BAR_BUFFER_SEC;
@@ -399,6 +403,7 @@ export const PriceChart = ({
   interactive = true,
   intraday = false,
   dimBefore,
+  prevLookbackBars = intradayPrevLookbackBars(1),
   showVolume = false,
   maPeriods,
   showLegend = false,
@@ -467,6 +472,7 @@ export const PriceChart = ({
   // effect deps 에서 제외 — deps 에 두면 dimBefore 변경(예: 국내→해외 지수 전환) 시 리셋이
   // 발화되어 뷰포트 유지 정책이 깨진다.
   const dimBeforeRef = useRef(dimBefore);
+  const prevLookbackBarsRef = useRef(prevLookbackBars);
   // 사용자가 pan/zoom 을 한 번이라도 했는지. auto-follow(intraday) 를 idle 상태에서만 발동시키기 위한 gate.
   // config effect 재실행(= chart 재생성) 시 false 로 초기화.
   const userScrolledRef = useRef(false);
@@ -525,6 +531,10 @@ export const PriceChart = ({
   useEffect(() => {
     dimBeforeRef.current = dimBefore;
   }, [dimBefore]);
+
+  useEffect(() => {
+    prevLookbackBarsRef.current = prevLookbackBars;
+  }, [prevLookbackBars]);
 
   useEffect(() => {
     leftMarginBarsRef.current = leftMarginBars;
@@ -795,7 +805,7 @@ export const PriceChart = ({
     // 않게 한다. 초기 세팅·auto-follow 두 경로가 이 헬퍼를 공유.
     const runLockedRange = (barsForRange: ChartBar[], dim: number | undefined) => {
       applyingRangeRef.current = true;
-      applyLockedRange(chart, barsForRange, dim);
+      applyLockedRange(chart, barsForRange, dim, prevLookbackBarsRef.current);
       releaseApplyingRange();
     };
     runLockedRangeRef.current = runLockedRange;
