@@ -74,6 +74,8 @@ type SearchResultRowProps = {
   isLiveFailed: boolean;
   // 표시 중인 가격이 KRX 종가와 다른 채널 체결인지. 판정은 shouldShowNxtSourceBadge 소관.
   isNxtSourced: boolean;
+  // 개장 전 창(08:00~09:00) KRX 0% 리셋 여부. 판정은 useMultiQuote 소관.
+  preReset: boolean;
 };
 
 const SearchResultRow = ({
@@ -86,11 +88,14 @@ const SearchResultRow = ({
   liveVolume,
   isLiveFailed,
   isNxtSourced,
+  preReset,
 }: SearchResultRowProps) => {
   // 라이브 우선, 없으면 EOD 폴백. 둘 다 없으면 null → "—".
+  // 개장 전 창은 EOD 폴백 팔의 등락만 0 으로 덮는다 — 가격은 이미 오늘 기준가.
   const displayClose = liveClose ?? price?.close ?? null;
-  const displayChange = liveChange ?? price?.change ?? null;
-  const displayChangeRate = liveChangeRate ?? price?.changeRate ?? null;
+  const displayChange = liveChange ?? (preReset && price ? 0 : price?.change ?? null);
+  const displayChangeRate =
+    liveChangeRate ?? (preReset && price ? 0 : price?.changeRate ?? null);
   const displayVolume = liveVolume ?? price?.volume ?? null;
   const sign = liveSign ?? resolveSign(displayChange);
   // 거래대금 = close × volume 근사(일봉 관례). 소스 섞기 방지 위해 라이브·EOD 각각 계산 후 폴백.
@@ -163,7 +168,7 @@ type SearchResultListProps = {
 
 export const SearchResultList = ({ results, basePrices }: SearchResultListProps) => {
   const tickers = useMemo(() => results.map((r) => r.ticker), [results]);
-  const { quotes, failed, session, tradingDate } = useMultiQuote(tickers);
+  const { quotes, failed, session, tradingDate, preReset } = useMultiQuote(tickers);
 
   return (
     <div>
@@ -188,6 +193,7 @@ export const SearchResultList = ({ results, basePrices }: SearchResultListProps)
                 session,
                 tradingDate,
               })}
+              preReset={preReset}
             />
           );
         })}

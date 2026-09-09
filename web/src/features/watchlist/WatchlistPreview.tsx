@@ -88,6 +88,7 @@ export function WatchlistPreview() {
     failed: liveFailed,
     session,
     tradingDate,
+    preReset,
   } = useMultiQuote(items.slice(0, LIVE_TICKER_LIMIT).map((p) => p.ticker));
 
   // 스크롤 오버플로우 감지 — 넘칠 때만 하단 fade 마스크 노출.
@@ -209,11 +210,19 @@ export function WatchlistPreview() {
                       session,
                       tradingDate,
                     });
+                    // 개장 전 창의 EOD 폴백 팔만 0 으로 덮는다 — 가격은 이미 오늘 기준가라
+                    // 손대지 않고, EOD 행이 없으면(p undefined) 리셋할 폴백도 없다.
                     const displayPrice = live ? live.price : (p?.close ?? null);
-                    const displayChange = live ? live.change : (p?.change ?? null);
+                    const displayChange = live
+                      ? live.change
+                      : preReset && p
+                        ? 0
+                        : (p?.change ?? null);
                     const displayChangeRate = live
                       ? live.changeRate
-                      : (p?.changePct ?? null);
+                      : preReset && p
+                        ? 0
+                        : (p?.changePct ?? null);
                     const displaySign = live ? live.sign : undefined;
                     return (
                       <li

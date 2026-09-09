@@ -19,6 +19,8 @@ type WatchlistRowProps = {
   isLiveFailed?: boolean;
   // 표시 중인 가격이 KRX 종가와 다른 채널 체결인지. 판정은 shouldShowNxtSourceBadge 소관.
   isNxtSourced?: boolean;
+  // 개장 전 창(08:00~09:00) KRX 0% 리셋 여부. 판정은 useMultiQuote 소관.
+  preReset?: boolean;
   disclosure?: TickerDisclosureCount;
   hasMemo?: boolean;
   onRemove?: () => void;
@@ -30,6 +32,7 @@ export const WatchlistRow = ({
   liveQuote,
   isLiveFailed = false,
   isNxtSourced = false,
+  preReset = false,
   disclosure,
   hasMemo = false,
   onRemove,
@@ -40,12 +43,15 @@ export const WatchlistRow = ({
     onRemove?.();
   };
 
-  // 라이브 우선, 없으면 EOD 폴백.
+  // 라이브 우선, 없으면 EOD 폴백. 가격은 리셋 대상이 아니다 — 폴백 종가가 곧 오늘 기준가라
+  // 헤더와 이미 같은 값이고, 등락만 전일 축으로 남아 어긋난다.
+  // `price &&` 가드: EOD 행 자체가 없으면 리셋할 폴백 팔도 없다(값 부재는 "—" 로 남긴다).
   const live = liveQuote ?? null;
   const displayPrice = live !== null ? live.price : (price?.close ?? null);
-  const displayChange = live !== null ? live.change : (price?.change ?? null);
+  const displayChange =
+    live !== null ? live.change : preReset && price ? 0 : (price?.change ?? null);
   const displayChangeRate =
-    live !== null ? live.changeRate : (price?.changePct ?? null);
+    live !== null ? live.changeRate : preReset && price ? 0 : (price?.changePct ?? null);
   const displaySign = live !== null ? live.sign : undefined;
 
   return (

@@ -127,6 +127,7 @@ const WatchlistPage = () => {
     failed: liveFailed,
     session,
     tradingDate,
+    preReset,
   } = useMultiQuote(liveTickers);
 
   const fixedTabs: Array<{ key: string; label: string }> = [
@@ -274,6 +275,7 @@ const WatchlistPage = () => {
                           session,
                           tradingDate,
                         })}
+                        preReset={preReset}
                         disclosure={countsMap[item.ticker]}
                         hasMemo={item.ticker in memos}
                         onRemove={

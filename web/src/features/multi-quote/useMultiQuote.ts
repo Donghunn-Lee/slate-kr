@@ -1,4 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
+import { isPreMarketReset } from "@/entities/stock/stockHeaderLabel";
+import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
+import { useNow } from "@/shared/hooks/useNow";
 import type { StockQuote } from "@/shared/types/quote";
 import type { KrxSession } from "@/shared/utils/market";
 
@@ -29,12 +32,18 @@ type UseMultiQuoteResult = {
   marketOpen: boolean;
   session: KrxSession | undefined;
   tradingDate: string | undefined;
+  // 개장 전 창(08:00~09:00)의 KRX 0% 리셋 여부. 소비측은 EOD 폴백 팔에만 얹는다 —
+  // 라이브 값이 있으면 오늘 축이라 손대지 않는다.
+  preReset: boolean;
   isLoading: boolean;
 };
 
 // 직전 응답의 marketOpen=true일 때만 60초 주기 폴링. 폐장 시 정지.
 export const useMultiQuote = (tickers: string[]): UseMultiQuoteResult => {
   const key = buildKey(tickers);
+  // 종목 헤더(StockHeaderLivePrice)와 같은 시계·캘린더 축. 새 컨텍스트를 만들지 않는다.
+  const now = useNow();
+  const calendar = useMarketCalendar();
 
   const query = useQuery<MultiQuoteResponse>({
     queryKey: ["multi-quote", key],
@@ -55,6 +64,10 @@ export const useMultiQuote = (tickers: string[]): UseMultiQuoteResult => {
     marketOpen: query.data?.marketOpen ?? false,
     session: query.data?.session,
     tradingDate: query.data?.tradingDate,
+    // market 은 "krx" 고정 — 리스트 표면엔 KRX/NXT 탭 축이 없고, 리셋이 걸리는 EOD 폴백
+    // 값 자체가 daily_prices(=KRX) 축이다. 응답 전 session=undefined 는 술어가 false 로
+    // 받아 헤더의 pre-mount 동작과 동형.
+    preReset: isPreMarketReset(query.data?.session, "krx", now, calendar),
     isLoading: query.isLoading,
   };
 };
