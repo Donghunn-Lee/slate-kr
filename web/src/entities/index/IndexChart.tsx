@@ -33,7 +33,7 @@ import {
   type OverseasIndexCode,
   type OverseasIntradayCode,
 } from "@/shared/constants/indices";
-import { intradayPrevLookbackBars } from "@/shared/constants/chart";
+import { INTRADAY_PREV_LOOKBACK_BARS } from "@/shared/constants/chart";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
 import type {
@@ -607,7 +607,7 @@ export const IndexChart = ({
           baseline={intradayBaseline}
           visibleBars={renderIntraday ? undefined : barCount}
           onVisibleBarsChange={renderIntraday ? undefined : setBarCount}
-          prevLookbackBars={intradayPrevLookbackBars(intradayInterval)}
+          prevLookbackBars={INTRADAY_PREV_LOOKBACK_BARS}
           resetKey={resetKey}
           onNearLeftEdge={renderIntraday ? undefined : enableHistory}
           leftMarginBars={

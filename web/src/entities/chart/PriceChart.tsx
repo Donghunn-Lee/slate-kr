@@ -25,7 +25,8 @@ import {
 } from "lightweight-charts";
 import {
   CHART_THEME,
-  intradayPrevLookbackBars,
+  INTRADAY_PREV_LOOKBACK_BARS,
+  INTRADAY_RIGHT_MARGIN_BARS,
   crosshairLocalization,
   type ChartPalette,
 } from "@/shared/constants/chart";
@@ -44,8 +45,8 @@ type PriceChartProps = {
   intraday?: boolean;
   // 이 값 미만 time 을 가진 봉을 흐린 색으로 렌더 (전일 세션 dim).
   dimBefore?: number;
-  // intraday 초기 창이 전일 tail 에서 되짚을 봉 수. 표시 간격에 따라 달라지므로
-  // 간격을 아는 컨테이너가 계산해 넘긴다.
+  // intraday 초기 창이 전일 tail 에서 되짚을 봉 수. 표시 간격과 무관한 봉 수라
+  // 호출측이 상수를 그대로 넘긴다.
   prevLookbackBars?: number;
   // 하단 20% overlay 로 거래량 histogram 을 함께 렌더. bars[i].volume 이 없는 봉은 스킵.
   showVolume?: boolean;
@@ -87,7 +88,6 @@ type PriceChartProps = {
 };
 
 const DEFAULT_HEIGHT = 300;
-const INTRADAY_BAR_BUFFER_SEC = 600; // 오른쪽 여유 = 10분봉 1개 폭
 // EOD 뷰 우측 여백 = 보이는 봉수 × 비율. 픽셀 여백을 봉수와 무관하게 일정 비율로 유지.
 // (rightOffset 고정 방식은 60/120/월 등 봉 폭이 크게 바뀔 때 여백 폭이 시각적으로 흔들려 폐기.)
 const RIGHT_MARGIN_RATIO = 0.04;
@@ -357,8 +357,11 @@ const chartTickFormatter = (time: Time, tickMarkType: TickMarkType): string => {
 };
 
 // locked 뷰의 가시 범위. from = 전일 마지막 dim 봉(anchor)에서 lookbackBars 만큼
-// 되짚은 봉의 time, to = 최신 봉 + 소폭 추적. 데이터는 전부 시리즈에 넣고 뷰만 좁히므로
-// 좌측으로 팬하면 창 밖 봉도 보인다. anchor 가 없으면(전일 봉 0건) 첫 봉으로 폴백.
+// 되짚은 봉의 logical index, to = 마지막 봉 + 우측 빈 슬롯. 시각이 아닌 봉 인덱스로
+// 잡는 이유: setVisibleRange 는 to 가 마지막 봉을 넘으면 마지막 봉으로 클램프해 우측
+// 여백을 만들 수 없다(개장 전 오늘 0봉이면 전일 dim 봉이 화면을 가로로 채운다).
+// 데이터는 전부 시리즈에 넣고 뷰만 좁히므로 좌측으로 팬하면 창 밖 봉도 보인다.
+// anchor 가 없으면(전일 봉 0건) 첫 봉으로 폴백.
 const applyLockedRange = (
   chart: IChartApi,
   bars: ChartBar[],
@@ -366,8 +369,6 @@ const applyLockedRange = (
   lookbackBars: number,
 ) => {
   if (bars.length === 0) return;
-  const last = bars[bars.length - 1].time;
-  if (typeof last !== "number") return;
 
   let anchorIdx = -1;
   if (dimBefore !== undefined) {
@@ -380,18 +381,15 @@ const applyLockedRange = (
     }
   }
 
-  // anchor 포함 LOOKBACK_BARS 개를 담도록 (BARS - 1) 만큼 되짚고, tail 이 그보다
+  // anchor 포함 lookbackBars 개를 담도록 (lookbackBars - 1) 만큼 되짚고, tail 이 그보다
   // 짧으면 첫 봉으로 클램프 — 라이브러리 좌측 클램프에 기대지 않는다.
-  const fromBar =
-    anchorIdx >= 0
-      ? bars[Math.max(0, anchorIdx - (lookbackBars - 1))].time
-      : bars[0].time;
-  const from = typeof fromBar === "number" ? fromBar : last;
-  const to = last + INTRADAY_BAR_BUFFER_SEC;
+  // intraday 는 좌측 whitespace 를 쓰지 않아 실봉 i 의 logical index 가 곧 i.
+  const from = anchorIdx >= 0 ? Math.max(0, anchorIdx - (lookbackBars - 1)) : 0;
+  const to = bars.length - 1 + INTRADAY_RIGHT_MARGIN_BARS;
 
-  chart.timeScale().setVisibleRange({
-    from: from as UTCTimestamp,
-    to: to as UTCTimestamp,
+  chart.timeScale().setVisibleLogicalRange({
+    from: from as Logical,
+    to: to as Logical,
   });
 };
 
@@ -403,7 +401,7 @@ export const PriceChart = ({
   interactive = true,
   intraday = false,
   dimBefore,
-  prevLookbackBars = intradayPrevLookbackBars(1),
+  prevLookbackBars = INTRADAY_PREV_LOOKBACK_BARS,
   showVolume = false,
   maPeriods,
   showLegend = false,
@@ -442,7 +440,7 @@ export const PriceChart = ({
   const runLockedRangeRef = useRef<
     ((bars: ChartBar[], dim: number | undefined) => void) | null
   >(null);
-  // programmatic setVisibleLogicalRange/setVisibleRange 로 인한 subscribe 콜백을 무시하기
+  // programmatic setVisibleLogicalRange 로 인한 subscribe 콜백을 무시하기
   // 위한 재진입 가드. lightweight-charts 가 range change 이벤트를 다음 rAF 사이클 이후에
   // 발화하는 경우가 있어 rAF 한 번으론 놓친다 — 두 번의 rAF (= 다음 프레임의 다음 프레임) 로
   // guard 해제 시점을 미뤄 초기/리셋 range 세팅이 사용자 팬 이벤트로 오인식되지 않게 한다.
