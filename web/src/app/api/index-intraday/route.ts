@@ -20,7 +20,10 @@ export const dynamic = "force-dynamic";
 // session·tradingDate 를 key 축에 두어 세션·일 경계에서 자동 miss 를 보장한다
 // (미포함 시 preopen 진입 때 어제 봉이 stale 로 재사용될 수 있음).
 // TTL: 활성 세션(regular) 60s / 그 외 3600s (마감 직후 정산 창은 60s).
-type IndexFetcher = () => Promise<IndexIntradaySnapshot[] | null>;
+// 캐시 단위 = 봉 배열 + 조립 시각. fetchedAt 을 이 안에서 캡처해야 SWR 히트 시 원 조립
+// 시각이 그대로 실려 클라가 stale 응답을 판정할 수 있다.
+type CachedIndexBars = { bars: IndexIntradaySnapshot[] | null; fetchedAt: number };
+type IndexFetcher = () => Promise<CachedIndexBars>;
 const fetchers = new Map<string, IndexFetcher>();
 
 const cacheKeyOf = (
@@ -42,7 +45,10 @@ const getCachedFetcher = (
   const cached = fetchers.get(key);
   if (cached) return cached;
   const fresh = unstable_cache(
-    () => getIndexIntradayPrices(code),
+    async () => {
+      const bars = await getIndexIntradayPrices(code);
+      return { bars, fetchedAt: Date.now() } satisfies CachedIndexBars;
+    },
     ["index-intraday", code, session, tradingDate],
     {
       revalidate: krxIndexRankingRevalidate(session, minutesSinceClose),
@@ -59,18 +65,19 @@ const getCachedFetcher = (
 type IndexResolveResult = {
   bars: IndexIntradaySnapshot[];
   failed: boolean;
+  fetchedAt: number | null;
 };
 
 const resolve = (
   code: DomesticIndexCode,
   session: KrxSession,
-  r: PromiseSettledResult<IndexIntradaySnapshot[] | null>,
+  r: PromiseSettledResult<CachedIndexBars>,
 ): IndexResolveResult => {
-  if (r.status !== "fulfilled" || r.value === null) {
+  if (r.status !== "fulfilled" || r.value.bars === null) {
     revalidateTag(cacheTagOf(code, session), { expire: 0 });
-    return { bars: [], failed: true };
+    return { bars: [], failed: true, fetchedAt: null };
   }
-  return { bars: r.value, failed: false };
+  return { bars: r.value.bars, failed: false, fetchedAt: r.value.fetchedAt };
 };
 
 // 전체 예외 시 계약 유지용 empty. Record 로 조립.
@@ -110,8 +117,12 @@ export const GET = async () => {
     const failed = Object.fromEntries(
       resolved.map(([code, r]) => [code, r.failed]),
     ) as Record<DomesticIndexCode, boolean>;
+    // 정규장 셀 중 가장 오래된 조립 시각 — 클라 stale 판정 축. 마감 후는 TTL 3600s 라
+    // 판정 대상이 아니므로 null.
+    const cellTimes = resolved.flatMap(([, r]) => (r.fetchedAt === null ? [] : [r.fetchedAt]));
+    const fetchedAt = marketOpen && cellTimes.length > 0 ? Math.min(...cellTimes) : null;
 
-    return NextResponse.json({ quotes, marketOpen, failed });
+    return NextResponse.json({ quotes, marketOpen, failed, fetchedAt });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[index-intraday] ${message}`);
@@ -120,6 +131,7 @@ export const GET = async () => {
         quotes: emptyQuotes(),
         marketOpen: false,
         failed: allFailed(),
+        fetchedAt: null,
       },
       { status: 200 },
     );

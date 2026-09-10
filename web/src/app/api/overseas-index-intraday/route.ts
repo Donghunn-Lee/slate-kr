@@ -21,7 +21,10 @@ export const dynamic = "force-dynamic";
 // 코드 × 거래소세션 × 거래일 별 캐시. session·tradingDate 를 지수별 축(거래소 TZ)
 // 으로 산출해 각 시장 경계에서 자동 miss. 정규장 120s / closed 3600s.
 // US 3종·아시아 3종·DAX 동일 경로 — `OVERSEAS_INTRADAY_CODES` 화이트리스트에서 파생.
-type OverseasFetcher = () => Promise<IndexIntradaySnapshot[] | null>;
+// 캐시 단위 = 봉 배열 + 조립 시각. fetchedAt 을 이 안에서 캡처해야 SWR 히트 시 원 조립
+// 시각이 그대로 실려 클라가 stale 응답을 판정할 수 있다.
+type CachedOverseasBars = { bars: IndexIntradaySnapshot[] | null; fetchedAt: number };
+type OverseasFetcher = () => Promise<CachedOverseasBars>;
 const fetchers = new Map<string, OverseasFetcher>();
 
 const cacheKeyOf = (
@@ -45,7 +48,10 @@ const getCachedFetcher = (
   const cached = fetchers.get(key);
   if (cached) return cached;
   const fresh = unstable_cache(
-    () => getOverseasIndexIntradayPrices(code, tradingDate),
+    async () => {
+      const bars = await getOverseasIndexIntradayPrices(code, tradingDate);
+      return { bars, fetchedAt: Date.now() } satisfies CachedOverseasBars;
+    },
     ["overseas-index-intraday", code, session, tradingDate],
     {
       revalidate: overseasIntradayRevalidate(session, minutesSinceClose),
@@ -59,18 +65,19 @@ const getCachedFetcher = (
 type OverseasResolveResult = {
   bars: IndexIntradaySnapshot[];
   failed: boolean;
+  fetchedAt: number | null;
 };
 
 const resolve = (
   code: OverseasIntradayCode,
   session: OverseasIndexSessionState,
-  r: PromiseSettledResult<IndexIntradaySnapshot[] | null>,
+  r: PromiseSettledResult<CachedOverseasBars>,
 ): OverseasResolveResult => {
-  if (r.status !== "fulfilled" || r.value === null) {
+  if (r.status !== "fulfilled" || r.value.bars === null) {
     revalidateTag(cacheTagOf(code, session), { expire: 0 });
-    return { bars: [], failed: true };
+    return { bars: [], failed: true, fetchedAt: null };
   }
-  return { bars: r.value, failed: false };
+  return { bars: r.value.bars, failed: false, fetchedAt: r.value.fetchedAt };
 };
 
 // 전체 예외 시 계약 유지용 empty. Record 로 조립.
@@ -115,8 +122,14 @@ export const GET = async () => {
     const failed = Object.fromEntries(
       resolved.map(([code, r]) => [code, r.failed]),
     ) as Record<OverseasIntradayCode, boolean>;
+    // 정규장 코드 셀 중 가장 오래된 조립 시각 — 클라 stale 판정 축. closed 코드는 TTL 3600s 라
+    // 섞이면 항상 stale 로 보이므로 제외. 정규장 코드가 없으면 null.
+    const regularTimes = resolved.flatMap(([, r], i) =>
+      perCode[i].session === "regular" && r.fetchedAt !== null ? [r.fetchedAt] : [],
+    );
+    const fetchedAt = regularTimes.length > 0 ? Math.min(...regularTimes) : null;
 
-    return NextResponse.json({ quotes, marketOpen, failed });
+    return NextResponse.json({ quotes, marketOpen, failed, fetchedAt });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[overseas-index-intraday] ${message}`);
@@ -125,6 +138,7 @@ export const GET = async () => {
         quotes: emptyQuotes(),
         marketOpen: false,
         failed: allFailed(),
+        fetchedAt: null,
       },
       { status: 200 },
     );
