@@ -49,6 +49,8 @@ type PriceChartProps = {
   // 호출측이 상수를 그대로 넘긴다.
   prevLookbackBars?: number;
   // 하단 20% overlay 로 거래량 histogram 을 함께 렌더. bars[i].volume 이 없는 봉은 스킵.
+  // legend 의 거래량(거) 필드도 이 플래그를 따른다 — pane 을 뺀 차트(SPX·NDX 등 거래량
+  // 미제공 지수) 에서 데이터의 volume=0 이 legend 로 새지 않게.
   showVolume?: boolean;
   // SMA 오버레이 period 목록. 컨테이너에서 module-level 상수 등 안정 참조로 주입.
   // bars.length < period 인 항목은 자동 스킵. 팔레트는 index 로 매핑(4색 modulo 순환).
@@ -234,6 +236,8 @@ const formatChangePct = (close: number, prevClose: number | null): string | null
 // 숫자 값만 삽입 → XSS 위험 없음.
 // candle: 시 고 저 종 [등락률] [거]. 종가색 = 봉 방향(close ≥ open).
 // line: 종 [등락률] [거]. 종가색 = 전일 대비(prevClose 기준).
+// 거 는 showVolume 일 때만. candle hover 는 volume series join 이라 pane 이 없으면 자연히
+// 비지만, 미호버·line 경로는 바 원본 volume(pane 없는 지수도 0) 을 읽으므로 명시 가드가 필요.
 const paintLegend = (
   el: HTMLDivElement | null,
   bar: ChartBar | null,
@@ -241,6 +245,7 @@ const paintLegend = (
   palette: ChartPalette,
   precision: number,
   kind: "candle" | "line",
+  showVolume: boolean,
 ) => {
   if (!el) return;
   if (!bar) {
@@ -285,7 +290,7 @@ const paintLegend = (
         : `<span class="${labelCls}">${pct}</span>`,
     );
   }
-  if (bar.volume !== undefined) {
+  if (showVolume && bar.volume !== undefined) {
     parts.push(
       `<span class="${labelCls}">거</span> ${formatLegendVolume(bar.volume)}`,
     );
@@ -850,7 +855,7 @@ export const PriceChart = ({
     if (showLegend) {
       const latestPrev = initial.length >= 2 ? initial[initial.length - 2].close : null;
       const latest = initial.length > 0 ? initial[initial.length - 1] : null;
-      paintLegend(legendRef.current, latest, latestPrev, c, precision, seriesKind);
+      paintLegend(legendRef.current, latest, latestPrev, c, precision, seriesKind, showVolume);
       // MA 범례는 실제 그려진 series 목록에서 도출 → config effect 안에서 1회 렌더.
       paintMaLegend(maLegendRef.current, maSeriesList, c);
 
@@ -859,7 +864,7 @@ export const PriceChart = ({
         const cur = barsRef.current;
         const last = cur.length > 0 ? cur[cur.length - 1] : null;
         const prev = cur.length >= 2 ? cur[cur.length - 2].close : null;
-        paintLegend(legendRef.current, last, prev, c, precision, seriesKind);
+        paintLegend(legendRef.current, last, prev, c, precision, seriesKind, showVolume);
       };
 
       crosshairHandler = (param) => {
@@ -891,7 +896,7 @@ export const PriceChart = ({
             paintLatest();
             return;
           }
-          paintLegend(legendRef.current, matched, prevClose, c, precision, "line");
+          paintLegend(legendRef.current, matched, prevClose, c, precision, "line", showVolume);
           return;
         }
         // seriesData.get(candleSeries) → BarData(OHLC). volume series 있으면 값 join.
@@ -921,7 +926,7 @@ export const PriceChart = ({
           close: candleData.close,
           volume: volData?.value,
         };
-        paintLegend(legendRef.current, bar, prevClose, c, precision, "candle");
+        paintLegend(legendRef.current, bar, prevClose, c, precision, "candle", showVolume);
       };
       chart.subscribeCrosshairMove(crosshairHandler);
     }
@@ -1077,9 +1082,9 @@ export const PriceChart = ({
     if (showLegend && !isHoveringRef.current) {
       const last = bars.length > 0 ? bars[bars.length - 1] : null;
       const prev = bars.length >= 2 ? bars[bars.length - 2].close : null;
-      paintLegend(legendRef.current, last, prev, c, precision, seriesKind);
+      paintLegend(legendRef.current, last, prev, c, precision, seriesKind, showVolume);
     }
-  }, [bars, intraday, dimBefore, resolvedTheme, showLegend, precision, seriesKind, leftMarginBars]);
+  }, [bars, intraday, dimBefore, resolvedTheme, showLegend, showVolume, precision, seriesKind, leftMarginBars]);
 
   // "기본 배율" 버튼 트리거. resetKey 가 0 → 양수로 최초 변경되거나 이후 증가할 때마다
   // 현재 뷰의 초기 visible range 를 재적용. mount 시엔 default(0) 라 skip → config effect
