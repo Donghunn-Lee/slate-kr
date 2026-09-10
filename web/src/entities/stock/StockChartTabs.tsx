@@ -38,7 +38,8 @@ import { cn } from "@/lib/utils";
 type StockChartTabsProps = {
   ticker: string;
   prices: StockPriceSnapshot[]; // DESC from getDailyPrices
-  // true 면 subscribeOnly 캐시 키를 세션 기본 market 으로 정렬한다.
+  // true 면 subscribeOnly 캐시 키를 세션 기본 market 으로 정렬하고,
+  // 당일 뷰 하단에 세션 구간 캡션을 붙인다.
   nxEligible: boolean | null;
 };
 
@@ -579,6 +580,19 @@ export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsPro
           prevLookbackBars={INTRADAY_PREV_LOOKBACK_BARS}
           resetKey={resetKey}
         />
+      )}
+      {/* NXT 종목 당일 뷰는 프리·정규·애프터 세 세션이 한 시간축에 이어져 경계를
+          축만으로는 읽을 수 없다. 시각은 리터럴 — market.ts 세션 표는 분 단위 정수라
+          HH:MM 파생에 포맷터가 필요하고, MARKET_SCOPE_TOOLTIP 도 같은 관행.
+          구간 단위 nowrap 으로 모바일 줄바꿈이 시각 범위 중간에 걸리지 않게 한다. */}
+      {isIntradayView && nxEligible === true && (
+        <p className="mt-3 text-caption text-muted-foreground">
+          <span className="whitespace-nowrap">08:00–08:50 NXT 프리마켓</span>
+          {" · "}
+          <span className="whitespace-nowrap">09:00–15:30 KRX</span>
+          {" · "}
+          <span className="whitespace-nowrap">15:30–20:00 NXT 애프터마켓</span>
+        </p>
       )}
     </>
   );
