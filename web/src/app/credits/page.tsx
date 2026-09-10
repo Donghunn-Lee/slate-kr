@@ -34,6 +34,9 @@ export default function CreditsPage() {
             장중 시세는 60초 간격으로 갱신됩니다.
           </p>
           <p className="mt-1 text-caption text-muted-foreground">
+            다우존스(DJI)는 KIS OpenAPI가 장중 시세·분봉을 제공하지 않아 일봉 종가만 표시됩니다.
+          </p>
+          <p className="mt-1 text-caption text-muted-foreground">
             목록에 붙는 NXT 배지는 그 가격이 KRX 정규장 종가가 아니라 넥스트레이드(NXT) 체결이
             반영된 값이라는 표시입니다.
           </p>
