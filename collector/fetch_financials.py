@@ -282,7 +282,9 @@ def _parse_financial_list(items: list) -> dict:
     return result
 
 
-def fetch_financial(corp_code: str, bsns_year: str, reprt_code: str) -> Optional[dict]:
+def fetch_financial(
+    corp_code: str, bsns_year: str, reprt_code: str, ticker: Optional[str] = None
+) -> Optional[dict]:
     url = "https://opendart.fss.or.kr/api/fnlttSinglAcntAll.json"
     base_params = {
         "crtfc_key": DART_API_KEY,
@@ -304,8 +306,13 @@ def fetch_financial(corp_code: str, bsns_year: str, reprt_code: str) -> Optional
             break
 
         if fs_div == "CFS":
-            logger.debug(
-                "CFS 응답 없음, OFS 폴백: %s %s/%s", corp_code, bsns_year, reprt_code
+            # info 로 남겨 Actions 로그에서 OFS(별도) 종목을 집계할 수 있게 한다
+            logger.info(
+                "[OFS_FALLBACK] ticker=%s period=%s/%s corp_code=%s — CFS 응답 없음",
+                ticker,
+                bsns_year,
+                reprt_code,
+                corp_code,
             )
             time.sleep(0.05)
     else:
@@ -639,7 +646,7 @@ def run(
             skip += 1
             continue
 
-        data = fetch_financial(corp_code, bsns_year, reprt_code)
+        data = fetch_financial(corp_code, bsns_year, reprt_code, ticker=ticker)
 
         if data is None:
             logger.debug(
