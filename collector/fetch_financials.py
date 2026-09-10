@@ -345,6 +345,63 @@ def get_shares(cursor, ticker: str) -> Optional[int]:
     return None
 
 
+def get_bps_null_tickers(cursor, year: int, quarter: int, report_type: str) -> set[str]:
+    """해당 period 에서 bps 가 NULL 이지만 total_equity 는 있는 ticker 집합.
+
+    적재 시점에 stocks.shares 가 없던 종목(신규 상장이 fetch_shares 보다 먼저
+    적재되는 순서 문제)이 여기에 남는다. shares 가 채워진 뒤 재계산 대상.
+    """
+    cursor.execute(
+        """
+        SELECT ticker FROM financial_statements
+        WHERE year = %s AND quarter = %s AND report_type = %s
+          AND bps IS NULL AND total_equity IS NOT NULL
+        """,
+        (year, quarter, report_type),
+    )
+    return {row[0] for row in cursor.fetchall()}
+
+
+def backfill_bps(
+    conn, cursor, ticker: str, year: int, quarter: int, report_type: str
+) -> bool:
+    """기존 행의 bps 만 재계산한다 (bps IS NULL 이고 stocks.shares 가 있을 때).
+
+    계산식은 insert_financial 과 동일: round(total_equity / shares, 4).
+    total_equity·shares 모두 bigint 이라 ::numeric 캐스팅 없이는 정수 나눗셈이 된다.
+    """
+    try:
+        cursor.execute(
+            """
+            UPDATE financial_statements f
+            SET bps = ROUND(f.total_equity::numeric / s.shares, 4)
+            FROM stocks s
+            WHERE s.ticker = f.ticker
+              AND f.ticker = %s AND f.year = %s AND f.quarter = %s AND f.report_type = %s
+              AND f.bps IS NULL AND f.total_equity IS NOT NULL
+              AND s.shares IS NOT NULL AND s.shares > 0
+            """,
+            (ticker, year, quarter, report_type),
+        )
+        updated = cursor.rowcount > 0
+        conn.commit()
+    except _DB_RETRY_EXC as e:
+        # best-effort — 연결 절단이면 재시도하지 않고 다음 run 에 맡긴다.
+        # rollback 도 하지 않음 (죽은 conn 에서 새 예외 유발). 재연결은 다음
+        # DB 접근(insert_financial / mark_non_filer / RECONNECT_EVERY)이 처리.
+        logger.warning("[WARN] bps 재계산 보류 (DB 연결 절단) %s: %s", ticker, e)
+        return False
+    except Exception as e:
+        logger.error("bps 재계산 실패 %s (%s Q%s): %s", ticker, year, quarter, e)
+        conn.rollback()
+        return False
+    if updated:
+        logger.info(
+            "[BPS_BACKFILL] %s %s Q%s — shares 확보 후 bps 재계산", ticker, year, quarter
+        )
+    return updated
+
+
 def _check_value_cap(data: dict) -> Optional[tuple[str, float]]:
     """수치 컬럼 중 |값| ≥ ABS_VALUE_CAP 인 첫 항목 반환. 없으면 None."""
     for col in _GATE_COLS:
@@ -618,6 +675,8 @@ def run(
     quarter = _QUARTER_MAP.get(reprt_code, 4)
     report_type = _REPORT_TYPE_MAP.get(reprt_code, "annual")
     filed_tickers = {key[0] for key in existing_keys}
+    # 기존 키 skip 분기에서 bps 만 재계산할 대상 — period 당 1회 조회
+    bps_null_tickers = get_bps_null_tickers(cursor, int(bsns_year), quarter, report_type)
     logger.info(
         "재무제표 적재 시작: %s Q%s (%s) — 총 %d개 종목",
         bsns_year,
@@ -642,6 +701,8 @@ def run(
         key = (ticker, int(bsns_year), quarter, report_type)
 
         if key in existing_keys:
+            if ticker in bps_null_tickers:
+                backfill_bps(conn, cursor, ticker, int(bsns_year), quarter, report_type)
             logger.debug("이미 적재됨 스킵: %s %s Q%s", ticker, bsns_year, quarter)
             skip += 1
             continue
