@@ -624,6 +624,12 @@ export const IndexChart = ({
           }
         />
       )}
+      {/* daily-only 해외 지수는 당일/전체 토글이 빠져 있어 그 이유를 차트 옆에서 설명한다. */}
+      {!intradayEnabled && (
+        <p className="mt-3 text-caption text-muted-foreground">
+          다우존스는 KIS가 장중 시세·분봉을 제공하지 않아 일봉 종가만 표시됩니다
+        </p>
+      )}
     </>
   );
 };
