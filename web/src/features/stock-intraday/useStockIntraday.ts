@@ -1,6 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ChartBar } from "@/shared/types/quote";
-import { isKrxActiveSession, type KrxSession } from "@/shared/utils/market";
+import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
+import {
+  getKrxSessionState,
+  isKrxActiveSession,
+  type KrxSession,
+} from "@/shared/utils/market";
 
 export type StockIntradayResponse = {
   bars: ChartBar[];
@@ -26,15 +31,23 @@ const POLL_INTERVAL_MS = 60_000;
 //
 // staleTime:0 + refetchOnMount:'always' — 인트라데이는 초 단위 신선도가 계약이라
 // 전역 staleTime(60s) 로컬 override. 재접속 시 캐시된 옛 봉 서빙 차단.
+//
+// refetchOnWindowFocus — hidden 탭은 interval tick 을 건너뛰므로 복귀 시 1회 즉시 refetch
+// 가 폴링 재개 경로. route 는 서버 캐시 없이 KIS 직행이라 마감 후 복귀마다 콜이 나가지
+// 않도록 활성 세션에서만 허용. 축은 클라 시계 — 응답 session 은 폴링이 멈춘 뒤 갱신되지
+// 않아 preopen 에 로드된 탭이 09:00 이후 복귀해도 정지 상태에 갇힌다.
 export const useStockIntraday = (
   ticker: string,
   options: UseStockIntradayOptions = {},
-) =>
-  useQuery<StockIntradayResponse>({
+) => {
+  const calendar = useMarketCalendar();
+  return useQuery<StockIntradayResponse>({
     queryKey: ["stock-intraday", ticker],
     enabled: options.enabled ?? true,
     staleTime: 0,
     refetchOnMount: "always",
+    refetchOnWindowFocus: () =>
+      isKrxActiveSession(getKrxSessionState(new Date(), calendar)),
     queryFn: async () => {
       const res = await fetch(
         `/api/stock-intraday?ticker=${encodeURIComponent(ticker)}`,
@@ -45,3 +58,4 @@ export const useStockIntraday = (
     refetchInterval: (query) =>
       isKrxActiveSession(query.state.data?.session) ? POLL_INTERVAL_MS : false,
   });
+};
