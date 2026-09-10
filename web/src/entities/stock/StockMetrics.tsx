@@ -69,11 +69,16 @@ export const StockMetrics = async ({ ticker }: StockMetricsProps) => {
   const dividendYield = calcDividendYield(currentPrice, displayDps);
 
   const sourceLabel = (() => {
-    if (ttm.source === "ttm") return "최근 4분기 기준";
-    if (ttm.source === "annualized") return "연환산 기준";
-    if (ttm.source === "annual_fallback" && latestAnnual !== null)
-      return `${latestAnnual.year}년 연간 기준`;
-    return null;
+    const period = (() => {
+      if (ttm.source === "ttm") return "최근 4분기";
+      if (ttm.source === "annualized") return "연환산";
+      if (ttm.source === "annual_fallback" && latestAnnual !== null)
+        return `${latestAnnual.year}년 연간`;
+      return null;
+    })();
+    // EPS·BPS 모두 재무제표 축(연결 기준)을 따르므로 기간 라벨 뒤에 붙인다
+    if (period !== null) return `${period} · 연결 기준`;
+    return latestAnnual !== null ? "연결 기준" : null;
   })();
 
   return (

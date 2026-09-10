@@ -238,8 +238,9 @@ export const StockFinancialsClient = ({
         </TabsList>
       </div>
       <p className={`${compact ? "mb-2" : "mb-3"} text-caption text-muted-foreground`}>
-        단위: 억원 (별도 표기 없는 항목 기준)
+        단위: 억원 (단위 표기 없는 항목)
         {!compact && (tab === "annual" ? " · 최근 5개년" : " · 최근 4분기")}
+        {" · 연결 기준 · 연결재무제표 미작성 종목은 별도 기준"}
       </p>
       <TabsContent value="annual">
         <FinancialsTable periods={annual} mode="annual" compact={compact} />
