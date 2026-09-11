@@ -3,8 +3,8 @@ import {
   buildDaySlots,
   callAnchorsWithRetry,
   foldPostCloseIndexBars,
-  getClosedFallbackAnchors,
   getClosedFallbackMarketDiv,
+  getStockIntradayAnchors,
   kstToFakeUtcSec,
   mergeAndSortIntradayBars,
   parseDailyMinuteRows,
@@ -106,23 +106,15 @@ describe("buildDaySlots", () => {
 });
 
 // ── 순수 selectors ────────────────────────────────────────────
-describe("getClosedFallbackAnchors", () => {
-  it("NXT 종목 → 08:00~20:00 커버용 7개 anchor (프리 090000 + 애프터 200000 포함)", () => {
-    const anchors = getClosedFallbackAnchors(true);
-    expect(anchors).toEqual([
-      "090000",
-      "110000",
-      "130000",
-      "150000",
-      "170000",
-      "190000",
-      "200000",
-    ]);
+// 전일 스냅샷(closed·아침 프리오픈) 도 같은 셀렉터를 타므로 당일 세트와의 동일성이 곧
+// 개장 봉 커버 보증 — 첫 anchor 가 뒤로 밀리면 유동 종목의 09:00 봉이 빠진다.
+describe("getStockIntradayAnchors", () => {
+  it("NXT 종목 → 당일 NXT 세트 그대로", () => {
+    expect(getStockIntradayAnchors(true)).toBe(STOCK_INTRADAY_ANCHORS_NXT);
   });
 
-  it("비NXT 종목 → 09:00~15:30 커버용 3개 anchor (마감 153000 포함)", () => {
-    const anchors = getClosedFallbackAnchors(false);
-    expect(anchors).toEqual(["110000", "130000", "153000"]);
+  it("비NXT 종목 → 당일 정규장 세트 그대로", () => {
+    expect(getStockIntradayAnchors(false)).toBe(STOCK_INTRADAY_ANCHORS_REGULAR);
   });
 });
 

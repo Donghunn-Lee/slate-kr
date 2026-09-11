@@ -53,13 +53,16 @@ const TR_ID_STOCK_DAILY_MINUTE = "FHKST03010230";
 const TR_ID_MULTI_PRICE = "FHKST11300006";
 const MULTI_QUOTE_LIMIT = 30; // KIS 공식 상한
 
-// 종목 당일 1분봉 fan-out anchors (FHKST03010230). anchor 는 상한(포함) — 그 이전
-// 실체결 120봉을 반환하고, 미래 anchor 는 now 로 클램프된다. 실체결 120봉은 항상 ≥120분을
-// 덮으므로 anchor 간격 ≤120분이면 유동성과 무관하게 결손이 없다.
+// 종목 1분봉 fan-out anchors (FHKST03010230). 당일 라이브와 전일 스냅샷(closed·아침
+// 프리오픈) 이 같은 세트를 쓴다 — 하루 커버 조건이 날짜와 무관하기 때문. anchor 는
+// 상한(포함) — 그 이전 실체결 120봉을 반환하고, 미래 anchor 는 now 로 클램프된다. 실체결
+// 120봉은 항상 ≥120분을 덮으므로 anchor 간격 ≤120분이면 유동성과 무관하게 결손이 없다.
 // NXT 거래가능 종목은 UN 으로 08:00~20:00, 비NXT 종목은 J 로 09:00~15:30 정규장만.
 // eligibility 는 quote_snapshots.nx_eligible 로 판정.
 // 첫 anchor "100000" 이 창 시작을 덮는 근거 — 비NXT 는 09:00 이전 봉이 없어 61분,
 // NXT 는 (08:00, 10:00] 121분 중 08:50~08:59 가 무체결 갭이라 실체결 ≤111봉.
+// 첫 anchor 를 더 늦게 잡으면 안 되는 이유: 유동 종목은 120봉이 정확히 120분이라 11:00
+// anchor 는 09:01~11:00 만 돌려주고 09:00 개장 봉이 빠진다.
 type MinuteMarketDiv = "J" | "UN";
 export const STOCK_INTRADAY_ANCHORS_NXT: readonly string[] = [
   "100000",
@@ -106,30 +109,11 @@ export const buildDaySlots = (
   );
 };
 
-// closed 세션 fallback anchor 세트 — 액티브 티커 기준 anchor 당 ~2h 커버.
-// NXT: 08:00~20:00 (720분) 커버, 2h 간격 + 90000 프리 헤드 + 200000 애프터 테일.
-// 비NXT: 09:00~15:30 (390분) 커버, 2h 간격 + 153000 마감.
-// 저유동성 종목은 anchor window 가 시각적으로 길어져 target 밖 봉을 포함할 수 있으므로
-// callStockDailyMinuteAnchor 내부에서 stck_bsop_date === target 필터로 bleed 방어.
-const STOCK_INTRADAY_CLOSED_ANCHORS_NXT: readonly string[] = [
-  "090000",
-  "110000",
-  "130000",
-  "150000",
-  "170000",
-  "190000",
-  "200000",
-] as const;
-const STOCK_INTRADAY_CLOSED_ANCHORS_REGULAR: readonly string[] = [
-  "110000",
-  "130000",
-  "153000",
-] as const;
+// anchor 세트 셀렉터 — NXT 여부로 선택. 당일 fan-out · 전일 스냅샷 공용. 테스트 전용 export.
+export const getStockIntradayAnchors = (isNxt: boolean): readonly string[] =>
+  isNxt ? STOCK_INTRADAY_ANCHORS_NXT : STOCK_INTRADAY_ANCHORS_REGULAR;
 
-// closed fallback 설정 셀렉터 — NXT 여부로 anchor 세트/마켓코드 선택. 테스트 전용 export.
-export const getClosedFallbackAnchors = (isNxt: boolean): readonly string[] =>
-  isNxt ? STOCK_INTRADAY_CLOSED_ANCHORS_NXT : STOCK_INTRADAY_CLOSED_ANCHORS_REGULAR;
-
+// closed fallback 마켓코드 셀렉터. 테스트 전용 export.
 export const getClosedFallbackMarketDiv = (isNxt: boolean): MinuteMarketDiv =>
   isNxt ? "UN" : "J";
 
@@ -857,9 +841,11 @@ export const callAnchorsWithRetry = async (
   return { results, failed: results.some((rows) => rows === null) };
 };
 
-// 전일 스냅샷 fallback — FHKST03010230 anchor 세트로 직전 완결 거래일 분봉을 가져온다.
+// 전일 스냅샷 fallback — 당일과 같은 anchor 세트로 직전 완결 거래일 분봉을 가져온다.
 // closed(주말·공휴일) 경로와 preopen(아침·늦은 프리오픈에서 오늘 봉이 없는 경우) 경로가
 // 공유. NXT 판정은 호출측에서 넘겨받는다 (route 응답 date 정합을 위해 target 도 인자로).
+// 저유동 종목은 anchor 창이 전일로 bleed 하므로 callStockDailyMinuteAnchor 의
+// stck_bsop_date === target 필터에 기댄다.
 // failed = 재시도 뒤에도 null 인 anchor 존재. bars 는 성공 anchor 병합본 (전부 실패면 []).
 const fetchPreviousDaySnapshot = async (
   ticker: string,
@@ -869,7 +855,7 @@ const fetchPreviousDaySnapshot = async (
   appKey: string,
   appSecret: string,
 ): Promise<{ bars: ChartBar[]; failed: boolean }> => {
-  const anchors = getClosedFallbackAnchors(isNxt);
+  const anchors = getStockIntradayAnchors(isNxt);
   const div = getClosedFallbackMarketDiv(isNxt);
   const { results, failed } = await callAnchorsWithRetry(anchors, (anchor) =>
     callStockDailyMinuteAnchor(
@@ -1008,9 +994,7 @@ export const fetchStockIntradayChart = async (
 
   // 활성 세션 + latePreopen + after_close — 당일 fan-out 경로 진입.
   const { minutes: nowMin } = getKstDateAndMinutes(now);
-  const anchorSet = isNxt
-    ? STOCK_INTRADAY_ANCHORS_NXT
-    : STOCK_INTRADAY_ANCHORS_REGULAR;
+  const anchorSet = getStockIntradayAnchors(isNxt);
   const div: MinuteMarketDiv = isNxt ? "UN" : "J";
 
   // 활성 세션(pre/regular/after) + latePreopen: 현재 분까지. after_close(20:00 이후
