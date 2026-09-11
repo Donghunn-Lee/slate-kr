@@ -212,6 +212,13 @@ export const IndexDetailPane = ({
 
   // 라벨은 request time 기준: 국내는 client clock 으로 세션 판정, 해외는 quote.time 판정.
   const isKrxRegular = isDomestic && now !== null && getKrxSessionState(now, calendar) === "regular";
+  // 정규장이라도 라이브 값이 없으면(KIS 실패 → EOD 폴백) 장중 라벨·dot 을 붙이지 않는다 —
+  // 셀 fetchedAt 은 실패 시각이라 "장중 · HH:MM" 이 전일 값에 붙어 오표기된다.
+  // 첫 응답 전(로딩)은 장중 유지 — 스켈레톤 위에서 라벨이 전일→장중으로 튀지 않게.
+  const isKrxLive = isKrxRegular && (isLoading || Boolean(cell?.live));
+  // EOD 폴백 캡션은 라이브 소스가 응답한 뒤에만 — 해외는 첫 응답 전에도 SSR 값을 그리므로
+  // 캡션을 무조건 붙이면 로드마다 깜빡인다. 국내는 스켈레톤 게이트로 응답 후에만 셀이 생긴다.
+  const overseasAnswered = !overseasQuotesQuery.isPending;
   // 국내 마감 라벨 소스: pre 세션에서도 전일 반환하는 getKrxLastCloseDate 사용.
   // 종목 헤더(`stockHeaderLabel.ts`)와 동일한 MM.DD 포맷·today-vs-past 규칙을 공유.
   const domesticLastCloseDate = now ? getKrxLastCloseDate(now, calendar) : null;
@@ -279,14 +286,14 @@ export const IndexDetailPane = ({
     : undefined;
   const isOverseasLive = overseasState?.kind === "live" && overseasKstTime !== null;
   // dot = 실시간(지연 없음) live 전용. 국내 정규장 or 해외 live && delay 확정 0.
-  const showDot = isKrxRegular || (isOverseasLive && overseasDelayMin === 0);
+  const showDot = isKrxLive || (isOverseasLive && overseasDelayMin === 0);
   // 지연 확정된 해외 지수만 pill 배지. 미실측(undefined)·실시간(0)·비 live 는 배지 없음.
   const showDelayBadge =
     isOverseasLive && overseasDelayMin !== undefined && overseasDelayMin > 0;
   const referenceLabel = isDomestic
     ? now === null
       ? "장 마감"
-      : isKrxRegular
+      : isKrxLive
         ? domesticFetchedAt !== null
           ? `장중 · ${formatClock(new Date(domesticFetchedAt))}`
           : "장중"
@@ -354,6 +361,9 @@ export const IndexDetailPane = ({
                 symbol="arrow"
                 size="sm"
               />
+              {(isDomestic || overseasAnswered) && (
+                <span className="text-micro text-muted-foreground">직전 거래일</span>
+              )}
             </div>
           ) : (
             <p className="text-body text-muted-foreground">데이터 없음</p>

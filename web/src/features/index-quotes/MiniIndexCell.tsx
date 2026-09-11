@@ -122,6 +122,8 @@ export const MiniIndexCell = ({
             stacked
             className="text-micro md:text-caption"
           />
+          {/* 폴백은 전일 EOD — 캡션 없이 그리면 장중값으로 읽힌다 (IndexCell 과 동일 규칙). */}
+          <span className="text-micro text-muted-foreground">직전 거래일</span>
         </div>
       ) : (
         <div className="mt-0.5 text-body-sm text-muted-foreground">데이터 없음</div>

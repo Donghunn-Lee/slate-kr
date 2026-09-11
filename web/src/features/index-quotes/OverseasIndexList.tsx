@@ -41,12 +41,15 @@ export const OverseasIndexList = ({
   snapshotsByCode,
   twoColumnStacked = false,
 }: OverseasIndexListProps) => {
-  const { data } = useOverseasIndexQuotes();
+  const { data, isPending } = useOverseasIndexQuotes();
 
   const renderRow = (code: OverseasIndexCode) => {
     const meta = getIndexMeta(code);
     const live = data?.quotes[code] ?? null;
     const fallback = snapshotsByCode[code];
+    // EOD 폴백 캡션은 quote 응답 뒤에만 — 첫 응답 전 SSR 값에도 붙이면 로드마다 8행이 깜빡인다.
+    // /indices Rail·Chip 과 같은 규칙.
+    const showFallbackCaption = live === null && fallback !== null && !isPending;
 
     // live 우선. live 없으면 fallback (EOD close). 둘 다 없으면 "—".
     const price = live?.price ?? fallback?.close ?? null;
@@ -66,36 +69,43 @@ export const OverseasIndexList = ({
             {meta.label}
           </span>
           {price !== null && change !== null && changeRate !== null ? (
-            <div className="flex shrink-0 items-baseline gap-1.5 md:gap-2">
-              <span
-                className={cn(
-                  "text-body-sm font-semibold tabular-nums",
-                  PRICE_SIGN_CLASS[sign],
-                )}
-              >
-                {formatIndexPrice(price)}
-              </span>
-              {/* 라벨(truncate) → 숫자블록(shrink-0) 순서로 폭 부족 시 라벨이 먼저 잘림.
-                  <md 스택 리스트는 인라인(폭 우선), md+ 좁은 우측 pane 은 stacked(높이 우선). */}
-              <PriceChange
-                change={change}
-                changeRate={changeRate}
-                sign={sign}
-                symbol="arrow"
-                size="xs"
-                fractionDigits={2}
-                className="text-micro md:hidden"
-              />
-              <PriceChange
-                change={change}
-                changeRate={changeRate}
-                sign={sign}
-                symbol="arrow"
-                size="xs"
-                stacked
-                fractionDigits={2}
-                className="hidden text-micro md:inline-flex"
-              />
+            // 캡션은 숫자 행 아래 별도 줄 — 숫자 행에 같이 두면(flex-wrap 포함) 블록의 max-content
+            // 폭에 캡션이 더해져 좁은 pane 에서 라벨(truncate)이 먼저 잘린다.
+            <div className="flex shrink-0 flex-col items-end">
+              <div className="flex items-baseline gap-1.5 md:gap-2">
+                <span
+                  className={cn(
+                    "text-body-sm font-semibold tabular-nums",
+                    PRICE_SIGN_CLASS[sign],
+                  )}
+                >
+                  {formatIndexPrice(price)}
+                </span>
+                {/* 라벨(truncate) → 숫자블록(shrink-0) 순서로 폭 부족 시 라벨이 먼저 잘림.
+                    <md 스택 리스트는 인라인(폭 우선), md+ 좁은 우측 pane 은 stacked(높이 우선). */}
+                <PriceChange
+                  change={change}
+                  changeRate={changeRate}
+                  sign={sign}
+                  symbol="arrow"
+                  size="xs"
+                  fractionDigits={2}
+                  className="text-micro md:hidden"
+                />
+                <PriceChange
+                  change={change}
+                  changeRate={changeRate}
+                  sign={sign}
+                  symbol="arrow"
+                  size="xs"
+                  stacked
+                  fractionDigits={2}
+                  className="hidden text-micro md:inline-flex"
+                />
+              </div>
+              {showFallbackCaption && (
+                <span className="text-micro text-muted-foreground">직전 거래일</span>
+              )}
             </div>
           ) : (
             <span className="text-caption text-muted-foreground">—</span>

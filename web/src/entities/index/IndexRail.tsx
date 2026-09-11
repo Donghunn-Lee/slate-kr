@@ -64,6 +64,9 @@ export const IndexRail = ({
   const calendar = useMarketCalendar();
   const openingWindow =
     now !== null && isKrxOpeningWindow(data?.session, now, calendar);
+  // EOD 폴백 캡션은 라이브 소스가 응답한 뒤에만 — 해외는 첫 응답 전에도 SSR 값을 그리므로
+  // 캡션을 무조건 붙이면 로드마다 깜빡인다. 국내는 스켈레톤 게이트로 응답 후에만 셀이 생긴다.
+  const overseasAnswered = !overseasQuotesQuery.isPending;
   // 두 섹션 모두 기본 열림. 사용자가 접으면 그 상태를 유지 — 선택 지수가 있는
   // 섹션을 강제로 다시 열지는 않는다(선택 이동 자체는 하이라이트로 충분).
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>(
@@ -164,7 +167,7 @@ export const IndexRail = ({
                           />
                         </div>
                       ) : cell?.fallback ? (
-                        <div className="flex items-baseline gap-2">
+                        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                           <span className="text-body tabular-nums">
                             {formatIndexPrice(cell.fallback.close)}
                           </span>
@@ -174,6 +177,11 @@ export const IndexRail = ({
                             symbol="arrow"
                             size="xs"
                           />
+                          {(isDomestic || overseasAnswered) && (
+                            <span className="text-micro text-muted-foreground">
+                              직전 거래일
+                            </span>
+                          )}
                         </div>
                       ) : (
                         <span className="text-caption text-muted-foreground">

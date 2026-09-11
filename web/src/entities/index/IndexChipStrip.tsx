@@ -47,6 +47,9 @@ export const IndexChipStrip = ({
   const calendar = useMarketCalendar();
   const openingWindow =
     now !== null && isKrxOpeningWindow(data?.session, now, calendar);
+  // EOD 폴백 캡션은 라이브 소스가 응답한 뒤에만 — 해외는 첫 응답 전에도 SSR 값을 그리므로
+  // 캡션을 무조건 붙이면 로드마다 깜빡인다. 국내는 스켈레톤 게이트로 응답 후에만 셀이 생긴다.
+  const overseasAnswered = !overseasQuotesQuery.isPending;
 
   // 초기 마운트 및 selected 변경 시 선택 칩을 가시 영역으로. inline: "nearest" +
   // block: "nearest" 로 이미 보이는 축은 스크롤 유발 없음 — URL ?index= 초기값이
@@ -134,6 +137,9 @@ export const IndexChipStrip = ({
               symbol="arrow"
               size="xs"
             />
+            {(isDomestic || overseasAnswered) && (
+              <span className="text-micro text-muted-foreground">직전 거래일</span>
+            )}
           </div>
         ) : (
           <span className="text-micro text-muted-foreground">데이터 없음</span>
