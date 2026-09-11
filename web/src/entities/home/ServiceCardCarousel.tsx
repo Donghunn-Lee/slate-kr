@@ -32,7 +32,7 @@ const CARDS: Card[] = [
   {
     icon: TrendingUp,
     title: "가격 흐름",
-    description: "실시간 시세와 일봉·분봉 차트, 시장 순위까지",
+    description: "장중 시세와 일봉·분봉 차트, 시장 순위까지",
     variant: "lavender",
     iconTint: "bg-elevated text-lavender-accent",
     Preview: PricePreview,
