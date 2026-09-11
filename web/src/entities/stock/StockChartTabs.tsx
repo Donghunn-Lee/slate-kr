@@ -252,10 +252,14 @@ export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsPro
     });
   }, [dayBars]);
 
-  const rawIntradayBars = intradayQuery.data?.bars ?? EMPTY_BARS;
-  const hasIntraday = rawIntradayBars.length > 0;
-  // route 가 완전 fetch 실패 시 true. bars 는 항상 [] 이므로 실패는 empty 를 동반.
+  // failed 응답은 성공 anchor 봉만 실린 결손본일 수 있다 — 결손 창은 densify fill 로 메워져
+  // 무체결 구간과 구분되지 않으므로 그리지 않고 failed UI 로 보낸다. 직전 정상본이 있으면
+  // 훅이 그것을 유지하므로 여기 도달하는 failed 는 첫 로드·연속 실패뿐.
   const intradayFailed = intradayQuery.data?.failed ?? false;
+  const rawIntradayBars = intradayFailed
+    ? EMPTY_BARS
+    : (intradayQuery.data?.bars ?? EMPTY_BARS);
+  const hasIntraday = rawIntradayBars.length > 0;
   // 전일 스냅샷 fallback (preopen · 주말 · 공휴일). 라벨과 baseline 분기에 사용.
   const isPreviousDay = intradayQuery.data?.previousDay ?? false;
 
@@ -314,7 +318,7 @@ export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsPro
         ? monthBars
         : dayBars;
 
-  // 실패는 항상 empty(bars:[]) 를 동반하므로 failed 로 분기 우선순위 결정 —
+  // 실패는 표시층에서 항상 empty 로 취급되므로 failed 로 분기 우선순위 결정 —
   // 두 분기는 상호 배타(동시 참 불가).
   const showFailedIntraday =
     isIntradayView && !intradayQuery.isLoading && !hasIntraday && intradayFailed;

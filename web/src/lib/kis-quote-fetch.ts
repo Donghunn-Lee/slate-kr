@@ -833,9 +833,34 @@ const callStockDailyMinuteAnchor = async (
   }
 };
 
+// anchor fan-out + null anchor 단발 재시도. 230 경로에서 무데이터는 [] (target 필터 후) 로
+// 오므로 null 은 실패 1종뿐이고, 실측 실패는 순간 burst 의 HTTP 500 이라 1s 뒤 그 anchor 만
+// 1회 더 부르면 대부분 회복된다. 실패 종류(HTTP/rate_limit/timeout) 로 갈라 다루지 않는다.
+// 재시도 뒤에도 null 이 남으면 failed — 성공 anchor 의 봉은 버리지 않고 호출측이 플래그만
+// 얹는다 (결손본을 빈 응답으로 바꾸면 클라가 "직전본 유지 vs 부분본" 을 고를 수 없다).
+// delayMs 주입은 테스트 전용.
+const ANCHOR_RETRY_DELAY_MS = 1_000;
+
+export const callAnchorsWithRetry = async (
+  anchors: readonly string[],
+  call: (anchor: string) => Promise<ChartBar[] | null>,
+  delayMs: number = ANCHOR_RETRY_DELAY_MS,
+): Promise<{ results: (ChartBar[] | null)[]; failed: boolean }> => {
+  const results = await Promise.all(
+    anchors.map(async (anchor) => {
+      const first = await call(anchor);
+      if (first !== null) return first;
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      return call(anchor);
+    }),
+  );
+  return { results, failed: results.some((rows) => rows === null) };
+};
+
 // 전일 스냅샷 fallback — FHKST03010230 anchor 세트로 직전 완결 거래일 분봉을 가져온다.
 // closed(주말·공휴일) 경로와 preopen(아침·늦은 프리오픈에서 오늘 봉이 없는 경우) 경로가
 // 공유. NXT 판정은 호출측에서 넘겨받는다 (route 응답 date 정합을 위해 target 도 인자로).
+// failed = 재시도 뒤에도 null 인 anchor 존재. bars 는 성공 anchor 병합본 (전부 실패면 []).
 const fetchPreviousDaySnapshot = async (
   ticker: string,
   targetDateYyyymmdd: string,
@@ -843,31 +868,28 @@ const fetchPreviousDaySnapshot = async (
   token: string,
   appKey: string,
   appSecret: string,
-): Promise<ChartBar[] | null> => {
+): Promise<{ bars: ChartBar[]; failed: boolean }> => {
   const anchors = getClosedFallbackAnchors(isNxt);
   const div = getClosedFallbackMarketDiv(isNxt);
-  const results = await Promise.all(
-    anchors.map((anchor) =>
-      callStockDailyMinuteAnchor(
-        ticker,
-        targetDateYyyymmdd,
-        anchor,
-        div,
-        token,
-        appKey,
-        appSecret,
-      ),
+  const { results, failed } = await callAnchorsWithRetry(anchors, (anchor) =>
+    callStockDailyMinuteAnchor(
+      ticker,
+      targetDateYyyymmdd,
+      anchor,
+      div,
+      token,
+      appKey,
+      appSecret,
     ),
   );
-  if (results.every((rows) => rows === null)) return null;
-  return mergeAndSortIntradayBars(results);
+  return { bars: mergeAndSortIntradayBars(results), failed };
 };
 
 // 전일 세션 마지막 tail (30봉) — 등락률 초기화 이후(pre/regular/after) 오늘 라이브 봉 앞에
 // 컨텍스트 tail 로 prepend. anchor 는 각 세션의 마지막 anchor 1콜만 (FHKST03010230, 120봉/콜)
 // → 슬롯 창으로 densify 한 뒤 마지막 30봉 slice. densify 하는 이유: 초기 표시 창이 tail 30봉을
 // 되짚는데 sparse 응답은 저유동 종목에서 30봉이 수 시간을 압축해 "30봉 = 30분" 축이 깨진다.
-// 조회 실패는 [] 로 소프트 페일 (본 응답에 치명적 아님).
+// null = 재시도 뒤에도 조회 실패 — 당일 anchor 와 같은 규칙으로 응답 failed 에 합산된다.
 const PREVIOUS_DAY_TAIL_BARS = 30;
 const PREVIOUS_DAY_TAIL_ANCHOR_NXT = "200000";
 const PREVIOUS_DAY_TAIL_ANCHOR_REGULAR = "153000";
@@ -880,21 +902,25 @@ const fetchPreviousDayTail = async (
   token: string,
   appKey: string,
   appSecret: string,
-): Promise<ChartBar[]> => {
+): Promise<ChartBar[] | null> => {
   const anchor = isNxt
     ? PREVIOUS_DAY_TAIL_ANCHOR_NXT
     : PREVIOUS_DAY_TAIL_ANCHOR_REGULAR;
   const div: MinuteMarketDiv = isNxt ? "UN" : "J";
-  const bars = await callStockDailyMinuteAnchor(
-    ticker,
-    toKisDate(prevDate),
-    anchor,
-    div,
-    token,
-    appKey,
-    appSecret,
+  const {
+    results: [bars],
+  } = await callAnchorsWithRetry([anchor], (a) =>
+    callStockDailyMinuteAnchor(
+      ticker,
+      toKisDate(prevDate),
+      a,
+      div,
+      token,
+      appKey,
+      appSecret,
+    ),
   );
-  if (bars === null) return [];
+  if (bars === null) return null;
   const sorted = [...bars].sort(
     (a, b) => (a.time as number) - (b.time as number),
   );
@@ -908,6 +934,7 @@ export type StockIntradayChartResult = {
   bars: ChartBar[];
   tradingDate: string; // 'YYYY-MM-DD' — bars 가 실제로 속한 KST 거래일
   previousDay: boolean; // true = 전일 스냅샷 fallback (오늘 봉 부재)
+  failed: boolean; // true = 재시도 뒤에도 null 인 anchor 존재 (bars 는 성공분만 담긴 결손본)
 };
 
 // 종목 분봉 차트. adaptive fan-out + preopen/closed 시 전일 스냅샷 fallback + 등락률
@@ -918,7 +945,8 @@ export type StockIntradayChartResult = {
 // - after_close (20:00~06:00): 라이브 fan-out 만 (오늘 확장 세션 완결 · tail 불필요).
 // - 아침 프리오픈 (06:00~08:00): 오늘 봉 부재 확정 → 즉시 전일 스냅샷 (등락률 초기화 전).
 // - closed (주말·공휴일): 전일 스냅샷.
-// null = 자격/토큰 실패 또는 fan-out 전체 실패. now 주입 가능 — 로컬 테스트용.
+// null = 자격/토큰 실패. anchor 실패는 null 이 아니라 failed:true 로 — 성공 anchor 봉을
+// 그대로 실어 보내야 클라가 직전본 유지 여부를 고를 수 있다. now 주입 가능 — 로컬 테스트용.
 export const fetchStockIntradayChart = async (
   ticker: string,
   now: Date = new Date(),
@@ -949,7 +977,7 @@ export const fetchStockIntradayChart = async (
   // 아침 프리오픈: NXT 프리 미개시 → 오늘 봉 자체 없음. 바로 전일 스냅샷으로.
   if (earlyPreopen) {
     const prevDate = getPreviousKrxTradingDate(todayTradingDate, calendar);
-    const bars = await fetchPreviousDaySnapshot(
+    const { bars, failed } = await fetchPreviousDaySnapshot(
       ticker,
       toKisDate(prevDate),
       isNxt,
@@ -957,13 +985,12 @@ export const fetchStockIntradayChart = async (
       appKey,
       appSecret,
     );
-    if (bars === null) return null;
-    return { bars, tradingDate: prevDate, previousDay: true };
+    return { bars, tradingDate: prevDate, previousDay: true, failed };
   }
 
   // closed (주말·공휴일): 직전 완결 거래일 스냅샷. todayTradingDate 는 이미 직전 거래일.
   if (session === "closed") {
-    const bars = await fetchPreviousDaySnapshot(
+    const { bars, failed } = await fetchPreviousDaySnapshot(
       ticker,
       toKisDate(todayTradingDate),
       isNxt,
@@ -971,11 +998,11 @@ export const fetchStockIntradayChart = async (
       appKey,
       appSecret,
     );
-    if (bars === null) return null;
     return {
       bars,
       tradingDate: todayTradingDate,
       previousDay: true,
+      failed,
     };
   }
 
@@ -1017,23 +1044,21 @@ export const fetchStockIntradayChart = async (
     : null;
 
   // 당일 fan-out + 전일 tail 병렬 fetch — 지연 최소화.
-  // 실패 anchor 는 null → 성공분만 병합. tail 실패는 [] 로 소프트 페일.
-  const [liveResults, tailBars] = await Promise.all([
-    Promise.all(
-      anchors.map((anchor) =>
-        callStockDailyMinuteAnchor(
-          ticker,
-          toKisDate(barsDate),
-          anchor,
-          div,
-          tokenResult.token,
-          appKey,
-          appSecret,
-        ),
+  // 재시도 뒤에도 null 인 anchor(당일·tail 불문) 는 성공분만 병합하고 failed 로 알린다.
+  const [live, tailBars] = await Promise.all([
+    callAnchorsWithRetry(anchors, (anchor) =>
+      callStockDailyMinuteAnchor(
+        ticker,
+        toKisDate(barsDate),
+        anchor,
+        div,
+        tokenResult.token,
+        appKey,
+        appSecret,
       ),
     ),
     tailSourceDate === null
-      ? Promise.resolve<ChartBar[]>([])
+      ? Promise.resolve<ChartBar[] | null>([])
       : fetchPreviousDayTail(
           ticker,
           tailSourceDate,
@@ -1045,29 +1070,29 @@ export const fetchStockIntradayChart = async (
         ),
   ]);
 
+  const failed = live.failed || tailBars === null;
+
   // 라이브 anchor 가 하나도 안 걸리는 케이스 (pre 비NXT · latePreopen 비NXT): tail 만 반환.
   // tail 조차 [] 이면 empty 응답 → client 가 "정규장 개장 전" 안내로 자연 폴백.
   if (anchors.length === 0) {
     return {
-      bars: tailBars,
+      bars: tailBars ?? [],
       tradingDate: barsDate,
       previousDay: false,
+      failed,
     };
   }
-
-  // 전체 anchor 가 실패 (모두 null) 인 경우 정상 empty([]) 와 구분하기 위해 null 반환.
-  // 부분 성공은 기존대로 merged 결과 반환 (성공분만 노출).
-  if (liveResults.every((rows) => rows === null)) return null;
 
   // tail + 당일 병합 후 densify. 저유동 종목은 anchor 창이 겹쳐 같은 봉이 여러 anchor 에
   // 실려 오므로 time key dedup + ASC 정렬 (lightweight-charts 요구조건). tail 을 먼저
   // 합치는 이유: 첫 체결 전 슬롯의 fill 종가가 전일 마지막 봉까지 거슬러 올라가야
   // KIS 자체 fill 과 같은 형상이 된다.
-  const combined = mergeAndSortIntradayBars([tailBars, ...liveResults]);
+  const combined = mergeAndSortIntradayBars([tailBars, ...live.results]);
 
   return {
     bars: densifyIntradayBars(combined, slots),
     tradingDate: barsDate,
     previousDay: false,
+    failed,
   };
 };

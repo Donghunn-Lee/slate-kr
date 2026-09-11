@@ -14,10 +14,23 @@ export type StockIntradayResponse = {
   // true = 전일 스냅샷 fallback (preopen 아침·비NXT 늦은 프리오픈·주말·공휴일).
   // client 는 이 신호로 "정규장 개장 전 · MM-DD 마감 차트" 라벨을 붙이고 baseline 을 비활성.
   previousDay: boolean;
-  // route 가 완전 fetch 실패 시 true. bars 는 항상 [] 로 정규화되므로
-  // 실패↔정상 empty(pre/휴장/tradingDate 불일치) 를 client 에서 구분하는 유일한 신호.
+  // route 가 fetch 에 실패하면 true — 자격/토큰 실패(bars []) 와 anchor 부분 실패(성공
+  // anchor 봉만 실린 결손본) 모두. 실패↔정상 empty(pre/휴장/tradingDate 불일치) 를
+  // client 에서 구분하는 유일한 신호.
   failed: boolean;
 };
+
+// failed 응답이 캐시의 직전 정상본을 덮지 않게 한다 — 응답은 통째 교체라 결손본이 다음 폴까지
+// 차트를 점유한다. session 만 새 응답 것을 쓴다: refetchInterval 게이트 축이라 직전본이
+// after_close 였으면 활성 세션에 들어와도 폴링이 닫힌 채 갇힌다. 직전 정상본이 없으면
+// (첫 로드·연속 실패) 결손본이 그대로 들어가 failed UI 로 흐른다.
+export const keepLastGoodIntraday = (
+  prev: StockIntradayResponse | undefined,
+  next: StockIntradayResponse,
+): StockIntradayResponse =>
+  next.failed && prev !== undefined && !prev.failed
+    ? { ...prev, session: next.session }
+    : next;
 
 type UseStockIntradayOptions = {
   enabled?: boolean;
@@ -48,12 +61,15 @@ export const useStockIntraday = (
     refetchOnMount: "always",
     refetchOnWindowFocus: () =>
       isKrxActiveSession(getKrxSessionState(new Date(), calendar)),
-    queryFn: async () => {
+    queryFn: async ({ client, queryKey }) => {
       const res = await fetch(
         `/api/stock-intraday?ticker=${encodeURIComponent(ticker)}`,
       );
       if (!res.ok) throw new Error("stock intraday fetch failed");
-      return res.json();
+      return keepLastGoodIntraday(
+        client.getQueryData<StockIntradayResponse>(queryKey),
+        await res.json(),
+      );
     },
     refetchInterval: (query) =>
       isKrxActiveSession(query.state.data?.session) ? POLL_INTERVAL_MS : false,

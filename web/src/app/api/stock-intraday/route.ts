@@ -47,8 +47,8 @@ export const GET = async (req: NextRequest) => {
 
   try {
     const result = await dedupedFetch(ticker);
-    // null = fetch 실패 (자격/토큰/전체 fan-out 실패). bars 는 [] 로 정규화해 클라 계약
-    // (bars: ChartBar[]) 유지. failed:true 로 정상 empty 와 구분.
+    // null = fetch 실패 (자격/토큰). bars 는 [] 로 정규화해 클라 계약 (bars: ChartBar[])
+    // 유지. anchor 실패는 result.failed 로 — 성공 anchor 봉은 그대로 싣는다.
     if (result === null) {
       return NextResponse.json({
         bars: [],
@@ -63,7 +63,7 @@ export const GET = async (req: NextRequest) => {
       session,
       date: result.tradingDate,
       previousDay: result.previousDay,
-      failed: false,
+      failed: result.failed,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);

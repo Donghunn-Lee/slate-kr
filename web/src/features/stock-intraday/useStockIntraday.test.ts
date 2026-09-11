@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { getKrxSessionState, isKrxActiveSession } from "@/shared/utils/market";
+import {
+  keepLastGoodIntraday,
+  type StockIntradayResponse,
+} from "./useStockIntraday";
 
 // 명시적 UTC epoch 로 KST 로컬 시각을 유도 (KST = UTC+9, DST 없음).
 const kst = (
@@ -44,5 +48,48 @@ describe("useStockIntraday 복귀 refetch 게이트 — 클라 시계 축", () =
   it("정지된 preopen 응답 + 09:30 복귀 → 응답 축 false, 시계 축 true", () => {
     expect(isKrxActiveSession("preopen")).toBe(false);
     expect(refetchOnFocus(t(9, 30))).toBe(true);
+  });
+});
+
+// ── keepLastGoodIntraday: failed 응답의 캐시 미점유 ──
+describe("keepLastGoodIntraday", () => {
+  const bar = { time: 1, open: 1, high: 1, low: 1, close: 1, volume: 1 };
+  const res = (over: Partial<StockIntradayResponse>): StockIntradayResponse => ({
+    bars: [bar],
+    session: "regular",
+    date: "2026-09-11",
+    previousDay: false,
+    failed: false,
+    ...over,
+  });
+
+  it("정상 응답 → 그대로 교체", () => {
+    const next = res({});
+    expect(keepLastGoodIntraday(res({ bars: [] }), next)).toBe(next);
+  });
+
+  it("failed + 직전 정상본 → 직전본 유지 (결손 봉이 덮지 않는다)", () => {
+    const prev = res({});
+    const out = keepLastGoodIntraday(prev, res({ bars: [], failed: true }));
+    expect(out.bars).toBe(prev.bars);
+    expect(out.failed).toBe(false);
+  });
+
+  // 직전본이 after_close 였으면 게이트가 닫힌 채 갇히므로 session 축만 새 응답을 따른다.
+  it("failed + 직전 정상본 → session 은 새 응답 것", () => {
+    const prev = res({ session: "after_close" });
+    const out = keepLastGoodIntraday(prev, res({ failed: true }));
+    expect(out.session).toBe("regular");
+    expect(out.bars).toBe(prev.bars);
+  });
+
+  it("failed + 직전본 없음(첫 로드) → 결손본 그대로 (failed UI 경로)", () => {
+    const next = res({ failed: true });
+    expect(keepLastGoodIntraday(undefined, next)).toBe(next);
+  });
+
+  it("failed + 직전본도 failed → 새 결손본으로 교체", () => {
+    const next = res({ failed: true });
+    expect(keepLastGoodIntraday(res({ bars: [], failed: true }), next)).toBe(next);
   });
 });

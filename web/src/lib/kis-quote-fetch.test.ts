@@ -1,6 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import {
   buildDaySlots,
+  callAnchorsWithRetry,
   foldPostCloseIndexBars,
   getClosedFallbackAnchors,
   getClosedFallbackMarketDiv,
@@ -191,6 +192,64 @@ describe("mergeAndSortIntradayBars", () => {
     const result = mergeAndSortIntradayBars([bars]);
     expect(result).toHaveLength(1);
     expect(result[0].time).toBe(100);
+  });
+});
+
+// ── callAnchorsWithRetry: null anchor 1s 뒤 단발 재시도 · 잔여 null → failed ──
+describe("callAnchorsWithRetry", () => {
+  const ANCHORS = ["100000", "120000", "140000"] as const;
+  // anchor 별 응답 큐 — 호출 순서대로 소비. 큐가 비면 정상 봉.
+  const scripted = (script: Record<string, (ChartBar[] | null)[]>) => {
+    const calls: Record<string, number> = {};
+    const call = vi.fn(async (anchor: string) => {
+      calls[anchor] = (calls[anchor] ?? 0) + 1;
+      const queue = script[anchor] ?? [];
+      return queue.length > 0 ? queue.shift()! : [mk(Number(anchor), 1)];
+    });
+    return { call, calls };
+  };
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("전부 성공 → anchor 당 1콜, 재시도 0회, failed:false", async () => {
+    const { call, calls } = scripted({});
+    const out = await callAnchorsWithRetry(ANCHORS, call, 0);
+    expect(out.failed).toBe(false);
+    expect(out.results.map((r) => r?.length)).toEqual([1, 1, 1]);
+    expect(calls).toEqual({ "100000": 1, "120000": 1, "140000": 1 });
+  });
+
+  it("null anchor 재시도 성공 → 그 anchor 만 2콜, failed:false", async () => {
+    const { call, calls } = scripted({ "120000": [null] });
+    const out = await callAnchorsWithRetry(ANCHORS, call, 0);
+    expect(out.failed).toBe(false);
+    expect(out.results.every((r) => r !== null)).toBe(true);
+    expect(calls).toEqual({ "100000": 1, "120000": 2, "140000": 1 });
+  });
+
+  it("재시도도 null → failed:true, 성공 anchor 봉은 그대로 · 재시도는 1회뿐", async () => {
+    const { call, calls } = scripted({ "120000": [null, null] });
+    const out = await callAnchorsWithRetry(ANCHORS, call, 0);
+    expect(out.failed).toBe(true);
+    expect(out.results[1]).toBeNull();
+    expect(mergeAndSortIntradayBars(out.results).map((b) => b.time)).toEqual([
+      100000, 140000,
+    ]);
+    expect(calls).toEqual({ "100000": 1, "120000": 2, "140000": 1 });
+  });
+
+  it("재시도는 기본 1s 지연 뒤 나간다 (즉시 burst 재발 방지)", async () => {
+    vi.useFakeTimers();
+    const { call, calls } = scripted({ "100000": [null] });
+    const pending = callAnchorsWithRetry(ANCHORS, call);
+    await vi.advanceTimersByTimeAsync(999);
+    expect(calls["100000"]).toBe(1);
+    await vi.advanceTimersByTimeAsync(1);
+    const out = await pending;
+    expect(calls["100000"]).toBe(2);
+    expect(out.failed).toBe(false);
   });
 });
 
