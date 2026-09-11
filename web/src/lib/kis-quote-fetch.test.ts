@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  buildDaySlots,
   foldPostCloseIndexBars,
   getClosedFallbackAnchors,
   getClosedFallbackMarketDiv,
@@ -12,29 +13,94 @@ import {
   toKisDate,
 } from "./kis-quote-fetch";
 import type { ChartBar } from "@/shared/types/quote";
+import type { MarketCalendar } from "@/shared/types/marketCalendar";
 
-// ── 라이브 fan-out anchor 세트 pin ─────────────────────────────
-// "093000" 창 (09:00, 09:30] 은 START 090000 봉을 배제 → KRX 첫 체결 봉(END 09:01)
-// 이 누락되므로 "090000" 을 첫 anchor 로 pin.
+// ── 당일 fan-out anchor 세트 pin ───────────────────────────────
+// FHKST03010230 은 anchor(포함) 이전 실체결 120봉을 반환 → 120 실체결봉은 항상 ≥120분이라
+// anchor 간격 ≤120분 · 첫 anchor ≤ 창 시작 + 120분이면 유동성과 무관하게 결손이 없다.
+const anchorMin = (a: string) => Number(a.slice(0, 2)) * 60 + Number(a.slice(2, 4));
+const maxGap = (anchors: readonly string[]) =>
+  Math.max(...anchors.slice(1).map((a, i) => anchorMin(a) - anchorMin(anchors[i])));
+
 describe("STOCK_INTRADAY_ANCHORS_REGULAR", () => {
-  it("첫 anchor 는 '090000' (KRX 개장 봉 커버)", () => {
-    expect(STOCK_INTRADAY_ANCHORS_REGULAR[0]).toBe("090000");
+  it("09:00~15:30 을 4콜로 커버 (마감 153000 포함)", () => {
+    expect(STOCK_INTRADAY_ANCHORS_REGULAR).toEqual([
+      "100000",
+      "120000",
+      "140000",
+      "153000",
+    ]);
   });
 
-  it("길이 14 (09:00 + 30분 간격 093000~153000)", () => {
-    expect(STOCK_INTRADAY_ANCHORS_REGULAR).toHaveLength(14);
-  });
-
-  it("오름차순 · 중복 없음", () => {
-    const arr = [...STOCK_INTRADAY_ANCHORS_REGULAR];
-    expect(arr).toEqual([...arr].sort());
-    expect(new Set(arr).size).toBe(arr.length);
+  it("첫 anchor 가 09:00 개장 봉을 덮고 간격 ≤120분", () => {
+    expect(anchorMin(STOCK_INTRADAY_ANCHORS_REGULAR[0]) - 120).toBeLessThanOrEqual(9 * 60);
+    expect(maxGap(STOCK_INTRADAY_ANCHORS_REGULAR)).toBeLessThanOrEqual(120);
   });
 });
 
 describe("STOCK_INTRADAY_ANCHORS_NXT", () => {
-  it("'090000' 포함 (NXT 프리 → 정규장 경계 봉 커버)", () => {
-    expect(STOCK_INTRADAY_ANCHORS_NXT).toContain("090000");
+  it("08:00~20:00 을 6콜로 커버 (애프터 마감 200000 포함)", () => {
+    expect(STOCK_INTRADAY_ANCHORS_NXT).toEqual([
+      "100000",
+      "120000",
+      "140000",
+      "160000",
+      "180000",
+      "200000",
+    ]);
+  });
+
+  it("간격 ≤120분 · 첫 anchor 창이 08:50~08:59 무체결 갭을 포함해 08:00 을 덮는다", () => {
+    expect(maxGap(STOCK_INTRADAY_ANCHORS_NXT)).toBeLessThanOrEqual(120);
+    // (08:00, 10:00] 121 슬롯 − 갭 10 = 실체결 ≤111 ≤ 120
+    expect(anchorMin(STOCK_INTRADAY_ANCHORS_NXT[0]) - 8 * 60 + 1 - 10).toBeLessThanOrEqual(120);
+  });
+});
+
+// ── buildDaySlots: 세션 술어(getKrxSessionState) + 갭 창 술어에서 파생 ──
+// 시각 리터럴을 여기서 다시 정의하지 않기 위해 슬롯 집합은 두 술어의 교집합이어야 한다.
+describe("buildDaySlots", () => {
+  const cal: MarketCalendar = { KRX: { "2026-09-11": true, "2026-09-12": false } };
+  const hhmm = (sec: number) => {
+    const d = new Date(sec * 1000);
+    return `${String(d.getUTCHours()).padStart(2, "0")}${String(d.getUTCMinutes()).padStart(2, "0")}`;
+  };
+  const LAST = 24 * 60 - 1;
+
+  it("NXT: pre·regular·after 분 − 갭 창 (08:50~08:59 · 15:20~15:29 · 15:31~15:39)", () => {
+    const labels = buildDaySlots("2026-09-11", LAST, true, cal).map(hhmm);
+    // 08:00~08:49 (50) + 09:00~15:19 (380) + 15:30 (1) + 15:40~19:59 (260)
+    expect(labels).toHaveLength(691);
+    expect(labels[0]).toBe("0800");
+    expect(labels[labels.length - 1]).toBe("1959");
+    for (const excluded of ["0759", "0850", "0859", "1520", "1529", "1531", "1539", "2000"]) {
+      expect(labels).not.toContain(excluded);
+    }
+    for (const included of ["0849", "0900", "1519", "1530", "1540"]) {
+      expect(labels).toContain(included);
+    }
+  });
+
+  it("비NXT: regular 분만 − 갭 창. 15:30 은 세션 술어상 after 라 슬롯 밖 (실봉은 pass-through)", () => {
+    const labels = buildDaySlots("2026-09-11", LAST, false, cal).map(hhmm);
+    expect(labels).toHaveLength(380);
+    expect(labels[0]).toBe("0900");
+    expect(labels[labels.length - 1]).toBe("1519");
+    expect(labels).not.toContain("0849");
+    expect(labels).not.toContain("1530");
+  });
+
+  it("endMin 으로 현재 분까지 잘린다", () => {
+    const labels = buildDaySlots("2026-09-11", 10 * 60 + 46, true, cal).map(hhmm);
+    expect(labels[labels.length - 1]).toBe("1046");
+  });
+
+  it("세션 시작 전 endMin (비NXT 08:30) → []", () => {
+    expect(buildDaySlots("2026-09-11", 8 * 60 + 30, false, cal)).toEqual([]);
+  });
+
+  it("휴장일 → [] (세션 술어가 closed)", () => {
+    expect(buildDaySlots("2026-09-12", LAST, true, cal)).toEqual([]);
   });
 });
 
