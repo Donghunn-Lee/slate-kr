@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import { focusManager, useQuery } from "@tanstack/react-query";
 import type { OverseasIntradayCode } from "@/shared/constants/indices";
 import type { IndexIntradaySnapshot } from "@/shared/types/quote";
 import {
@@ -22,6 +22,11 @@ const POLL_INTERVAL_MS = 120_000;
 // closed 에서도 느린 cadence 유지 — 개장 전 로드된 held 탭이 세션 개장을 감지해
 // marketOpen=true 수신 시 regular cadence 로 자동 승격. 서버 세션 캐시 히트라 KIS 콜 0.
 const CLOSED_POLL_MS = 240_000;
+// 국내 2훅(index-quotes·index-intraday) 과 같은 초에 첫 fetch 가 나가지 않도록 두는 간격.
+// 4 route 가 한 초에 miss 하면 KIS 콜이 최대 23 (앱키 한도 20/s) — 국내 8 / 해외 15 로
+// 초를 가른다. 탭 복귀에도 같은 간격을 둔다: TanStack 포커스 refetch 는 stale 쿼리를
+// 한 tick 에 몰아 쏘므로 첫 틱과 같은 정렬이 재발한다. 폴링 주기·TTL 은 그대로.
+const FIRST_FETCH_OFFSET_MS = 2_000;
 
 // 어느 해외 지수든 정규장이 열려 있으면 regular 폴링 (route 의 aggregate marketOpen).
 // 국내 훅과 분리 유지 — 국내 마감 후에도 해외 폴링 지속 필요.
@@ -30,6 +35,30 @@ const CLOSED_POLL_MS = 240_000;
 // 예약이 실제로 나갔으면 그 결과 응답은 재검증 미완료로 또 stale 이어도 판정하지 않는다
 // (체이닝 차단). 다음 tick 응답부터 다시 판정.
 export const useOverseasIndexIntraday = () => {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const arm = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => setReady(true), FIRST_FETCH_OFFSET_MS);
+    };
+    arm();
+    // hidden 에서 enabled 를 내려 두어야 복귀 순간의 포커스 refetch 가 이 쿼리를 건너뛰고,
+    // 간격 뒤 enabled 복귀가 (stale 이면) refetch 를 대신한다.
+    const unsubscribe = focusManager.subscribe((focused) => {
+      if (focused) {
+        arm();
+        return;
+      }
+      clearTimeout(timer);
+      setReady(false);
+    });
+    return () => {
+      clearTimeout(timer);
+      unsubscribe();
+    };
+  }, []);
+
   const query = useQuery<OverseasIndexIntradayResponse>({
     queryKey: ["overseas-index-intraday"],
     queryFn: async () => {
@@ -37,6 +66,7 @@ export const useOverseasIndexIntraday = () => {
       if (!res.ok) throw new Error("overseas index intraday fetch failed");
       return res.json();
     },
+    enabled: ready,
     refetchInterval: (query) =>
       query.state.data?.marketOpen ? POLL_INTERVAL_MS : CLOSED_POLL_MS,
   });

@@ -338,7 +338,7 @@ export const IndexChart = ({
     intradayFailed;
   const showEmptyIntraday =
     isIntradayView &&
-    !intradayQuery.isLoading &&
+    !intradayQuery.isPending &&
     !intradayHasData &&
     !intradayFailed;
 
