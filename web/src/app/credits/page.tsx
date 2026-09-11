@@ -31,7 +31,13 @@ export default function CreditsPage() {
             ))}
           </dl>
           <p className="mt-3 text-caption text-muted-foreground">
-            장중 시세는 60초 간격으로 갱신됩니다.
+            종목 시세·분봉은 장중 약 1분 간격으로 갱신됩니다.
+          </p>
+          <p className="mt-1 text-caption text-muted-foreground">
+            지수 시세·분봉은 장중 약 1~2분 간격으로 갱신됩니다.
+          </p>
+          <p className="mt-1 text-caption text-muted-foreground">
+            장외 시간에는 마감 스냅샷 또는 직전 거래일 값을 표시합니다.
           </p>
           <p className="mt-1 text-caption text-muted-foreground">
             다우존스(DJI)는 KIS OpenAPI가 장중 시세·분봉을 제공하지 않아 일봉 종가만 표시됩니다.
