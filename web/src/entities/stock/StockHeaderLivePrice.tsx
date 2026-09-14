@@ -10,6 +10,7 @@ import {
   defaultMarketForSession,
   getKrxLastCloseDate,
   getKrxSessionState,
+  isKrxAfterMarketOpen,
   isKrxOpeningWindow,
 } from "@/shared/utils/market";
 import { cn } from "@/lib/utils";
@@ -138,6 +139,7 @@ export const StockHeaderLivePrice = ({
     kstToday: lastCloseDate,
     updatedAtText,
     openingWindow: isKrxOpeningWindow(labelSession, now, calendar),
+    krxAfterMarketOpen: isKrxAfterMarketOpen(now, calendar),
   });
 
   // 초기 로드 스켈레톤 — 토글 미노출 종목·NXT 탭. KRX 탭은 initial 값으로 즉시 표시.

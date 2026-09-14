@@ -17,6 +17,9 @@ const PRE_START_MINUTES = 8 * 60; // 08:00 KST — 프리마켓 시작
 const PRE_END_MINUTES = 8 * 60 + 50; // 08:50 KST — 프리마켓 종료
 const REGULAR_START_MINUTES = 9 * 60; // 09:00 KST — 정규장 시작
 const REGULAR_END_MINUTES = 15 * 60 + 30; // 15:30 KST — 정규장 종료
+// 16:00 KST — KRX 애프터마켓 시작. after 세션(15:30~) 안의 경계라 세션 상태를 쪼개지 않고
+// 라벨·캡션·분봉 슬롯이 이 상수로 KRX 축만 가른다 (NXT 애프터는 15:40 부터, 세션 술어 그대로).
+export const KRX_AFTER_MARKET_START_MINUTES = 16 * 60;
 const AFTER_END_MINUTES = 20 * 60; // 20:00 KST — 애프터마켓 종료
 
 export type KrxSession =
@@ -99,6 +102,19 @@ export const isKrxLatePreopen = (
   if (getKrxSessionState(now, calendar) !== "preopen") return false;
   const { minutes } = toKstParts(now);
   return minutes >= PRE_END_MINUTES;
+};
+
+// KRX 애프터마켓(16:00~20:00) 술어 — after 세션이면서 16:00 이후.
+// 15:30~16:00 은 after 세션이지만 KRX 는 무체결(시간외 종가매매만) 이라 KRX 축 라벨은
+// 마감 표기를 유지해야 한다. UN 채널 폴링·세션 술어는 after 하나로 충분하므로 세션 상태를
+// 늘리지 않고 표시 계층만 이 술어로 가른다.
+export const isKrxAfterMarketOpen = (
+  now: Date = new Date(),
+  calendar?: MarketCalendar,
+): boolean => {
+  if (getKrxSessionState(now, calendar) !== "after") return false;
+  const { minutes } = toKstParts(now);
+  return minutes >= KRX_AFTER_MARKET_START_MINUTES;
 };
 
 // 정규장 개장 전(pre · preopen) 세션 술어. 일봉 today-bar live merge 게이트에 사용.

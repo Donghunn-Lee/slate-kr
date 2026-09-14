@@ -50,6 +50,9 @@ export type HeaderLabelInput = {
   // 개장 전 창(08:00~09:00) 여부. preopen 세션은 06:00~08:00 도 포함하므로
   // 세션만으로는 두 창을 가를 수 없다.
   openingWindow: boolean;
+  // KRX 애프터마켓(16:00~) 진입 여부. after 세션은 15:30 부터라 세션만으로는 KRX 무체결
+  // 구간(15:30~16:00)을 가를 수 없다. 클라 시계 판정 — openingWindow 와 같은 축.
+  krxAfterMarketOpen: boolean;
 };
 
 export type HeaderLabelResult = {
@@ -58,7 +61,7 @@ export type HeaderLabelResult = {
 };
 
 // 종목 헤더 세션 라벨/시각 결정.
-// KRX 탭: regular 는 라이브 라벨, 비-regular 는 initialDate 기준 SSR 라벨.
+// KRX 탭: regular·애프터 계열은 라이브 라벨, 라이브 없는 비-regular 는 initialDate 기준 SSR 라벨.
 // NXT 탭: 세션·live·failed 조합으로 확장 세션 라벨(프리마켓/애프터마켓 등) 결정.
 export const computeHeaderLabel = ({
   session,
@@ -69,6 +72,7 @@ export const computeHeaderLabel = ({
   kstToday,
   updatedAtText,
   openingWindow,
+  krxAfterMarketOpen,
 }: HeaderLabelInput): HeaderLabelResult => {
   if (market === "krx") {
     // 개장 전 창(08:00~09:00) 은 KRX 기준가가 이미 오늘 거래일로 리셋된 구간 — 표시 값도
@@ -79,7 +83,19 @@ export const computeHeaderLabel = ({
     if (session === "regular") {
       return { labelText: "장중", timeText: updatedAtText };
     }
-    // 비-regular KRX 탭 — 라이브 쿼리 비활성이므로 SSR 기반 표기만.
+    // 애프터 계열 라이브 — NXT 탭과 같은 축의 라벨. J 채널은 15:30~16:00 에도 마감가를
+    // 돌려주므로 라이브 유무가 아니라 16:00 경계가 "애프터마켓" 표기를 가른다.
+    if (live !== null) {
+      if (session === "after") {
+        return krxAfterMarketOpen
+          ? { labelText: "애프터마켓", timeText: updatedAtText }
+          : { labelText: "장 마감", timeText: "15:30" };
+      }
+      if (session === "after_close" || session === "closed") {
+        return { labelText: "애프터마켓 종가", timeText: "20:00" };
+      }
+    }
+    // 라이브 없는 비-regular KRX 탭 — SSR 기반 표기만.
     if (initialDate === null) return { labelText: "장 마감", timeText: "" };
     if (initialDate === kstToday) return { labelText: "장 마감", timeText: "15:30" };
     // "YYYY-MM-DD" → "MM.DD" (직전 거래일 종가 표기)

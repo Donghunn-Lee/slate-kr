@@ -29,6 +29,7 @@ const nxt = (over: Partial<HeaderLabelInput> = {}): HeaderLabelInput => ({
   kstToday: KST_TODAY,
   updatedAtText: UPDATED_AT,
   openingWindow: false,
+  krxAfterMarketOpen: false,
   ...over,
 });
 
@@ -125,13 +126,56 @@ describe("computeHeaderLabel · KRX 탭", () => {
     ).toEqual({ labelText: "장 마감", timeText: "" });
   });
 
-  it("KRX 탭은 live 값과 무관하게 initialDate 기준 (비-regular)", () => {
-    // 실사용에선 비-regular KRX 는 live=null 이지만, 함수 계약은 live 유무와 독립.
+  // after 세션의 KRX 탭은 J 채널이 15:30 부터 응답하므로 live 유무가 아니라 16:00 경계가
+  // 라벨을 가른다. initialDate 는 EOD 적재(16:00 이후) 전이라 전일로 남아 있는 게 보통이라
+  // 라벨 축에서 빼야 값(오늘 라이브)·라벨이 어긋나지 않는다.
+  it("after · live 있음 · 16:00 이후 → '애프터마켓' · updatedAtText (initialDate 무관)", () => {
+    for (const initialDate of [KST_TODAY, "2026-08-25", null]) {
+      expect(
+        computeHeaderLabel(
+          krx({ session: "after", live: q(), initialDate, krxAfterMarketOpen: true }),
+        ),
+      ).toEqual({ labelText: "애프터마켓", timeText: UPDATED_AT });
+    }
+  });
+
+  it("after · live 있음 · 16:00 전 → '장 마감' · '15:30' (initialDate 무관)", () => {
+    for (const initialDate of [KST_TODAY, "2026-08-25", null]) {
+      expect(
+        computeHeaderLabel(
+          krx({ session: "after", live: q(), initialDate, krxAfterMarketOpen: false }),
+        ),
+      ).toEqual({ labelText: "장 마감", timeText: "15:30" });
+    }
+  });
+
+  it("after · live=null → initialDate 기준 (16:00 이후여도 라이브 없으면 SSR 표기)", () => {
     expect(
       computeHeaderLabel(
-        krx({ session: "after", live: q(), initialDate: "2026-08-25", kstToday: KST_TODAY }),
+        krx({ session: "after", live: null, initialDate: "2026-08-25", krxAfterMarketOpen: true }),
       ),
     ).toEqual({ labelText: "전일 종가", timeText: "08.25" });
+    expect(
+      computeHeaderLabel(
+        krx({ session: "after", live: null, initialDate: KST_TODAY, krxAfterMarketOpen: true }),
+      ),
+    ).toEqual({ labelText: "장 마감", timeText: "15:30" });
+  });
+
+  it("after_close · closed · live 있음 → '애프터마켓 종가' · '20:00' (NXT 탭과 동일 문구)", () => {
+    for (const s of ["after_close", "closed"] as const) {
+      for (const initialDate of [KST_TODAY, "2026-08-25", null]) {
+        expect(
+          computeHeaderLabel(krx({ session: s, live: q(), initialDate })),
+        ).toEqual({ labelText: "애프터마켓 종가", timeText: "20:00" });
+      }
+    }
+  });
+
+  it("이른 preopen · live 있음 · 창 밖 → initialDate 기준 (애프터 계열만 라이브 라벨)", () => {
+    expect(
+      computeHeaderLabel(krx({ session: "preopen", live: q(), initialDate: KST_TODAY })),
+    ).toEqual({ labelText: "장 마감", timeText: "15:30" });
   });
 
   // 개장 전 창(08:00~09:00) — 값이 0 으로 리셋되는 구간이라 라벨도 "개장 전" 축이어야 한다.

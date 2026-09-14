@@ -11,6 +11,7 @@ import {
   getEtDateAndMinutes,
   getUsTradingDate,
   getPreviousUsTradingDate,
+  isKrxAfterMarketOpen,
   isKrxBeforeMarketOpen,
   isKrxEarlyPreopen,
   isKrxLatePreopen,
@@ -182,6 +183,32 @@ describe("isKrxLatePreopen", () => {
   });
   it("07:00 KST → false (아침 preopen 이지 늦은 preopen 아님)", () => {
     expect(isKrxLatePreopen(kst(2026, 7, 23, 7, 0))).toBe(false);
+  });
+});
+
+// after 세션(15:30~20:00) 안에서 16:00 경계만 가른다 — 세션 밖은 시각과 무관하게 false.
+describe("isKrxAfterMarketOpen", () => {
+  it("16:00 KST → true (창 시작 경계 포함)", () => {
+    expect(isKrxAfterMarketOpen(kst(2026, 7, 23, 16, 0))).toBe(true);
+  });
+  it("19:59 KST → true", () => {
+    expect(isKrxAfterMarketOpen(kst(2026, 7, 23, 19, 59))).toBe(true);
+  });
+  it("15:59 KST → false (after 세션이지만 KRX 애프터 개시 전)", () => {
+    expect(getKrxSessionState(kst(2026, 7, 23, 15, 59))).toBe("after");
+    expect(isKrxAfterMarketOpen(kst(2026, 7, 23, 15, 59))).toBe(false);
+  });
+  it("15:30 KST → false (after 세션 시작 경계)", () => {
+    expect(isKrxAfterMarketOpen(kst(2026, 7, 23, 15, 30))).toBe(false);
+  });
+  it("20:00 KST → false (after_close 진입)", () => {
+    expect(isKrxAfterMarketOpen(kst(2026, 7, 23, 20, 0))).toBe(false);
+  });
+  it("토요일 17:00 KST → false (closed)", () => {
+    expect(isKrxAfterMarketOpen(kst(2026, 7, 25, 17, 0))).toBe(false);
+  });
+  it("휴장일 17:00 KST → false (closed)", () => {
+    expect(isKrxAfterMarketOpen(kst(2026, 1, 1, 17, 0))).toBe(false);
   });
 });
 
