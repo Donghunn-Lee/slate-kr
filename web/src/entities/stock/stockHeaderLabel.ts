@@ -41,7 +41,9 @@ export const isClosedLikeMiss = (
 
 export type HeaderLabelInput = {
   session: KrxSession | undefined;
-  market: QuoteMarket;
+  // undefined = 미지정 경로(토글 없는 종목). 세션 결정 채널이라 라이브 축은 NXT 탭과 같지만
+  // 종목의 유일 시장이 KRX 라 애프터마켓 경계는 KRX 탭(16:00)을 따른다.
+  market: QuoteMarket | undefined;
   live: StockQuote | null;
   isFailedQuote: boolean;
   initialDate: string | null; // SSR daily_prices 최신 행 date ('YYYY-MM-DD')
@@ -62,7 +64,8 @@ export type HeaderLabelResult = {
 
 // 종목 헤더 세션 라벨/시각 결정.
 // KRX 탭: regular·애프터 계열은 라이브 라벨, 라이브 없는 비-regular 는 initialDate 기준 SSR 라벨.
-// NXT 탭: 세션·live·failed 조합으로 확장 세션 라벨(프리마켓/애프터마켓 등) 결정.
+// NXT 탭·미지정 경로: 세션·live·failed 조합으로 확장 세션 라벨(프리마켓/애프터마켓 등) 결정.
+// 미지정 경로만 after 에 16:00 경계를 더 얹는다.
 export const computeHeaderLabel = ({
   session,
   market,
@@ -103,15 +106,23 @@ export const computeHeaderLabel = ({
     return { labelText: "전일 종가", timeText: mmdd };
   }
 
-  // NXT 탭. 표시 값 계산의 preReset 은 컴포넌트 소관.
+  // NXT 탭 · 미지정 경로. 표시 값 계산의 preReset 은 컴포넌트 소관.
   const closedLike = isClosedLikeMiss(session, live, isFailedQuote);
+  // 미지정 경로의 after 라이브는 UN 통합가 — 비NXT 종목은 KRX 애프터마켓 개시(16:00) 전까지
+  // 마감가 그대로라 "애프터마켓" 이 사실과 어긋난다. 값은 그대로 두고 라벨만 마감 축으로 —
+  // live 를 죽이면 EOD 미적재 창에서 표시 값이 전일로 퇴행한다. NXT 탭은 15:40 부터 NXT
+  // 애프터 체결이 있어 게이트 대상이 아니다.
+  const beforeKrxAfterMarket =
+    market === undefined && session === "after" && !krxAfterMarketOpen;
 
   const labelText = closedLike
     ? "장 마감"
     : session === "regular"
       ? "장중"
       : session === "after"
-        ? "애프터마켓"
+        ? beforeKrxAfterMarket
+          ? "장 마감"
+          : "애프터마켓"
         : session === "after_close" || session === "closed"
           ? "애프터마켓 종가"
           : session === "pre"
@@ -123,7 +134,9 @@ export const computeHeaderLabel = ({
               : "장 마감";
 
   let timeText = "";
-  if ((session === "regular" || session === "after" || session === "pre") && live !== null) {
+  if (beforeKrxAfterMarket && live !== null) {
+    timeText = "15:30";
+  } else if ((session === "regular" || session === "after" || session === "pre") && live !== null) {
     timeText = updatedAtText;
   } else if ((session === "after_close" || session === "closed") && live !== null) {
     timeText = "20:00";

@@ -22,7 +22,7 @@ export const GET = async (req: NextRequest) => {
   if (!ticker) {
     return NextResponse.json({ error: "ticker 파라미터가 필요합니다" }, { status: 400 });
   }
-  // market 미지정은 세션 결정 경로(regular=J, 그 외=NX)로 흐른다 — 하위호환.
+  // market 미지정은 세션 결정 경로(regular=J, after=UN, 그 외=NX)로 흐른다 — 하위호환.
   const market = parseMarket(req.nextUrl.searchParams.get("market"));
 
   // 요청 시작에서 캘린더 1회 로드 (memo). 세션·거래일 산출에 관통.
@@ -66,10 +66,12 @@ export const GET = async (req: NextRequest) => {
     }
 
     // NXT 탭(market=nxt) — 활성 세션(regular/pre/after) 모두 NX 채널.
-    // market 미지정(기본 경로) — 세션별 J/NX 토글 (regular=J, 확장 세션=NX).
-    // isNxtMiss 판정은 after/after_close/pre/closed 에서 NX 응답이 null(비NXT 종목 iscd=null →
-    // normalizeStockQuote=null)인 경로에 의존. UN 통합으로 바꾸면 KRX 값이 흘러가 라벨이
-    // "장 마감" 대신 "애프터마켓" 으로 회귀하므로 유지. closed(주말·공휴일) NX 요청은 KIS 가
+    // market 미지정(기본 경로) — 세션별 채널 토글 (regular=J, after=UN, pre·오프아워=NX).
+    // after 가 UN 인 이유: KRX 애프터마켓(16:00~20:00) 은 전 종목 대상이라 비NXT 종목도
+    // 체결이 흐른다. UN 은 J+NX 합산(현재가 = 양 시장 최근 체결)이라 한 채널로 둘 다 덮는다.
+    // pre·after_close·closed 를 NX 로 두는 이유: isNxtMiss 판정이 NX 응답 null(비NXT 종목
+    // iscd=null → normalizeStockQuote=null) 경로에 의존한다 — pre 는 NXT 만 열려 있고,
+    // 오프아워는 스냅샷 miss 시 "장 마감" 폴백이 맞다. closed(주말·공휴일) NX 요청은 KIS 가
     // 직전 NXT 세션 종가(20:00)를 반환하는 특성에 의존.
     let quote: StockQuote | null = null;
     if (market === "nxt") {
@@ -79,8 +81,9 @@ export const GET = async (req: NextRequest) => {
       // 오프아워는 위 스냅샷 경로에서 이미 처리 — fallback 시 quote=null 유지.
     } else if (session === "regular") {
       quote = await fetchStockQuote(ticker, "J");
+    } else if (session === "after") {
+      quote = await fetchStockQuote(ticker, "UN");
     } else if (
-      session === "after" ||
       session === "after_close" ||
       session === "pre" ||
       session === "closed"

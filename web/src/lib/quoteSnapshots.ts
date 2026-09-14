@@ -7,11 +7,9 @@ import type { PriceSign, StockQuote } from "@/shared/types/quote";
 // quote_snapshots (수집기 fetch_quote_snapshots.py 산출) 조회 + StockQuote 변환.
 // 오프아워 세션(after_close/closed/preopen) quote 서빙에서 KIS 콜을 대체한다.
 //
-// (A) nx_eligible=false(비NXT) → snapshotToQuote null 반환.
-//     비NXT 는 UN 값(=KRX 종가)을 서빙해도 StockHeaderLivePrice.isNxtMiss 판정이
-//     live 존재로 무너져 "애프터마켓 종가"@20:00 로 라벨 회귀. null 로 흘리면
-//     isNxtMiss=true 유지되고 "장 마감"@15:30 라벨 + SSR EOD initialPrice 표시.
-//     KIS 콜 제거라는 목적은 nx_eligible 컬럼으로 대체 판정되어 온전 달성.
+// (A) un_* 는 NXT 여부와 무관하게 서빙한다. KRX 애프터마켓(16:00~20:00) 은 전 종목이
+//     대상이라 비NXT 종목의 un_close 도 20:00 애프터 종가다. nx_eligible 은 여기서 값을
+//     거르는 축이 아니라 헤더 KRX/NXT 탭 토글·분봉 채널 선택(fetchNxEligible) 의 축.
 // (B) StockQuote.open/high/low 는 스냅샷에 없어 0 로 채움. mergeLiveDayBar 의
 //     isInvalidQuoteOhl 게이트(OHL 삼중 0)가 이미 존재하여 EOD 봉을 그대로 유지.
 
@@ -32,9 +30,8 @@ type QuoteSnapshotRow = {
 const signOf = (change: number): PriceSign =>
   change > 0 ? "up" : change < 0 ? "down" : "flat";
 
-// 순수 변환. row 는 이미 nx_eligible=true 필터 없이 그대로 받고, 여기서 판정한다.
-export const snapshotToQuote = (row: QuoteSnapshotRow): StockQuote | null => {
-  if (!row.nx_eligible) return null;
+// 순수 변환.
+export const snapshotToQuote = (row: QuoteSnapshotRow): StockQuote => {
   return {
     ticker: row.ticker,
     price: row.un_close,

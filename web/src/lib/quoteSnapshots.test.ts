@@ -43,11 +43,13 @@ describe("snapshotToQuote", () => {
   });
 
   it("source 는 un 고정 (스냅샷은 UN 단일 축)", () => {
-    expect(snapshotToQuote(mkRow({}))?.source).toBe("un");
-    expect(snapshotToQuote(mkRow({ un_change: -100 }))?.source).toBe("un");
+    expect(snapshotToQuote(mkRow({})).source).toBe("un");
+    expect(snapshotToQuote(mkRow({ un_change: -100 })).source).toBe("un");
   });
 
-  it("비NXT (nx_eligible=false) → null (isNxtMiss 배지 경로 유지)", () => {
+  // KRX 애프터마켓은 전 종목 대상이라 비NXT 의 un_close 도 20:00 애프터 종가 — nx_eligible 은
+  // 서빙 게이트가 아니다.
+  it("비NXT (nx_eligible=false) → un_* 축 StockQuote 반환", () => {
     const q = snapshotToQuote(mkRow({
       ticker: "035720",
       un_close: 37050,
@@ -58,15 +60,26 @@ describe("snapshotToQuote", () => {
       nx_close: null,
       nx_volume: null,
     }));
-    expect(q).toBeNull();
+    expect(q).toEqual({
+      ticker: "035720",
+      price: 37050,
+      change: 850,
+      changeRate: 2.35,
+      sign: "up",
+      open: 0,
+      high: 0,
+      low: 0,
+      volume: 1_800_149,
+      source: "un",
+    });
   });
 
   it("sign: change<0 → down", () => {
-    expect(snapshotToQuote(mkRow({ un_change: -100 }))?.sign).toBe("down");
+    expect(snapshotToQuote(mkRow({ un_change: -100 })).sign).toBe("down");
   });
 
   it("sign: change=0 → flat", () => {
-    expect(snapshotToQuote(mkRow({ un_change: 0 }))?.sign).toBe("flat");
+    expect(snapshotToQuote(mkRow({ un_change: 0 })).sign).toBe("flat");
   });
 });
 
@@ -130,13 +143,16 @@ describe("decideSingleSnapshot", () => {
     expect(d.quote?.open).toBe(0);
   });
 
-  it("대상 세션 + row hit(비NXT) → serve null (라이브 없음 계약)", () => {
+  it("대상 세션 + row hit(비NXT) → serve quote (NXT 와 같은 un_* 축)", () => {
     const d = decideSingleSnapshot(
       "closed",
       mkRow({ nx_eligible: false }),
       true,
     );
-    expect(d).toEqual({ kind: "serve", quote: null });
+    expect(d.kind).toBe("serve");
+    if (d.kind !== "serve") throw new Error();
+    expect(d.quote?.price).toBe(255000);
+    expect(d.quote?.source).toBe("un");
   });
 
   it("대상 세션 + 부분 miss (row 없지만 date 존재) → serve null", () => {
@@ -163,7 +179,7 @@ describe("decideMultiSnapshot", () => {
     });
   });
 
-  it("대상 세션 + hit/miss 혼합 → 각 티커별 serve (NXT=quote, 비NXT=null, miss=null)", () => {
+  it("대상 세션 + hit/miss 혼합 → 각 티커별 serve (NXT=quote, 비NXT=quote, miss=null)", () => {
     const d = decideMultiSnapshot(
       "after_close",
       ["005930", "035720", "999999"],
@@ -173,7 +189,7 @@ describe("decideMultiSnapshot", () => {
     expect(d.kind).toBe("serve");
     if (d.kind !== "serve") throw new Error();
     expect(d.byTicker["005930"]?.price).toBe(255000);
-    expect(d.byTicker["035720"]).toBeNull();
+    expect(d.byTicker["035720"]?.price).toBe(255000);
     expect(d.byTicker["999999"]).toBeNull();
   });
 

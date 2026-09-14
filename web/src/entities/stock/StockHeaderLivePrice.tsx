@@ -61,7 +61,12 @@ export const StockHeaderLivePrice = ({
   const now = new Date();
   const clientSession = getKrxSessionState(now, calendar);
   const lastCloseDate = getKrxLastCloseDate(now, calendar);
-  const isKrxOffRegular = showToggle && market === "krx" && clientSession !== "regular";
+  // KRX 탭 라이브 창 = regular + after. after 는 KRX 애프터마켓(16:00~) 체결이 J 로 흐른다.
+  const isKrxOffRegular =
+    showToggle &&
+    market === "krx" &&
+    clientSession !== "regular" &&
+    clientSession !== "after";
   // EOD 미적재 창(15:30 통과 후 daily_prices 갱신 전): initialDate 가 lastCloseDate 보다
   // 뒤처지면 KRX 확정 종가 1회 조회로 라벨/값을 격상.
   const isKrxDelayWindow =
@@ -85,8 +90,8 @@ export const StockHeaderLivePrice = ({
   // 세션 라벨은 유지한 채 "일시 지연" 배지만 얹기 위한 축.
   const isFailedQuote = data?.failed ?? false;
 
-  // 토글이 없는 종목은 KRX 축이 사실이므로 "krx" 고정 — computeHeaderLabel 이 쓰는
-  // marketArg ?? "nxt" 를 그대로 넘기면 비NXT 종목이 NXT 보존 예외로 수렴한다.
+  // 토글이 없는 종목은 KRX 축이 사실이므로 "krx" 고정 — computeHeaderLabel 처럼 미지정
+  // (undefined) 을 그대로 넘기면 비NXT 종목이 NXT 보존 예외로 수렴한다.
   // 개장 전 창의 KRX 탭은 쿼리가 꺼져 session 이 undefined 라 서버 세션 축 술어에 닿지
   // 않는다. 응답이 없을 때만 clientSession 으로 대체 — 응답이 있으면 서버 세션이 정본이라
   // isClosedLikeMiss 와의 상호배타(같은 세션 축)가 그대로 유지된다.
@@ -129,10 +134,13 @@ export const StockHeaderLivePrice = ({
 
   // 비-regular KRX 강제 케이스는 서버 응답 대신 clientSession 을 라벨에 넘긴다.
   const labelSession = forceInitial ? clientSession : session;
+  // forceInitial 이면 라벨도 initial 축 — after 폴링 캐시가 20:00 을 넘겨 after_close 로
+  // 이월되면 live 가 남아 있지만 값은 initialPrice 라, live 를 그대로 넘기면 "애프터마켓
+  // 종가" 라벨에 15:30 종가가 붙는다.
   const { labelText, timeText } = computeHeaderLabel({
     session: labelSession,
-    market: marketArg ?? "nxt", // 미지정 경로는 NXT 매핑과 동형.
-    live,
+    market: marketArg, // undefined = 미지정 경로 — after 라벨만 16:00 경계를 더 본다.
+    live: forceInitial ? null : live,
     isFailedQuote,
     // 지연 창 fetch 성공 시 initialDate 를 lastCloseDate 로 격상 → "장 마감·15:30".
     initialDate: useLiveKrxClose ? lastCloseDate : initialDate,

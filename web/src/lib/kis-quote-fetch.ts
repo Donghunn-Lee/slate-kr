@@ -497,14 +497,22 @@ export const fetchIndexQuote = async (iscd: string): Promise<IndexQuote | null> 
 // marketDiv:
 //   - fetchMultiQuote (watchlist ranking) 는 UN(KRX+NXT 통합) 고정 — 배지 시그널이
 //     없어 통합 vol 유지가 이득.
-//   - fetchStockQuote (종목 상세 헤더) 는 세션별 J/NX 토글 유지 — StockHeaderLivePrice
-//     의 isNxtMiss 판정이 NX 응답의 iscd=null(비NXT 종목) → normalizeStockQuote=null
-//     경로에 의존하므로 UN 통합 시 KRX 값이 흘러가 배지 회귀 발생.
+//   - fetchStockQuote (종목 상세 헤더) 는 route 가 세션·탭별로 J/NX/UN 을 고른다 —
+//     pre·오프아워의 isNxtMiss 판정이 NX 응답의 iscd=null(비NXT 종목) → normalizeStockQuote
+//     =null 경로에 의존하므로 그 세션들은 UN 으로 통합하지 않는다.
 const MARKET_DIV_INTEGRATED = "UN";
+
+type QuoteMarketDiv = "J" | "NX" | typeof MARKET_DIV_INTEGRATED;
+
+const QUOTE_SOURCE_BY_DIV: Record<QuoteMarketDiv, StockQuote["source"]> = {
+  J: "krx",
+  NX: "nx",
+  UN: "un",
+};
 
 export const fetchStockQuote = async (
   ticker: string,
-  marketDiv: "J" | "NX",
+  marketDiv: QuoteMarketDiv,
 ): Promise<StockQuote | null> => {
   const tokenResult = await getKisToken();
   if (!tokenResult.ok) {
@@ -559,7 +567,7 @@ export const fetchStockQuote = async (
       return null;
     }
 
-    return normalizeStockQuote(parsed.data.output, marketDiv === "J" ? "krx" : "nx");
+    return normalizeStockQuote(parsed.data.output, QUOTE_SOURCE_BY_DIV[marketDiv]);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[kis] stock quote fetch failed: ${message}`);

@@ -41,8 +41,8 @@ export const GET = async (req: NextRequest) => {
     if (tickers.length > 0) {
       // 오프아워(after_close/closed/preopen) 는 quote_snapshots 서빙 우선.
       // 캡처 실패(date 통째로 없음) 시 기존 KIS 경로로 fallback.
-      // 부분 miss (해당 티커 row 없음, 또는 비NXT nx_eligible=false) 는 quote:null
-      // 로 서빙 — WatchlistRow 는 live 없으면 EOD price 로 자연 폴백.
+      // 부분 miss (해당 티커 row 없음) 는 quote:null 로 서빙 — WatchlistRow 는 live
+      // 없으면 EOD price 로 자연 폴백.
       let snapshotServed = false;
       if (isSnapshotSession(session)) {
         const { byTicker, dateExists } = await fetchQuoteSnapshots(tickers, now, calendar);

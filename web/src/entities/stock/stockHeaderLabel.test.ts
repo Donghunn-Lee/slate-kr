@@ -39,6 +39,13 @@ const krx = (over: Partial<HeaderLabelInput> = {}): HeaderLabelInput => ({
   ...over,
 });
 
+// 미지정 경로 — 토글 없는 종목. 라이브 축은 NXT 탭과 같고 after 의 16:00 경계만 다르다.
+const auto = (over: Partial<HeaderLabelInput> = {}): HeaderLabelInput => ({
+  ...nxt(over),
+  market: undefined,
+  ...over,
+});
+
 // ── NXT 탭 — 세션·live·failed 전 조합 ──────────────────────
 describe("computeHeaderLabel · NXT 탭", () => {
   const cases: Array<{
@@ -85,6 +92,60 @@ describe("computeHeaderLabel · NXT 탭", () => {
       expect(r).toEqual({ labelText: c.label, timeText: c.time });
     });
   }
+});
+
+// NXT 탭은 15:40 부터 NXT 애프터 체결이 있어 16:00 경계를 보지 않는다.
+describe("computeHeaderLabel · NXT 탭 · 16:00 경계 무관", () => {
+  it("after · live 있음 · 16:00 전 → '애프터마켓' · updatedAtText", () => {
+    expect(
+      computeHeaderLabel(nxt({ session: "after", live: q(), krxAfterMarketOpen: false })),
+    ).toEqual({ labelText: "애프터마켓", timeText: UPDATED_AT });
+  });
+});
+
+// ── 미지정 경로 ────────────────────────────────────────────
+// 비NXT 종목의 after 라이브는 UN 통합가라 16:00 전엔 마감가 그대로 — KRX 탭과 같은 경계로
+// 라벨만 가른다. 값은 컴포넌트가 live 를 그대로 쓴다.
+describe("computeHeaderLabel · 미지정 경로", () => {
+  it("after · live 있음 · 16:00 전 → '장 마감' · '15:30'", () => {
+    expect(
+      computeHeaderLabel(auto({ session: "after", live: q(), krxAfterMarketOpen: false })),
+    ).toEqual({ labelText: "장 마감", timeText: "15:30" });
+  });
+
+  it("after · live 있음 · 16:00 이후 → '애프터마켓' · updatedAtText", () => {
+    expect(
+      computeHeaderLabel(auto({ session: "after", live: q(), krxAfterMarketOpen: true })),
+    ).toEqual({ labelText: "애프터마켓", timeText: UPDATED_AT });
+  });
+
+  it("after · live=null · !failed → closedLike '장 마감' · '15:30' (16:00 무관)", () => {
+    for (const open of [false, true]) {
+      expect(
+        computeHeaderLabel(auto({ session: "after", live: null, krxAfterMarketOpen: open })),
+      ).toEqual({ labelText: "장 마감", timeText: "15:30" });
+    }
+  });
+
+  it("after · live=null · failed · 16:00 전 → '장 마감' · '' (실패는 시각 없음, 배지는 컴포넌트)", () => {
+    expect(
+      computeHeaderLabel(
+        auto({ session: "after", live: null, isFailedQuote: true, krxAfterMarketOpen: false }),
+      ),
+    ).toEqual({ labelText: "장 마감", timeText: "" });
+  });
+
+  it("after 외 세션은 NXT 탭과 동일", () => {
+    const sessions: KrxSession[] = ["regular", "after_close", "pre", "preopen", "closed"];
+    for (const session of sessions) {
+      for (const live of [q(), null]) {
+        for (const openingWindow of [false, true]) {
+          const over = { session, live, openingWindow };
+          expect(computeHeaderLabel(auto(over))).toEqual(computeHeaderLabel(nxt(over)));
+        }
+      }
+    }
+  });
 });
 
 // ── KRX 탭 ──────────────────────────────────────────────
@@ -233,12 +294,14 @@ describe("computeHeaderLabel · KRX 탭", () => {
   });
 });
 
-// undefined session — 초기 로드 스켈레톤 게이트. NXT 탭에서만 발생 (KRX 는 initialDate 로 즉시).
+// undefined session — 초기 로드 스켈레톤 게이트. NXT 탭·미지정 경로에서만 발생 (KRX 는 initialDate 로 즉시).
 describe("computeHeaderLabel · session=undefined (초기 로드)", () => {
-  it("NXT 탭 · undefined → fallback '장 마감' · '' (else 최종)", () => {
-    expect(computeHeaderLabel(nxt({ session: undefined, live: null }))).toEqual({
-      labelText: "장 마감",
-      timeText: "",
-    });
+  it("NXT 탭 · 미지정 경로 · undefined → fallback '장 마감' · '' (else 최종)", () => {
+    for (const mk of [nxt, auto]) {
+      expect(computeHeaderLabel(mk({ session: undefined, live: null }))).toEqual({
+        labelText: "장 마감",
+        timeText: "",
+      });
+    }
   });
 });
