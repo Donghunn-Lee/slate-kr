@@ -22,6 +22,7 @@ import {
   getKstDateAndMinutes,
   getPreviousKrxTradingDate,
   isKrxActiveSession,
+  isKrxAfterMarketOpen,
   isKrxEarlyPreopen,
   isKrxLatePreopen,
 } from "@/shared/utils/market";
@@ -57,14 +58,15 @@ const MULTI_QUOTE_LIMIT = 30; // KIS 공식 상한
 // 프리오픈) 이 같은 세트를 쓴다 — 하루 커버 조건이 날짜와 무관하기 때문. anchor 는
 // 상한(포함) — 그 이전 실체결 120봉을 반환하고, 미래 anchor 는 now 로 클램프된다. 실체결
 // 120봉은 항상 ≥120분을 덮으므로 anchor 간격 ≤120분이면 유동성과 무관하게 결손이 없다.
-// NXT 거래가능 종목은 UN 으로 08:00~20:00, 비NXT 종목은 J 로 09:00~15:30 정규장만.
-// eligibility 는 quote_snapshots.nx_eligible 로 판정.
+// NXT 거래가능 종목은 UN 으로 08:00~20:00, 비NXT 종목은 J 로 09:00~15:30 정규장 +
+// 16:00~20:00 KRX 애프터마켓. 두 창 모두 20:00 에 끝나므로 세트는 하나 — 채널(J/UN)만
+// 갈린다. eligibility 는 quote_snapshots.nx_eligible 로 판정.
 // 첫 anchor "100000" 이 창 시작을 덮는 근거 — 비NXT 는 09:00 이전 봉이 없어 61분,
 // NXT 는 (08:00, 10:00] 121분 중 08:50~08:59 가 무체결 갭이라 실체결 ≤111봉.
 // 첫 anchor 를 더 늦게 잡으면 안 되는 이유: 유동 종목은 120봉이 정확히 120분이라 11:00
 // anchor 는 09:01~11:00 만 돌려주고 09:00 개장 봉이 빠진다.
 type MinuteMarketDiv = "J" | "UN";
-export const STOCK_INTRADAY_ANCHORS_NXT: readonly string[] = [
+export const STOCK_INTRADAY_ANCHORS: readonly string[] = [
   "100000",
   "120000",
   "140000",
@@ -72,15 +74,9 @@ export const STOCK_INTRADAY_ANCHORS_NXT: readonly string[] = [
   "180000",
   "200000",
 ] as const;
-export const STOCK_INTRADAY_ANCHORS_REGULAR: readonly string[] = [
-  "100000",
-  "120000",
-  "140000",
-  "153000",
-] as const;
 // 분 슬롯 — 무체결 분을 fill 봉으로 채울 대상 (densifyIntradayBars). 세션 경계를 여기서
 // 따로 적지 않는다: 각 분의 세션은 getKrxSessionState(NXT 는 pre/regular/after, 비NXT 는
-// regular), 갭 창 제외는 isDomesticSessionGapFill 이 각각 단일 소스.
+// regular + KRX 애프터마켓 16:00~), 갭 창 제외는 isDomesticSessionGapFill 이 각각 단일 소스.
 // 슬롯은 정의상 무체결 분이라 vol 0 으로 갭 창 판정을 묻는다.
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const LAST_MINUTE_OF_DAY = 24 * 60 - 1;
@@ -97,21 +93,15 @@ export const buildDaySlots = (
     dayStartSec,
     dayStartSec + endMin * 60,
     (hhmmss, slotSec) => {
-      const session = getKrxSessionState(
-        new Date(slotSec * 1000 - KST_OFFSET_MS),
-        calendar,
-      );
+      const slotDate = new Date(slotSec * 1000 - KST_OFFSET_MS);
+      const session = getKrxSessionState(slotDate, calendar);
       const inSession = isNxt
         ? isKrxActiveSession(session)
-        : session === "regular";
-      return !inSession || isDomesticSessionGapFill(hhmmss, 0);
+        : session === "regular" || isKrxAfterMarketOpen(slotDate, calendar);
+      return !inSession || isDomesticSessionGapFill(hhmmss, 0, isNxt ? "UN" : "J");
     },
   );
 };
-
-// anchor 세트 셀렉터 — NXT 여부로 선택. 당일 fan-out · 전일 스냅샷 공용. 테스트 전용 export.
-export const getStockIntradayAnchors = (isNxt: boolean): readonly string[] =>
-  isNxt ? STOCK_INTRADAY_ANCHORS_NXT : STOCK_INTRADAY_ANCHORS_REGULAR;
 
 // closed fallback 마켓코드 셀렉터. 테스트 전용 export.
 export const getClosedFallbackMarketDiv = (isNxt: boolean): MinuteMarketDiv =>
@@ -233,17 +223,21 @@ type StockMinuteRow = {
 // closed fallback 응답 → ChartBar[] 정규화. 순수 함수 — 테스트 대상.
 // (1) 마커 hour (999999/888888) 제거
 // (2) stck_bsop_date === target 필터 (저유동성 종목 anchor bleed 방어, #099-2 실측)
-// (3) 세션 갭 fill 봉 제거 (KIS 응답이 세션 갭 구간을 O=H=L=C+vol=0 으로 채움)
+// (3) 세션 갭 fill 봉 제거 (KIS 응답이 세션 갭 구간을 O=H=L=C+vol=0 으로 채움 —
+//     창은 요청 채널 J/UN 에 따라 다르다)
 // (4) row → ChartBar (KST → fake-UTC 초)
 // (5) sentinel 필터 (OHL=0 · vol<0)
 export const parseDailyMinuteRows = (
   rows: readonly StockMinuteRow[],
   targetDateYyyymmdd: string,
+  marketDiv: MinuteMarketDiv,
 ): ChartBar[] =>
   rows
     .filter((r) => !INTRADAY_MARKERS.has(r.stck_cntg_hour))
     .filter((r) => r.stck_bsop_date === targetDateYyyymmdd)
-    .filter((r) => !isDomesticSessionGapFill(r.stck_cntg_hour, r.cntg_vol))
+    .filter(
+      (r) => !isDomesticSessionGapFill(r.stck_cntg_hour, r.cntg_vol, marketDiv),
+    )
     .map((r) => ({
       time: kstToFakeUtcSec(r.stck_bsop_date, r.stck_cntg_hour),
       open: r.stck_oprc,
@@ -815,7 +809,7 @@ const callStockDailyMinuteAnchor = async (
       );
       return null;
     }
-    return parseDailyMinuteRows(parsed.data.output2, targetDateYyyymmdd);
+    return parseDailyMinuteRows(parsed.data.output2, targetDateYyyymmdd, div);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(
@@ -863,9 +857,8 @@ const fetchPreviousDaySnapshot = async (
   appKey: string,
   appSecret: string,
 ): Promise<{ bars: ChartBar[]; failed: boolean }> => {
-  const anchors = getStockIntradayAnchors(isNxt);
   const div = getClosedFallbackMarketDiv(isNxt);
-  const { results, failed } = await callAnchorsWithRetry(anchors, (anchor) =>
+  const { results, failed } = await callAnchorsWithRetry(STOCK_INTRADAY_ANCHORS, (anchor) =>
     callStockDailyMinuteAnchor(
       ticker,
       targetDateYyyymmdd,
@@ -880,13 +873,12 @@ const fetchPreviousDaySnapshot = async (
 };
 
 // 전일 세션 마지막 tail (30봉) — 등락률 초기화 이후(pre/regular/after) 오늘 라이브 봉 앞에
-// 컨텍스트 tail 로 prepend. anchor 는 각 세션의 마지막 anchor 1콜만 (FHKST03010230, 120봉/콜)
+// 컨텍스트 tail 로 prepend. anchor 는 하루의 마지막 anchor 1콜만 (FHKST03010230, 120봉/콜)
 // → 슬롯 창으로 densify 한 뒤 마지막 30봉 slice. densify 하는 이유: 초기 표시 창이 tail 30봉을
 // 되짚는데 sparse 응답은 저유동 종목에서 30봉이 수 시간을 압축해 "30봉 = 30분" 축이 깨진다.
 // null = 재시도 뒤에도 조회 실패 — 당일 anchor 와 같은 규칙으로 응답 failed 에 합산된다.
 const PREVIOUS_DAY_TAIL_BARS = 30;
-const PREVIOUS_DAY_TAIL_ANCHOR_NXT = "200000";
-const PREVIOUS_DAY_TAIL_ANCHOR_REGULAR = "153000";
+const PREVIOUS_DAY_TAIL_ANCHOR = "200000";
 
 const fetchPreviousDayTail = async (
   ticker: string,
@@ -897,13 +889,10 @@ const fetchPreviousDayTail = async (
   appKey: string,
   appSecret: string,
 ): Promise<ChartBar[] | null> => {
-  const anchor = isNxt
-    ? PREVIOUS_DAY_TAIL_ANCHOR_NXT
-    : PREVIOUS_DAY_TAIL_ANCHOR_REGULAR;
   const div: MinuteMarketDiv = isNxt ? "UN" : "J";
   const {
     results: [bars],
-  } = await callAnchorsWithRetry([anchor], (a) =>
+  } = await callAnchorsWithRetry([PREVIOUS_DAY_TAIL_ANCHOR], (a) =>
     callStockDailyMinuteAnchor(
       ticker,
       toKisDate(prevDate),
@@ -1002,7 +991,6 @@ export const fetchStockIntradayChart = async (
 
   // 활성 세션 + latePreopen + after_close — 당일 fan-out 경로 진입.
   const { minutes: nowMin } = getKstDateAndMinutes(now);
-  const anchorSet = getStockIntradayAnchors(isNxt);
   const div: MinuteMarketDiv = isNxt ? "UN" : "J";
 
   // 활성 세션(pre/regular/after) + latePreopen: 현재 분까지. after_close(20:00 이후
@@ -1025,8 +1013,8 @@ export const fetchStockIntradayChart = async (
   const anchors =
     slots.length === 0
       ? []
-      : anchorSet.filter(
-          (_, i) => i === 0 || anchorToMinutes(anchorSet[i - 1]) < cutoffMin,
+      : STOCK_INTRADAY_ANCHORS.filter(
+          (_, i) => i === 0 || anchorToMinutes(STOCK_INTRADAY_ANCHORS[i - 1]) < cutoffMin,
         );
 
   // 전일 tail source date. 등락률 초기화(08:00) ~ 애프터 마감(20:00) 동안 "어제 마감 → 오늘"

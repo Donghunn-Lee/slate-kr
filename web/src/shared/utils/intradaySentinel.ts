@@ -34,21 +34,37 @@ export const isSentinelBar = (b: ChartBar): boolean =>
 //     개시 사이 제도적 무체결 갭. 3경로(000660 UN/J · 031330 J) 실측상 전 봉
 //     O=H=L=C · vol=0 · pbmn 정지. 1520~1529 와 병합하면 15:30 마감 단일가
 //     실체결 봉이 창 내부에 포함되어 "체결 불가능 구간만" 원칙이 깨지므로 분리 유지.
+//   - 1540~1559 (J 만): NXT 애프터(15:40) ~ KRX 애프터마켓(16:00) 개시 사이. UN 응답은
+//     NXT 체결이 흐르는 구간이라 창이 아니고, J 응답은 시간외 종가매매 실체결(vol>0)
+//     외엔 fill row 뿐이다. 1531~1539 와 합치지 않는 이유: 채널별로 창 끝이 다르다.
 const DOMESTIC_SESSION_GAP_WINDOWS: readonly (readonly [string, string])[] = [
   ["0850", "0859"],
   ["1520", "1529"],
   ["1531", "1539"],
 ];
 
-const isWithinGapWindow = (hhmm: string): boolean =>
-  DOMESTIC_SESSION_GAP_WINDOWS.some(
-    ([start, end]) => hhmm >= start && hhmm <= end,
-  );
+const KRX_ONLY_SESSION_GAP_WINDOWS: readonly (readonly [string, string])[] = [
+  ["1540", "1559"],
+];
+
+const isWithinWindows = (
+  windows: readonly (readonly [string, string])[],
+  hhmm: string,
+): boolean => windows.some(([start, end]) => hhmm >= start && hhmm <= end);
 
 // KIS 종목분봉 raw row(HHMMSS 라벨 + cntg_vol) 기준 갭 fill 판정.
 // vol===0 조건을 반드시 함께 요구 — 창 정의 오류·KIS 발행 규칙 변경으로 실체결
 // 봉이 들어와도 살아남도록 안전 마진. isSentinelBar 는 ChartBar 시그니처 유지.
+// marketDiv 는 요청 채널(J=KRX only · UN=KRX+NXT 통합) — 응답 본문에 실려오지 않는다.
 export const isDomesticSessionGapFill = (
   hhmmss: string,
   volume: number,
-): boolean => volume === 0 && isWithinGapWindow(hhmmss.slice(0, 4));
+  marketDiv: "J" | "UN",
+): boolean => {
+  if (volume !== 0) return false;
+  const hhmm = hhmmss.slice(0, 4);
+  return (
+    isWithinWindows(DOMESTIC_SESSION_GAP_WINDOWS, hhmm) ||
+    (marketDiv === "J" && isWithinWindows(KRX_ONLY_SESSION_GAP_WINDOWS, hhmm))
+  );
+};

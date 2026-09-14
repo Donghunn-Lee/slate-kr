@@ -21,7 +21,7 @@ const bar = (
   volume: 10,
   ...over,
 });
-const isGapSlot = (hhmmss: string) => isDomesticSessionGapFill(hhmmss, 0);
+const isGapSlot = (hhmmss: string) => isDomesticSessionGapFill(hhmmss, 0, "UN");
 const noExclusion = () => false;
 
 describe("buildMinuteSlots", () => {

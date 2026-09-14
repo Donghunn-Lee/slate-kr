@@ -4,13 +4,11 @@ import {
   callAnchorsWithRetry,
   foldPostCloseIndexBars,
   getClosedFallbackMarketDiv,
-  getStockIntradayAnchors,
   kstToFakeUtcSec,
   mergeAndSortIntradayBars,
   parseDailyMinuteRows,
   parseIndexMinuteRows,
-  STOCK_INTRADAY_ANCHORS_NXT,
-  STOCK_INTRADAY_ANCHORS_REGULAR,
+  STOCK_INTRADAY_ANCHORS,
   toKisDate,
 } from "./kis-quote-fetch";
 import type { ChartBar } from "@/shared/types/quote";
@@ -23,25 +21,10 @@ const anchorMin = (a: string) => Number(a.slice(0, 2)) * 60 + Number(a.slice(2, 
 const maxGap = (anchors: readonly string[]) =>
   Math.max(...anchors.slice(1).map((a, i) => anchorMin(a) - anchorMin(anchors[i])));
 
-describe("STOCK_INTRADAY_ANCHORS_REGULAR", () => {
-  it("09:00~15:30 을 4콜로 커버 (마감 153000 포함)", () => {
-    expect(STOCK_INTRADAY_ANCHORS_REGULAR).toEqual([
-      "100000",
-      "120000",
-      "140000",
-      "153000",
-    ]);
-  });
-
-  it("첫 anchor 가 09:00 개장 봉을 덮고 간격 ≤120분", () => {
-    expect(anchorMin(STOCK_INTRADAY_ANCHORS_REGULAR[0]) - 120).toBeLessThanOrEqual(9 * 60);
-    expect(maxGap(STOCK_INTRADAY_ANCHORS_REGULAR)).toBeLessThanOrEqual(120);
-  });
-});
-
-describe("STOCK_INTRADAY_ANCHORS_NXT", () => {
+// NXT(UN 08:00~20:00) · 비NXT(J 09:00~15:30 + 16:00~20:00) 모두 20:00 에 끝나므로 세트 하나.
+describe("STOCK_INTRADAY_ANCHORS", () => {
   it("08:00~20:00 을 6콜로 커버 (애프터 마감 200000 포함)", () => {
-    expect(STOCK_INTRADAY_ANCHORS_NXT).toEqual([
+    expect(STOCK_INTRADAY_ANCHORS).toEqual([
       "100000",
       "120000",
       "140000",
@@ -52,9 +35,11 @@ describe("STOCK_INTRADAY_ANCHORS_NXT", () => {
   });
 
   it("간격 ≤120분 · 첫 anchor 창이 08:50~08:59 무체결 갭을 포함해 08:00 을 덮는다", () => {
-    expect(maxGap(STOCK_INTRADAY_ANCHORS_NXT)).toBeLessThanOrEqual(120);
+    expect(maxGap(STOCK_INTRADAY_ANCHORS)).toBeLessThanOrEqual(120);
     // (08:00, 10:00] 121 슬롯 − 갭 10 = 실체결 ≤111 ≤ 120
-    expect(anchorMin(STOCK_INTRADAY_ANCHORS_NXT[0]) - 8 * 60 + 1 - 10).toBeLessThanOrEqual(120);
+    expect(anchorMin(STOCK_INTRADAY_ANCHORS[0]) - 8 * 60 + 1 - 10).toBeLessThanOrEqual(120);
+    // 비NXT 는 09:00 이전 봉이 없어 첫 anchor 창이 61분 — 개장 봉 커버는 자명.
+    expect(anchorMin(STOCK_INTRADAY_ANCHORS[0]) - 120).toBeLessThanOrEqual(9 * 60);
   });
 });
 
@@ -82,13 +67,23 @@ describe("buildDaySlots", () => {
     }
   });
 
-  it("비NXT: regular 분만 − 갭 창. 15:30 은 세션 술어상 after 라 슬롯 밖 (실봉은 pass-through)", () => {
+  it("비NXT: regular + KRX 애프터마켓(16:00~) 분 − 갭 창. 15:30~15:59 는 슬롯 밖 (실봉은 pass-through)", () => {
     const labels = buildDaySlots("2026-09-11", LAST, false, cal).map(hhmm);
-    expect(labels).toHaveLength(380);
+    // 09:00~15:19 (380) + 16:00~19:59 (240)
+    expect(labels).toHaveLength(620);
     expect(labels[0]).toBe("0900");
+    expect(labels[labels.length - 1]).toBe("1959");
+    for (const excluded of ["0849", "1520", "1529", "1530", "1531", "1547", "1559", "2000"]) {
+      expect(labels).not.toContain(excluded);
+    }
+    for (const included of ["0900", "1519", "1600", "1959"]) {
+      expect(labels).toContain(included);
+    }
+  });
+
+  it("비NXT: 애프터 진입 전 endMin (15:45) → 정규장 슬롯만", () => {
+    const labels = buildDaySlots("2026-09-11", 15 * 60 + 45, false, cal).map(hhmm);
     expect(labels[labels.length - 1]).toBe("1519");
-    expect(labels).not.toContain("0849");
-    expect(labels).not.toContain("1530");
   });
 
   it("endMin 으로 현재 분까지 잘린다", () => {
@@ -106,18 +101,6 @@ describe("buildDaySlots", () => {
 });
 
 // ── 순수 selectors ────────────────────────────────────────────
-// 전일 스냅샷(closed·아침 프리오픈) 도 같은 셀렉터를 타므로 당일 세트와의 동일성이 곧
-// 개장 봉 커버 보증 — 첫 anchor 가 뒤로 밀리면 유동 종목의 09:00 봉이 빠진다.
-describe("getStockIntradayAnchors", () => {
-  it("NXT 종목 → 당일 NXT 세트 그대로", () => {
-    expect(getStockIntradayAnchors(true)).toBe(STOCK_INTRADAY_ANCHORS_NXT);
-  });
-
-  it("비NXT 종목 → 당일 정규장 세트 그대로", () => {
-    expect(getStockIntradayAnchors(false)).toBe(STOCK_INTRADAY_ANCHORS_REGULAR);
-  });
-});
-
 describe("getClosedFallbackMarketDiv", () => {
   it("NXT → UN (KRX+NXT 통합, 확장세션 봉 반환)", () => {
     expect(getClosedFallbackMarketDiv(true)).toBe("UN");
@@ -261,7 +244,22 @@ const row = (over: Partial<Row> = {}): Row => ({
 
 describe("parseDailyMinuteRows", () => {
   it("빈 입력 → []", () => {
-    expect(parseDailyMinuteRows([], "20260724")).toEqual([]);
+    expect(parseDailyMinuteRows([], "20260724", "J")).toEqual([]);
+  });
+
+  // 15:40~15:59 fill row 는 J 에서만 갭 — UN 은 NXT 애프터 체결 구간이라 그대로 통과한다.
+  it("15:40~15:59 vol=0 fill row: J → 제거 · UN → 보존", () => {
+    const rows = [
+      row({ stck_cntg_hour: "154500", cntg_vol: 0 }),
+      row({ stck_cntg_hour: "160000", cntg_vol: 300 }),
+    ];
+    expect(parseDailyMinuteRows(rows, "20260724", "J")).toHaveLength(1);
+    expect(parseDailyMinuteRows(rows, "20260724", "UN")).toHaveLength(2);
+  });
+
+  it("15:47 vol>0 (시간외 종가매매 실체결) → J 에서도 보존", () => {
+    const rows = [row({ stck_cntg_hour: "154700", cntg_vol: 120 })];
+    expect(parseDailyMinuteRows(rows, "20260724", "J")).toHaveLength(1);
   });
 
   it("target date 일치 봉만 통과 (저유동성 종목 anchor bleed 방어)", () => {
@@ -271,7 +269,7 @@ describe("parseDailyMinuteRows", () => {
       row({ stck_bsop_date: "20260723", stck_cntg_hour: "153000" }), // bleed
       row({ stck_bsop_date: "20260724", stck_cntg_hour: "150000" }),
     ];
-    const out = parseDailyMinuteRows(rows, "20260724");
+    const out = parseDailyMinuteRows(rows, "20260724", "J");
     expect(out).toHaveLength(2);
   });
 
@@ -281,7 +279,7 @@ describe("parseDailyMinuteRows", () => {
       row({ stck_cntg_hour: "888888" }),
       row({ stck_cntg_hour: "150000" }),
     ];
-    const out = parseDailyMinuteRows(rows, "20260724");
+    const out = parseDailyMinuteRows(rows, "20260724", "J");
     expect(out).toHaveLength(1);
   });
 
@@ -291,14 +289,14 @@ describe("parseDailyMinuteRows", () => {
       row({ stck_oprc: 0, stck_hgpr: 0, stck_lwpr: 0, stck_prpr: 0, cntg_vol: 0 }),
       row(),
     ];
-    const out = parseDailyMinuteRows(rows, "20260724");
+    const out = parseDailyMinuteRows(rows, "20260724", "J");
     expect(out).toHaveLength(1);
   });
 
   it("sentinel 봉 제거: 음수 volume (KIS INT64_MIN 문자열 근사값)", () => {
     const coercedInt64Min = Number("-9223372036854775808");
     const rows = [row({ cntg_vol: coercedInt64Min }), row({ cntg_vol: 100 })];
-    const out = parseDailyMinuteRows(rows, "20260724");
+    const out = parseDailyMinuteRows(rows, "20260724", "J");
     expect(out).toHaveLength(1);
   });
 
@@ -314,7 +312,7 @@ describe("parseDailyMinuteRows", () => {
         cntg_vol: 5930,
       }),
     ];
-    const out = parseDailyMinuteRows(rows, "20260724");
+    const out = parseDailyMinuteRows(rows, "20260724", "J");
     expect(out).toHaveLength(1);
     // 2026-07-24 15:30:00 KST → Date.UTC(2026, 6, 24, 15, 30, 0) / 1000
     const expectedTime = Date.UTC(2026, 6, 24, 15, 30, 0) / 1000;
@@ -332,7 +330,7 @@ describe("parseDailyMinuteRows", () => {
     const rows = Array.from({ length: 30 }, () =>
       row({ stck_oprc: 0, stck_hgpr: 0, stck_lwpr: 0, stck_prpr: 0, cntg_vol: -1 }),
     );
-    expect(parseDailyMinuteRows(rows, "20260724")).toEqual([]);
+    expect(parseDailyMinuteRows(rows, "20260724", "J")).toEqual([]);
   });
 });
 

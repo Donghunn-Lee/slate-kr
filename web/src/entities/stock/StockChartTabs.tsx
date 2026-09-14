@@ -12,7 +12,12 @@ import type { ChartBar, IndexDailySnapshot } from "@/shared/types/quote";
 import type { StockPriceSnapshot } from "@/shared/types/stock";
 import { INTRADAY_PREV_LOOKBACK_BARS } from "@/shared/constants/chart";
 import { dateToKstStartSec } from "@/shared/utils/dateToKstStartSec";
-import { defaultMarketForSession, getKrxSessionState, isKrxBeforeMarketOpen } from "@/shared/utils/market";
+import {
+  KRX_AFTER_MARKET_START_MINUTES,
+  defaultMarketForSession,
+  getKrxSessionState,
+  isKrxBeforeMarketOpen,
+} from "@/shared/utils/market";
 import { mergeLiveDayBar } from "@/shared/utils/mergeLiveDayBar";
 import { mergeLiveIntradayBar } from "@/shared/utils/mergeLiveIntradayBar";
 import { resampleThenEndLabelBySession } from "@/shared/utils/resampleThenEndLabelBySession";
@@ -64,14 +69,14 @@ const GRANULARITY_DEFAULT_BARS: Record<Granularity, number> = {
 const EMPTY_BARS: ChartBar[] = [];
 
 // 종목 분봉 END 라벨 세션 경계 (ASC). NXT 프리마켓 마감 08:50, 정규장 마감 15:30,
-// NXT 애프터마켓 마감 20:00 세 지점에서 각각 마감 크로스 클램프.
+// 애프터마켓(NXT·KRX 공통) 마감 20:00 세 지점에서 각각 마감 크로스 클램프.
 const STOCK_END_LABEL_BOUNDARIES: readonly string[] = [
   "085000",
   "153000",
   "200000",
 ];
 
-// KST 정규장 창 (분). 확장 세션(NXT 프리/애프터) 판정에 사용.
+// KST 정규장 창 (분). 확장 세션(NXT 프리/애프터 · KRX 애프터마켓) 판정에 사용.
 const REGULAR_START_KST_MIN = 9 * 60;
 const REGULAR_END_KST_MIN = 15 * 60 + 30;
 
@@ -150,13 +155,15 @@ const snapshotsToBars = (snaps: IndexDailySnapshot[]): ChartBar[] =>
 const CHART_HEIGHT_MOBILE = 320;
 const CHART_HEIGHT_DESKTOP = 450;
 
-// 시장 구분 뱃지 — 2행 라벨에서 데이터 소스 스코프(KRX 정규장 / KRX+NXT 확장 세션) 를 표시.
-// StockHeaderLivePrice 의 "일시 지연" 배지 스타일 재사용 — 소형 무채 outline.
-type MarketScope = "KRX" | "KRX+NXT";
+// 시장 구분 뱃지 — 2행 라벨에서 데이터 소스 스코프(KRX 정규장 / KRX 애프터마켓 포함 /
+// KRX+NXT 확장 세션) 를 표시. StockHeaderLivePrice 의 "일시 지연" 배지 스타일 재사용 —
+// 소형 무채 outline.
+type MarketScope = "KRX" | "KRX 애프터마켓" | "KRX+NXT";
 
 const MARKET_SCOPE_TOOLTIP: Record<MarketScope, string> = {
   KRX: "정규장 09:00–15:30 기준",
-  "KRX+NXT": "08:00–20:00 · NXT 프리마켓·애프터마켓 포함",
+  "KRX 애프터마켓": "09:00–20:00 · 애프터마켓 16:00–20:00 포함",
+  "KRX+NXT": "08:00–20:00 · 프리마켓·애프터마켓 포함",
 };
 
 const MarketScopeBadge = ({ scope }: { scope: MarketScope }) => (
@@ -263,17 +270,21 @@ export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsPro
   // 전일 스냅샷 fallback (preopen · 주말 · 공휴일). 라벨과 baseline 분기에 사용.
   const isPreviousDay = intradayQuery.data?.previousDay ?? false;
 
-  // NXT 확장 세션 유입 판정 — sentinel 필터 후에도 정규장(09:00~15:30) 밖 봉이 하나라도
-  // 있으면 NXT 상장 종목. 데이터 파생 — 마스터 플래그 불필요. raw(리샘플/END 변환 전) 로
-  // 판정 — 세션 창 밖 봉 존재 여부는 라벨링/집계와 무관.
+  // 확장 세션 유입 판정 — sentinel 필터 후에도 확장 세션 창의 봉이 하나라도 있으면 확장
+  // 세션(NXT 프리/애프터 · KRX 애프터마켓) 봉이 실린 응답. 데이터 파생 — 어느 시장의 확장
+  // 세션인지는 nxEligible 이 가른다. 비NXT 는 16:00 부터 — 15:31~15:59 의 시간외 종가매매
+  // 실봉은 정규장 밖이지만 애프터마켓이 아니다. raw(리샘플/END 변환 전) 로 판정 —
+  // 세션 창 밖 봉 존재 여부는 라벨링/집계와 무관.
   const hasExtendedSessionBar = useMemo<boolean>(
     () =>
       rawIntradayBars.some((b) => {
         if (typeof b.time !== "number") return false;
         const m = barKstMinuteOfDay(b.time);
-        return m < REGULAR_START_KST_MIN || m > REGULAR_END_KST_MIN;
+        return nxEligible === true
+          ? m < REGULAR_START_KST_MIN || m > REGULAR_END_KST_MIN
+          : m >= KRX_AFTER_MARKET_START_MINUTES;
       }),
-    [rawIntradayBars],
+    [rawIntradayBars, nxEligible],
   );
 
   // 파이프라인: raw START(1분) → 세션 분할 리샘플+END 라벨 → 헤더 quote 마스킹.
@@ -388,8 +399,8 @@ export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsPro
   // 2행 라벨 — 기준 날짜 + 시장 스코프.
   //   당일 뷰: intraday 응답의 tradingDate. previousDay 이면 "MM-DD 마감 기준", 아니면 "MM-DD 기준".
   //   전체 뷰: dayBars 마지막 봉 date (mergeLiveDayBar 로 오늘 봉이 얹혔으면 오늘).
-  //   시장 스코프: 당일 + hasExtendedSessionBar 만 KRX+NXT, 나머지는 KRX
-  //   (일봉은 KRX EOD 소스이므로 NXT 종목이어도 KRX).
+  //   시장 스코프: 당일 + hasExtendedSessionBar 면 NXT 종목은 KRX+NXT, 비NXT 는
+  //   KRX 애프터마켓. 나머지는 KRX (일봉은 KRX EOD 소스이므로 NXT 종목이어도 KRX).
   const lastDayBarDate =
     typeof dayBars[dayBars.length - 1]?.time === "string"
       ? (dayBars[dayBars.length - 1].time as string)
@@ -405,7 +416,11 @@ export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsPro
   })();
 
   const marketScope: MarketScope =
-    isIntradayView && hasExtendedSessionBar ? "KRX+NXT" : "KRX";
+    isIntradayView && hasExtendedSessionBar
+      ? nxEligible === true
+        ? "KRX+NXT"
+        : "KRX 애프터마켓"
+      : "KRX";
 
   return (
     <>
@@ -585,17 +600,29 @@ export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsPro
           resetKey={resetKey}
         />
       )}
-      {/* NXT 종목 당일 뷰는 프리·정규·애프터 세 세션이 한 시간축에 이어져 경계를
+      {/* 당일 뷰는 정규장·애프터마켓(NXT 종목은 프리마켓까지) 이 한 시간축에 이어져 경계를
           축만으로는 읽을 수 없다. 시각은 리터럴 — market.ts 세션 표는 분 단위 정수라
           HH:MM 파생에 포맷터가 필요하고, MARKET_SCOPE_TOOLTIP 도 같은 관행.
           구간 단위 nowrap 으로 모바일 줄바꿈이 시각 범위 중간에 걸리지 않게 한다. */}
-      {isIntradayView && nxEligible === true && (
+      {isIntradayView && (
         <p className="mt-3 text-caption text-muted-foreground">
-          <span className="whitespace-nowrap">08:00–08:50 NXT 프리마켓</span>
-          {" · "}
-          <span className="whitespace-nowrap">09:00–15:30 KRX</span>
-          {" · "}
-          <span className="whitespace-nowrap">15:30–20:00 NXT 애프터마켓</span>
+          {nxEligible === true ? (
+            <>
+              <span className="whitespace-nowrap">08:00–08:50 NXT 프리마켓</span>
+              {" · "}
+              <span className="whitespace-nowrap">09:00–15:30 KRX</span>
+              {" · "}
+              <span className="whitespace-nowrap">15:40–20:00 NXT</span>
+              {" · "}
+              <span className="whitespace-nowrap">16:00–20:00 KRX 애프터마켓</span>
+            </>
+          ) : (
+            <>
+              <span className="whitespace-nowrap">09:00–15:30 KRX</span>
+              {" · "}
+              <span className="whitespace-nowrap">16:00–20:00 KRX 애프터마켓</span>
+            </>
+          )}
         </p>
       )}
     </>
