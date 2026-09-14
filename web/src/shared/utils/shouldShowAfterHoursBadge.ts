@@ -1,10 +1,11 @@
 import type { StockQuote } from "@/shared/types/quote";
 import type { KrxSession } from "./market";
 
-// 리스트형 표면(관심 행·홈 프리뷰·검색)에는 KRX/NXT 탭이 없어 표시된 가격이 어느 채널
-// 체결인지 판정할 지점이 없다. 이 술어는 "이 가격이 KRX 종가와 다른 채널에서 왔다"는
-// 사실만 판정한다 — 채널 간 우열이나 투자 판단 함의는 없다.
-type NxtSourceBadgeInput = {
+// 리스트형 표면(관심 행·홈 프리뷰·검색)에는 KRX/NXT 탭이 없어 표시된 가격이 어느 세션
+// 체결인지 판정할 지점이 없다. 이 술어는 "이 가격이 KRX 정규장 종가가 아니라 장외
+// (KRX 애프터마켓·NXT 프리/애프터) 체결이 반영된 값" 이라는 사실만 판정한다 —
+// 시장 간 우열이나 투자 판단 함의는 없다.
+type AfterHoursBadgeInput = {
   // 라이브 quote. 부재(EOD 만 표시 중)면 null/undefined.
   quote: Pick<StockQuote, "source" | "price"> | null | undefined;
   // EOD 종가와 그 종가가 속한 거래일.
@@ -19,12 +20,12 @@ type NxtSourceBadgeInput = {
 const isAfterRegularSession = (session: KrxSession | undefined): boolean =>
   session === "after" || session === "after_close";
 
-export const shouldShowNxtSourceBadge = ({
+export const shouldShowAfterHoursBadge = ({
   quote,
   eod,
   session,
   tradingDate,
-}: NxtSourceBadgeInput): boolean => {
+}: AfterHoursBadgeInput): boolean => {
   if (!quote) return false;
 
   switch (quote.source) {
@@ -36,7 +37,8 @@ export const shouldShowNxtSourceBadge = ({
     // QuoteSource 를 남김없이 소진하는 축으로 남긴다.
     case "nx":
       return true;
-    // KRX+NXT 통합가. 통합가가 KRX 종가와 갈릴 때만 알린다.
+    // KRX+NXT 통합가. 통합가가 KRX 정규장 종가와 갈릴 때만 알린다 — 갈린 원인이
+    // KRX 애프터마켓이든 NXT 든 리스트 표면에서는 같은 "장외" 사실이다.
     case "un": {
       // 정규장의 통합가는 KRX 실시간가와 사실상 같은 축이라, 전일 종가와 비교하면
       // 장중 내내 전 종목에 배지가 붙는다. 세션으로 먼저 자른다.

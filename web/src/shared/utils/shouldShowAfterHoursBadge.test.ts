@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { shouldShowNxtSourceBadge } from "./shouldShowNxtSourceBadge";
+import { shouldShowAfterHoursBadge } from "./shouldShowAfterHoursBadge";
 
 const TRADING_DATE = "2026-09-07";
 const PREV_DATE = "2026-09-04";
@@ -8,10 +8,10 @@ const PREV_DATE = "2026-09-04";
 const TODAY_EOD = { close: 70_000, date: TRADING_DATE };
 const PREV_EOD = { close: 70_000, date: PREV_DATE };
 
-describe("shouldShowNxtSourceBadge", () => {
+describe("shouldShowAfterHoursBadge", () => {
   it("quote 부재 → false (EOD 만 표시 중)", () => {
     expect(
-      shouldShowNxtSourceBadge({
+      shouldShowAfterHoursBadge({
         quote: null,
         eod: TODAY_EOD,
         session: "after",
@@ -23,7 +23,7 @@ describe("shouldShowNxtSourceBadge", () => {
   // ── source 축 ────────────────────────────────────────
   it("krx 단독 체결가 → false", () => {
     expect(
-      shouldShowNxtSourceBadge({
+      shouldShowAfterHoursBadge({
         quote: { source: "krx", price: 71_000 },
         eod: TODAY_EOD,
         session: "after",
@@ -34,7 +34,7 @@ describe("shouldShowNxtSourceBadge", () => {
 
   it("nx 단독 체결가 → true (세션·날짜 무관)", () => {
     expect(
-      shouldShowNxtSourceBadge({
+      shouldShowAfterHoursBadge({
         quote: { source: "nx", price: 70_000 },
         eod: PREV_EOD,
         session: "regular",
@@ -45,7 +45,7 @@ describe("shouldShowNxtSourceBadge", () => {
 
   it("nx 단독 체결가 → true (eod 부재여도 표시)", () => {
     expect(
-      shouldShowNxtSourceBadge({
+      shouldShowAfterHoursBadge({
         quote: { source: "nx", price: 70_000 },
         eod: undefined,
         session: "closed",
@@ -57,7 +57,7 @@ describe("shouldShowNxtSourceBadge", () => {
   // ── un: 세션 게이트 ──────────────────────────────────
   it("un × regular → false (장중 전 종목 상시 노출 방지)", () => {
     expect(
-      shouldShowNxtSourceBadge({
+      shouldShowAfterHoursBadge({
         quote: { source: "un", price: 71_000 },
         eod: PREV_EOD,
         session: "regular",
@@ -69,7 +69,7 @@ describe("shouldShowNxtSourceBadge", () => {
   // ── un: 마감 후 세션의 EOD 적재 지연 창 ──────────────
   it("un × after × eod.date 가 전일 → false (적재 지연 창)", () => {
     expect(
-      shouldShowNxtSourceBadge({
+      shouldShowAfterHoursBadge({
         quote: { source: "un", price: 71_000 },
         eod: PREV_EOD,
         session: "after",
@@ -80,7 +80,7 @@ describe("shouldShowNxtSourceBadge", () => {
 
   it("un × after_close × eod.date 가 전일 → false (적재 지연 창)", () => {
     expect(
-      shouldShowNxtSourceBadge({
+      shouldShowAfterHoursBadge({
         quote: { source: "un", price: 71_000 },
         eod: PREV_EOD,
         session: "after_close",
@@ -91,7 +91,7 @@ describe("shouldShowNxtSourceBadge", () => {
 
   it("un × after × eod.date 가 당일 × 가격 상이 → true", () => {
     expect(
-      shouldShowNxtSourceBadge({
+      shouldShowAfterHoursBadge({
         quote: { source: "un", price: 71_000 },
         eod: TODAY_EOD,
         session: "after",
@@ -103,7 +103,7 @@ describe("shouldShowNxtSourceBadge", () => {
   // ── un: 마감 후가 아닌 세션은 날짜 비교를 하지 않는다 ──
   it("un × pre × eod.date 가 전일 × 가격 상이 → true (프리마켓)", () => {
     expect(
-      shouldShowNxtSourceBadge({
+      shouldShowAfterHoursBadge({
         quote: { source: "un", price: 71_000 },
         eod: PREV_EOD,
         session: "pre",
@@ -114,7 +114,7 @@ describe("shouldShowNxtSourceBadge", () => {
 
   it("un × preopen × eod.date 가 전일 × 가격 상이 → true", () => {
     expect(
-      shouldShowNxtSourceBadge({
+      shouldShowAfterHoursBadge({
         quote: { source: "un", price: 71_000 },
         eod: PREV_EOD,
         session: "preopen",
@@ -126,7 +126,7 @@ describe("shouldShowNxtSourceBadge", () => {
   // ── un: 가격 동일 / eod 부재 ─────────────────────────
   it("un × 비regular × 가격 동일 → false", () => {
     expect(
-      shouldShowNxtSourceBadge({
+      shouldShowAfterHoursBadge({
         quote: { source: "un", price: 70_000 },
         eod: TODAY_EOD,
         session: "after",
@@ -137,7 +137,7 @@ describe("shouldShowNxtSourceBadge", () => {
 
   it("un × eod 부재 → false (비교 기준 없음)", () => {
     expect(
-      shouldShowNxtSourceBadge({
+      shouldShowAfterHoursBadge({
         quote: { source: "un", price: 71_000 },
         eod: undefined,
         session: "preopen",
@@ -148,7 +148,7 @@ describe("shouldShowNxtSourceBadge", () => {
 
   it("un × after × tradingDate 미도착 → false (날짜 축 확인 불가)", () => {
     expect(
-      shouldShowNxtSourceBadge({
+      shouldShowAfterHoursBadge({
         quote: { source: "un", price: 71_000 },
         eod: TODAY_EOD,
         session: "after",

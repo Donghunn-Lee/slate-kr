@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { NxtSourceBadge } from "@/shared/components/NxtSourceBadge";
+import { AfterHoursBadge } from "@/shared/components/AfterHoursBadge";
 import { PriceChange } from "@/shared/components/PriceChange";
 import { formatMarketCap } from "@/shared/format";
-import { shouldShowNxtSourceBadge } from "@/shared/utils/shouldShowNxtSourceBadge";
+import { shouldShowAfterHoursBadge } from "@/shared/utils/shouldShowAfterHoursBadge";
 import type { LatestPriceSummary } from "@/lib/prices";
 import type { PriceSign } from "@/shared/types/quote";
 import type { StockSearchResult } from "@/shared/types/stock";
@@ -72,8 +72,8 @@ type SearchResultRowProps = {
   liveSign: PriceSign | undefined;
   liveVolume: number | null;
   isLiveFailed: boolean;
-  // 표시 중인 가격이 KRX 종가와 다른 채널 체결인지. 판정은 shouldShowNxtSourceBadge 소관.
-  isNxtSourced: boolean;
+  // 표시 중인 가격이 KRX 정규장 종가가 아닌 장외 체결인지. 판정은 shouldShowAfterHoursBadge 소관.
+  isAfterHours: boolean;
   // 개장 전 창(08:00~09:00) KRX 0% 리셋 여부. 판정은 useMultiQuote 소관.
   preReset: boolean;
 };
@@ -87,7 +87,7 @@ const SearchResultRow = ({
   liveSign,
   liveVolume,
   isLiveFailed,
-  isNxtSourced,
+  isAfterHours,
   preReset,
 }: SearchResultRowProps) => {
   // 라이브 우선, 없으면 EOD 폴백. 둘 다 없으면 null → "—".
@@ -113,7 +113,7 @@ const SearchResultRow = ({
       >
         <div className="flex min-w-0 items-center gap-2">
           <span className="truncate text-sm font-semibold text-foreground">{stock.name}</span>
-          {isNxtSourced && <NxtSourceBadge />}
+          {isAfterHours && <AfterHoursBadge />}
           {isLiveFailed && (
             <span className="shrink-0 rounded-sm border border-subtle bg-muted px-1 py-0.5 text-[10px] leading-none text-muted-foreground">
               일시 지연
@@ -187,7 +187,7 @@ export const SearchResultList = ({ results, basePrices }: SearchResultListProps)
               liveSign={q ? q.sign : undefined}
               liveVolume={q ? q.volume : null}
               isLiveFailed={failed[stock.ticker] ?? false}
-              isNxtSourced={shouldShowNxtSourceBadge({
+              isAfterHours={shouldShowAfterHoursBadge({
                 quote: q,
                 eod: basePrices[stock.ticker],
                 session,

@@ -16,7 +16,7 @@ import { useMemoStore } from "@/features/memo/store/useMemoStore";
 import { selectMemoItems } from "@/features/memo/store/selectMemoItems";
 import { LIVE_TICKER_LIMIT, useMultiQuote } from "@/features/multi-quote/useMultiQuote";
 import { WatchlistRow, WatchlistRowSkeleton } from "@/entities/watchlist/WatchlistRow";
-import { shouldShowNxtSourceBadge } from "@/shared/utils/shouldShowNxtSourceBadge";
+import { shouldShowAfterHoursBadge } from "@/shared/utils/shouldShowAfterHoursBadge";
 import { StockPanel } from "@/entities/stock/StockPanel";
 import { Button } from "@/components/ui/button";
 import { GroupManagementModal } from "@/features/watchlist/GroupManagementModal";
@@ -269,7 +269,7 @@ const WatchlistPage = () => {
                         price={pricesMap[item.ticker]}
                         liveQuote={liveQuotes[item.ticker]}
                         isLiveFailed={liveFailed[item.ticker] ?? false}
-                        isNxtSourced={shouldShowNxtSourceBadge({
+                        isAfterHours={shouldShowAfterHoursBadge({
                           quote: liveQuotes[item.ticker],
                           eod: pricesMap[item.ticker],
                           session,

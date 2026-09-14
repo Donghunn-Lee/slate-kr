@@ -5,9 +5,9 @@ import Link from "next/link";
 import { ArrowRight, Star } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { StockPanel } from "@/entities/stock/StockPanel";
-import { NxtSourceBadge } from "@/shared/components/NxtSourceBadge";
+import { AfterHoursBadge } from "@/shared/components/AfterHoursBadge";
 import { PriceChange } from "@/shared/components/PriceChange";
-import { shouldShowNxtSourceBadge } from "@/shared/utils/shouldShowNxtSourceBadge";
+import { shouldShowAfterHoursBadge } from "@/shared/utils/shouldShowAfterHoursBadge";
 import { LIVE_TICKER_LIMIT, useMultiQuote } from "@/features/multi-quote/useMultiQuote";
 import { useWatchlistStore, type WatchlistItem } from "./store/useWatchlistStore";
 import type { TickerPriceSummary } from "@/app/api/prices/route";
@@ -204,7 +204,7 @@ export function WatchlistPreview() {
                     const p = pricesMap[item.ticker];
                     const live = liveQuotes[item.ticker] ?? null;
                     const isLiveFailed = liveFailed[item.ticker] ?? false;
-                    const isNxtSourced = shouldShowNxtSourceBadge({
+                    const isAfterHours = shouldShowAfterHoursBadge({
                       quote: live,
                       eod: p,
                       session,
@@ -234,7 +234,7 @@ export function WatchlistPreview() {
                             <span className="text-[10px] leading-none tracking-wide text-muted-foreground">
                               {item.market}
                             </span>
-                            {isNxtSourced && <NxtSourceBadge />}
+                            {isAfterHours && <AfterHoursBadge />}
                             {isLiveFailed && (
                               <span className="ml-auto shrink-0 rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-[10px] leading-none text-muted-foreground">
                                 일시 지연
