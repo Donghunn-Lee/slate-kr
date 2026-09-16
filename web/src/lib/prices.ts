@@ -13,13 +13,14 @@ type DailyPriceRow = {
   close: number;
   volume: number;
   market_cap: number | null;
+  base_price: number | null;
 };
 
 // 아래 SELECT 들이 공유하는 컬럼 리스트. DATE 는 to_char 로 문자열 수신 —
 // Neon HTTP 가 DATE 를 로컬 midnight Date 로 파싱하는 경로를 원천 차단해
 // 환경 TZ 와 무관하게 저장된 캘린더 일자를 그대로 얻는다.
 const DAILY_PRICE_COLUMNS =
-  "id, ticker, to_char(date, 'YYYY-MM-DD') AS date, open, high, low, close, volume, market_cap";
+  "id, ticker, to_char(date, 'YYYY-MM-DD') AS date, open, high, low, close, volume, market_cap, base_price";
 
 // pykrx 백필이 무거래일에 남긴 open=high=low=0 fill 봉(#120)을 서빙 경계에서 flat(close)로 정규화.
 // DB 원본은 as-is 유지 — 캔들 축 붕괴·52주 저가 0원만 방지한다. 부분 0(예: open만 0)은 통과.
@@ -34,6 +35,7 @@ export const rowToSnapshot = (row: DailyPriceRow): StockPriceSnapshot => {
     close: row.close,
     volume: row.volume,
     marketCap: row.market_cap,
+    basePrice: row.base_price,
   };
 };
 
@@ -80,8 +82,8 @@ export const getLatestPrice = cache(async (ticker: string): Promise<StockPriceSn
   return rowToSnapshot(rows[0]);
 });
 
-// tickers 각각의 최신 종가·전일 대비 등락·거래량. change 컬럼이 스키마에 없어(2026-07 확인)
-// LAG 로 직전 거래일 종가를 붙여 파생 계산한다. 10일 lookback 은 연휴/휴장 갭 대비.
+// tickers 각각의 최신 종가·등락·거래량. 등락 기준은 base_price(기준가) — NULL 인 행은
+// LAG 로 직전 거래일 종가를 붙여 폴백한다. 10일 lookback 은 연휴/휴장 갭 대비.
 // 결과에서 누락된 ticker(시세 없음)는 caller 가 부재로 처리한다.
 export type LatestPriceSummary = {
   close: number;
@@ -97,7 +99,7 @@ type LatestPriceRow = {
   close: number;
   date: string;
   volume: number;
-  prev_close: number | null;
+  base_close: number | null;
 };
 
 export const getLatestPricesByTickers = async (
@@ -110,13 +112,13 @@ export const getLatestPricesByTickers = async (
   const [rows] = await pool.query<LatestPriceRow[]>(
     `WITH ranked AS (
        SELECT ticker, close, volume, to_char(date, 'YYYY-MM-DD') AS date,
-              LAG(close) OVER (PARTITION BY ticker ORDER BY date) AS prev_close,
+              COALESCE(base_price, LAG(close) OVER (PARTITION BY ticker ORDER BY date)) AS base_close,
               ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY date DESC) AS rn
        FROM daily_prices
        WHERE ticker IN (${placeholders})
          AND date >= CURRENT_DATE - INTERVAL '10 days'
      )
-     SELECT ticker, close, volume, prev_close, date
+     SELECT ticker, close, volume, base_close, date
      FROM ranked
      WHERE rn = 1`,
     tickers
@@ -124,9 +126,9 @@ export const getLatestPricesByTickers = async (
 
   const result: Record<string, LatestPriceSummary> = {};
   for (const row of rows) {
-    const prev = row.prev_close;
-    const change = prev === null ? null : row.close - prev;
-    const changeRate = prev === null || prev === 0 ? null : ((row.close - prev) / prev) * 100;
+    const base = row.base_close;
+    const change = base === null ? null : row.close - base;
+    const changeRate = base === null || base === 0 ? null : ((row.close - base) / base) * 100;
     result[row.ticker] = {
       close: row.close,
       date: row.date,

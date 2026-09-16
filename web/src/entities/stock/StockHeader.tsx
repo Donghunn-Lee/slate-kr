@@ -64,9 +64,11 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
   const latest = prices[0] ?? null;
   const prev = prices[1] ?? null;
 
-  const initialChange = latest && prev ? latest.close - prev.close : null;
+  // 등락 기준은 기준가(basePrice). 없는 행은 직전 거래일 종가로 폴백.
+  const basis = latest ? (latest.basePrice ?? prev?.close ?? null) : null;
+  const initialChange = latest && basis !== null ? latest.close - basis : null;
   const initialChangeRate =
-    latest && prev && prev.close !== 0 ? ((latest.close - prev.close) / prev.close) * 100 : null;
+    latest && basis !== null && basis !== 0 ? ((latest.close - basis) / basis) * 100 : null;
 
   if (hasError || !latest) {
     return (

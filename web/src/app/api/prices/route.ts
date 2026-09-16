@@ -5,12 +5,14 @@ type PriceRow = {
   ticker: string;
   close: number;
   date: string;
+  base_price: number | null;
 };
 
 export type TickerPriceSummary = {
   ticker: string;
   close: number;
-  prevClose: number | null;
+  // 등락 기준가 — base_price(기준가), 없으면 직전 거래일 종가.
+  basePrice: number | null;
   change: number | null;
   changePct: number | null;
   // close 가 속한 거래일.
@@ -36,7 +38,7 @@ export async function GET(req: NextRequest) {
     const [rows] = await pool.query<PriceRow[]>(
       // date 는 to_char 로 문자열 수신 — Neon HTTP 가 DATE 를 로컬 midnight Date 로
       // 파싱해 환경 TZ 만큼 어긋나는 경로를 차단한다.
-      `SELECT p1.ticker, p1.close, to_char(p1.date, 'YYYY-MM-DD') AS date
+      `SELECT p1.ticker, p1.close, to_char(p1.date, 'YYYY-MM-DD') AS date, p1.base_price
        FROM daily_prices p1
        INNER JOIN (
          SELECT ticker, MAX(date) AS max_date
@@ -49,26 +51,23 @@ export async function GET(req: NextRequest) {
       tickers
     );
 
-    // 이전 종가: 종목별 lookback, 개별 실패는 null 처리
-    const lookbackResults = await Promise.allSettled(
-      rows.map(async (row) => {
-        const [prev] = await pool.query<PriceRow[]>(
+    // 등락 기준가: base_price(기준가) 우선, NULL 인 행만 직전 거래일 종가 lookback.
+    // 개별 실패는 null 처리
+    const basisResults = await Promise.allSettled(
+      rows.map(async (row): Promise<number | null> => {
+        if (row.base_price !== null) return row.base_price;
+        const [prev] = await pool.query<{ close: number }[]>(
           "SELECT close FROM daily_prices WHERE ticker = $1 AND date < $2 ORDER BY date DESC LIMIT 1",
           [row.ticker, row.date]
         );
-        return {
-          ticker: row.ticker,
-          prevClose: prev[0]?.close ?? null,
-        };
+        return prev[0]?.close ?? null;
       })
     );
 
-    const lookbackMap = Object.fromEntries(
-      lookbackResults.map((result, i) => [
+    const basisMap = Object.fromEntries(
+      basisResults.map((result, i) => [
         rows[i].ticker,
-        result.status === "fulfilled"
-          ? { prevClose: result.value.prevClose }
-          : { prevClose: null },
+        result.status === "fulfilled" ? result.value : null,
       ])
     );
 
@@ -83,12 +82,12 @@ export async function GET(req: NextRequest) {
     };
 
     const response: TickerPriceSummary[] = rows.map((row) => {
-      const { prevClose } = lookbackMap[row.ticker];
-      const { change, changePct } = computeChange(row.close, prevClose);
+      const basePrice = basisMap[row.ticker];
+      const { change, changePct } = computeChange(row.close, basePrice);
       return {
         ticker: row.ticker,
         close: row.close,
-        prevClose,
+        basePrice,
         change,
         changePct,
         date: row.date,

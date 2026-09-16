@@ -14,6 +14,7 @@ const mkRow = (o: Partial<DailyPriceRow>): DailyPriceRow => ({
   close: 105,
   volume: 1000,
   market_cap: null,
+  base_price: null,
   ...o,
 });
 
@@ -29,13 +30,22 @@ const mkSnap = (o: Partial<StockPriceSnapshot>): StockPriceSnapshot => ({
   close: 100,
   volume: 0,
   marketCap: null,
+  basePrice: null,
   ...o,
 });
 
 describe("rowToSnapshot", () => {
   it("정상 봉: 값·형식 passthrough (date는 YYYY-MM-DD)", () => {
     const snap = rowToSnapshot(
-      mkRow({ open: 100, high: 110, low: 90, close: 105, volume: 12345, market_cap: 999 })
+      mkRow({
+        open: 100,
+        high: 110,
+        low: 90,
+        close: 105,
+        volume: 12345,
+        market_cap: 999,
+        base_price: 102,
+      })
     );
     expect(snap).toEqual({
       ticker: "TEST",
@@ -46,6 +56,7 @@ describe("rowToSnapshot", () => {
       close: 105,
       volume: 12345,
       marketCap: 999,
+      basePrice: 102,
     });
   });
 
@@ -80,13 +91,14 @@ describe("rowToSnapshot", () => {
     expect(snap).toMatchObject({ open: 0, high: 0, low: 0, close: 0 });
   });
 
-  it("volume·marketCap·date 매핑 보존 (marketCap null 포함)", () => {
+  it("volume·marketCap·basePrice·date 매핑 보존 (null 포함)", () => {
     const snap = rowToSnapshot(
-      mkRow({ date: "2024-03-05", volume: 7, market_cap: null })
+      mkRow({ date: "2024-03-05", volume: 7, market_cap: null, base_price: null })
     );
     expect(snap.date).toBe("2024-03-05");
     expect(snap.volume).toBe(7);
     expect(snap.marketCap).toBeNull();
+    expect(snap.basePrice).toBeNull();
   });
 });
 
