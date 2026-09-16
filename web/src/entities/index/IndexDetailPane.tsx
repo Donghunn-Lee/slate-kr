@@ -29,7 +29,9 @@ import {
   getKrxLastCloseDate,
   getKrxSessionState,
   getKstDateAndMinutes,
+  isKrxBeforeMarketOpen,
   isKrxOpeningWindow,
+  type KrxSession,
 } from "@/shared/utils/market";
 import { useNow } from "@/shared/hooks/useNow";
 import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
@@ -96,6 +98,25 @@ const StatCell = ({ label, children, className }: StatCellProps) => (
     <div className="text-micro tabular-nums sm:text-body-sm">{children}</div>
   </div>
 );
+
+// 국내 거래량 셀 소스. 라이브 quote 의 누적 거래량이 있고 개장 전(pre·preopen)이 아니면
+// 라이브 — 라벨 날짜는 quote 의 거래일(IndexChart 의 당일 합성봉과 같은 축). 그 외(라이브
+// 부재·개장 전)는 최신 EOD 봉. 개장 전 게이트는 IndexChart 의 domesticLiveQuote 와 동형.
+export const resolveDomesticVolume = (
+  live: { volume?: number } | null | undefined,
+  session: KrxSession | undefined,
+  liveDate: string | undefined,
+  eod: { date: string; volume: number | null } | null,
+): { volume: number | null; asOf: string | null } => {
+  if (
+    live?.volume !== undefined &&
+    liveDate !== undefined &&
+    !isKrxBeforeMarketOpen(session)
+  ) {
+    return { volume: live.volume, asOf: liveDate.slice(5) };
+  }
+  return { volume: eod?.volume ?? null, asOf: eod?.date.slice(5) ?? null };
+};
 
 type StatsBlockProps = {
   stats: PriceStats;
@@ -276,9 +297,16 @@ export const IndexDetailPane = ({
       : null;
 
   const stats = statsByIndex[selected];
-  const volume = isDomestic ? volumeByIndex[selected] : null;
-  // 국내 거래량은 EOD 값 — 최신 봉 date 를 셀 밀도 고려해 MM-DD 로 병기.
-  const domesticVolumeAsOf = isDomestic ? latestDaily?.date.slice(5) ?? null : null;
+  // 국내 거래량 — 장중·마감 후엔 라이브 quote 누적 거래량, 그 외는 EOD(SSR volumeByIndex).
+  // 날짜는 셀 밀도 고려해 MM-DD 로 병기.
+  const { volume, asOf: domesticVolumeAsOf } = isDomestic
+    ? resolveDomesticVolume(
+        cell?.live,
+        data?.session,
+        data?.date,
+        latestDaily ? { date: latestDaily.date, volume: volumeByIndex[selected] } : null,
+      )
+    : { volume: null, asOf: null };
 
   // 해외 지수 라이브 지연 분 (미실측 = undefined → 중립 표시).
   const overseasDelayMin = !isDomestic
