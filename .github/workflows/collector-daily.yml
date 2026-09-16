@@ -46,11 +46,13 @@ jobs:
       # 국내 스텝 실행 조건: inputs.mode 로 제어.
       #   full(기본값) → 국내+해외 전체 실행.
       #   overseas-only → 국내 skip, 해외만 실행 (예: 국내는 정상, 해외만 재수집 · 토요일 US 금요일 마감분).
-      - name: Run fetch_prices
-        id: fetch_prices
+      # fetch_daily_close.py 내부 게이트: KST 20:05 미만·휴장일이면 skip 후 정상 종료 —
+      # 그 경우 verify 가 MAX(date) 불일치로 실패해 시각 오류를 드러낸다.
+      - name: Run fetch_daily_close
+        id: fetch_daily_close
         if: ${{ inputs.mode != 'overseas-only' }}
         working-directory: collector
-        run: python fetch_prices.py
+        run: python fetch_daily_close.py
         continue-on-error: true
 
       - name: Run fetch_index_prices
@@ -109,7 +111,7 @@ jobs:
             domestic_expected=yes
           fi
           check fetch_market_calendar  "${{ steps.fetch_market_calendar.outcome }}"  yes
-          check fetch_prices           "${{ steps.fetch_prices.outcome }}"           "$domestic_expected"
+          check fetch_daily_close      "${{ steps.fetch_daily_close.outcome }}"      "$domestic_expected"
           check fetch_index_prices     "${{ steps.fetch_index_prices.outcome }}"     "$domestic_expected"
           check fetch_overseas_indices "${{ steps.fetch_overseas_indices.outcome }}" yes
           check verify_freshness       "${{ steps.verify_freshness.outcome }}"       yes
