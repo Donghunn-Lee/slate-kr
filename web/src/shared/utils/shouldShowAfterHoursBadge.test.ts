@@ -1,159 +1,82 @@
 import { describe, it, expect } from "vitest";
+import type { KrxSession } from "./market";
 import { shouldShowAfterHoursBadge } from "./shouldShowAfterHoursBadge";
 
-const TRADING_DATE = "2026-09-07";
-const PREV_DATE = "2026-09-04";
+const SESSIONS: Array<KrxSession | undefined> = [
+  "regular", "after", "after_close", "pre", "preopen", "closed", undefined,
+];
 
-// 오늘 EOD 가 적재된 상태의 종가. 라이브가와 다르게 둔다.
-const TODAY_EOD = { close: 70_000, date: TRADING_DATE };
-const PREV_EOD = { close: 70_000, date: PREV_DATE };
+const show = (
+  source: "krx" | "nx" | "un",
+  session: KrxSession | undefined,
+  krxAfterMarketOpen = false,
+): boolean => shouldShowAfterHoursBadge({ quote: { source }, session, krxAfterMarketOpen });
 
 describe("shouldShowAfterHoursBadge", () => {
-  it("quote 부재 → false (EOD 만 표시 중)", () => {
-    expect(
-      shouldShowAfterHoursBadge({
-        quote: null,
-        eod: TODAY_EOD,
-        session: "after",
-        tradingDate: TRADING_DATE,
-      }),
-    ).toBe(false);
+  it("quote 부재 → false (EOD 만 표시 중, 세션 무관)", () => {
+    for (const session of SESSIONS) {
+      for (const open of [false, true]) {
+        expect(shouldShowAfterHoursBadge({ quote: null, session, krxAfterMarketOpen: open })).toBe(false);
+        expect(shouldShowAfterHoursBadge({ quote: undefined, session, krxAfterMarketOpen: open })).toBe(false);
+      }
+    }
   });
 
   // ── source 축 ────────────────────────────────────────
-  it("krx 단독 체결가 → false", () => {
-    expect(
-      shouldShowAfterHoursBadge({
-        quote: { source: "krx", price: 71_000 },
-        eod: TODAY_EOD,
-        session: "after",
-        tradingDate: TRADING_DATE,
-      }),
-    ).toBe(false);
+  it("krx 단독 체결가 → false (세션·16:00 무관)", () => {
+    for (const session of SESSIONS) {
+      for (const open of [false, true]) {
+        expect(show("krx", session, open)).toBe(false);
+      }
+    }
   });
 
-  it("nx 단독 체결가 → true (세션·날짜 무관)", () => {
-    expect(
-      shouldShowAfterHoursBadge({
-        quote: { source: "nx", price: 70_000 },
-        eod: PREV_EOD,
-        session: "regular",
-        tradingDate: TRADING_DATE,
-      }),
-    ).toBe(true);
+  // ── 애프터 계열: un · nx 동형 ────────────────────────
+  // 15:30~16:00 의 after 는 정규장 마감 구간(값은 15:30 종가) — 16:00 경계를 넘어야 애프터마켓 체결.
+  it("un · nx × after × 16:00 전 → false", () => {
+    for (const source of ["un", "nx"] as const) {
+      expect(show(source, "after", false)).toBe(false);
+    }
   });
 
-  it("nx 단독 체결가 → true (eod 부재여도 표시)", () => {
-    expect(
-      shouldShowAfterHoursBadge({
-        quote: { source: "nx", price: 70_000 },
-        eod: undefined,
-        session: "closed",
-        tradingDate: TRADING_DATE,
-      }),
-    ).toBe(true);
+  it("un · nx × after × 16:00 이후 → true", () => {
+    for (const source of ["un", "nx"] as const) {
+      expect(show(source, "after", true)).toBe(true);
+    }
   });
 
-  // ── un: 세션 게이트 ──────────────────────────────────
-  it("un × regular → false (장중 전 종목 상시 노출 방지)", () => {
-    expect(
-      shouldShowAfterHoursBadge({
-        quote: { source: "un", price: 71_000 },
-        eod: PREV_EOD,
-        session: "regular",
-        tradingDate: TRADING_DATE,
-      }),
-    ).toBe(false);
+  // 밤(after_close·closed)의 값은 애프터마켓 마감값 — 전 종목에 붙는 것이 의도.
+  it("un · nx × after_close / closed → true (16:00 플래그 무관)", () => {
+    for (const source of ["un", "nx"] as const) {
+      for (const session of ["after_close", "closed"] as const) {
+        for (const open of [false, true]) {
+          expect(show(source, session, open)).toBe(true);
+        }
+      }
+    }
   });
 
-  // ── un: 마감 후 세션의 EOD 적재 지연 창 ──────────────
-  it("un × after × eod.date 가 전일 → false (적재 지연 창)", () => {
-    expect(
-      shouldShowAfterHoursBadge({
-        quote: { source: "un", price: 71_000 },
-        eod: PREV_EOD,
-        session: "after",
-        tradingDate: TRADING_DATE,
-      }),
-    ).toBe(false);
+  // ── 프리마켓: nx 만 ──────────────────────────────────
+  // pre 의 UN 값은 비NXT 종목이면 전일 종가 그대로라 프리마켓 값이라 단정할 수 없다.
+  it("nx × pre → true · un × pre → false", () => {
+    expect(show("nx", "pre")).toBe(true);
+    expect(show("un", "pre")).toBe(false);
   });
 
-  it("un × after_close × eod.date 가 전일 → false (적재 지연 창)", () => {
-    expect(
-      shouldShowAfterHoursBadge({
-        quote: { source: "un", price: 71_000 },
-        eod: PREV_EOD,
-        session: "after_close",
-        tradingDate: TRADING_DATE,
-      }),
-    ).toBe(false);
+  // ── 그 외 세션 ───────────────────────────────────────
+  it("un · nx × regular → false (장중 전 종목 상시 노출 방지)", () => {
+    for (const source of ["un", "nx"] as const) {
+      for (const open of [false, true]) {
+        expect(show(source, "regular", open)).toBe(false);
+      }
+    }
   });
 
-  it("un × after × eod.date 가 당일 × 가격 상이 → true", () => {
-    expect(
-      shouldShowAfterHoursBadge({
-        quote: { source: "un", price: 71_000 },
-        eod: TODAY_EOD,
-        session: "after",
-        tradingDate: TRADING_DATE,
-      }),
-    ).toBe(true);
-  });
-
-  // ── un: 마감 후가 아닌 세션은 날짜 비교를 하지 않는다 ──
-  it("un × pre × eod.date 가 전일 × 가격 상이 → true (프리마켓)", () => {
-    expect(
-      shouldShowAfterHoursBadge({
-        quote: { source: "un", price: 71_000 },
-        eod: PREV_EOD,
-        session: "pre",
-        tradingDate: TRADING_DATE,
-      }),
-    ).toBe(true);
-  });
-
-  it("un × preopen × eod.date 가 전일 × 가격 상이 → true", () => {
-    expect(
-      shouldShowAfterHoursBadge({
-        quote: { source: "un", price: 71_000 },
-        eod: PREV_EOD,
-        session: "preopen",
-        tradingDate: TRADING_DATE,
-      }),
-    ).toBe(true);
-  });
-
-  // ── un: 가격 동일 / eod 부재 ─────────────────────────
-  it("un × 비regular × 가격 동일 → false", () => {
-    expect(
-      shouldShowAfterHoursBadge({
-        quote: { source: "un", price: 70_000 },
-        eod: TODAY_EOD,
-        session: "after",
-        tradingDate: TRADING_DATE,
-      }),
-    ).toBe(false);
-  });
-
-  it("un × eod 부재 → false (비교 기준 없음)", () => {
-    expect(
-      shouldShowAfterHoursBadge({
-        quote: { source: "un", price: 71_000 },
-        eod: undefined,
-        session: "preopen",
-        tradingDate: TRADING_DATE,
-      }),
-    ).toBe(false);
-  });
-
-  it("un × after × tradingDate 미도착 → false (날짜 축 확인 불가)", () => {
-    expect(
-      shouldShowAfterHoursBadge({
-        quote: { source: "un", price: 71_000 },
-        eod: TODAY_EOD,
-        session: "after",
-        tradingDate: undefined,
-      }),
-    ).toBe(false);
+  it("un · nx × preopen / session 미도착 → false", () => {
+    for (const source of ["un", "nx"] as const) {
+      for (const session of ["preopen", undefined] as const) {
+        expect(show(source, session)).toBe(false);
+      }
+    }
   });
 });

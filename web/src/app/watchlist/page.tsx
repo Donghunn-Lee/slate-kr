@@ -126,8 +126,8 @@ const WatchlistPage = () => {
     quotes: liveQuotes,
     failed: liveFailed,
     session,
-    tradingDate,
     preReset,
+    krxAfterMarketOpen,
   } = useMultiQuote(liveTickers);
 
   const fixedTabs: Array<{ key: string; label: string }> = [
@@ -271,10 +271,10 @@ const WatchlistPage = () => {
                         isLiveFailed={liveFailed[item.ticker] ?? false}
                         isAfterHours={shouldShowAfterHoursBadge({
                           quote: liveQuotes[item.ticker],
-                          eod: pricesMap[item.ticker],
                           session,
-                          tradingDate,
+                          krxAfterMarketOpen,
                         })}
+                        session={session}
                         preReset={preReset}
                         disclosure={countsMap[item.ticker]}
                         hasMemo={item.ticker in memos}

@@ -10,6 +10,7 @@ import {
   defaultMarketForSession,
   getKrxLastCloseDate,
   getKrxSessionState,
+  getKstDateAndMinutes,
   isKrxAfterMarketOpen,
   isKrxOpeningWindow,
 } from "@/shared/utils/market";
@@ -135,19 +136,20 @@ export const StockHeaderLivePrice = ({
   // 비-regular KRX 강제 케이스는 서버 응답 대신 clientSession 을 라벨에 넘긴다.
   const labelSession = forceInitial ? clientSession : session;
   // forceInitial 이면 라벨도 initial 축 — after 폴링 캐시가 20:00 을 넘겨 after_close 로
-  // 이월되면 live 가 남아 있지만 값은 initialPrice 라, live 를 그대로 넘기면 "애프터마켓
-  // 종가" 라벨에 15:30 종가가 붙는다.
+  // 이월되면 live 가 남아 있지만 값은 initialPrice 라, live 를 그대로 넘기면 EOD 미적재 창에서
+  // 라벨만 오늘 마감으로 앞선다.
   const { labelText, timeText } = computeHeaderLabel({
     session: labelSession,
     market: marketArg, // undefined = 미지정 경로 — after 라벨만 16:00 경계를 더 본다.
     live: forceInitial ? null : live,
-    isFailedQuote,
-    // 지연 창 fetch 성공 시 initialDate 를 lastCloseDate 로 격상 → "장 마감·15:30".
+    // 지연 창 fetch 성공 시 initialDate 를 lastCloseDate 로 격상 → SSR 행 라벨이 마지막 마감일 축.
     initialDate: useLiveKrxClose ? lastCloseDate : initialDate,
     kstToday: lastCloseDate,
     updatedAtText,
     openingWindow: isKrxOpeningWindow(labelSession, now, calendar),
     krxAfterMarketOpen: isKrxAfterMarketOpen(now, calendar),
+    // NXT 탭 15:20·15:40 라벨 경계 — 위 두 창과 같은 클라 시계.
+    kstMinutes: getKstDateAndMinutes(now).minutes,
   });
 
   // 초기 로드 스켈레톤 — 토글 미노출 종목·NXT 탭. KRX 탭은 initial 값으로 즉시 표시.

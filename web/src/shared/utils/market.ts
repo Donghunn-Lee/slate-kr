@@ -20,6 +20,11 @@ const REGULAR_END_MINUTES = 15 * 60 + 30; // 15:30 KST — 정규장 종료
 // 16:00 KST — KRX 애프터마켓 시작. after 세션(15:30~) 안의 경계라 세션 상태를 쪼개지 않고
 // 라벨·캡션·분봉 슬롯이 이 상수로 KRX 축만 가른다 (NXT 애프터는 15:40 부터, 세션 술어 그대로).
 export const KRX_AFTER_MARKET_START_MINUTES = 16 * 60;
+// 15:20 KST — NXT 정규장 종료 · 15:40 KST — NXT 애프터마켓 시작. 세션 상태는 KRX 축(15:30)
+// 하나라 regular/after 를 쪼개지 않고, 종목 헤더의 NXT 탭 라벨만 이 두 상수로 가른다
+// (KRX_AFTER_MARKET_START_MINUTES 와 같은 패턴 — 값 소스·폴링은 이 경계를 보지 않는다).
+export const NXT_REGULAR_END_MINUTES = 15 * 60 + 20;
+export const NXT_AFTER_MARKET_START_MINUTES = 15 * 60 + 40;
 const AFTER_END_MINUTES = 20 * 60; // 20:00 KST — 애프터마켓 종료
 
 export type KrxSession =

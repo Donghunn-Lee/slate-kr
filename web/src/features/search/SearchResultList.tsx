@@ -9,6 +9,7 @@ import { shouldShowAfterHoursBadge } from "@/shared/utils/shouldShowAfterHoursBa
 import type { LatestPriceSummary } from "@/lib/prices";
 import type { PriceSign } from "@/shared/types/quote";
 import type { StockSearchResult } from "@/shared/types/stock";
+import type { KrxSession } from "@/shared/utils/market";
 import { useMultiQuote } from "@/features/multi-quote/useMultiQuote";
 import { cn } from "@/lib/utils";
 
@@ -72,8 +73,10 @@ type SearchResultRowProps = {
   liveSign: PriceSign | undefined;
   liveVolume: number | null;
   isLiveFailed: boolean;
-  // 표시 중인 가격이 KRX 정규장 종가가 아닌 장외 체결인지. 판정은 shouldShowAfterHoursBadge 소관.
+  // 표시 중인 가격이 KRX 정규장이 아닌 장외 세션 체결인지. 판정은 shouldShowAfterHoursBadge 소관.
   isAfterHours: boolean;
+  // 장외 배지의 프리/애프터 단어 축. 응답 전(undefined)엔 isAfterHours 가 false 라 닿지 않는다.
+  session: KrxSession | undefined;
   // 개장 전 창(08:00~09:00) KRX 0% 리셋 여부. 판정은 useMultiQuote 소관.
   preReset: boolean;
 };
@@ -88,6 +91,7 @@ const SearchResultRow = ({
   liveVolume,
   isLiveFailed,
   isAfterHours,
+  session,
   preReset,
 }: SearchResultRowProps) => {
   // 라이브 우선, 없으면 EOD 폴백. 둘 다 없으면 null → "—".
@@ -113,7 +117,7 @@ const SearchResultRow = ({
       >
         <div className="flex min-w-0 items-center gap-2">
           <span className="truncate text-sm font-semibold text-foreground">{stock.name}</span>
-          {isAfterHours && <AfterHoursBadge />}
+          {isAfterHours && <AfterHoursBadge session={session} />}
           {isLiveFailed && (
             <span className="shrink-0 rounded-sm border border-subtle bg-muted px-1 py-0.5 text-[10px] leading-none text-muted-foreground">
               일시 지연
@@ -168,7 +172,7 @@ type SearchResultListProps = {
 
 export const SearchResultList = ({ results, basePrices }: SearchResultListProps) => {
   const tickers = useMemo(() => results.map((r) => r.ticker), [results]);
-  const { quotes, failed, session, tradingDate, preReset } = useMultiQuote(tickers);
+  const { quotes, failed, session, preReset, krxAfterMarketOpen } = useMultiQuote(tickers);
 
   return (
     <div>
@@ -187,12 +191,8 @@ export const SearchResultList = ({ results, basePrices }: SearchResultListProps)
               liveSign={q ? q.sign : undefined}
               liveVolume={q ? q.volume : null}
               isLiveFailed={failed[stock.ticker] ?? false}
-              isAfterHours={shouldShowAfterHoursBadge({
-                quote: q,
-                eod: basePrices[stock.ticker],
-                session,
-                tradingDate,
-              })}
+              isAfterHours={shouldShowAfterHoursBadge({ quote: q, session, krxAfterMarketOpen })}
+              session={session}
               preReset={preReset}
             />
           );
