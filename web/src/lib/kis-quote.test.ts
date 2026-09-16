@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  normalizeIndexQuote,
   normalizeMultiQuote,
   normalizeStockQuote,
   parseMarketAction,
@@ -239,5 +240,40 @@ describe("source 태깅", () => {
 
   it("normalizeMultiQuote 는 un 고정 (호출부가 UN 단일 채널)", () => {
     expect(normalizeMultiQuote(FIXTURE_MULTI_005930)?.source).toBe("un");
+  });
+});
+
+// KIS FHPUP02100000 실응답 실측 픽스처 (2026-09-16 14:5x, KOSPI). acml_vol 은 천주 단위 —
+// 같은 시각 일봉 TR 의 당일 봉 acml_vol 과 동일 값.
+const FIXTURE_KOSPI_INDEX = {
+  bstp_nmix_prpr: "6717.97",
+  bstp_nmix_prdy_vrss: "90.71",
+  bstp_nmix_prdy_ctrt: "1.37",
+  prdy_vrss_sign: "2",
+  bstp_nmix_oprc: "6611.24",
+  bstp_nmix_hgpr: "6730.12",
+  bstp_nmix_lwpr: "6598.40",
+  ascn_issu_cnt: "612",
+  down_issu_cnt: "281",
+  acml_vol: "197715",
+  prdy_vol: "287884",
+  acml_tr_pbmn: "15854644",
+};
+
+describe("normalizeIndexQuote — 거래량", () => {
+  it("acml_vol(천주) × 1,000 → volume(주). index_daily_prices.volume 축과 일치", () => {
+    const q = normalizeIndexQuote(FIXTURE_KOSPI_INDEX, "코스피");
+    expect(q).not.toBeNull();
+    expect(q?.price).toBe(6717.97);
+    expect(q?.volume).toBe(197_715_000);
+  });
+
+  it("acml_vol 결측 → quote 는 유지, volume 만 undefined", () => {
+    const { acml_vol: _omit, ...withoutVol } = FIXTURE_KOSPI_INDEX;
+    void _omit;
+    const q = normalizeIndexQuote(withoutVol, "코스피");
+    expect(q).not.toBeNull();
+    expect(q?.price).toBe(6717.97);
+    expect(q?.volume).toBeUndefined();
   });
 });

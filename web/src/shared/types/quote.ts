@@ -48,6 +48,9 @@ export type IndexQuote = LiveQuoteCore & {
   declCount: number; // 하락 종목수
   // 해외 지수 체결시각(거래소 현지 로컬, 문자열 그대로). 국내·output2 부재(.DJI) 는 null.
   time: { date: string; hour: string } | null;
+  // 누적 거래량(주). 국내 지수 quote 만 싣는다 — 해외 quote 응답엔 거래량이 없다.
+  // 일봉 차트의 당일 합성봉(mergeLiveDayBar) 히스토그램 소스.
+  volume?: number;
 };
 
 export type IndexDailySnapshot = {

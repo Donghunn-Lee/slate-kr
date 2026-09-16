@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { ChartBar } from "@/shared/types/quote";
+import type { ChartBar, IndexQuote } from "@/shared/types/quote";
 import {
   isInvalidQuoteOhl,
   mergeLiveDayBar,
@@ -85,6 +85,31 @@ describe("mergeLiveDayBar - 정상 quote", () => {
       "2026-07-18",
     );
     expect(result[1].volume).toBe(5000);
+  });
+
+  // IndexChart 는 IndexQuote 를 LiveQuoteForMerge 로 그대로 넘긴다 — 국내 지수 quote 의
+  // volume 이 당일 합성봉 히스토그램까지 관통하는 구조적 호환 계약.
+  it("IndexQuote 를 그대로 넘기면 volume 이 당일 합성봉에 실린다", () => {
+    const indexQuote: IndexQuote = {
+      name: "코스피",
+      price: 6717.97,
+      change: 90.71,
+      changeRate: 1.37,
+      sign: "up",
+      open: 6611.24,
+      high: 6730.12,
+      low: 6598.4,
+      advCount: 612,
+      declCount: 281,
+      time: null,
+      volume: 197_715_000,
+    };
+    const result = mergeLiveDayBar(eod, indexQuote, "2026-07-21");
+    expect(result[2]).toMatchObject({
+      time: "2026-07-21",
+      close: 6717.97,
+      volume: 197_715_000,
+    });
   });
 });
 

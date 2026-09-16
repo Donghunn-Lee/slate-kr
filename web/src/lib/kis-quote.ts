@@ -62,7 +62,12 @@ const IndexQuoteSchema = z.object({
   bstp_nmix_lwpr: z.string(),
   ascn_issu_cnt: z.string(),
   down_issu_cnt: z.string(),
+  // 누적 거래량(천주). 일봉 TR(FHKUP03500100) 과 같은 단위라 ×1,000 으로
+  // index_daily_prices.volume(주) 축에 맞춘다. 결측 시 quote 전체를 잃지 않도록 optional.
+  acml_vol: z.string().optional(),
 });
+
+const INDEX_VOLUME_UNIT = 1_000;
 
 // source 는 판정하지 않고 호출부의 요청 채널을 그대로 받는다 — 응답 본문에는 어느
 // FID_COND_MRKT_DIV_CODE 로 물었는지가 실려오지 않는다.
@@ -161,5 +166,8 @@ export const normalizeIndexQuote = (raw: unknown, name: string): IndexQuote | nu
     declCount: Number(d.down_issu_cnt),
     // 국내 지수 quote 응답에는 체결시각 필드 없음 — 라벨은 클라 시계로 조립.
     time: null,
+    ...(d.acml_vol !== undefined && {
+      volume: Number(d.acml_vol) * INDEX_VOLUME_UNIT,
+    }),
   };
 };
