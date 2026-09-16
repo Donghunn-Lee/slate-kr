@@ -5,9 +5,7 @@ import Link from "next/link";
 import { ArrowRight, Star } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { StockPanel } from "@/entities/stock/StockPanel";
-import { AfterHoursBadge } from "@/shared/components/AfterHoursBadge";
 import { PriceChange } from "@/shared/components/PriceChange";
-import { shouldShowAfterHoursBadge } from "@/shared/utils/shouldShowAfterHoursBadge";
 import { LIVE_TICKER_LIMIT, useMultiQuote } from "@/features/multi-quote/useMultiQuote";
 import { useWatchlistStore, type WatchlistItem } from "./store/useWatchlistStore";
 import type { TickerPriceSummary } from "@/app/api/prices/route";
@@ -86,9 +84,7 @@ export function WatchlistPreview() {
   const {
     quotes: liveQuotes,
     failed: liveFailed,
-    session,
     preReset,
-    krxAfterMarketOpen,
   } = useMultiQuote(items.slice(0, LIVE_TICKER_LIMIT).map((p) => p.ticker));
 
   // 스크롤 오버플로우 감지 — 넘칠 때만 하단 fade 마스크 노출.
@@ -204,11 +200,6 @@ export function WatchlistPreview() {
                     const p = pricesMap[item.ticker];
                     const live = liveQuotes[item.ticker] ?? null;
                     const isLiveFailed = liveFailed[item.ticker] ?? false;
-                    const isAfterHours = shouldShowAfterHoursBadge({
-                      quote: live,
-                      session,
-                      krxAfterMarketOpen,
-                    });
                     // 개장 전 창의 EOD 폴백 팔만 0 으로 덮는다 — 가격은 이미 오늘 기준가라
                     // 손대지 않고, EOD 행이 없으면(p undefined) 리셋할 폴백도 없다.
                     const displayPrice = live ? live.price : (p?.close ?? null);
@@ -233,7 +224,6 @@ export function WatchlistPreview() {
                             <span className="text-[10px] leading-none tracking-wide text-muted-foreground">
                               {item.market}
                             </span>
-                            {isAfterHours && <AfterHoursBadge session={session} />}
                             {isLiveFailed && (
                               <span className="ml-auto shrink-0 rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-[10px] leading-none text-muted-foreground">
                                 일시 지연

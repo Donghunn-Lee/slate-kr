@@ -4,7 +4,6 @@ import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
 import { useNow } from "@/shared/hooks/useNow";
 import type { StockQuote } from "@/shared/types/quote";
 import type { KrxSession } from "@/shared/utils/market";
-import { isKrxAfterMarketOpen } from "@/shared/utils/market";
 
 export type MultiQuoteResponse = {
   quotes: Record<string, StockQuote | null>;
@@ -36,8 +35,6 @@ type UseMultiQuoteResult = {
   // 개장 전 창(08:00~09:00)의 KRX 0% 리셋 여부. 소비측은 EOD 폴백 팔에만 얹는다 —
   // 라이브 값이 있으면 오늘 축이라 손대지 않는다.
   preReset: boolean;
-  // KRX 애프터마켓(16:00~) 진입 여부 — 장외 배지의 16:00 경계. preReset 과 같은 클라 시계 축.
-  krxAfterMarketOpen: boolean;
   isLoading: boolean;
 };
 
@@ -71,8 +68,6 @@ export const useMultiQuote = (tickers: string[]): UseMultiQuoteResult => {
     // 값 자체가 daily_prices(=KRX) 축이다. 응답 전 session=undefined 는 술어가 false 로
     // 받아 헤더의 pre-mount 동작과 동형.
     preReset: isPreMarketReset(query.data?.session, "krx", now, calendar),
-    // pre-mount(now=null)는 false — 배지는 응답 뒤에나 붙으므로 첫 tick 까지 비워도 어긋나지 않는다.
-    krxAfterMarketOpen: now !== null && isKrxAfterMarketOpen(now, calendar),
     isLoading: query.isLoading,
   };
 };

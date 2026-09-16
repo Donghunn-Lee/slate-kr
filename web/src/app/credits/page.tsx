@@ -42,10 +42,6 @@ export default function CreditsPage() {
           <p className="mt-1 text-caption text-muted-foreground">
             다우존스(DJI)는 KIS OpenAPI가 장중 시세·분봉을 제공하지 않아 일봉 종가만 표시됩니다.
           </p>
-          <p className="mt-1 text-caption text-muted-foreground">
-            목록에 붙는 프리·애프터 배지는 그 가격이 프리마켓(NXT 08:00~08:50)·애프터마켓(KRX 16:00~20:00 ·
-            NXT 15:40~20:00) 체결 반영값이라는 표시입니다.
-          </p>
         </StockPanel>
       </section>
 
