@@ -1,5 +1,5 @@
 """
-KIS 국내주식 일봉 → daily_prices idempotent upsert (당일 EOD 회귀 적재).
+KIS 국내주식 일봉 → daily_prices idempotent upsert (2026-09-11 이전 구간).
 
 전환 배경 (#098)
   이전 소스 pykrx 는 D+1 08:00 KST 공표 특성상 당일 16:00 적재 불가. KIS
@@ -8,10 +8,11 @@ KIS 국내주식 일봉 → daily_prices idempotent upsert (당일 EOD 회귀 �
   volume 은 정의 차이(시간외 포함 추정)로 상이 — 과거 재적재 없이 경계일부터
   KIS 정의를 그대로 수용.
 
-end 시각 캡 (핵심)
-  end = compute_expected_from_now(now_kst) — 거래일 16:00 이상만 today, 그 외
-  직전 거래일. 어느 시각에 실행돼도 확정치만 적재. --force 류 우회 레버 없음.
-  방어 필터로 output2 의 end 초과 row (당일 라이브 스냅) 는 무조건 drop.
+조회 상한 (핵심)
+  end = min(직전 거래일, KIS_DAILY_LAST_DATE). KIS 일봉은 2026-09-14 부터 밤사이
+  C/H/L 을 정규장 값으로 정정해 daily_prices 의 20:00 마감 캔들 정의와 어긋나므로
+  그 이후 날짜는 fetch_daily_close.py 소관. --force 류 우회 레버 없음.
+  방어 필터로 output2 의 end 초과 row 는 무조건 drop.
 
 incremental
   종목별 MAX(date)+1 ~ end. start > end 면 skip (재실행 no-op).
@@ -42,7 +43,7 @@ from dotenv import load_dotenv
 
 from db import get_connection
 from kis_token import get_token
-from verify_daily_freshness import compute_expected_from_now, load_krx_calendar
+from verify_daily_freshness import compute_expected, load_krx_calendar
 
 load_dotenv()
 
@@ -59,6 +60,8 @@ DAILY_GAP_LIMIT_DAYS = 150
 INITIAL_LOAD_MAX_TICKERS = 10
 KST = timezone(timedelta(hours=9))
 BATCH_SIZE = 200
+# KIS 일봉이 2026-09-14 부터 정규장 값으로 정정되어 20:00 마감 캔들 정의와 불일치.
+KIS_DAILY_LAST_DATE = date(2026, 9, 11)
 
 # ── 로깅 ──────────────────────────────────────────────────
 _log_dir = os.path.join(os.path.dirname(__file__), "logs")
@@ -349,7 +352,10 @@ def main():
         calendar = load_krx_calendar(conn)
     finally:
         conn.close()
-    end = compute_expected_from_now(now_kst, calendar)
+    end = min(
+        compute_expected(now_kst.date() - timedelta(days=1), calendar),
+        KIS_DAILY_LAST_DATE,
+    )
     logger.info(
         "일일 적재 시작 · now(KST)=%s · end 캡=%s",
         now_kst.strftime("%Y-%m-%d %H:%M:%S"), end,
