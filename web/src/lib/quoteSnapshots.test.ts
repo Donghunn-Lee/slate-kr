@@ -4,6 +4,7 @@ import {
   decideSingleSnapshot,
   getSnapshotLookupDate,
   isSnapshotSession,
+  snapshotToNxQuote,
   snapshotToQuote,
 } from "./quoteSnapshots";
 
@@ -42,7 +43,7 @@ describe("snapshotToQuote", () => {
     });
   });
 
-  it("source 는 un 고정 (스냅샷은 UN 단일 축)", () => {
+  it("source 는 un 고정 (UN 축 변환)", () => {
     expect(snapshotToQuote(mkRow({})).source).toBe("un");
     expect(snapshotToQuote(mkRow({ un_change: -100 })).source).toBe("un");
   });
@@ -80,6 +81,47 @@ describe("snapshotToQuote", () => {
 
   it("sign: change=0 → flat", () => {
     expect(snapshotToQuote(mkRow({ un_change: 0 })).sign).toBe("flat");
+  });
+});
+
+// NX 축: nx_change 컬럼이 없어 전일 종가(un_close − un_change) 대비로 재산출.
+describe("snapshotToNxQuote", () => {
+  it("NXT + nx_close 有 → nx 축 StockQuote (change 는 전일 종가 대비 재산출)", () => {
+    // 실측 9/15: UN 최종 체결 250,500(KRX 애프터) vs NX 종가 250,000. 전일 종가 245,000.
+    const q = snapshotToNxQuote(mkRow({
+      un_close: 250500,
+      un_change: 5500,
+      un_change_rate: 2.24,
+      nx_close: 250000,
+      nx_volume: 11_105_431,
+    }));
+    expect(q).toEqual({
+      ticker: "005930",
+      price: 250000,
+      change: 5000,
+      changeRate: (5000 / 245000) * 100,
+      sign: "up",
+      open: 0,
+      high: 0,
+      low: 0,
+      volume: 11_105_431,
+      source: "nx",
+    });
+  });
+
+  it("sign: NX 종가 < 전일 종가 → down, = → flat", () => {
+    expect(snapshotToNxQuote(mkRow({ nx_close: 249000 }))?.sign).toBe("down");
+    expect(snapshotToNxQuote(mkRow({ nx_close: 249500 }))?.sign).toBe("flat");
+  });
+
+  it("비NXT (nx_eligible=false) → null", () => {
+    expect(
+      snapshotToNxQuote(mkRow({ nx_eligible: false, nx_close: null, nx_volume: null })),
+    ).toBeNull();
+  });
+
+  it("NXT 인데 nx_close null → null (UN 축 폴백은 호출측)", () => {
+    expect(snapshotToNxQuote(mkRow({ nx_close: null }))).toBeNull();
   });
 });
 
@@ -125,18 +167,22 @@ describe("decideSingleSnapshot", () => {
   const row = mkRow({});
 
   it("라이브 세션 → fallback (스냅샷 무시)", () => {
-    expect(decideSingleSnapshot("regular", row, true)).toEqual({ kind: "fallback" });
-    expect(decideSingleSnapshot("after", row, true)).toEqual({ kind: "fallback" });
+    expect(decideSingleSnapshot("regular", row, true, null)).toEqual({ kind: "fallback" });
+    expect(decideSingleSnapshot("after", row, true, null)).toEqual({ kind: "fallback" });
+    expect(decideSingleSnapshot("after", row, true, "nxt")).toEqual({ kind: "fallback" });
   });
 
   it("대상 세션 + date 캡처 실패(0 rows) → fallback (기존 KIS 경로)", () => {
-    expect(decideSingleSnapshot("after_close", undefined, false)).toEqual({
+    expect(decideSingleSnapshot("after_close", undefined, false, null)).toEqual({
+      kind: "fallback",
+    });
+    expect(decideSingleSnapshot("after_close", undefined, false, "nxt")).toEqual({
       kind: "fallback",
     });
   });
 
   it("대상 세션 + row hit(NXT) → serve quote (OHL=0)", () => {
-    const d = decideSingleSnapshot("after_close", row, true);
+    const d = decideSingleSnapshot("after_close", row, true, null);
     expect(d.kind).toBe("serve");
     if (d.kind !== "serve") throw new Error();
     expect(d.quote?.price).toBe(255000);
@@ -148,6 +194,7 @@ describe("decideSingleSnapshot", () => {
       "closed",
       mkRow({ nx_eligible: false }),
       true,
+      null,
     );
     expect(d.kind).toBe("serve");
     if (d.kind !== "serve") throw new Error();
@@ -156,9 +203,61 @@ describe("decideSingleSnapshot", () => {
   });
 
   it("대상 세션 + 부분 miss (row 없지만 date 존재) → serve null", () => {
-    expect(decideSingleSnapshot("preopen", undefined, true)).toEqual({
+    expect(decideSingleSnapshot("preopen", undefined, true, null)).toEqual({
       kind: "serve",
       quote: null,
+    });
+    expect(decideSingleSnapshot("preopen", undefined, true, "nxt")).toEqual({
+      kind: "serve",
+      quote: null,
+    });
+  });
+
+  // market=nxt: UN 최종 체결이 KRX 애프터 쪽이면 un_close ≠ nx_close — NXT 탭은 NX 축.
+  describe("market=nxt", () => {
+    const divergedRow = mkRow({ un_close: 250500, un_change: 5500, nx_close: 250000 });
+
+    it("NXT + nx_close 有 → nx 축 serve (price=nx_close, source=nx)", () => {
+      const d = decideSingleSnapshot("after_close", divergedRow, true, "nxt");
+      expect(d.kind).toBe("serve");
+      if (d.kind !== "serve") throw new Error();
+      expect(d.quote?.price).toBe(250000);
+      expect(d.quote?.change).toBe(5000);
+      expect(d.quote?.volume).toBe(11_105_431);
+      expect(d.quote?.source).toBe("nx");
+    });
+
+    it("krx / 미지정 은 같은 row 라도 UN 축 유지", () => {
+      for (const market of ["krx", null] as const) {
+        const d = decideSingleSnapshot("after_close", divergedRow, true, market);
+        if (d.kind !== "serve") throw new Error();
+        expect(d.quote?.price).toBe(250500);
+        expect(d.quote?.source).toBe("un");
+      }
+    });
+
+    it("NXT 인데 nx_close null → UN 축 폴백", () => {
+      const d = decideSingleSnapshot(
+        "closed",
+        mkRow({ un_close: 250500, nx_close: null }),
+        true,
+        "nxt",
+      );
+      if (d.kind !== "serve") throw new Error();
+      expect(d.quote?.price).toBe(250500);
+      expect(d.quote?.source).toBe("un");
+    });
+
+    it("비NXT (nx_eligible=false) → UN 축 (종전과 동일)", () => {
+      const d = decideSingleSnapshot(
+        "preopen",
+        mkRow({ nx_eligible: false, nx_close: null, nx_volume: null }),
+        true,
+        "nxt",
+      );
+      if (d.kind !== "serve") throw new Error();
+      expect(d.quote?.price).toBe(255000);
+      expect(d.quote?.source).toBe("un");
     });
   });
 });

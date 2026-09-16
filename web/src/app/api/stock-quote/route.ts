@@ -48,11 +48,11 @@ export const GET = async (req: NextRequest) => {
     // 오프아워(after_close/closed/preopen) 는 quote_snapshots 서빙 우선.
     // 캡처 실패(date 통째로 없음) 시 KIS 경로로 fallback.
     // 부분 miss (해당 티커만 없음) 는 quote:null 로 서빙 — 클라의 isNxtMiss 판정이
-    // live===null 경로에 의존하므로 UI 무변경. market=nxt 도 이 경로 공유
-    // (스냅샷 un/nx 컬럼이 실측 완전일치).
+    // live===null 경로에 의존하므로 UI 무변경. market=nxt 도 이 경로 공유하되 nx_* 축으로
+    // 서빙 — UN 최종 체결이 KRX 애프터마켓 쪽일 수 있어 NXT 탭은 nx 축.
     if (isSnapshotSession(session)) {
       const { row, dateExists } = await fetchQuoteSnapshot(ticker, now, calendar);
-      const decision = decideSingleSnapshot(session, row, dateExists);
+      const decision = decideSingleSnapshot(session, row, dateExists, market);
       if (decision.kind === "serve") {
         return NextResponse.json({
           quote: decision.quote,
