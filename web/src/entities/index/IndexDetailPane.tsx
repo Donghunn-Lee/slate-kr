@@ -233,9 +233,9 @@ export const IndexDetailPane = ({
 
   // 라벨은 request time 기준: 국내는 client clock 으로 세션 판정, 해외는 quote.time 판정.
   const isKrxRegular = isDomestic && now !== null && getKrxSessionState(now, calendar) === "regular";
-  // 정규장이라도 라이브 값이 없으면(KIS 실패 → EOD 폴백) 장중 라벨·dot 을 붙이지 않는다 —
-  // 셀 fetchedAt 은 실패 시각이라 "장중 · HH:MM" 이 전일 값에 붙어 오표기된다.
-  // 첫 응답 전(로딩)은 장중 유지 — 스켈레톤 위에서 라벨이 전일→장중으로 튀지 않게.
+  // 정규장이라도 라이브 값이 없으면(KIS 실패 → EOD 폴백) 정규장 라벨·dot 을 붙이지 않는다 —
+  // 셀 fetchedAt 은 실패 시각이라 "정규장 · HH:MM" 이 전일 값에 붙어 오표기된다.
+  // 첫 응답 전(로딩)은 정규장 유지 — 스켈레톤 위에서 라벨이 전일→정규장으로 튀지 않게.
   const isKrxLive = isKrxRegular && (isLoading || Boolean(cell?.live));
   // EOD 폴백 캡션은 라이브 소스가 응답한 뒤에만 — 해외는 첫 응답 전에도 SSR 값을 그리므로
   // 캡션을 무조건 붙이면 로드마다 깜빡인다. 국내는 스켈레톤 게이트로 응답 후에만 셀이 생긴다.
@@ -256,13 +256,13 @@ export const IndexDetailPane = ({
   // 개장 전 창은 오늘 거래일 기준가로 리셋된 상태 — 날짜를 오늘로 표기하고
   // 값 출처(전일 종가)는 붙이지 않는다.
   const domesticOpeningLabel = kstToday
-    ? `개장 전 · ${kstToday.slice(5, 7)}.${kstToday.slice(8, 10)}`
-    : "개장 전";
+    ? `개장전 · ${kstToday.slice(5, 7)}.${kstToday.slice(8, 10)}`
+    : "개장전";
   const domesticSourceLabel = domesticSourceIsToday
-    ? "장 마감 · 15:30"
+    ? "정규장 마감 · 15:30"
     : domesticLastCloseDate
       ? `전일 종가 · ${domesticLastCloseDate.slice(5, 7)}.${domesticLastCloseDate.slice(8, 10)}`
-      : "장 마감";
+      : "정규장 마감";
 
   // 해외 표시 상태 판정 (live/closed/eod_only). 시각 포맷은 formatOverseasQuoteTime 재사용.
   const overseasState = !isDomestic
@@ -320,11 +320,11 @@ export const IndexDetailPane = ({
     isOverseasLive && overseasDelayMin !== undefined && overseasDelayMin > 0;
   const referenceLabel = isDomestic
     ? now === null
-      ? "장 마감"
+      ? "정규장 마감"
       : isKrxLive
         ? domesticFetchedAt !== null
-          ? `장중 · ${formatClock(new Date(domesticFetchedAt))}`
-          : "장중"
+          ? `정규장 · ${formatClock(new Date(domesticFetchedAt))}`
+          : "정규장"
         : openingWindow
           ? domesticOpeningLabel
           : domesticSourceLabel

@@ -173,8 +173,8 @@ const formatClock = (d: Date): string =>
 // 마감 라벨 기준일: quote live 존재 시 셀 값은 당일 종가 → 오늘 거래일(getKrxLastCloseDate).
 // live 없이 EOD fallback 으로 강등된 경우엔 셀 값 자체가 전일 → fallback.date 유지.
 // (마감 직후~EOD 적재 전 구간에서 셀 값/기준일 불일치 회피.)
-// 라벨 규칙: 표시 값이 당일 세션 값이면 `장 마감 · 15:30`, 다른 날이면 `전일 종가 · MM.DD`.
-// 개장 전 창은 오늘 거래일 기준가로 리셋된 상태라 `개장 전 · MM.DD` 로 오늘 날짜만
+// 라벨 규칙: 표시 값이 당일 세션 값이면 `정규장 마감 · 15:30`, 다른 날이면 `전일 종가 · MM.DD`.
+// 개장 전 창은 오늘 거래일 기준가로 리셋된 상태라 `개장전 · MM.DD` 로 오늘 날짜만
 // 표기하고 값 출처(전일 종가)는 붙이지 않는다. 종목 헤더(`stockHeaderLabel.ts`) 와
 // MM.DD 포맷 통일.
 // 장중 시각은 클라 시계가 아닌 셀 fetchedAt — 응답이 서버 캐시 히트여도 라벨이
@@ -199,7 +199,7 @@ const MarketStatus = ({
     return (
       <div className="flex items-center gap-1.5 text-body-sm text-muted-foreground">
         <span className="inline-block size-1.5 rounded-full bg-emerald-500" aria-hidden />
-        <span>장중{fetchedAt !== null ? ` · ${formatClock(new Date(fetchedAt))}` : ""}</span>
+        <span>정규장{fetchedAt !== null ? ` · ${formatClock(new Date(fetchedAt))}` : ""}</span>
       </div>
     );
   }
@@ -207,15 +207,15 @@ const MarketStatus = ({
   const sourceIsToday =
     referenceDate !== undefined && kstToday !== null && referenceDate === kstToday;
   const sourceLabel = sourceIsToday
-    ? "장 마감 · 15:30"
+    ? "정규장 마감 · 15:30"
     : referenceDate
       ? `전일 종가 · ${referenceDate.slice(5, 7)}.${referenceDate.slice(8, 10)}`
       : null;
   const text = openingWindow
     ? kstToday
-      ? `개장 전 · ${kstToday.slice(5, 7)}.${kstToday.slice(8, 10)}`
-      : "개장 전"
-    : sourceLabel ?? "장 마감";
+      ? `개장전 · ${kstToday.slice(5, 7)}.${kstToday.slice(8, 10)}`
+      : "개장전"
+    : sourceLabel ?? "정규장 마감";
   return <div className="text-body-sm text-muted-foreground">{text}</div>;
 };
 
