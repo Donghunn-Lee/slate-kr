@@ -2,12 +2,15 @@ import type { ChartBar } from "@/shared/types/quote";
 
 // today-bar 합성용 라이브 quote 필드. IndexQuote/StockQuote 공통 최소 셋.
 // volume 은 종목 quote 만 제공 — 지수 quote 는 undefined.
+// basePrice 는 범례 등락 기준가 — 종목 호출부가 price − change(KIS prdy_vrss 축) 로 채운다.
+// quote 타입엔 없는 이름이라 지수 quote 가 그대로 흘러도 실리지 않는다(직전 close 폴백).
 export type LiveQuoteForMerge = {
   open: number;
   high: number;
   low: number;
   price: number;
   volume?: number;
+  basePrice?: number;
 };
 
 // KIS quote 응답이 세션 시작 전(preopen/비NXT 종목 등) 에 O/H/L 을 문자열 "0" 으로
@@ -62,6 +65,7 @@ export const mergeLiveDayBar = (
     low: quote.low,
     close: quote.price,
     volume: quote.volume ?? preservedVolume,
+    ...(quote.basePrice !== undefined ? { basePrice: quote.basePrice } : {}),
   };
   if (last && last.time === date) return [...eod.slice(0, -1), live];
   return [...eod, live];

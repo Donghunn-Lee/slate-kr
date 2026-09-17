@@ -86,7 +86,8 @@ const barKstMinuteOfDay = (t: number): number => {
 };
 
 // DESC → ASC ChartBar[]. volume 은 histogram 오버레이용 (StockPriceSnapshot.volume 그대로).
-const stockPricesToBars = (prices: StockPriceSnapshot[]): ChartBar[] =>
+// basePrice 는 범례 등락 기준 — null 행(9/13 이전·sdpr=0)은 키를 생략해 직전 close 폴백.
+export const stockPricesToBars = (prices: StockPriceSnapshot[]): ChartBar[] =>
   [...prices]
     .sort((a, b) => (a.date < b.date ? -1 : 1))
     .map((p) => ({
@@ -96,6 +97,7 @@ const stockPricesToBars = (prices: StockPriceSnapshot[]): ChartBar[] =>
       low: p.low,
       close: p.close,
       volume: p.volume,
+      ...(p.basePrice !== null ? { basePrice: p.basePrice } : {}),
     }));
 
 // EOD + 라이브 quote 병합은 shared/utils/mergeLiveDayBar 로 이관 (무효-OHL 도지 게이트 포함).
@@ -232,7 +234,11 @@ export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsPro
     const gatedQuote = isKrxBeforeMarketOpen(quoteData?.session)
       ? null
       : quoteData?.quote ?? null;
-    return mergeLiveDayBar(eod, gatedQuote, quoteData?.date);
+    // 합성봉 등락 기준 = price − change (KIS prdy_vrss 축) — 헤더 등락률과 같은 소스.
+    const liveForMerge = gatedQuote
+      ? { ...gatedQuote, basePrice: gatedQuote.price - gatedQuote.change }
+      : null;
+    return mergeLiveDayBar(eod, liveForMerge, quoteData?.date);
   }, [prices, quoteData]);
 
   const weekBars = useMemo<ChartBar[]>(() => {

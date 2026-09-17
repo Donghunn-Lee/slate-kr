@@ -232,10 +232,15 @@ const formatChangePct = (close: number, prevClose: number | null): string | null
   return `${sign}${pct.toFixed(2)}%`;
 };
 
+// bars[i] 의 범례 등락 기준가. 봉이 basePrice(KRX 기준가) 를 실으면 그것, 없으면 직전 봉
+// close. 첫 봉이 기준가도 없으면 null → 등락률 미표시. 최신봉·hover 5곳이 공유.
+const changeBasis = (bars: readonly ChartBar[], i: number): number | null =>
+  bars[i].basePrice ?? (i > 0 ? bars[i - 1].close : null);
+
 // legend DOM 갱신. bar=null → 텍스트 비움. 등락색은 CHART_THEME up/down 재사용.
 // 숫자 값만 삽입 → XSS 위험 없음.
 // candle: 시 고 저 종 [등락률] [거]. 종가색 = 봉 방향(close ≥ open).
-// line: 종 [등락률] [거]. 종가색 = 전일 대비(prevClose 기준).
+// line: 종 [등락률] [거]. 종가색 = 기준가 대비(prevClose = changeBasis 결과).
 // 거 는 showVolume 일 때만. candle hover 는 volume series join 이라 pane 이 없으면 자연히
 // 비지만, 미호버·line 경로는 바 원본 volume(pane 없는 지수도 0) 을 읽으므로 명시 가드가 필요.
 const paintLegend = (
@@ -853,17 +858,17 @@ export const PriceChart = ({
     // ref 로 innerHTML 직접 갱신 → setState 리렌더 없음.
     let crosshairHandler: ((param: MouseEventParams) => void) | null = null;
     if (showLegend) {
-      const latestPrev = initial.length >= 2 ? initial[initial.length - 2].close : null;
       const latest = initial.length > 0 ? initial[initial.length - 1] : null;
+      const latestPrev = latest ? changeBasis(initial, initial.length - 1) : null;
       paintLegend(legendRef.current, latest, latestPrev, c, precision, seriesKind, showVolume);
       // MA 범례는 실제 그려진 series 목록에서 도출 → config effect 안에서 1회 렌더.
       paintMaLegend(maLegendRef.current, maSeriesList, c);
 
-      // 미호버 fallback (최신봉 + 그 직전봉 close) — 콜백 3곳에서 재사용.
+      // 미호버 fallback (최신봉 + 그 등락 기준가) — 콜백 3곳에서 재사용.
       const paintLatest = () => {
         const cur = barsRef.current;
         const last = cur.length > 0 ? cur[cur.length - 1] : null;
-        const prev = cur.length >= 2 ? cur[cur.length - 2].close : null;
+        const prev = last ? changeBasis(cur, cur.length - 1) : null;
         paintLegend(legendRef.current, last, prev, c, precision, seriesKind, showVolume);
       };
 
@@ -888,7 +893,7 @@ export const PriceChart = ({
           for (let i = 0; i < cur.length; i++) {
             if (timeToKey(cur[i].time) === key) {
               matched = cur[i];
-              prevClose = i > 0 ? cur[i - 1].close : null;
+              prevClose = changeBasis(cur, i);
               break;
             }
           }
@@ -908,13 +913,14 @@ export const PriceChart = ({
         const volData = volumeSeries
           ? (param.seriesData.get(volumeSeries) as HistogramData | undefined)
           : undefined;
-        // barsRef 에서 time 일치 봉의 인덱스 → 직전봉 close.
+        // barsRef 에서 time 일치 봉의 인덱스 → 등락 기준가. candleData 는 lightweight-charts
+        // BarData 라 basePrice 가 없으므로 원본 봉(cur[i]) 에서 읽는다.
         const key = timeToKey(candleData.time);
         const cur = barsRef.current;
         let prevClose: number | null = null;
         for (let i = 0; i < cur.length; i++) {
           if (timeToKey(cur[i].time) === key) {
-            prevClose = i > 0 ? cur[i - 1].close : null;
+            prevClose = changeBasis(cur, i);
             break;
           }
         }
@@ -1081,7 +1087,7 @@ export const PriceChart = ({
     // 미호버 상태에서만 최신 봉으로 갱신 (라이브 tick 반영).
     if (showLegend && !isHoveringRef.current) {
       const last = bars.length > 0 ? bars[bars.length - 1] : null;
-      const prev = bars.length >= 2 ? bars[bars.length - 2].close : null;
+      const prev = last ? changeBasis(bars, bars.length - 1) : null;
       paintLegend(legendRef.current, last, prev, c, precision, seriesKind, showVolume);
     }
   }, [bars, intraday, dimBefore, resolvedTheme, showLegend, showVolume, precision, seriesKind, leftMarginBars]);

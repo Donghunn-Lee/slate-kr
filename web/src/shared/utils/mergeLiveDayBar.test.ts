@@ -87,6 +87,16 @@ describe("mergeLiveDayBar - 정상 quote", () => {
     expect(result[1].volume).toBe(5000);
   });
 
+  // 종목 호출부는 price − change(KIS 기준가 축) 를 basePrice 로 실어 보낸다 — 범례가
+  // 직전 20:00 close 대신 이 값을 등락 기준으로 쓴다. 없으면 키 자체를 생략(폴백).
+  it("quote.basePrice 가 있으면 합성봉에 실리고, 없으면 키가 생략된다", () => {
+    const withBase = mergeLiveDayBar(eod, validQuote({ basePrice: 98 }), "2026-07-21");
+    expect(withBase[2]).toMatchObject({ time: "2026-07-21", close: 102, basePrice: 98 });
+
+    const withoutBase = mergeLiveDayBar(eod, validQuote(), "2026-07-21");
+    expect(withoutBase[2]).not.toHaveProperty("basePrice");
+  });
+
   // IndexChart 는 IndexQuote 를 LiveQuoteForMerge 로 그대로 넘긴다 — 국내 지수 quote 의
   // volume 이 당일 합성봉 히스토그램까지 관통하는 구조적 호환 계약.
   it("IndexQuote 를 그대로 넘기면 volume 이 당일 합성봉에 실린다", () => {

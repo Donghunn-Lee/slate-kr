@@ -87,6 +87,9 @@ export type IndexIntradaySnapshot = {
 // 캔들 차트 렌더링 최소 필드. lightweight-charts의 time은 'YYYY-MM-DD'(BusinessDay)
 // 또는 epoch 초(UTCTimestamp) 둘 다 받으므로 유니온으로 둔다.
 // volume 은 histogram 오버레이 전용. 값이 있는 봉만 그린다 — 결측 봉은 자연 스킵.
+// basePrice 는 범례 등락 기준가(KRX 기준가 = 전일 15:30 종가). 종목 일봉만 싣는다 —
+// 20:00 마감 캔들의 직전 close 는 헤더 기준가와 어긋나기 때문. 없는 봉(지수·주/월봉·
+// 인트라데이·9/13 이전 일봉)은 직전 봉 close 로 폴백.
 export type ChartBar = {
   time: string | number;
   open: number;
@@ -94,4 +97,5 @@ export type ChartBar = {
   low: number;
   close: number;
   volume?: number;
+  basePrice?: number;
 };
