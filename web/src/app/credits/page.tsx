@@ -34,6 +34,18 @@ export default function CreditsPage() {
             종목 시세·분봉은 장중 약 1분 간격으로 갱신됩니다.
           </p>
           <p className="mt-1 text-caption text-muted-foreground">
+            국내 종목 일봉은 거래일 20:12 KST에 하루 1회 갱신됩니다.
+          </p>
+          <p className="mt-1 text-caption text-muted-foreground">
+            일봉은 KRX 애프터마켓 마감(20:00) 기준이며, 고가·저가·종가에 애프터마켓 체결이 포함됩니다.
+          </p>
+          <p className="mt-1 text-caption text-muted-foreground">
+            일봉 거래량은 시간외·대량매매를 포함한 누적치로, 네이버 등 일부 차트와 소수 종목에서 차이가 날 수 있습니다.
+          </p>
+          <p className="mt-1 text-caption text-muted-foreground">
+            등락률은 전일 정규장(15:30) 종가를 기준가로 계산하며, 증권사·네이버 표기와 같은 기준입니다.
+          </p>
+          <p className="mt-1 text-caption text-muted-foreground">
             지수 시세·분봉은 장중 약 1~2분 간격으로 갱신됩니다.
           </p>
           <p className="mt-1 text-caption text-muted-foreground">
