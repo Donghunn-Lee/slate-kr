@@ -7,7 +7,7 @@ import { PriceChange } from "@/shared/components/PriceChange";
 import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
 import type { QuoteMarket } from "@/shared/utils/market";
 import {
-  defaultMarketForSession,
+  DEFAULT_QUOTE_MARKET,
   getKrxLastCloseDate,
   getKrxSessionState,
   getKstDateAndMinutes,
@@ -52,10 +52,8 @@ export const StockHeaderLivePrice = ({
   const calendar = useMarketCalendar();
   const showToggle = nxEligible === true;
 
-  // 마운트 시 클라 세션 1회로 기본 탭 결정 — 이후 세션 전환에도 사용자 선택 유지.
-  const [market, setMarket] = useState<QuoteMarket>(() =>
-    defaultMarketForSession(getKrxSessionState(new Date(), calendar)),
-  );
+  // 기본 탭 KRX — 이후 세션 전환에도 사용자 선택 유지.
+  const [market, setMarket] = useState<QuoteMarket>(DEFAULT_QUOTE_MARKET);
 
   const marketArg: QuoteMarket | undefined = showToggle ? market : undefined;
 
