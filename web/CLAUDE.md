@@ -2,7 +2,7 @@
 
 ---
 
-# CLAUDE.md(v3) — SlateKR
+# CLAUDE.md(v4) — SlateKR
 
 ## 이 프로젝트의 목적
 
@@ -58,16 +58,17 @@ AI 없이도 설득력 있어야 한다. AI는 투자 판단 도구가 아니라
   - placeholder: `$1, $2` (PostgreSQL 스타일)
 - **DB 마이그레이션**: `web/sql/*.sql`에 DDL 추적. Neon 콘솔 수동 적용 (자동 실행 도구 없음)
 - **데이터 수집**: Python (collector/)
-  - 일일: fetch_prices.py (KIS, 국내 종목 EOD) / fetch_index_prices.py (KIS, 국내 지수 4종 EOD)
-    / fetch_overseas_indices.py (KIS, 해외 지수 8종) / verify_daily_freshness.py (적재 검증)
+  - 일일(20:12 KST): fetch_daily_close.py (KIS J 멀티시세, 국내 종목 20:00 캔들 + base_price)
+    / fetch_index_prices.py (KIS, 국내 지수 4종 EOD) / fetch_overseas_indices.py (KIS, 해외 지수 8종)
+    / verify_daily_freshness.py (적재 검증)
   - 인트라데이: fetch_overseas_intraday.py (KIS, 해외 3종 1분봉, 30분 주기, 7일 retention)
   - 스냅샷: fetch_quote_snapshots.py (KIS, 20:10 KST UN/NX 통합 시세)
   - 주간: fetch_stocks.py (FSS) / update_corp_codes.py (DART) / fetch_shares.py (DART)
     / fetch_financials.py (DART)
-  - 백필 전용: backfill_prices.py (pykrx) / backfill_index_prices.py (KRX Marketplace)
-    / backfill_overseas_index_prices.py (KIS)
+  - 백필 전용: fetch_prices.py (KIS 일봉, 2026-09-11 상한) / backfill_prices.py (pykrx, 9/14 이후 갭 채움 소스)
+    / backfill_index_prices.py (KRX Marketplace) / backfill_overseas_index_prices.py (KIS)
   - 토큰: issue_kis_token.py + kis_token.py (공용 헬퍼)
-  - 공통: db.py (Neon 커넥션), 로깅, 에러 격리, incremental update
+  - 공통: db.py (Neon 커넥션), kis_multi.py (멀티시세 청크 호출 + 적재 게이트), 로깅, 에러 격리, incremental update
 - **스케줄링**: GitHub Actions 워크플로우 5개 전부 workflow_dispatch만 사용,
   cron-job.org가 API로 트리거 (schedule 이벤트는 지연/드롭 이슈로 제거)
 - **배포**: Vercel (Next.js) + Neon (PostgreSQL)
@@ -170,7 +171,7 @@ DB / 외부 API
 
 - UI 컴포넌트는 내부 도메인 모델만 받는다. DB Row 타입이나 외부 API 타입을 직접 받지 않는다.
 - 정규화 함수는 순수 함수로 작성한다 (테스트 가능하게).
-- PER/PBR/배당수익률은 DART EPS/BPS + pykrx 종가로 `lib/`에서 query time에 계산한다.
+- PER/PBR/배당수익률은 DART EPS/BPS + daily_prices 종가로 `lib/`에서 query time에 계산한다.
   (pykrx 자체 PER/PBR은 2025년 2월 이후 KRX 구조 변경으로 신뢰 불가)
 
 ### 서버/클라이언트 경계
@@ -197,8 +198,18 @@ DB / 외부 API
 - 시각 표시: `@date-fns/tz` TZDate로 KST 변환 (IANA DB 위임, DST 대응)
 - KIS 토큰: GitHub Actions(kis-token.yml, 12h)가 발급 → Neon `kis_token` 단일행 캐시.
   앱은 `lib/kis-token.ts`에서 모듈 캐시 → Neon(버퍼 600s) → fallback 직접 발급 순
-- EOD 적재: time-cap guard (거래일이고 KST 16:00 이후에만 당일 적재),
-  bypass 레버 없음, write-once 우선
+
+### 종목 EOD 캔들
+
+- `daily_prices` 정의 = KRX 20:00 애프터마켓 마감 캔들 = KIS 일봉 당일 봉(정정 전) = 20:10 J 멀티시세.
+  O 09:00 시가 · H/L/C 애프터 포함 · V 시간외·대량매매 포함 누적
+- 저장 캔들과 헤더 라이브(J quote)는 같은 축. 라이브 병합의 최종 상태 = 저장 행
+- 등락 기준가 `base_price` = KIS `inter2_sdpr`(전일 정규장 15:30 종가, 권리락·병합 조정 반영).
+  9/13 이전 행은 NULL → `COALESCE(base_price, 전일 close)` 폴백. 저장 close 쌍으로 등락을 계산하지 않는다
+- KIS 일봉 D+1 정정본은 정규장(15:30) 정의라 저장 정의와 다름 → 9/14 이후 KIS 일봉 미사용(`fetch_prices` 9/11 상한)
+- pykrx `adjusted=True`(네이버 경로)는 20:00 정의와 일치 → 갭 채움 허용. `adjusted=False`(KRX 경유)만 금지
+- 적재 게이트: 거래일 ∧ KST 20:05 이후. bypass 레버 없음. `prpr == 0`만 스킵, V == 0은 flat 봉
+- 종목 헤더 기본 탭은 KRX(`DEFAULT_QUOTE_MARKET`). 세션별 기본 탭 분기를 만들지 않는다
 
 ### 캐싱
 
@@ -282,8 +293,9 @@ SlateKR의 UI는 "slate(판)" 개념을 기반으로 한다.
 
 ## 데이터 수집 제약
 
-- **pykrx**: 백필 전용. OHLCV만 신뢰 가능 — 시가총액/PER/PBR 함수는
-  2025년 2월 KRX 구조 변경 이후 깨짐. 당일 EOD 적재는 KIS로 이관됨.
+- **pykrx**: 백필·갭 채움 전용. OHLCV만 신뢰 가능 — 시가총액/PER/PBR 함수는 2025년 2월 KRX 구조 변경 이후 깨짐.
+  기본 경로(네이버)는 20:00 캔들 정의라 저장 축과 일치. 네이버 집계 특성상 대량매매 V 미포함·막판 소량 체결 누락으로 소수 종목 편차 있음
+- **KIS 일봉 정정**: D+1 밤(≥21:35 관측)에 C·L이 정규장 정의로 정정됨. 정정 후 `prdy_vrss`도 재계산되므로 정정 판정은 전일 조회값 diff로만 가능
 - **비ZIP DART 응답**: 집합투자증권 등 일부 공시가 ZIP이 아닌 status=014 XML 반환. 제목 키워드로 사전 필터링 불가 → 호출 시점에서 분기 처리.
 - **공시 분류**: 비중요 공시는 `null` 반환. `GENERAL` 같은 포괄 fallback 없음 — 배지는 주가 관련성 신호이므로.
 - **Neon serverless HTTP**: bigint를 string으로 반환 → OID 20 후처리 필요
