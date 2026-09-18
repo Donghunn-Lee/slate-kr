@@ -73,6 +73,10 @@ const HEIGHT_PX_DESKTOP = 140;
 const HEIGHT_PX_MOBILE = 95;
 const FONT_SIZE_MOBILE = 10;
 
+// 기본 top 0.2 는 플롯 상단 1/5 이 빈 행. 2px 선 절반 + 크로스헤어 마커 반경 4 = 5px 을
+// 데스크톱 플롯 높이(112px) 비율로 환산해 상하 대칭 적용 — 극값에서 선·마커가 잘리지 않는 최소.
+const PRICE_SCALE_MARGINS = { top: 0.05, bottom: 0.05 };
+
 // time 은 KST를 UTC로 위장한 epoch 초이므로 getUTC* 가 원래 KST 컴포넌트를 돌려준다.
 // tradingDate 와 직접 비교하도록 'YYYY-MM-DD' 로 맞춘다.
 const kstDateKey = (t: number): string => {
@@ -142,10 +146,11 @@ export const IndexMiniChart = ({
         ...(isMobile ? { rightOffset: 2 } : {}),
       },
       // 모바일 반폭 셀은 가격축 라벨이 값과 시각적으로 인접해 혼선 유발 → 축 숨김.
-      // 현재가는 셀 상단 텍스트로 이미 표시.
-      rightPriceScale: isMobile
-        ? { visible: false }
-        : { borderColor: palette.border },
+      // 현재가는 셀 상단 텍스트로 이미 표시. scaleMargins 는 축이 숨겨져도 플롯 배치에 적용된다.
+      rightPriceScale: {
+        ...(isMobile ? { visible: false } : { borderColor: palette.border }),
+        scaleMargins: PRICE_SCALE_MARGINS,
+      },
       handleScroll: false,
       handleScale: false,
     });
