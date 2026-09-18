@@ -10,6 +10,7 @@ import {
   type AutoscaleInfo,
   type UTCTimestamp,
 } from "lightweight-charts";
+import { INDEX_MINI_MIN_BAR_SPACING } from "@/shared/constants/chart";
 import type { ChartBar } from "@/shared/types/quote";
 
 type IndexSparklineProps = {
@@ -114,7 +115,11 @@ export const IndexSparkline = ({
         horzLines: { visible: false },
       },
       crosshair: { mode: 0, vertLine: { visible: false }, horzLine: { visible: false } },
-      timeScale: { visible: false, borderVisible: false },
+      timeScale: {
+        visible: false,
+        borderVisible: false,
+        minBarSpacing: INDEX_MINI_MIN_BAR_SPACING,
+      },
       rightPriceScale: { visible: false, borderVisible: false },
       leftPriceScale: { visible: false, borderVisible: false },
       handleScroll: false,

@@ -10,7 +10,10 @@ import {
   type AutoscaleInfo,
   type UTCTimestamp,
 } from "lightweight-charts";
-import { crosshairLocalization } from "@/shared/constants/chart";
+import {
+  INDEX_MINI_MIN_BAR_SPACING,
+  crosshairLocalization,
+} from "@/shared/constants/chart";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import type { ChartBar } from "@/shared/types/quote";
 
@@ -134,6 +137,7 @@ export const IndexMiniChart = ({
         borderColor: palette.border,
         timeVisible: true,
         secondsVisible: false,
+        minBarSpacing: INDEX_MINI_MIN_BAR_SPACING,
         // 모바일 반폭 셀에서 마지막 tick(15:30) 이 우측 여백 부족으로 렌더 스킵되어 소폭 여백 확보.
         ...(isMobile ? { rightOffset: 2 } : {}),
       },

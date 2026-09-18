@@ -84,6 +84,12 @@ export const INDEX_END_LABEL_BOUNDARIES: readonly string[] = ["153000"];
 // 홈·Rail mini 차트가 소비하는 인터벌(분). 값 1개 상수로 유지 — 미니 렌더 결정.
 export const INDEX_MINI_INTERVAL_MIN = 1;
 
+// 미니·스파크라인 timeScale.minBarSpacing. fitContent 는 봉 폭을 이 하한으로 클램프한
+// 뒤 우측 끝을 고정하므로, 한 세션(1분 × 390봉)이 플롯 폭 ÷ 하한 을 넘으면 좌측 봉이
+// 잘린다. 기본 0.5 는 반폭 셀 플롯(~130~160px)에서 300봉 남짓만 담는다. 0.2 는 플롯
+// 80px 까지 전 세션을 담는 값.
+export const INDEX_MINI_MIN_BAR_SPACING = 0.2;
+
 // 크로스헤어 시간 라벨 포맷터. intraday(timeVisible)= `MM-DD HH:mm` / EOD= `YYYY-MM-DD`.
 // timestamp 는 국내 KST · 해외 ET 벽시계를 UTC 로 위장한 epoch 초 → getUTC* 로 원본
 // 컴포넌트 복원 (로컬 TZ 변환 금지). 하단 tickMarkFormatter 는 별도 관리.
