@@ -10,7 +10,7 @@ import {
   isKrxMarketOpen,
   type KrxSession,
 } from "@/shared/utils/market";
-import { krxIndexRankingRevalidate } from "@/lib/sessionCache";
+import { krxRankingRevalidate } from "@/lib/sessionCache";
 import {
   RANKING_KIND_IDS,
   type Market,
@@ -99,7 +99,7 @@ const runFetch = async (
 const cacheTag = (key: string, session: KrxSession): string =>
   `market-ranking-${key}-${session}`;
 
-// key × session × krxDate 별 unstable_cache 래퍼 memoize. 활성 세션(regular) 60s / 그 외 3600s.
+// key × session × krxDate 별 unstable_cache 래퍼 memoize. 활성 세션(regular·after·pre) 60s / 그 외 3600s.
 // 세션이 key 축에 있으므로 시장코드(J/NX) 전환에 별도 무효화가 필요 없다.
 // F41(stock-intraday) 패턴 확장: session + tradingDate 를 key 축으로 넣어 세션·일 경계에서 자동 miss.
 // 이전 open/closed 이분 tag 는 tradingDate 부재로 서버 인스턴스가 다음날까지 살 경우
@@ -126,7 +126,7 @@ const getCachedFetcher = (
   const fresh = unstable_cache(
     () => runFetch(kind, session),
     ["market-ranking", key, session, tradingDate],
-    { revalidate: krxIndexRankingRevalidate(session, null), tags: [tag] },
+    { revalidate: krxRankingRevalidate(session), tags: [tag] },
   );
   fetchers.set(mapKey, fresh);
   return { fetcher: fresh, key };

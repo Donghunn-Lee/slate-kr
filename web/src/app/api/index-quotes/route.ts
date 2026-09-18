@@ -10,7 +10,7 @@ import {
   minutesSinceKrxClose,
   type KrxSession,
 } from "@/shared/utils/market";
-import { krxIndexRankingRevalidate } from "@/lib/sessionCache";
+import { krxIndexRevalidate } from "@/lib/sessionCache";
 import {
   DOMESTIC_INDEX_CODES,
   type DomesticIndexCode,
@@ -63,7 +63,7 @@ const getCachedQuote = (
     },
     ["index-quote", code, session, tradingDate],
     {
-      revalidate: krxIndexRankingRevalidate(session, minutesSinceClose),
+      revalidate: krxIndexRevalidate(session, minutesSinceClose),
       tags: [cacheTagOf(code, session)],
     },
   );

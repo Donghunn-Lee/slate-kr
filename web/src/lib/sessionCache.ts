@@ -1,7 +1,8 @@
-import type {
-  GlobalOverseasSession,
-  KrxSession,
-  OverseasIndexSessionState,
+import {
+  isKrxActiveSession,
+  type GlobalOverseasSession,
+  type KrxSession,
+  type OverseasIndexSessionState,
 } from "@/shared/utils/market";
 
 // 마감 후 확정 프린트가 도달할 때까지 짧은 TTL 을 유지할 창의 폭(분).
@@ -15,19 +16,25 @@ const withinSettleWindow = (
   windowMin: number,
 ): boolean => minutesSinceClose !== null && minutesSinceClose < windowMin;
 
-// 지수·랭킹 route 공통 TTL. session·tradingDate 를 cache key 축으로 넣어
+// 지수 route TTL. session·tradingDate 를 cache key 축으로 넣어
 // 세션·일 경계에서 자동 miss 를 보장한 다음, TTL 은 최소한만 남긴다.
 // regular 60s = 클라 폴링(60s) 과 정렬. 그 외 세션은 폴링 없음 → 3600s 로 KIS 부담 최소화.
 // 예외: closed 직후 정산 창(마감 +15분 이내) 은 60s — 확정 프린트가 캐시로 굳는 것 방지.
 // stock-intraday(F41) 는 활성 세션(after/pre) 폴링을 유지하는 별 정책이라
 // 여기 편입하지 않는다 — 각 route 소유.
-export const krxIndexRankingRevalidate = (
+export const krxIndexRevalidate = (
   session: KrxSession,
   minutesSinceClose: number | null,
 ): number => {
   if (session === "regular") return 60;
   return withinSettleWindow(minutesSinceClose, KRX_INDEX_SETTLE_WINDOW_MIN) ? 60 : 3600;
 };
+
+// 순위 route TTL. 지수와 달리 순위는 KRX 애프터마켓(after)·NXT 프리마켓(pre) 에도 체결이
+// 흐르므로 활성 세션 술어를 그대로 TTL 축으로 쓴다 — 클라 폴링(useMarketRanking) 과
+// 같은 술어라 60s 가 폴링 주기와 정렬된다. 그 외 세션은 폴링 없음 → 3600s.
+export const krxRankingRevalidate = (session: KrxSession): number =>
+  isKrxActiveSession(session) ? 60 : 3600;
 
 // 해외 지수 intraday. 라이브 자체가 ~15분 지연 피드라 국내 60s 보다 완만한 120s.
 // closed 는 기본 3600s. 예외: 마감 후 정산 창(마감 +45분, 15분 지연 + 마감 후 프린트
