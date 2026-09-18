@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { normalizeRow } from "./kis-ranking-fetch";
+import { normalizeRow, rankingMarketDiv } from "./kis-ranking-fetch";
 import type { MarketRankingKind } from "@/shared/types/ranking";
+import type { KrxSession } from "@/shared/utils/market";
 
 // 픽스처는 실 KIS 응답 상위 3행에서 발췌.
 
@@ -230,5 +231,18 @@ describe("normalizeRow — top-interest", () => {
     const bad: Record<string, unknown> = { ...rows[0] };
     delete bad.inter_issu_reg_csnu;
     expect(normalizeRow(bad, INTEREST_KIND)).toBeNull();
+  });
+});
+
+// 시장코드 축은 세션 하나로 정해진다 — 4종 TR 모두 NX 를 지원하므로 키별 분기가 없다.
+describe("rankingMarketDiv", () => {
+  it("개장 전(pre·preopen) → NX", () => {
+    expect(rankingMarketDiv("pre")).toBe("NX");
+    expect(rankingMarketDiv("preopen")).toBe("NX");
+  });
+
+  it("regular·after·after_close·closed → J", () => {
+    const sessions: KrxSession[] = ["regular", "after", "after_close", "closed"];
+    for (const s of sessions) expect(rankingMarketDiv(s)).toBe("J");
   });
 });

@@ -5,10 +5,13 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { StockPanel } from "@/entities/stock/StockPanel";
 import { PriceChange } from "@/shared/components/PriceChange";
+import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
 import { formatMarketCap } from "@/shared/format";
+import { useNow } from "@/shared/hooks/useNow";
 import type { PriceSign } from "@/shared/types/quote";
 import type { Market, MarketRankingItem, MarketRankingKind } from "@/shared/types/ranking";
 import { cn } from "@/lib/utils";
+import { resolveRankingCaption } from "./rankingCaption";
 import { Pill } from "./RankingControls";
 import { RankingTabStrip, type RankingTabItem } from "./RankingTabStrip";
 import {
@@ -157,8 +160,11 @@ export const MarketRankingSlate = () => {
     [tabId, market],
   );
 
-  const { items, failed, isLoading, isError, isPlaceholderData } =
+  const { items, failed, session, isLoading, isError, isPlaceholderData } =
     useMarketRanking(kind);
+  const now = useNow();
+  const calendar = useMarketCalendar();
+  const caption = resolveRankingCaption(session, now, calendar);
 
   const rows = items.slice(0, TOP_N);
   const showEmpty = !isLoading && !isError && rows.length === 0;
@@ -167,7 +173,12 @@ export const MarketRankingSlate = () => {
   return (
     <section>
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="text-value font-semibold text-foreground">시장 순위</h2>
+        <div className="flex items-end gap-3">
+          <h2 className="text-value font-semibold text-foreground">시장 순위</h2>
+          {caption !== null && (
+            <div className="text-body-sm text-muted-foreground">{caption}</div>
+          )}
+        </div>
         <div className="flex items-center gap-3">
           {/* rows 는 있지만 route 가 부분 실패 — 표시값이 stale 임을 알리는 유일한 신호. */}
           {failed && rows.length > 0 && (

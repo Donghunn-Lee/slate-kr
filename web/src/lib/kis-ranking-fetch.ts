@@ -5,6 +5,7 @@ import type {
   MarketRankingItem,
   MarketRankingKind,
 } from "@/shared/types/ranking";
+import { isKrxBeforeMarketOpen, type KrxSession } from "@/shared/utils/market";
 
 const BASE_URL = "https://openapi.koreainvestment.com:9443";
 const FLUCTUATION_PATH = "/uapi/domestic-stock/v1/ranking/fluctuation";
@@ -30,6 +31,14 @@ const MARKET_TO_ISCD: Record<Market, string> = {
   kospi: "0001",
   kosdaq: "1001",
 };
+
+// FID_COND_MRKT_DIV_CODE 세션 축. 개장 전(pre·preopen) 은 J 가 무체결이라 등락이 0% 로 굳는다 —
+// NXT 프리마켓이 흐르는 NX 로 두고, 그 외 세션은 KRX 축 J. UN 은 순위 TR 4종이 거부(OPSQ2001).
+// NX 는 4종 TR 모두 J 와 다른 응답을 돌려주지만(실측) NXT 상장 종목만 집계된다.
+type RankingMarketDiv = "J" | "NX";
+
+export const rankingMarketDiv = (session: KrxSession): RankingMarketDiv =>
+  isKrxBeforeMarketOpen(session) ? "NX" : "J";
 
 export type RankingFetchResult =
   | { ok: true; items: MarketRankingItem[] }
@@ -94,8 +103,9 @@ const TopInterestRowSchema = VolumeRowSchema.extend({
 const buildFluctuationParams = (
   direction: "up" | "down",
   market: Market,
+  marketDiv: RankingMarketDiv,
 ): Record<string, string> => ({
-  FID_COND_MRKT_DIV_CODE: "J",
+  FID_COND_MRKT_DIV_CODE: marketDiv,
   FID_COND_SCR_DIV_CODE: "20170",
   FID_INPUT_ISCD: MARKET_TO_ISCD[market],
   FID_RANK_SORT_CLS_CODE: direction === "up" ? "0" : "1",
@@ -114,8 +124,9 @@ const buildFluctuationParams = (
 const buildVolumeParams = (
   by: "volume" | "value",
   market: Market,
+  marketDiv: RankingMarketDiv,
 ): Record<string, string> => ({
-  FID_COND_MRKT_DIV_CODE: "J",
+  FID_COND_MRKT_DIV_CODE: marketDiv,
   FID_COND_SCR_DIV_CODE: "20171",
   FID_INPUT_ISCD: MARKET_TO_ISCD[market],
   FID_DIV_CLS_CODE: "0",
@@ -128,8 +139,11 @@ const buildVolumeParams = (
   FID_INPUT_DATE_1: "",
 });
 
-const buildMarketCapParams = (market: Market): Record<string, string> => ({
-  FID_COND_MRKT_DIV_CODE: "J",
+const buildMarketCapParams = (
+  market: Market,
+  marketDiv: RankingMarketDiv,
+): Record<string, string> => ({
+  FID_COND_MRKT_DIV_CODE: marketDiv,
   FID_COND_SCR_DIV_CODE: "20174",
   FID_DIV_CLS_CODE: "0",
   FID_INPUT_ISCD: MARKET_TO_ISCD[market],
@@ -141,9 +155,12 @@ const buildMarketCapParams = (market: Market): Record<string, string> => ({
 });
 
 // FID_INPUT_ISCD_2 는 이 TR 고정 요구값(000000). 시장 필터는 FID_INPUT_ISCD 재사용.
-const buildTopInterestParams = (market: Market): Record<string, string> => ({
+const buildTopInterestParams = (
+  market: Market,
+  marketDiv: RankingMarketDiv,
+): Record<string, string> => ({
   FID_INPUT_ISCD_2: "000000",
-  FID_COND_MRKT_DIV_CODE: "J",
+  FID_COND_MRKT_DIV_CODE: marketDiv,
   FID_COND_SCR_DIV_CODE: "20180",
   FID_INPUT_ISCD: MARKET_TO_ISCD[market],
   FID_TRGT_CLS_CODE: "0",
@@ -157,32 +174,33 @@ const buildTopInterestParams = (market: Market): Record<string, string> => ({
 
 const resolveRequest = (
   kind: MarketRankingKind,
+  marketDiv: RankingMarketDiv,
 ): { path: string; trId: string; params: Record<string, string> } => {
   if (kind.kind === "fluctuation") {
     return {
       path: FLUCTUATION_PATH,
       trId: TR_ID_FLUCTUATION,
-      params: buildFluctuationParams(kind.direction, kind.market),
+      params: buildFluctuationParams(kind.direction, kind.market, marketDiv),
     };
   }
   if (kind.kind === "volume") {
     return {
       path: VOLUME_PATH,
       trId: TR_ID_VOLUME,
-      params: buildVolumeParams(kind.by, kind.market),
+      params: buildVolumeParams(kind.by, kind.market, marketDiv),
     };
   }
   if (kind.kind === "market-cap") {
     return {
       path: MARKET_CAP_PATH,
       trId: TR_ID_MARKET_CAP,
-      params: buildMarketCapParams(kind.market),
+      params: buildMarketCapParams(kind.market, marketDiv),
     };
   }
   return {
     path: TOP_INTEREST_PATH,
     trId: TR_ID_TOP_INTEREST,
-    params: buildTopInterestParams(kind.market),
+    params: buildTopInterestParams(kind.market, marketDiv),
   };
 };
 
@@ -266,8 +284,10 @@ export const normalizeRow = (
 };
 
 // 1콜당 최대 30행 그대로 반환. slice / 카테고리 라벨링은 상위 계층에서.
+// session 은 시장코드 축(rankingMarketDiv)만 정한다 — 캐시·TTL 은 route 소관.
 export const fetchRanking = async (
   kind: MarketRankingKind,
+  session: KrxSession,
 ): Promise<RankingFetchResult> => {
   const tokenResult = await getKisToken();
   if (!tokenResult.ok) {
@@ -282,7 +302,7 @@ export const fetchRanking = async (
     return { ok: false, error: { kind: "missing_credentials" } };
   }
 
-  const { path, trId, params } = resolveRequest(kind);
+  const { path, trId, params } = resolveRequest(kind, rankingMarketDiv(session));
   const url = new URL(BASE_URL + path);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
 

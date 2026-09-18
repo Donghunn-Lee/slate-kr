@@ -7,7 +7,10 @@ import { RefreshCw, WifiOff } from "lucide-react";
 import type { TickerDisclosureCount } from "@/app/api/disclosures/recent-count/route";
 import { StockPanel } from "@/entities/stock/StockPanel";
 import { cn } from "@/lib/utils";
+import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
+import { useNow } from "@/shared/hooks/useNow";
 import type { Market } from "@/shared/types/ranking";
+import { resolveRankingCaption } from "./rankingCaption";
 import { Pill } from "./RankingControls";
 import { RankingHeader, RankingRow, RankingRowSkeleton } from "./RankingRow";
 import { RankingTabStrip, type RankingTabItem } from "./RankingTabStrip";
@@ -60,12 +63,16 @@ export const RankingView = ({
   const {
     items,
     failed,
+    session,
     isLoading,
     isError,
     isPlaceholderData,
     isFetching,
     refetch,
   } = useMarketRanking(kind);
+  const now = useNow();
+  const calendar = useMarketCalendar();
+  const caption = resolveRankingCaption(session, now, calendar);
 
   const tickersKey = items.map((i) => i.ticker).join(",");
   const disclosureQuery = useQuery<TickerDisclosureCount[]>({
@@ -100,6 +107,11 @@ export const RankingView = ({
             {MARKET_LABEL[m]}
           </Pill>
         ))}
+        {caption !== null && (
+          <span className="ml-auto text-caption text-muted-foreground">
+            {caption}
+          </span>
+        )}
       </div>
       <div className="mb-3 flex items-end gap-3 border-b border-border/60 sm:mb-4">
         <RankingTabStrip
@@ -175,7 +187,7 @@ export const RankingView = ({
 
       {showResults && (
         <p className="mt-3 text-caption text-muted-foreground">
-          KRX 기준 집계 · 관심종목은 KIS 고객 등록 수 기준
+          관심종목은 KIS 고객 등록 수 기준
         </p>
       )}
     </StockPanel>
