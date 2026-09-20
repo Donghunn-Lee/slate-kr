@@ -20,6 +20,12 @@ KIS 다종목 시세(J) → daily_prices 당일 일봉 (20:10 KST 캡처).
   sdpr == 0            → base_price NULL
   prpr − prdy_vrss ≠ sdpr 는 기준가 축 감시용 카운트만 — 적재를 막지 않는다.
 
+기업행위 감시 (#162 F89)
+  base_price / 직전 저장 close 가 CORP_ACTION_RATIO 밖이면 감자·분할·병합 등 기업행위로
+  보고 WARN (corporate action suspected). 과거 봉이 KIS 수정주가 축에서 벗어나므로
+  backfill_prices_kis.py --tickers 로 수동 재적재한다. 적재는 그대로 진행. 직전 행이
+  없는 종목(신규 상장)은 판정 제외.
+
 end 시각 게이트
   거래일 & now_kst ≥ 20:05 만 실행. 그 외 시각·휴장일에 실행되면 skip 후
   정상 종료(exit 0). --force 류 우회 레버 없음.
@@ -106,6 +112,39 @@ def is_base_consistent(j: dict) -> bool:
     )
 
 
+# ── 기업행위 감시 ─────────────────────────────────────────────────────
+# 기준가는 전일 정규장 종가(권리락일은 조정 기준가). 직전 저장 close 대비 이 범위 밖이면
+# 하루 등락(±30%)으로 설명되지 않는 축 변경 = 기업행위 의심.
+CORP_ACTION_RATIO = (0.6, 1.5)
+
+
+def get_prev_closes(cursor, bar_date: date) -> dict[str, int]:
+    """활성 종목별 bar_date 직전 저장 close. 직전 행 없는 종목은 누락.
+    LATERAL + (ticker, date) 인덱스 역방향 LIMIT 1 — DISTINCT ON 은 전체 정렬로 60s 초과."""
+    cursor.execute(
+        """
+        SELECT s.ticker, d.close
+          FROM stocks s
+         CROSS JOIN LATERAL (
+               SELECT close FROM daily_prices
+                WHERE ticker = s.ticker AND date < %s
+                ORDER BY date DESC LIMIT 1
+         ) d
+         WHERE s.is_active = true
+        """,
+        (bar_date,),
+    )
+    return {t: c for t, c in cursor.fetchall() if c}
+
+
+def is_corp_action_suspected(prev_close: int | None, base_price: int | None) -> bool:
+    """base_price / prev_close 가 CORP_ACTION_RATIO 밖. 어느 쪽이든 없으면 False."""
+    if not prev_close or not base_price:
+        return False
+    lo, hi = CORP_ACTION_RATIO
+    return not (lo <= base_price / prev_close <= hi)
+
+
 UPSERT_SQL = """
     INSERT INTO daily_prices (ticker, date, open, high, low, close, volume, base_price)
     VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
@@ -130,12 +169,13 @@ def run(bar_date: date) -> int:
     conn = get_connection()
     cur = conn.cursor()
     tickers = get_active_tickers(cur)
+    prev_closes = get_prev_closes(cur, bar_date)
     token = get_token(conn)
     total = len(tickers)
     logger.info("daily_prices 당일 일봉 적재 시작 · date=%s · 총 %d종목", bar_date, total)
 
     chunk_ok = chunk_err = row_ok = row_flat = row_skip = row_missing = 0
-    base_mismatch = 0
+    base_mismatch = corp_action = 0
     for chunk_idx in range(0, total, CHUNK_SIZE):
         chunk = tickers[chunk_idx: chunk_idx + CHUNK_SIZE]
         j_rows = kis_multi(token, chunk, "J")
@@ -162,6 +202,12 @@ def run(bar_date: date) -> int:
                 row_flat += 1
             if not is_base_consistent(j):
                 base_mismatch += 1
+            if is_corp_action_suspected(prev_closes.get(t), r[7]):
+                corp_action += 1
+                logger.warning(
+                    "corporate action suspected ticker=%s prev_close=%s base_price=%s",
+                    t, prev_closes.get(t), r[7],
+                )
             rows.append(r)
 
         if not rows:
@@ -196,9 +242,10 @@ def run(bar_date: date) -> int:
     conn.close()
     logger.info(
         "완료: 대상=%d · chunks ok=%d err=%d · rows upsert=%d (flat=%d) · "
-        "skip(prpr=0)=%d · 응답 누락=%d · base 불일치(prpr−prdy_vrss≠sdpr)=%d",
+        "skip(prpr=0)=%d · 응답 누락=%d · base 불일치(prpr−prdy_vrss≠sdpr)=%d · "
+        "기업행위 의심=%d",
         total, chunk_ok, chunk_err, row_ok, row_flat, row_skip, row_missing,
-        base_mismatch,
+        base_mismatch, corp_action,
     )
 
     # 대량 upsert 뒤 planner 통계 갱신. 실패는 데이터 적재 성공을 덮으면 안 되므로
