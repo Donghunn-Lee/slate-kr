@@ -19,7 +19,7 @@ import type { ChartBar } from "@/shared/types/quote";
 
 type IndexMiniChartProps = {
   bars: ChartBar[];
-  // 전일 종가 (Slate/Rail 에서 snapshot 첫 봉의 close - change 로 유도).
+  // 전일 종가 (IndexSlate 에서 snapshot 첫 봉의 close - change 로 유도).
   // null 이면 무채색 fallback (신규 지수 등 직전 세션 row 부재).
   prevClose: number | null;
   // useIndexIntraday failed[cellKey] 파생 — bars 는 실패/preopen 모두 [] 이므로 구분 신호 필수.
@@ -44,7 +44,7 @@ type BaselinePalette = {
   flat: { line: string; top: string; bottom: string };
 };
 
-// IndexChart 풀사이즈 · IndexSparkline 과 동일한 up/down hex. baseline 그라데이션:
+// IndexChart 풀사이즈와 동일한 up/down hex. baseline 그라데이션:
 // line 근처 fill1(진함) → baseline 근처 fill2(투명).
 const LIGHT: BaselinePalette = {
   bg: "#ffffff",
@@ -64,17 +64,17 @@ const DARK: BaselinePalette = {
   flat: { line: "#a3a3a3", top: "rgba(163,163,163,0.15)", bottom: "rgba(163,163,163,0)" },
 };
 
-// 전일종가 기준선 색상 — IndexSparkline 과 동일 muted 톤. 축 라벨 없이 대시만.
+// 전일종가 기준선 색상 — 무채색 muted. 축 라벨 없이 대시만.
 const PREV_CLOSE_LINE_LIGHT = "rgba(0,0,0,0.28)";
 const PREV_CLOSE_LINE_DARK = "rgba(255,255,255,0.28)";
 
-// 데스크톱 대비 모바일 차트 높이·폰트 잠정 축소 — 반폭 셀에서 축 라벨의 플롯 잠식 최소화.
-const HEIGHT_PX_DESKTOP = 140;
-const HEIGHT_PX_MOBILE = 95;
+// 높이는 갖지 않는다 — 컨테이너를 100% 채우고(autoSize) 높이 결정은 부모
+// (IndexSlate IndexCell 의 차트 영역 클래스) 한 곳에 둔다.
+// 데스크톱 대비 모바일 폰트 잠정 축소 — 반폭 셀에서 축 라벨의 플롯 잠식 최소화.
 const FONT_SIZE_MOBILE = 10;
 
 // 기본 top 0.2 는 플롯 상단 1/5 이 빈 행. 2px 선 절반 + 크로스헤어 마커 반경 4 = 5px 을
-// 데스크톱 플롯 높이(112px) 비율로 환산해 상하 대칭 적용 — 극값에서 선·마커가 잘리지 않는 최소.
+// 100px 대 플롯 높이 비율로 환산해 상하 대칭 적용 — 극값에서 선·마커가 잘리지 않는 최소.
 const PRICE_SCALE_MARGINS = { top: 0.05, bottom: 0.05 };
 
 // time 은 KST를 UTC로 위장한 epoch 초이므로 getUTC* 가 원래 KST 컴포넌트를 돌려준다.
@@ -97,7 +97,6 @@ export const IndexMiniChart = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const { resolvedTheme } = useTheme();
   const isMobile = useIsMobile();
-  const height = isMobile ? HEIGHT_PX_MOBILE : HEIGHT_PX_DESKTOP;
 
   // 미니는 한 세션(09:00–15:30)만. 축은 거래일 — 서버가 전일 tail 까지 함께 서빙하므로
   // 마지막 봉 날짜로 자르면 개장 전(08:00~09:00)에 전일 세션이 오늘로 오독된다.
@@ -158,7 +157,7 @@ export const IndexMiniChart = ({
     const priceFormat = { type: "price" as const, precision: 2, minMove: 0.01 };
 
     // BaselineSeries: baseValue 기준 위/아래 2색. hasPrevClose 미충족 시 AreaSeries
-    // 무채색 fallback — IndexSparkline · PriceChart 동일 패턴.
+    // 무채색 fallback — PriceChart 동일 패턴.
     const series = hasPrevClose
       ? chart.addSeries(BaselineSeries, {
           baseValue: { type: "price", price: pc },
@@ -201,7 +200,7 @@ export const IndexMiniChart = ({
         })),
     );
 
-    // 전일종가 dashed line — IndexSparkline 과 동일 스타일. 축 라벨 없이 순수 시각 기준선.
+    // 전일종가 dashed line — 큰 차트 스타일 준용. 축 라벨 없이 순수 시각 기준선.
     if (hasPrevClose) {
       series.createPriceLine({
         price: pc,
@@ -240,29 +239,16 @@ export const IndexMiniChart = ({
 
   if (isLoading && sessionBars.length === 0) {
     return (
-      <div
-        className="w-full animate-pulse rounded bg-muted"
-        style={{ height }}
-        aria-hidden
-      />
+      <div className="h-full w-full animate-pulse rounded bg-muted" aria-hidden />
     );
   }
   if (sessionBars.length === 0) {
     return (
-      <div
-        className="flex items-center justify-center text-micro text-muted-foreground"
-        style={{ height }}
-      >
+      <div className="flex h-full items-center justify-center text-micro text-muted-foreground">
         {failed ? "차트를 불러오지 못했어요" : isPreopen ? "개장 전" : "장중 데이터 없음"}
       </div>
     );
   }
 
-  return (
-    <div
-      ref={containerRef}
-      className="w-full overflow-hidden"
-      style={{ height }}
-    />
-  );
+  return <div ref={containerRef} className="h-full w-full overflow-hidden" />;
 };

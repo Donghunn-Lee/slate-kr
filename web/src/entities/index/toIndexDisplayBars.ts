@@ -4,7 +4,7 @@ import type { ChartBar, IndexIntradaySnapshot } from "@/shared/types/quote";
 import { resampleIntradayBars } from "@/shared/utils/resampleIntradayBars";
 import { resampleThenEndLabelBySession } from "@/shared/utils/resampleThenEndLabelBySession";
 
-// snapshot → N분 리샘플 ChartBar[]. Chart 상세 · 홈 mini · sparkline 공용.
+// snapshot → N분 리샘플 ChartBar[]. Chart 상세 · 홈 mini 공용.
 // 국내는 END 라벨로 시프트(15:30 경계), 해외는 KIS HTS 관례에 맞춰 START 라벨 유지.
 export const toIndexDisplayBars = (
   snapshots: readonly IndexIntradaySnapshot[],

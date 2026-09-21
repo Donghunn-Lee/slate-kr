@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { StockPanel } from "@/entities/stock/StockPanel";
@@ -33,7 +33,6 @@ import { buildIndexCell } from "@/shared/utils/buildIndexCell";
 import { cn } from "@/lib/utils";
 import { useIndexQuotes, type IndexCellData } from "./useIndexQuotes";
 import { useIndexIntraday } from "./useIndexIntraday";
-import { MiniIndexCell, MiniIndexCellSkeleton } from "./MiniIndexCell";
 import { OverseasIndexList } from "./OverseasIndexList";
 
 // 가격 span 등락색. flat 은 default foreground 유지 (색 없음) — 무채로 두어
@@ -50,10 +49,30 @@ const signOfChange = (change: number): PriceSign =>
 // 국내 지수 값 포맷 — KRW 소수점 없이 콤마.
 const formatKrw = (v: number): string => v.toLocaleString("ko-KR");
 
-// 국내 live 값 렌더 — 카운트업 애니메이션. 해외는 별도 리스트에서 애니 없이 텍스트로 렌더.
-const renderDomesticLive = (price: number): ReactNode => (
-  <PriceCountUp value={price} />
-);
+// 국내 4셀 DOM 순서. row-major 2×2 라 데스크톱 열 페어(KOSPI/KOSPI200 · KOSDAQ/KOSDAQ150)와
+// 모바일 행 페어(KOSPI/KOSDAQ · KOSPI200/KOSDAQ150)가 같은 순서에서 동시에 성립한다.
+const DOMESTIC_GRID_ORDER: readonly DomesticIndexCode[] = [
+  "KOSPI",
+  "KOSDAQ",
+  "KOSPI200",
+  "KOSDAQ150",
+];
+
+// 국내 2×2 그리드. 십자 구분선은 gap-px 사이로 비치는 그리드 배경 — divide-x/y 는 그리드
+// 마지막 열·행의 바깥 경계에도 선을 긋기 때문에 쓰지 않는다. md:h-full 로 부모(2fr 열)
+// 높이를 받아 grid-rows-2 가 셀에 절반씩 배분한다(<md 는 콘텐츠 높이).
+const DOMESTIC_GRID_CLS =
+  "grid grid-cols-2 grid-rows-2 gap-px bg-border/60 md:h-full";
+
+// 국내 셀 공통 컨테이너 — 실셀·스켈레톤이 공유해 로딩→로드 전환 시 그리드가 흔들리지 않는다.
+// bg-elevated 는 gap-px 구분선이 셀 뒤로 비치지 않게 하는 불투명 바닥(패널 bg 와 동일 토큰).
+const CELL_CLS = "flex flex-col gap-2 bg-elevated px-4 py-3 md:gap-3 md:px-6 md:py-4";
+
+// 차트 영역 높이의 단일 결정점. <md 는 명시 px 하나 — 실기기 조정 시 이 값만 바꾼다.
+// md+ 는 flex-1 로 셀 잔여 높이를 채운다(셀 높이는 grid-rows-2 → 해외 리스트 높이에 종속).
+// relative + 내부 absolute 레이어로 차트를 콘텐츠 흐름에서 떼어낸다 — lightweight-charts 가
+// 자기 px 높이를 DOM 에 쓰므로 흐름에 두면 그 값이 행 높이의 하한이 되어 축소가 막힌다.
+const CHART_AREA_CLS = "relative h-[95px] md:h-auto md:min-h-0 md:flex-1";
 
 type IndexSlateProps = {
   overseasSnapshotsByCode: Record<OverseasIndexCode, IndexDailySnapshot | null>;
@@ -72,7 +91,7 @@ type IndexCellProps = {
 };
 
 const IndexCell = ({ label, cell, bars, prevClose, intradayFailed, intradayLoading, isPreopen, tradingDate }: IndexCellProps) => (
-  <div className="flex flex-col gap-2 px-4 py-3 md:gap-3 md:px-6 md:py-4">
+  <div className={CELL_CLS}>
     <div>
       <div className="text-body font-bold text-muted-foreground">{label}</div>
       {cell.live ? (
@@ -122,44 +141,31 @@ const IndexCell = ({ label, cell, bars, prevClose, intradayFailed, intradayLoadi
         </div>
       )}
     </div>
-    <IndexMiniChart bars={bars} prevClose={prevClose} failed={intradayFailed} isLoading={intradayLoading} isPreopen={isPreopen} tradingDate={tradingDate} />
+    <div className={CHART_AREA_CLS}>
+      <div className="absolute inset-0">
+        <IndexMiniChart bars={bars} prevClose={prevClose} failed={intradayFailed} isLoading={intradayLoading} isPreopen={isPreopen} tradingDate={tradingDate} />
+      </div>
+    </div>
   </div>
 );
 
+// 실셀과 같은 컨테이너·차트 영역 클래스로 로딩→로드 전환 시 셀 높이 점프 방지.
 const CellSkeleton = ({ label }: { label: string }) => (
-  <div className="px-4 py-3 md:px-6 md:py-4">
-    <div className="text-body font-bold text-muted-foreground">{label}</div>
-    <div className="mt-2 h-7 w-24 animate-pulse rounded bg-muted" />
-    <div className="mt-2 h-4 w-32 animate-pulse rounded bg-muted" />
+  <div className={CELL_CLS}>
+    <div>
+      <div className="text-body font-bold text-muted-foreground">{label}</div>
+      <div className="mt-2 h-7 w-24 animate-pulse rounded bg-muted" />
+      <div className="mt-2 h-4 w-32 animate-pulse rounded bg-muted" />
+    </div>
+    <div className={CHART_AREA_CLS} aria-hidden />
   </div>
 );
 
-// 데스크톱 좌측 국내 영역 스켈레톤. 2열 페어(큰 셀 + 미니 셀 수직 스택) × 2.
-// 로드 완료 그리드와 동일한 md:h-full · md:grid-rows-1 로 로딩→로드 전환 시 세로 점프 방지.
-const DesktopDomesticSkeleton = () => (
-  <div className="grid grid-cols-2 divide-x divide-border/60 md:h-full md:grid-rows-1">
-    <div className="flex flex-col divide-y divide-border/60">
-      <CellSkeleton label={INDEX_LABEL.KOSPI} />
-      <MiniIndexCellSkeleton label={INDEX_LABEL.KOSPI200} />
-    </div>
-    <div className="flex flex-col divide-y divide-border/60">
-      <CellSkeleton label={INDEX_LABEL.KOSDAQ} />
-      <MiniIndexCellSkeleton label={INDEX_LABEL.KOSDAQ150} />
-    </div>
-  </div>
-);
-
-// 모바일 2×2 페어 그리드 전용 스켈레톤 — 대형 셀 2 + 미니 셀 2.
-const MobilePairSkeleton = () => (
-  <div className="divide-y divide-border/60 md:hidden">
-    <div className="grid grid-cols-2 divide-x divide-border/60">
-      <CellSkeleton label={INDEX_LABEL.KOSPI} />
-      <CellSkeleton label={INDEX_LABEL.KOSDAQ} />
-    </div>
-    <div className="grid grid-cols-2 divide-x divide-border/60">
-      <MiniIndexCellSkeleton label={INDEX_LABEL.KOSPI200} />
-      <MiniIndexCellSkeleton label={INDEX_LABEL.KOSDAQ150} />
-    </div>
+const DomesticSkeleton = () => (
+  <div className={DOMESTIC_GRID_CLS}>
+    {DOMESTIC_GRID_ORDER.map((code) => (
+      <CellSkeleton key={code} label={INDEX_LABEL[code]} />
+    ))}
   </div>
 );
 
@@ -309,142 +315,38 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
           전체 보기 <ArrowRight className="h-3 w-3" />
         </Link>
       </div>
-      <StockPanel className="p-0">
-        {/* 데스크톱: 좌우 2영역 (국내 2fr : 해외 1fr).
-            outer grid 는 row-stretch(default) 로 좌 2fr 을 우 1fr(해외 리스트) 높이에 맞춘다.
-            좌열 그리드 체인(2fr div → inner grid → 각 col flex-col) 에 md:h-full · md:grid-rows-1
-            로 높이를 전달해야 MiniIndexCell 의 md:flex-1 이 실제 grow 공간을 확보한다. */}
-        <div className="hidden md:grid md:grid-cols-[2fr_1fr] md:divide-x md:divide-border/60">
+      <StockPanel className="overflow-hidden p-0">
+        {/* md+: 좌 국내 2fr : 우 해외 1fr — outer grid 의 row-stretch 로 좌측이 해외 리스트
+            높이에 맞춰지고, md:h-full 체인(2fr div → 2×2 grid)으로 각 셀에 절반씩 전달된다.
+            <md: 국내 2×2 그리드 아래 해외 리스트 스택(divide-y 로 경계).
+            overflow-hidden 은 셀의 불투명 bg 가 패널 라운드 코너를 덮지 않게 한다. */}
+        <div className="divide-y divide-border/60 md:grid md:grid-cols-[2fr_1fr] md:divide-x md:divide-y-0">
           <div className="md:h-full">
             {isError && !data ? (
               <div className="px-6 py-6 text-body text-muted-foreground">
                 지수 시세를 불러오지 못했습니다
               </div>
             ) : isLoading || !data ? (
-              <DesktopDomesticSkeleton />
+              <DomesticSkeleton />
             ) : (
-              <div className="grid grid-cols-2 divide-x divide-border/60 md:h-full md:grid-rows-1">
-                <div className="flex flex-col divide-y divide-border/60">
+              <div className={DOMESTIC_GRID_CLS}>
+                {DOMESTIC_GRID_ORDER.map((code) => (
                   <IndexCell
-                    label={INDEX_LABEL.KOSPI}
-                    cell={cellByCode?.KOSPI ?? data.quotes.KOSPI}
-                    bars={displayByCode.KOSPI.bars}
-                    prevClose={displayByCode.KOSPI.prevClose}
-                    intradayFailed={intraday?.failed.KOSPI ?? false}
+                    key={code}
+                    label={INDEX_LABEL[code]}
+                    cell={cellByCode?.[code] ?? data.quotes[code]}
+                    bars={displayByCode[code].bars}
+                    prevClose={displayByCode[code].prevClose}
+                    intradayFailed={intraday?.failed[code] ?? false}
                     intradayLoading={intradayLoading}
                     isPreopen={beforeOpen}
                     tradingDate={data.date}
                   />
-                  <MiniIndexCell
-                    label={INDEX_LABEL.KOSPI200}
-                    cell={cellByCode?.KOSPI200 ?? data.quotes.KOSPI200}
-                    bars={displayByCode.KOSPI200.bars}
-                    prevClose={displayByCode.KOSPI200.prevClose}
-                    intradayFailed={intraday?.failed.KOSPI200 ?? false}
-                    intradayLoading={intradayLoading}
-                    isPreopen={beforeOpen}
-                    tradingDate={data.date}
-                    formatPrice={formatKrw}
-                    renderLiveValue={renderDomesticLive}
-                    priceClassName="md:text-xl md:font-medium"
-                  />
-                </div>
-                <div className="flex flex-col divide-y divide-border/60">
-                  <IndexCell
-                    label={INDEX_LABEL.KOSDAQ}
-                    cell={cellByCode?.KOSDAQ ?? data.quotes.KOSDAQ}
-                    bars={displayByCode.KOSDAQ.bars}
-                    prevClose={displayByCode.KOSDAQ.prevClose}
-                    intradayFailed={intraday?.failed.KOSDAQ ?? false}
-                    intradayLoading={intradayLoading}
-                    isPreopen={beforeOpen}
-                    tradingDate={data.date}
-                  />
-                  <MiniIndexCell
-                    label={INDEX_LABEL.KOSDAQ150}
-                    cell={cellByCode?.KOSDAQ150 ?? data.quotes.KOSDAQ150}
-                    bars={displayByCode.KOSDAQ150.bars}
-                    prevClose={displayByCode.KOSDAQ150.prevClose}
-                    intradayFailed={intraday?.failed.KOSDAQ150 ?? false}
-                    intradayLoading={intradayLoading}
-                    isPreopen={beforeOpen}
-                    tradingDate={data.date}
-                    formatPrice={formatKrw}
-                    renderLiveValue={renderDomesticLive}
-                    priceClassName="md:text-xl md:font-medium"
-                  />
-                </div>
+                ))}
               </div>
             )}
           </div>
           <OverseasIndexList snapshotsByCode={overseasSnapshotsByCode} />
-        </div>
-        {/* 모바일·태블릿(<md): 국내 2×2 페어 유지, 해외 리스트 하단 스택. */}
-        <div className="divide-y divide-border/60 md:hidden">
-          {isError && !data ? (
-            <div className="px-6 py-6 text-body text-muted-foreground">
-              지수 시세를 불러오지 못했습니다
-            </div>
-          ) : isLoading || !data ? (
-            <MobilePairSkeleton />
-          ) : (
-            <div className="divide-y divide-border/60">
-              <div className="grid grid-cols-2 divide-x divide-border/60">
-                <IndexCell
-                  label={INDEX_LABEL.KOSPI}
-                  cell={cellByCode?.KOSPI ?? data.quotes.KOSPI}
-                  bars={displayByCode.KOSPI.bars}
-                  prevClose={displayByCode.KOSPI.prevClose}
-                  intradayFailed={intraday?.failed.KOSPI ?? false}
-                  intradayLoading={intradayLoading}
-                  isPreopen={beforeOpen}
-                  tradingDate={data.date}
-                />
-                <IndexCell
-                  label={INDEX_LABEL.KOSDAQ}
-                  cell={cellByCode?.KOSDAQ ?? data.quotes.KOSDAQ}
-                  bars={displayByCode.KOSDAQ.bars}
-                  prevClose={displayByCode.KOSDAQ.prevClose}
-                  intradayFailed={intraday?.failed.KOSDAQ ?? false}
-                  intradayLoading={intradayLoading}
-                  isPreopen={beforeOpen}
-                  tradingDate={data.date}
-                />
-              </div>
-              <div className="grid grid-cols-2 divide-x divide-border/60">
-                <MiniIndexCell
-                  label={INDEX_LABEL.KOSPI200}
-                  cell={cellByCode?.KOSPI200 ?? data.quotes.KOSPI200}
-                  bars={displayByCode.KOSPI200.bars}
-                  prevClose={displayByCode.KOSPI200.prevClose}
-                  intradayFailed={intraday?.failed.KOSPI200 ?? false}
-                  intradayLoading={intradayLoading}
-                  isPreopen={beforeOpen}
-                  tradingDate={data.date}
-                  formatPrice={formatKrw}
-                  renderLiveValue={renderDomesticLive}
-                  priceClassName="md:text-xl md:font-medium"
-                />
-                <MiniIndexCell
-                  label={INDEX_LABEL.KOSDAQ150}
-                  cell={cellByCode?.KOSDAQ150 ?? data.quotes.KOSDAQ150}
-                  bars={displayByCode.KOSDAQ150.bars}
-                  prevClose={displayByCode.KOSDAQ150.prevClose}
-                  intradayFailed={intraday?.failed.KOSDAQ150 ?? false}
-                  intradayLoading={intradayLoading}
-                  isPreopen={beforeOpen}
-                  tradingDate={data.date}
-                  formatPrice={formatKrw}
-                  renderLiveValue={renderDomesticLive}
-                  priceClassName="md:text-xl md:font-medium"
-                />
-              </div>
-            </div>
-          )}
-          <OverseasIndexList
-            snapshotsByCode={overseasSnapshotsByCode}
-            twoColumnStacked
-          />
         </div>
       </StockPanel>
     </section>

@@ -14,9 +14,6 @@ import { useOverseasIndexQuotes } from "./useOverseasIndexQuotes";
 type OverseasIndexListProps = {
   // SSR 로 채워지는 해외 EOD 스냅샷. live=null 일 때 fallback 원천.
   snapshotsByCode: Record<OverseasIndexCode, IndexDailySnapshot | null>;
-  // 홈 스택 모드(<md) 전용: 480px 이상에서 미국 4 / 기타 4 로 2단 그리드. 480 미만은 1단.
-  // 데스크톱(md+) 우측 pane 은 폭이 좁아 1단 유지 — 프롭 미전달 시 기존 동작(단일 리스트).
-  twoColumnStacked?: boolean;
 };
 
 const PRICE_SIGN_CLASS: Record<PriceSign, string> = {
@@ -37,10 +34,9 @@ const formatIndexPrice = (v: number): string =>
 
 // 해외 지수 리스트 — 8행. useOverseasIndexQuotes 라이브 우선, null 이면 SSR EOD fallback.
 // 스파크라인 없음 (텍스트만).
-export const OverseasIndexList = ({
-  snapshotsByCode,
-  twoColumnStacked = false,
-}: OverseasIndexListProps) => {
+// 레이아웃은 뷰포트만으로 결정 — 홈 IndexSlate 단일 트리에 한 번 마운트된다.
+// <md 스택: 560px 이상 미국 4 / 기타 4 2단, 미만 1단. md+ 우측 pane 은 폭이 좁아 1단.
+export const OverseasIndexList = ({ snapshotsByCode }: OverseasIndexListProps) => {
   const { data, isPending } = useOverseasIndexQuotes();
 
   const renderRow = (code: OverseasIndexCode) => {
@@ -116,34 +112,25 @@ export const OverseasIndexList = ({
   };
 
   return (
-    <div className={cn("flex flex-col", twoColumnStacked && "pb-2")}>
-      <div
-        className={cn(
-          "flex items-baseline gap-1.5 px-4 pb-1 text-micro uppercase tracking-widest text-muted-foreground md:px-6",
-          // 스택 인스턴스는 상단 국내 미니셀과 리듬 균형 위해 pt 축소.
-          // 데스크톱 pane 은 좌측 IndexCell 상단 정렬 기준 유지.
-          twoColumnStacked ? "pt-2" : "pt-3",
-        )}
-      >
+    <div className="flex flex-col pb-2 md:pb-0">
+      {/* <md 스택은 상단 국내 셀과 리듬 균형 위해 pt 축소. md+ pane 은 좌측 IndexCell
+          상단 정렬 기준 유지. */}
+      <div className="flex items-baseline gap-1.5 px-4 pb-1 pt-2 text-micro uppercase tracking-widest text-muted-foreground md:px-6 md:pt-3">
         <span>해외</span>
       </div>
-      {twoColumnStacked ? (
-        // registry 순서(SPX·.DJI·COMP·NDX / NI225·HSI·SHCOMP·DAX) 그대로 분할.
-        // <560: 세로 스택 — 두 ul 사이 divider 는 outer divide-y 로 연속성 확보.
-        // ≥560: 2단 — outer divide-y 해제 + divide-x 로 컬럼 사이 세로 라인.
-        <div className="grid grid-cols-1 divide-y divide-border/60 min-[560px]:grid-cols-2 min-[560px]:divide-x min-[560px]:divide-y-0">
-          <ul className="divide-y divide-border/60">
-            {OVERSEAS_INDEX_CODES.slice(0, 4).map(renderRow)}
-          </ul>
-          <ul className="divide-y divide-border/60">
-            {OVERSEAS_INDEX_CODES.slice(4).map(renderRow)}
-          </ul>
-        </div>
-      ) : (
+      {/* registry 순서(SPX·.DJI·COMP·NDX / NI225·HSI·SHCOMP·DAX) 그대로 분할.
+          기본(<560 · md+): 세로 스택 — 두 ul 사이 divider 는 outer divide-y 로 연속성 확보.
+          560~md: 2단 — outer divide-y 해제 + divide-x 로 컬럼 사이 세로 라인.
+          max-md 로 감싸 md+ 에서 다시 1단으로 돌아가며, min-[560px] 과 md 의 CSS 순서에
+          기대지 않는다. */}
+      <div className="grid grid-cols-1 divide-y divide-border/60 max-md:min-[560px]:grid-cols-2 max-md:min-[560px]:divide-x max-md:min-[560px]:divide-y-0">
         <ul className="divide-y divide-border/60">
-          {OVERSEAS_INDEX_CODES.map(renderRow)}
+          {OVERSEAS_INDEX_CODES.slice(0, 4).map(renderRow)}
         </ul>
-      )}
+        <ul className="divide-y divide-border/60">
+          {OVERSEAS_INDEX_CODES.slice(4).map(renderRow)}
+        </ul>
+      </div>
     </div>
   );
 };

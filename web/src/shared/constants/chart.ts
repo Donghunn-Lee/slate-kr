@@ -7,7 +7,7 @@ import type { Time } from "lightweight-charts";
 // baseline.{top,bottom}Fill{1,2} — intraday 선차트(BaselineSeries) 영역 그라데이션.
 // fill1(진함) → fill2(옅음) 로 baseline 에 가까워질수록 소멸. 렌더 확인 후 알파 미세조정 여지.
 // neutralLine / neutralTopFill / neutralBottomFill — baseline 개념 부재 뷰(EOD·주·월 선차트) 용
-// AreaSeries 무채색. IndexSparkline flat 톤과 동일 계열. 알파 0.18 → 0.02 그라데이션.
+// AreaSeries 무채색. IndexMiniChart flat 톤과 동일 계열. 알파 0.18 → 0.02 그라데이션.
 // ma[] — 이동평균선 팔레트. period index 로 매핑, 초과 시 modulo 순환. 캔들 red/blue 와
 // 톤 충돌 없이 서로 구분되도록 노랑·보라·청록·주황 계열 (KR 일봉 차트 관행에 근접).
 export const CHART_THEME = {
@@ -84,7 +84,7 @@ export const INDEX_END_LABEL_BOUNDARIES: readonly string[] = ["153000"];
 // 홈·Rail mini 차트가 소비하는 인터벌(분). 값 1개 상수로 유지 — 미니 렌더 결정.
 export const INDEX_MINI_INTERVAL_MIN = 1;
 
-// 미니·스파크라인 timeScale.minBarSpacing. fitContent 는 봉 폭을 이 하한으로 클램프한
+// 미니 차트 timeScale.minBarSpacing. fitContent 는 봉 폭을 이 하한으로 클램프한
 // 뒤 우측 끝을 고정하므로, 한 세션(1분 × 390봉)이 플롯 폭 ÷ 하한 을 넘으면 좌측 봉이
 // 잘린다. 기본 0.5 는 반폭 셀 플롯(~130~160px)에서 300봉 남짓만 담는다. 0.2 는 플롯
 // 80px 까지 전 세션을 담는 값.
