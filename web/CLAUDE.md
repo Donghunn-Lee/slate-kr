@@ -210,7 +210,7 @@ DB / 외부 API
 - KIS 일봉 D+1 정정본은 정규장(15:30) 정의라 저장 정의와 다름 → 9/14 이후 KIS 일봉 미사용(`fetch_prices` 9/11 상한)
 - pykrx `adjusted=True`(네이버 경로)는 20:00 정의와 일치 → 갭 채움 허용. `adjusted=False`(KRX 경유)만 금지
 - 적재 게이트: 거래일 ∧ KST 20:05 이후. bypass 레버 없음. `prpr == 0`만 스킵, V == 0은 flat 봉
-- 종목 헤더 기본 탭은 KRX(`DEFAULT_QUOTE_MARKET`). 세션별 기본 탭 분기를 만들지 않는다
+- 종목 헤더 기본 탭은 `defaultQuoteMarket` 한 곳 — 개장 전 창(08:00~09:00 거래일)만 NXT, 그 외 KRX. 마운트 1회 판정, 렌더마다 재계산하지 않는다(헤더 탭·차트 subscribe 캐시 축 일치)
 
 ### 캐싱
 
