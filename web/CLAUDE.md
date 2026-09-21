@@ -288,8 +288,12 @@ SlateKR의 UI는 "slate(판)" 개념을 기반으로 한다.
 
 - 디자인 작업은 `/styleguide` 페이지의 디자인과 디자인 토큰을 기준으로 한다.
 - 아직 styleguide에 반영되지 않은 디자인 작업은 styleguide 우선 작업을 고려한다.
-- shadcn primitive는 도메인 컴포넌트로 감싸서 사용
-  예: `MetricCard`, `DisclosureCard`, `StockSummaryCard`, `CheckpointBadge`
+- shadcn은 접근성·포커스·키보드 처리가 필요한 상호작용 primitive에만 쓴다.
+  (Dialog · AlertDialog · Popover · Select · Tooltip · Tabs · Calendar · ToggleGroup · Input · Textarea · Button)
+- 패널·카드·배지 같은 표시 컴포넌트는 shadcn을 쓰지 않고 디자인 토큰 기반으로 자체 구현한다.
+- 상호작용 primitive는 도메인 컴포넌트(`features/`·`entities/`) 안에서 소비한다.
+  Button·Pagination처럼 도메인 의미가 없는 범용 액션은 `app/` 라우트에서 직접 써도 된다.
+- 미사용 primitive는 두지 않는다.
 
 ---
 
