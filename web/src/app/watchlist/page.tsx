@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
-import { Settings2 } from "lucide-react";
+import { Clock, Settings2, Star, StickyNote } from "lucide-react";
 import type { TickerPriceSummary } from "@/app/api/prices/route";
 import type { TickerDisclosureCount } from "@/app/api/disclosures/recent-count/route";
 import {
@@ -17,12 +17,35 @@ import { selectMemoItems } from "@/features/memo/store/selectMemoItems";
 import { LIVE_TICKER_LIMIT, useMultiQuote } from "@/features/multi-quote/useMultiQuote";
 import { WatchlistRow, WatchlistRowSkeleton } from "@/entities/watchlist/WatchlistRow";
 import { StockPanel } from "@/entities/stock/StockPanel";
+import { EmptyState } from "@/shared/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import { GroupManagementModal } from "@/features/watchlist/GroupManagementModal";
 import { cn } from "@/lib/utils";
 
 const RECENT_TAB = "recent" as const;
 const MEMO_TAB = "memo" as const;
+
+const FIND_STOCKS_ACTION = { label: "순위에서 종목 찾기", href: "/ranking" };
+
+const EMPTY_STATES = {
+  [RECENT_TAB]: {
+    icon: Clock,
+    title: "아직 조회한 종목이 없습니다",
+    description: "최근 방문한 종목이 여기에 쌓입니다",
+    action: FIND_STOCKS_ACTION,
+  },
+  [MEMO_TAB]: {
+    icon: StickyNote,
+    title: "저장된 메모가 없습니다",
+    description: "종목 상세에서 남긴 메모가 여기에 모입니다",
+  },
+  group: {
+    icon: Star,
+    title: "관심종목이 없습니다",
+    description: "종목 상세에서 별표를 누르면 여기에 담깁니다",
+    action: FIND_STOCKS_ACTION,
+  },
+};
 
 const WatchlistPage = () => {
   const groups = useWatchlistStore((s) => s.groups);
@@ -140,11 +163,7 @@ const WatchlistPage = () => {
         : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
     );
 
-  const emptyMessage = isRecentTab
-    ? "최근 조회한 종목이 없습니다"
-    : isMemoTab
-      ? "메모한 종목이 없습니다"
-      : "이 그룹에 종목이 없습니다";
+  const emptyState = EMPTY_STATES[isRecentTab ? RECENT_TAB : isMemoTab ? MEMO_TAB : "group"];
 
   const currentTabLabel = isRecentTab
     ? "최근 조회"
@@ -245,7 +264,9 @@ const WatchlistPage = () => {
           </header>
 
           {displayItems.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{emptyMessage}</p>
+            <StockPanel variant="plain" className="py-10">
+              <EmptyState {...emptyState} />
+            </StockPanel>
           ) : pricesQuery.isError && countsQuery.isError ? (
             <p className="text-sm text-muted-foreground">
               관심종목 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
