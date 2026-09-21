@@ -7,13 +7,15 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useStockIntraday } from "@/features/stock-intraday/useStockIntraday";
 import { useStockQuote } from "@/features/stock-quote/useStockQuote";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
+import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
 import type { ChartBar, IndexDailySnapshot } from "@/shared/types/quote";
 import type { StockPriceSnapshot } from "@/shared/types/stock";
 import { INTRADAY_PREV_LOOKBACK_BARS } from "@/shared/constants/chart";
 import { dateToKstStartSec } from "@/shared/utils/dateToKstStartSec";
+import type { QuoteMarket } from "@/shared/utils/market";
 import {
-  DEFAULT_QUOTE_MARKET,
   KRX_AFTER_MARKET_START_MINUTES,
+  defaultQuoteMarket,
   isKrxBeforeMarketOpen,
 } from "@/shared/utils/market";
 import { mergeLiveDayBar } from "@/shared/utils/mergeLiveDayBar";
@@ -185,6 +187,7 @@ const MarketScopeBadge = ({ scope }: { scope: MarketScope }) => (
 );
 
 export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsProps) => {
+  const calendar = useMarketCalendar();
   const isMobile = useIsMobile();
   const chartHeight = isMobile ? CHART_HEIGHT_MOBILE : CHART_HEIGHT_DESKTOP;
   // 기본 full/day: 폐장/장전엔 종목 intraday 응답이 완전히 비어 첫인상에 빈 상태를 보게 되므로,
@@ -216,10 +219,13 @@ export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsPro
   }, [granularity]);
 
   // 헤더 폴링과 동일 queryKey 를 subscribe → 네트워크 추가 0.
-  // NXT 취급 종목은 헤더가 시장 축으로 캐시를 분리하므로, 기본 market 을 명시 구독한다.
+  // NXT 취급 종목은 헤더가 시장 축으로 캐시를 분리하므로, 기본 market 을 명시 구독한다 —
+  // 헤더 탭과 같은 마운트 1회 판정(렌더마다 재계산하면 경계 통과 시 헤더 탭과 갈린다).
   // 사용자가 헤더에서 비기본 탭에 머무는 동안 캐시가 갈라져 live merge 는 잠시 정지 —
   // 기본 상태 무손실 우선의 감수 갭.
-  const subscribeMarket = nxEligible === true ? DEFAULT_QUOTE_MARKET : undefined;
+  const [subscribeMarket] = useState<QuoteMarket | undefined>(() =>
+    nxEligible === true ? defaultQuoteMarket(new Date(), calendar) : undefined,
+  );
   const { data: quoteData } = useStockQuote(ticker, {
     subscribeOnly: true,
     market: subscribeMarket,

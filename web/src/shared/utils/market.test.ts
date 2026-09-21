@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { MarketCalendar } from "@/shared/types/marketCalendar";
 import {
+  defaultQuoteMarket,
   getKrxSessionState,
   getKrxTradingDate,
   getGlobalOverseasSessionState,
@@ -710,6 +711,29 @@ describe("isKrxOpeningWindow", () => {
   });
   it("closed → false (주말·공휴일)", () => {
     expect(isKrxOpeningWindow("closed", kst(2026, 7, 26, 8, 55))).toBe(false);
+  });
+});
+
+// 종목 헤더 기본 탭 — isKrxOpeningWindow 를 클라 세션에 얹은 축이라 경계는 그 창(08:00·09:00)과
+// 같고, 휴장일은 세션 closed 로 창 밖.
+describe("defaultQuoteMarket", () => {
+  it("07:59 KST 거래일 → krx (이른 preopen 은 창 밖)", () => {
+    expect(defaultQuoteMarket(kst(2026, 7, 23, 7, 59))).toBe("krx");
+  });
+  it("08:00 KST → nxt (창 시작 경계 포함)", () => {
+    expect(defaultQuoteMarket(kst(2026, 7, 23, 8, 0))).toBe("nxt");
+  });
+  it("08:50 KST → nxt (늦은 preopen 진입)", () => {
+    expect(defaultQuoteMarket(kst(2026, 7, 23, 8, 50))).toBe("nxt");
+  });
+  it("08:59 KST → nxt", () => {
+    expect(defaultQuoteMarket(kst(2026, 7, 23, 8, 59))).toBe("nxt");
+  });
+  it("09:00 KST → krx (정규장 진입)", () => {
+    expect(defaultQuoteMarket(kst(2026, 7, 23, 9, 0))).toBe("krx");
+  });
+  it("휴장일 08:30 KST → krx (closed)", () => {
+    expect(defaultQuoteMarket(kst(2026, 1, 1, 8, 30))).toBe("krx");
   });
 });
 

@@ -7,7 +7,7 @@ import { PriceChange } from "@/shared/components/PriceChange";
 import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
 import type { QuoteMarket } from "@/shared/utils/market";
 import {
-  DEFAULT_QUOTE_MARKET,
+  defaultQuoteMarket,
   getKrxLastCloseDate,
   getKrxSessionState,
   getKstDateAndMinutes,
@@ -52,14 +52,18 @@ export const StockHeaderLivePrice = ({
   const calendar = useMarketCalendar();
   const showToggle = nxEligible === true;
 
-  // 기본 탭 KRX — 이후 세션 전환에도 사용자 선택 유지.
-  const [market, setMarket] = useState<QuoteMarket>(DEFAULT_QUOTE_MARKET);
-
-  const marketArg: QuoteMarket | undefined = showToggle ? market : undefined;
-
   const now = new Date();
   const clientSession = getKrxSessionState(now, calendar);
   const lastCloseDate = getKrxLastCloseDate(now, calendar);
+
+  // 마운트 시 클라 세션 1회로 기본 탭 결정 — 이후 세션 전환에도 사용자 선택 유지.
+  // 토글 없는 종목은 KRX 축이 사실이라 "krx" 고정 — closeDate·카운트업 key 가 market 을
+  // showToggle 게이트 없이 읽는다.
+  const [market, setMarket] = useState<QuoteMarket>(() =>
+    showToggle ? defaultQuoteMarket(now, calendar) : "krx",
+  );
+
+  const marketArg: QuoteMarket | undefined = showToggle ? market : undefined;
   // KRX 탭 라이브 창 = regular + after. after 는 KRX 애프터마켓(16:00~) 체결이 J 로 흐른다.
   const isKrxOffRegular =
     showToggle &&

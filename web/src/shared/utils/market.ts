@@ -73,12 +73,9 @@ export const isKrxMarketOpen = (
   calendar?: MarketCalendar,
 ): boolean => getKrxSessionState(now, calendar) === "regular";
 
-// KRX 정규장 / NXT 확장 세션(프리·애프터) 두 시장 축.
-// 기본 탭은 세션 무관 KRX — 저장 캔들·헤더 라이브(J) 모두 KRX 축. 헤더 탭과 차트
-// subscribe 가 같은 캐시 축을 보도록 이 한 곳에서 결정한다.
+// KRX 정규장 / NXT 확장 세션(프리·애프터) 두 시장 축. 기본 탭은 defaultQuoteMarket —
+// 헤더 탭과 차트 subscribe 가 같은 캐시 축을 보도록 이 한 곳에서 결정한다.
 export type QuoteMarket = "krx" | "nxt";
-
-export const DEFAULT_QUOTE_MARKET: QuoteMarket = "krx";
 
 // 활성 세션 술어 — regular/after/pre 에서 라이브 시세가 흐른다.
 // stock-quote 헤더 폴링(useStockQuote)과 stock-intraday 차트 폴링(useStockIntraday)이
@@ -139,6 +136,17 @@ export const isKrxOpeningWindow = (
   now: Date = new Date(),
   calendar?: MarketCalendar,
 ): boolean => session === "pre" || isKrxLatePreopen(now, calendar);
+
+// 기본 시장 탭 — 개장 전 창(08:00~09:00)은 NXT, 그 외는 KRX(저장 캔들·헤더 라이브(J) 축).
+// 이 창은 NXT 만 체결이 흘러 KRX 탭이 0% 리셋으로 고정되기 때문. 창 판정은 종목 헤더
+// 라벨(openingWindow)과 같은 식 — 클라 세션 + isKrxOpeningWindow.
+export const defaultQuoteMarket = (
+  now: Date,
+  calendar?: MarketCalendar,
+): QuoteMarket =>
+  isKrxOpeningWindow(getKrxSessionState(now, calendar), now, calendar)
+    ? "nxt"
+    : "krx";
 
 // KST 캘린더 일자와 분(0~1439) — 세션 무관, 순수 KST 파싱만.
 export const getKstDateAndMinutes = (
