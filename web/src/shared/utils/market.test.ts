@@ -7,6 +7,7 @@ import {
   getGlobalOverseasSessionState,
   getOverseasIndexSessionState,
   getOverseasIndexTradingDate,
+  getPreviousKrxTradingDate,
   getPreviousOverseasIndexTradingDate,
   getUsSessionState,
   getEtDateAndMinutes,
@@ -761,5 +762,105 @@ describe("getKrxTradingDate — 기준일 축", () => {
   it("토요일 · 휴장일 → 직전 거래일", () => {
     expect(getKrxTradingDate(kst(2026, 7, 25, 10, 0))).toBe("2026-07-24");
     expect(getKrxTradingDate(kst(2026, 1, 1, 8, 30))).toBe("2025-12-31");
+  });
+});
+
+// 세션 경계 — 파일이 정의한 모든 경계 상수에 대해 직전 1분·정각. 모든 창은 [시작, 종료)
+// 반개구간이라 정각은 다음 상태, 직전 1분은 이전 상태. NXT 15:20·15:40 과 KRX 16:00 은
+// 세션 상태를 쪼개지 않는 표시용 상수라 양쪽이 같은 상태여야 한다. 자정은 after_close 가
+// 날짜를 넘겨 이어지는 경계(F14). 2026-07-23 목 기준.
+describe("getKrxSessionState — 경계", () => {
+  it("05:59 KST → after_close (새벽 리셋 직전)", () => {
+    expect(getKrxSessionState(kst(2026, 7, 23, 5, 59))).toBe("after_close");
+  });
+  it("06:00 KST → preopen (새벽 리셋 정각)", () => {
+    expect(getKrxSessionState(kst(2026, 7, 23, 6, 0))).toBe("preopen");
+  });
+  it("07:59 KST → preopen (프리마켓 직전)", () => {
+    expect(getKrxSessionState(kst(2026, 7, 23, 7, 59))).toBe("preopen");
+  });
+  it("08:00 KST → pre (프리마켓 정각)", () => {
+    expect(getKrxSessionState(kst(2026, 7, 23, 8, 0))).toBe("pre");
+  });
+  it("08:49 KST → pre (프리마켓 종료 직전)", () => {
+    expect(getKrxSessionState(kst(2026, 7, 23, 8, 49))).toBe("pre");
+  });
+  it("08:50 KST → preopen (프리마켓 종료 정각, 늦은 preopen)", () => {
+    expect(getKrxSessionState(kst(2026, 7, 23, 8, 50))).toBe("preopen");
+  });
+  it("08:59 KST → preopen (정규장 직전)", () => {
+    expect(getKrxSessionState(kst(2026, 7, 23, 8, 59))).toBe("preopen");
+  });
+  it("09:00 KST → regular (정규장 정각)", () => {
+    expect(getKrxSessionState(kst(2026, 7, 23, 9, 0))).toBe("regular");
+  });
+  it("15:19 KST → regular (NXT 정규장 종료 직전 — 세션 상태 무변화)", () => {
+    expect(getKrxSessionState(kst(2026, 7, 23, 15, 19))).toBe("regular");
+  });
+  it("15:20 KST → regular (NXT 정규장 종료 정각 — 세션 상태 무변화)", () => {
+    expect(getKrxSessionState(kst(2026, 7, 23, 15, 20))).toBe("regular");
+  });
+  it("15:29 KST → regular (정규장 종료 직전)", () => {
+    expect(getKrxSessionState(kst(2026, 7, 23, 15, 29))).toBe("regular");
+  });
+  it("15:30 KST → after (정규장 종료 정각)", () => {
+    expect(getKrxSessionState(kst(2026, 7, 23, 15, 30))).toBe("after");
+  });
+  it("15:39 KST → after (NXT 애프터마켓 시작 직전 — 세션 상태 무변화)", () => {
+    expect(getKrxSessionState(kst(2026, 7, 23, 15, 39))).toBe("after");
+  });
+  it("15:40 KST → after (NXT 애프터마켓 시작 정각 — 세션 상태 무변화)", () => {
+    expect(getKrxSessionState(kst(2026, 7, 23, 15, 40))).toBe("after");
+  });
+  it("15:59 KST → after (KRX 애프터마켓 시작 직전 — 세션 상태 무변화)", () => {
+    expect(getKrxSessionState(kst(2026, 7, 23, 15, 59))).toBe("after");
+  });
+  it("16:00 KST → after (KRX 애프터마켓 시작 정각 — 세션 상태 무변화)", () => {
+    expect(getKrxSessionState(kst(2026, 7, 23, 16, 0))).toBe("after");
+  });
+  it("19:59 KST → after (애프터마켓 종료 직전)", () => {
+    expect(getKrxSessionState(kst(2026, 7, 23, 19, 59))).toBe("after");
+  });
+  it("20:00 KST → after_close (애프터마켓 종료 정각)", () => {
+    expect(getKrxSessionState(kst(2026, 7, 23, 20, 0))).toBe("after_close");
+  });
+  it("23:59 KST → after_close (자정 직전)", () => {
+    expect(getKrxSessionState(kst(2026, 7, 23, 23, 59))).toBe("after_close");
+  });
+  it("00:00 KST 금 → after_close (자정 넘김, 다음 거래일 새벽)", () => {
+    expect(getKrxSessionState(kst(2026, 7, 24, 0, 0))).toBe("after_close");
+  });
+  it("금 23:59 KST → after_close / 토 00:00 KST → closed (자정 넘김이 주말로 떨어짐)", () => {
+    expect(getKrxSessionState(kst(2026, 7, 24, 23, 59))).toBe("after_close");
+    expect(getKrxSessionState(kst(2026, 7, 25, 0, 0))).toBe("closed");
+  });
+  it("휴장일 10:00 KST → closed (2026-01-01 정규장 시간대)", () => {
+    expect(getKrxSessionState(kst(2026, 1, 1, 10, 0))).toBe("closed");
+  });
+});
+
+// intraday 이전 세션 경계용 직전 거래일. 입력일 자체는 거래일 여부와 무관하게 하루 앞에서부터
+// 역방향으로 첫 거래일(주말·휴장 skip). 휴장은 KRX_HOLIDAYS_2026 정적 표 폴백.
+describe("getPreviousKrxTradingDate", () => {
+  it("화~금 → 전일 (2026-07-21 화 ~ 07-24 금)", () => {
+    expect(getPreviousKrxTradingDate("2026-07-21")).toBe("2026-07-20");
+    expect(getPreviousKrxTradingDate("2026-07-22")).toBe("2026-07-21");
+    expect(getPreviousKrxTradingDate("2026-07-23")).toBe("2026-07-22");
+    expect(getPreviousKrxTradingDate("2026-07-24")).toBe("2026-07-23");
+  });
+  it("월 (07-27) → 직전 금요일 (07-24, 주말 skip)", () => {
+    expect(getPreviousKrxTradingDate("2026-07-27")).toBe("2026-07-24");
+  });
+  it("토 (07-25) · 일 (07-26) 입력 → 금요일 (07-24)", () => {
+    expect(getPreviousKrxTradingDate("2026-07-25")).toBe("2026-07-24");
+    expect(getPreviousKrxTradingDate("2026-07-26")).toBe("2026-07-24");
+  });
+  it("추석 연휴 다음 거래일 (09-28 월) → 연휴 전 마지막 거래일 (09-23 수)", () => {
+    // 09-27 일 · 09-26 토 · 09-25 추석 · 09-24 추석 연휴 skip.
+    expect(getPreviousKrxTradingDate("2026-09-28")).toBe("2026-09-23");
+  });
+  it("연초 첫 거래일 (2026-01-02 금) → 2025-12-31 (01-01 신정 skip, 연도 경계)", () => {
+    // 정적 표는 2026 만 담아 2025-12-31 은 거래일로 본다 — getKrxTradingDate 의 동일 케이스와 정합.
+    expect(getPreviousKrxTradingDate("2026-01-02")).toBe("2025-12-31");
   });
 });
