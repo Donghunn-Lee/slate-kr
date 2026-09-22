@@ -1,7 +1,7 @@
 """
 KIS 해외지수 1분봉 → overseas_index_intraday idempotent upsert.
 
-30분 주기 GitHub Actions cron 으로 실행되며, kis_token 테이블의 access_token
+30분 주기 workflow_dispatch(cron-job.org 트리거)로 실행되며, kis_token 테이블의 access_token
 을 read-only 로 사용한다(토큰 발급 책임은 issue_kis_token.py 의 12h cron).
 토큰이 만료된 상태면 이번 실행은 로그 남기고 exit 0 — 다음 cron 이 재시도.
 

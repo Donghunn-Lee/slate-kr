@@ -304,7 +304,7 @@ SlateKR의 UI는 "slate(판)" 개념을 기반으로 한다.
   기본 경로(네이버)는 20:00 캔들 정의라 저장 축과 일치. 네이버 집계 특성상 대량매매 V 미포함·막판 소량 체결 누락으로 소수 종목 편차 있음
 - **KIS 일봉 정정**: D+1 밤(≥21:35 관측)에 C·L이 정규장 정의로 정정됨. 정정 후 `prdy_vrss`도 재계산되므로 정정 판정은 전일 조회값 diff로만 가능
 - **KIS 수정주가**: 감자는 미조정(단일일 ×N 점프 잔존 — KIS 기준 수용). volume도 역보정(분할 ×N / 병합 ÷N)
-- **기업행위 후속**: 20:12 job `corporate action suspected` WARN 시 `backfill_prices_kis.py --tickers` 재실행. f≠1(9/11 이후 이벤트)이면 9/14 이후 구 스케일 행은 수동 UPDATE
+- **기업행위 후속**: 20:12 job `corporate action suspected` WARN 의 `kis_adj=1`(병합·분할)이면 `backfill_prices_kis.py --tickers` 재실행 후 9/14 이후 구 스케일 행은 `web/sql/rescale_corporate_action.sql` 로 수동 rescale. `kis_adj=0`(감자, KIS 미조정)은 손대지 않음
 - **비ZIP DART 응답**: 집합투자증권 등 일부 공시가 ZIP이 아닌 status=014 XML 반환. 제목 키워드로 사전 필터링 불가 → 호출 시점에서 분기 처리.
 - **공시 분류**: 비중요 공시는 `null` 반환. `GENERAL` 같은 포괄 fallback 없음 — 배지는 주가 관련성 신호이므로.
 - **Neon serverless HTTP**: bigint를 string으로 반환 → OID 20 후처리 필요

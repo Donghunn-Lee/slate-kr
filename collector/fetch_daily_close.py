@@ -25,6 +25,10 @@ KIS 다종목 시세(J) → daily_prices 당일 일봉 (20:10 KST 캡처).
   보고 WARN (corporate action suspected). 과거 봉이 KIS 수정주가 축에서 벗어나므로
   backfill_prices_kis.py --tickers 로 수동 재적재한다. 적재는 그대로 진행. 직전 행이
   없는 종목(신규 상장)은 판정 제외.
+  WARN 종목은 KIS 일봉(FHKST03010100 · adj=0) 1콜로 직전 봉이 f 배 조정됐는지 판별해
+  kis_adj 를 같이 남긴다 — 1(병합·분할, KIS 조정): 재적재 + 9/14 이후 행 수동 rescale
+  (web/sql/rescale_corporate_action.sql) / 0(감자, KIS 미조정): 손대지 않음 /
+  ?·unknown: 수동 확인. 판별 실패는 WARN 만, 적재·exit code 무관.
 
 end 시각 게이트
   거래일 & now_kst ≥ 20:05 만 실행. 그 외 시각·휴장일에 실행되면 skip 후
@@ -50,6 +54,7 @@ from datetime import date, datetime, timedelta, timezone
 from dotenv import load_dotenv
 
 from db import get_connection
+from fetch_prices import kis_daily_call, parse_bar
 from kis_multi import CHUNK_SIZE, is_gate_open, kis_multi
 from kis_token import get_token
 from verify_daily_freshness import load_krx_calendar
@@ -61,6 +66,7 @@ KIS_APP_SECRET = os.getenv("KIS_APP_SECRET")
 KST = timezone(timedelta(hours=9))
 
 # ── 로깅 ──────────────────────────────────────────────────────────────
+# fetch_prices import 가 root 를 prices_{날짜}.log 로 잡아 두므로 force 로 교체.
 _log_dir = os.path.join(os.path.dirname(__file__), "logs")
 os.makedirs(_log_dir, exist_ok=True)
 _log_file = os.path.join(
@@ -74,6 +80,7 @@ logging.basicConfig(
         logging.FileHandler(_log_file, encoding="utf-8"),
         logging.StreamHandler(),
     ],
+    force=True,
 )
 logger = logging.getLogger(__name__)
 
@@ -118,15 +125,15 @@ def is_base_consistent(j: dict) -> bool:
 CORP_ACTION_RATIO = (0.6, 1.5)
 
 
-def get_prev_closes(cursor, bar_date: date) -> dict[str, int]:
-    """활성 종목별 bar_date 직전 저장 close. 직전 행 없는 종목은 누락.
+def get_prev_closes(cursor, bar_date: date) -> dict[str, tuple[date, int]]:
+    """활성 종목별 bar_date 직전 저장 봉 (date, close). 직전 행 없는 종목은 누락.
     LATERAL + (ticker, date) 인덱스 역방향 LIMIT 1 — DISTINCT ON 은 전체 정렬로 60s 초과."""
     cursor.execute(
         """
-        SELECT s.ticker, d.close
+        SELECT s.ticker, d.date, d.close
           FROM stocks s
          CROSS JOIN LATERAL (
-               SELECT close FROM daily_prices
+               SELECT date, close FROM daily_prices
                 WHERE ticker = s.ticker AND date < %s
                 ORDER BY date DESC LIMIT 1
          ) d
@@ -134,7 +141,7 @@ def get_prev_closes(cursor, bar_date: date) -> dict[str, int]:
         """,
         (bar_date,),
     )
-    return {t: c for t, c in cursor.fetchall() if c}
+    return {t: (d, c) for t, d, c in cursor.fetchall() if c}
 
 
 def is_corp_action_suspected(prev_close: int | None, base_price: int | None) -> bool:
@@ -143,6 +150,41 @@ def is_corp_action_suspected(prev_close: int | None, base_price: int | None) -> 
         return False
     lo, hi = CORP_ACTION_RATIO
     return not (lo <= base_price / prev_close <= hi)
+
+
+def classify_kis_adj(
+    token: str, ticker: str, prev_date: date, bar_date: date,
+    prev_close: int, base_price: int,
+) -> tuple[str, int | None, str | None]:
+    """WARN 종목의 KIS 수정주가 조정 여부 → (kis_adj, kis_prev_close, reason).
+    KIS 일봉(FHKST03010100 · adj=0, prev_date~bar_date) 의 prev_date 봉 close 가
+      == prev_close                  → "0" (미조정 — 감자. 과거 봉 손대지 않음)
+      ≈ prev_close × f (±max(1, 0.5%)) → "1" (조정 — 병합·분할. 9/14 이후 행 rescale 대상)
+      그 외                          → "?"
+    0.5% 는 KRX 기준가의 호가단위 반올림 흡수용 — 조정(≈f) 과 미조정(≈1) 은 수십 % 차이.
+    콜 실패·봉 부재·예외 → "unknown" + reason. job 을 멈추지 않는다."""
+    f = base_price / prev_close
+    try:
+        raw = kis_daily_call(
+            token, ticker, prev_date.strftime("%Y%m%d"), bar_date.strftime("%Y%m%d")
+        )
+        if raw is None:
+            return "unknown", None, "KIS 호출 실패"
+        # end=prev_date, last=prev_date−1 → parse_bar 필터로 prev_date 봉만 통과.
+        end_iso = prev_date.isoformat()
+        last_iso = (prev_date - timedelta(days=1)).isoformat()
+        bars = [p for p in (parse_bar(r, end_iso, last_iso) for r in raw) if p]
+    except Exception as e:
+        return "unknown", None, f"예외 {e!r}"
+    if not bars:
+        return "unknown", None, "prev_date 봉 부재"
+    kis_prev_close = bars[0][4]
+    if kis_prev_close == prev_close:
+        return "0", kis_prev_close, None
+    expected = prev_close * f
+    if abs(kis_prev_close - expected) <= max(1, 0.005 * expected):
+        return "1", kis_prev_close, None
+    return "?", kis_prev_close, None
 
 
 UPSERT_SQL = """
@@ -176,6 +218,7 @@ def run(bar_date: date) -> int:
 
     chunk_ok = chunk_err = row_ok = row_flat = row_skip = row_missing = 0
     base_mismatch = corp_action = 0
+    kis_adj_counts = {"1": 0, "0": 0, "?": 0, "unknown": 0}
     for chunk_idx in range(0, total, CHUNK_SIZE):
         chunk = tickers[chunk_idx: chunk_idx + CHUNK_SIZE]
         j_rows = kis_multi(token, chunk, "J")
@@ -202,11 +245,18 @@ def run(bar_date: date) -> int:
                 row_flat += 1
             if not is_base_consistent(j):
                 base_mismatch += 1
-            if is_corp_action_suspected(prev_closes.get(t), r[7]):
+            prev_date, prev_close = prev_closes.get(t, (None, None))
+            if is_corp_action_suspected(prev_close, r[7]):
                 corp_action += 1
+                kis_adj, kis_prev_close, reason = classify_kis_adj(
+                    token, t, prev_date, bar_date, prev_close, r[7]
+                )
+                kis_adj_counts[kis_adj] += 1
                 logger.warning(
-                    "corporate action suspected ticker=%s prev_close=%s base_price=%s",
-                    t, prev_closes.get(t), r[7],
+                    "corporate action suspected ticker=%s prev_close=%s base_price=%s "
+                    "f=%.2f kis_adj=%s kis_prev_close=%s%s",
+                    t, prev_close, r[7], r[7] / prev_close, kis_adj, kis_prev_close,
+                    f" reason={reason}" if reason else "",
                 )
             rows.append(r)
 
@@ -243,9 +293,10 @@ def run(bar_date: date) -> int:
     logger.info(
         "완료: 대상=%d · chunks ok=%d err=%d · rows upsert=%d (flat=%d) · "
         "skip(prpr=0)=%d · 응답 누락=%d · base 불일치(prpr−prdy_vrss≠sdpr)=%d · "
-        "기업행위 의심=%d",
+        "기업행위 의심=%d (adj 1=%d 0=%d ?=%d unknown=%d)",
         total, chunk_ok, chunk_err, row_ok, row_flat, row_skip, row_missing,
-        base_mismatch, corp_action,
+        base_mismatch, corp_action, kis_adj_counts["1"], kis_adj_counts["0"],
+        kis_adj_counts["?"], kis_adj_counts["unknown"],
     )
 
     # 대량 upsert 뒤 planner 통계 갱신. 실패는 데이터 적재 성공을 덮으면 안 되므로
