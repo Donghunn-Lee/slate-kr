@@ -6,7 +6,10 @@
 -- 절차: ① 20:12 job 로그(daily_close_{YYYYMMDD}.log)의 corporate action suspected WARN 에서
 --         kis_adj=1 확인 — 0 이면 감자(KIS 미조정)라 손대지 않는다
 --       ② python backfill_prices_kis.py --tickers <ticker>  (≤ 2026-09-11 행 재적재)
---       ③ 아래 UPDATE — <ticker> · <event_date>(WARN 난 거래일) · <factor>(WARN 의 f) 치환
+--       ③ 아래 UPDATE — <ticker> · <event_date>(WARN 난 거래일) · <factor> 치환
+-- <factor> 는 WARN 의 f 를 쓰지 않는다 — 로그가 %.2f 라 반올림되고(2.12 vs 참값 2.1205),
+--   f 는 20:00 종가 기준이라 애프터마켓 체결이 있으면 KIS 정규장 종가와 어긋난다.
+--   ② 재적재 전에 9/11 행에서 KIS 수정 종가 ÷ DB 종가 로 구해 둔다 — 재적재 뒤에는 1.0 이 된다.
 -- volume 은 KIS 역보정 관례(÷factor) — 정지 구간은 0 이라 무관, 실거래 구간이면 volume 행을 추가한다.
 -- 권리락은 전 열 ×factor 가 아니라 실거래 패턴 — 별도 판단.
 
