@@ -84,6 +84,7 @@ AI 없이도 설득력 있어야 한다. AI는 투자 판단 도구가 아니라
 src/
 ├── app/              # 라우트, 레이아웃, loading/error/not-found
 ├── components/
+│   ├── layout/       # Navbar, Footer, BottomTabBar 등 앱 셸
 │   └── ui/           # shadcn 기반 primitive
 ├── features/         # 검색, 관심종목, 지수 quote 등 사용자 액션 중심 기능
 ├── entities/         # stock, disclosure, metric, index 등 도메인 표시 단위
