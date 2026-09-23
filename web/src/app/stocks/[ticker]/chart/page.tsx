@@ -5,6 +5,7 @@ import { getDailyPrices } from "@/lib/prices";
 import { fetchNxEligible } from "@/lib/quote-snapshots";
 import { StockChartTabsDynamic } from "@/entities/stock/StockChartTabsDynamic";
 import { ChartTabsSkeleton } from "@/entities/stock/Skeletons";
+import { SectionError } from "@/entities/stock/SectionError";
 import type { StockPriceSnapshot } from "@/shared/types/stock";
 
 export const revalidate = 3600;
@@ -34,12 +35,7 @@ const ChartTabsSection = async ({ ticker }: { ticker: string }) => {
   }
 
   if (hasError) {
-    return (
-      <>
-        <h2 className="mb-3 text-sm font-semibold text-muted-foreground">가격 차트</h2>
-        <p className="text-sm text-muted-foreground">차트 데이터를 불러오지 못했습니다</p>
-      </>
-    );
+    return <SectionError title="가격 차트" message="차트 데이터를 불러오지 못했습니다" />;
   }
 
   // 차트 subscribeOnly 캐시 키를 헤더 폴링과 정합시키기 위해 nxEligible 을 함께 넘긴다.

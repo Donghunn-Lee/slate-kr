@@ -3,6 +3,7 @@ import { getDailyPrices } from "@/lib/prices";
 import { fetchNxEligible } from "@/lib/quote-snapshots";
 import { StockPanel, type StockPanelVariant } from "./StockPanel";
 import { StockChartDynamic } from "./StockChartDynamic";
+import { SectionError } from "./SectionError";
 
 type StockChartSectionProps = {
   ticker: string;
@@ -31,12 +32,7 @@ export const StockChartSection = async ({
   }
 
   if (hasError) {
-    const errorContent = (
-      <>
-        <h2 className="mb-3 text-sm font-semibold text-muted-foreground">가격 차트</h2>
-        <p className="text-sm text-muted-foreground">차트 데이터를 불러오지 못했습니다</p>
-      </>
-    );
+    const errorContent = <SectionError title="가격 차트" message="차트 데이터를 불러오지 못했습니다" />;
     return interactive ? errorContent : <StockPanel variant={variant}>{errorContent}</StockPanel>;
   }
 
