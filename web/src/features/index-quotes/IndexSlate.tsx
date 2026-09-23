@@ -25,6 +25,8 @@ import { useNow } from "@/shared/hooks/useNow";
 import { useIsBelowMd } from "@/shared/hooks/useIsMobile";
 import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
 import {
+  formatClock,
+  formatMonthDay,
   getKrxLastCloseDate,
   getKstDateAndMinutes,
   isKrxOpeningWindow,
@@ -171,13 +173,6 @@ const DomesticSkeleton = () => (
   </div>
 );
 
-const formatClock = (d: Date): string =>
-  d.toLocaleTimeString("ko-KR", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-
 // 마감 라벨 기준일: quote live 존재 시 셀 값은 당일 종가 → 오늘 거래일(getKrxLastCloseDate).
 // live 없이 EOD fallback 으로 강등된 경우엔 셀 값 자체가 전일 → fallback.date 유지.
 // (마감 직후~EOD 적재 전 구간에서 셀 값/기준일 불일치 회피.)
@@ -217,11 +212,11 @@ const MarketStatus = ({
   const sourceLabel = sourceIsToday
     ? "정규장 마감 · 15:30"
     : referenceDate
-      ? `전일 종가 · ${referenceDate.slice(5, 7)}.${referenceDate.slice(8, 10)}`
+      ? `전일 종가 · ${formatMonthDay(referenceDate)}`
       : null;
   const text = openingWindow
     ? kstToday
-      ? `개장전 · ${kstToday.slice(5, 7)}.${kstToday.slice(8, 10)}`
+      ? `개장전 · ${formatMonthDay(kstToday)}`
       : "개장전"
     : sourceLabel ?? "정규장 마감";
   return <div className="text-body-sm text-muted-foreground">{text}</div>;

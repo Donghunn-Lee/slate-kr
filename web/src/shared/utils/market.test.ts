@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import type { MarketCalendar } from "@/shared/types/marketCalendar";
 import {
   defaultQuoteMarket,
+  formatClock,
+  formatMonthDay,
   getKrxSessionState,
   getKrxTradingDate,
   getGlobalOverseasSessionState,
@@ -862,5 +864,20 @@ describe("getPreviousKrxTradingDate", () => {
   it("연초 첫 거래일 (2026-01-02 금) → 2025-12-31 (01-01 신정 skip, 연도 경계)", () => {
     // 정적 표는 2026 만 담아 2025-12-31 은 거래일로 본다 — getKrxTradingDate 의 동일 케이스와 정합.
     expect(getPreviousKrxTradingDate("2026-01-02")).toBe("2025-12-31");
+  });
+});
+
+describe("formatMonthDay", () => {
+  it("YYYY-MM-DD → MM.DD (선행 0 유지)", () => {
+    expect(formatMonthDay("2026-07-23")).toBe("07.23");
+    expect(formatMonthDay("2026-01-02")).toBe("01.02");
+    expect(formatMonthDay("2025-12-31")).toBe("12.31");
+  });
+});
+
+describe("formatClock", () => {
+  it("로컬 시각 24시간제 HH:MM (선행 0 유지)", () => {
+    expect(formatClock(new Date(2026, 6, 23, 9, 5))).toBe("09:05");
+    expect(formatClock(new Date(2026, 6, 23, 15, 30))).toBe("15:30");
   });
 });

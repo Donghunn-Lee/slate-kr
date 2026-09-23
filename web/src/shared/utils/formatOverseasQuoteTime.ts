@@ -6,6 +6,7 @@ import {
   type OverseasIndexCode,
 } from "@/shared/constants/indices";
 import type { IndexQuote } from "@/shared/types/quote";
+import { formatMonthDay } from "@/shared/utils/market";
 
 const KST_ZONE = "Asia/Seoul";
 
@@ -54,7 +55,7 @@ export const resolveOverseasCloseLabel = (
   const d = Number(sessionDate.slice(8, 10));
   if ([y, mo, d].some((n) => !Number.isFinite(n))) return null;
 
-  const pastLabel = `전일 종가 · ${sessionDate.slice(5, 7)}.${sessionDate.slice(8, 10)}`;
+  const pastLabel = `전일 종가 · ${formatMonthDay(sessionDate)}`;
   // 클라 시계가 서기 전(kstToday=null)엔 today 축이 없어 날짜 표기까지만 확정된다.
   if (kstToday === null) return pastLabel;
 

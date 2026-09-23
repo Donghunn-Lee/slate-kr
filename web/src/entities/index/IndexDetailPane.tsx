@@ -26,6 +26,8 @@ import {
 } from "@/shared/utils/formatOverseasQuoteTime";
 import { resolveOverseasDisplayState } from "@/shared/utils/resolveOverseasDisplayState";
 import {
+  formatClock,
+  formatMonthDay,
   getKrxLastCloseDate,
   getKrxSessionState,
   getKstDateAndMinutes,
@@ -69,13 +71,6 @@ const returnColorClass = (v: number | null): string => {
   if (v < 0) return "text-price-down";
   return "text-price-neutral";
 };
-
-const formatClock = (d: Date): string =>
-  d.toLocaleTimeString("ko-KR", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
 
 type StatCellProps = {
   label: string;
@@ -250,12 +245,12 @@ export const IndexDetailPane = ({
   // 개장 전 창은 오늘 거래일 기준가로 리셋된 상태 — 날짜를 오늘로 표기하고
   // 값 출처(전일 종가)는 붙이지 않는다.
   const domesticOpeningLabel = kstToday
-    ? `개장전 · ${kstToday.slice(5, 7)}.${kstToday.slice(8, 10)}`
+    ? `개장전 · ${formatMonthDay(kstToday)}`
     : "개장전";
   const domesticSourceLabel = domesticSourceIsToday
     ? "정규장 마감 · 15:30"
     : domesticLastCloseDate
-      ? `전일 종가 · ${domesticLastCloseDate.slice(5, 7)}.${domesticLastCloseDate.slice(8, 10)}`
+      ? `전일 종가 · ${formatMonthDay(domesticLastCloseDate)}`
       : "정규장 마감";
 
   // 해외 표시 상태 판정 (live/closed/eod_only). 시각 포맷은 formatOverseasQuoteTime 재사용.

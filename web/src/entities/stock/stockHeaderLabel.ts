@@ -4,6 +4,7 @@ import type { KrxSession, QuoteMarket } from "@/shared/utils/market";
 import {
   NXT_AFTER_MARKET_START_MINUTES,
   NXT_REGULAR_END_MINUTES,
+  formatMonthDay,
   isKrxBeforeMarketOpen,
   isKrxOpeningWindow,
 } from "@/shared/utils/market";
@@ -77,9 +78,8 @@ export type HeaderLabelResult = {
 const ssrRowLabel = (initialDate: string | null, kstToday: string): HeaderLabelResult => {
   if (initialDate === null) return { labelText: "애프터마켓 마감", timeText: "" };
   if (initialDate === kstToday) return { labelText: "애프터마켓 마감", timeText: "20:00" };
-  // "YYYY-MM-DD" → "MM.DD" (직전 거래일 종가 표기)
-  const mmdd = `${initialDate.slice(5, 7)}.${initialDate.slice(8, 10)}`;
-  return { labelText: "전일 종가", timeText: mmdd };
+  // 직전 거래일 종가 표기
+  return { labelText: "전일 종가", timeText: formatMonthDay(initialDate) };
 };
 
 // 종목 헤더 세션 라벨/시각 결정. 라벨 단어는 네이버 증권 구간표를 따른다 —
