@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { useState } from "react";
 import { useStockQuote } from "@/features/stock-quote/useStockQuote";
 import { PriceChange } from "@/shared/components/PriceChange";
+import { StatusBadge } from "@/shared/components/StatusBadge";
 import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
 import type { QuoteMarket } from "@/shared/utils/market";
 import {
@@ -198,9 +199,7 @@ export const StockHeaderLivePrice = ({
           {timeText && <span aria-hidden>·</span>}
           {timeText && <span className="tabular-nums">{timeText}</span>}
           {isFailedQuote && (
-            <span className="rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-micro leading-none text-muted-foreground">
-              일시 지연
-            </span>
+            <StatusBadge label="일시 지연" />
           )}
         </span>
       </div>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { PriceChange } from "@/shared/components/PriceChange";
+import { StatusBadge } from "@/shared/components/StatusBadge";
 import { formatMarketCap } from "@/shared/format";
 import type { LatestPriceSummary } from "@/lib/prices";
 import type { PriceSign } from "@/shared/types/quote";
@@ -109,9 +110,7 @@ const SearchResultRow = ({
         <div className="flex min-w-0 items-center gap-2">
           <span className="truncate text-sm font-semibold text-foreground">{stock.name}</span>
           {isLiveFailed && (
-            <span className="shrink-0 rounded-sm border border-subtle bg-muted px-1 py-0.5 text-[10px] leading-none text-muted-foreground">
-              일시 지연
-            </span>
+            <StatusBadge label="일시 지연" className="shrink-0" />
           )}
         </div>
         <span className="hidden font-mono text-[11px] text-muted-foreground md:block">

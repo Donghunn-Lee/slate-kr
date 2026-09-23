@@ -7,6 +7,7 @@ import type { TickerDisclosureCount, TickerPriceSummary } from "@/shared/types/s
 import type { WatchlistItem } from "@/features/watchlist/store/useWatchlistStore";
 import type { StockQuote } from "@/shared/types/quote";
 import { PriceChange } from "@/shared/components/PriceChange";
+import { StatusBadge } from "@/shared/components/StatusBadge";
 
 type WatchlistRowProps = {
   item: WatchlistItem;
@@ -65,9 +66,7 @@ export const WatchlistRow = ({
             </span>
             <div className="ml-auto flex shrink-0 items-center gap-3">
               {isLiveFailed && (
-                <span className="rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-micro leading-none text-muted-foreground">
-                  일시 지연
-                </span>
+                <StatusBadge label="일시 지연" />
               )}
               {hasMemo && (
                 <div className="flex items-center gap-1.5 text-[11px] leading-none md:text-xs">

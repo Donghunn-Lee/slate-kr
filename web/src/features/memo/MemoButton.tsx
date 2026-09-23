@@ -11,6 +11,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
+import { StatusBadge } from "@/shared/components/StatusBadge";
 import { MAX_MEMO_BODY_LENGTH } from "@/shared/types/memo";
 import { useMemoStore } from "./store/useMemoStore";
 
@@ -127,12 +128,7 @@ export const MemoButton = ({ ticker, name, market }: MemoButtonProps) => {
                   {draft.length}/{MAX_MEMO_BODY_LENGTH}
                 </span>
                 {showSyncBadge && (
-                  <span
-                    title="메모가 이 브라우저에만 저장되어 있어요"
-                    className="rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-micro leading-none text-muted-foreground"
-                  >
-                    서버 저장 안 됨
-                  </span>
+                  <StatusBadge label="서버 저장 안 됨" title="메모가 이 브라우저에만 저장되어 있어요" />
                 )}
               </div>
               <Button

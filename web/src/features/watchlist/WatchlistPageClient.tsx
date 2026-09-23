@@ -17,6 +17,7 @@ import { LIVE_TICKER_LIMIT, useMultiQuote } from "@/features/multi-quote/useMult
 import { WatchlistRow, WatchlistRowSkeleton } from "@/entities/watchlist/WatchlistRow";
 import { StockPanel } from "@/entities/stock/StockPanel";
 import { EmptyState } from "@/shared/components/EmptyState";
+import { StatusBadge } from "@/shared/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { GroupManagementModal } from "@/features/watchlist/GroupManagementModal";
 import { cn } from "@/lib/utils";
@@ -175,12 +176,7 @@ export const WatchlistPageClient = () => {
       <div className="flex items-center gap-2">
         <h1 className="text-xl font-bold sm:text-2xl">관심종목</h1>
         {showSyncBadge && (
-          <span
-            title="관심종목이 이 브라우저에만 저장되어 있어요"
-            className="rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-micro leading-none text-muted-foreground"
-          >
-            서버 저장 안 됨
-          </span>
+          <StatusBadge label="서버 저장 안 됨" title="관심종목이 이 브라우저에만 저장되어 있어요" />
         )}
       </div>
 

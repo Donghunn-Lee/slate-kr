@@ -6,6 +6,7 @@ import { ArrowRight, Star } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { StockPanel } from "@/entities/stock/StockPanel";
 import { PriceChange } from "@/shared/components/PriceChange";
+import { StatusBadge } from "@/shared/components/StatusBadge";
 import { LIVE_TICKER_LIMIT, useMultiQuote } from "@/features/multi-quote/useMultiQuote";
 import { useWatchlistStore, type WatchlistItem } from "./store/useWatchlistStore";
 import type { TickerPriceSummary } from "@/shared/types/stock";
@@ -130,12 +131,7 @@ export const WatchlistPreview = () => {
         <div className="flex min-w-0 items-center gap-2">
           <h2 className="text-value font-semibold text-foreground">내 관심종목</h2>
           {showSyncBadge && (
-            <span
-              title="관심종목이 이 브라우저에만 저장되어 있어요"
-              className="rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-micro leading-none text-muted-foreground"
-            >
-              서버 저장 안 됨
-            </span>
+            <StatusBadge label="서버 저장 안 됨" title="관심종목이 이 브라우저에만 저장되어 있어요" />
           )}
         </div>
         <Link
@@ -225,9 +221,7 @@ export const WatchlistPreview = () => {
                               {item.market}
                             </span>
                             {isLiveFailed && (
-                              <span className="ml-auto shrink-0 rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-[10px] leading-none text-muted-foreground">
-                                일시 지연
-                              </span>
+                              <StatusBadge label="일시 지연" className="ml-auto shrink-0" />
                             )}
                           </div>
                           <div className="flex items-baseline justify-between gap-2">

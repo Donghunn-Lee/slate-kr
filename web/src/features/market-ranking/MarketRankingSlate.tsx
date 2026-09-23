@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { StockPanel } from "@/entities/stock/StockPanel";
 import { PriceChange } from "@/shared/components/PriceChange";
+import { StatusBadge } from "@/shared/components/StatusBadge";
 import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
 import { formatMarketCap } from "@/shared/format";
 import { useNow } from "@/shared/hooks/useNow";
@@ -182,9 +183,7 @@ export const MarketRankingSlate = () => {
         <div className="flex items-center gap-3">
           {/* rows 는 있지만 route 가 부분 실패 — 표시값이 stale 임을 알리는 유일한 신호. */}
           {failed && rows.length > 0 && (
-            <span className="rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-micro leading-none text-muted-foreground">
-              일시 지연
-            </span>
+            <StatusBadge label="일시 지연" />
           )}
           <Link
             href={toRankingHref(tabId, market)}
