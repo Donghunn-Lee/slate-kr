@@ -28,7 +28,7 @@ type IndexMiniChartProps = {
   // bars=[] 로 "장중 데이터 없음" 플래시가 나지 않도록 여기서 국소 placeholder 로 대체.
   isLoading: boolean;
   // 국내 개장 전 창(08:00~09:00) 여부. 빈 empty 문구를 "장중 데이터 없음" 대신
-  // "개장 전" 으로 대체.
+  // "개장전" 으로 대체.
   isPreopen?: boolean;
   // 그릴 세션의 거래일 'YYYY-MM-DD' (KST). 미전달 시 마지막 봉 날짜로 폴백.
   tradingDate?: string;
@@ -245,7 +245,7 @@ export const IndexMiniChart = ({
   if (sessionBars.length === 0) {
     return (
       <div className="flex h-full items-center justify-center text-micro text-muted-foreground">
-        {failed ? "차트를 불러오지 못했어요" : isPreopen ? "개장 전" : "장중 데이터 없음"}
+        {failed ? "차트를 불러오지 못했어요" : isPreopen ? "개장전" : "장중 데이터 없음"}
       </div>
     );
   }

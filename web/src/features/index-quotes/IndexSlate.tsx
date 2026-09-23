@@ -246,7 +246,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
   const calendar = useMarketCalendar();
   // 개장 전 창 판정은 클라 시계 축. now=null(SSR·첫 렌더)은 false 로 흘려 hydration 유지.
   // 창 안의 intraday 는 전일 봉을 서빙하므로 미니차트가 비는 건 DB 0봉일 때뿐 — 그때만
-  // empty 문구를 "장중 데이터 없음" 대신 "개장 전" 으로 대체한다.
+  // empty 문구를 "장중 데이터 없음" 대신 "개장전" 으로 대체한다.
   const openingWindow =
     now !== null && isKrxOpeningWindow(data?.session, now, calendar);
 

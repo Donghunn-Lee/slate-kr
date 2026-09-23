@@ -585,7 +585,7 @@ export const IndexChart = ({
         >
           {!isOverseasIndex &&
           isKrxOpeningWindow(quotesData?.session, new Date(), calendar)
-            ? "개장 전"
+            ? "개장전"
             : "당일 인트라데이 데이터 없음"}
         </div>
       ) : (
