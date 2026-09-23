@@ -3,7 +3,6 @@ import { format } from "date-fns";
 import { pool } from "./db";
 import {
   fetchIndexMinuteBarsRaw,
-  foldPostCloseIndexBars,
   kstToFakeUtcSec,
   toKisDate,
 } from "./kis-quote-fetch";
@@ -15,9 +14,9 @@ import {
   type OverseasIntradayCode,
 } from "@/shared/constants/indices";
 import type { MarketCalendar } from "@/shared/types/marketCalendar";
+import { mergeChartBars } from "@/shared/utils/toEndLabelBars";
 import {
   getKrxTradingDate,
-  getOverseasIndexTradingDate,
   getPreviousKrxTradingDate,
   getPreviousOverseasIndexTradingDate,
 } from "@/shared/utils/market";
@@ -179,6 +178,58 @@ export const mergeIntradayBars = (
   );
 };
 
+// 지수 마감 후 확정 재계산 프린트 접기 — HHMMSS > closeBoundary 인 raw 봉을
+// 그 봉 날짜의 closeBoundary 봉에 흡수(open=선행, close=후행, H/L 극값, vol 합).
+//
+// KIS 발행 규칙(KOSPI/KOSDAQ 실측): 15:30 마감 봉 이후 15:31·15:32 프린트가 나오며
+// 공식 종가는 15:32 프린트에만 확정값으로 담긴다(15:30 raw close 는 소수점 최종 반올림
+// 이전 값이라 어긋난다). 병합 결과 15:30 봉이 close=15:32 값을 상속하고 vol 은 세 행 합.
+//
+// KOSPI200/KOSDAQ150 처럼 15:31+ 프린트가 없는 케이스는 no-op.
+// 해외 지수도 마감 후 프린트가 발생하므로 closeBoundary(HHMMSS)를 지수별 마감
+// 시각으로 호출측에서 명시 전달한다. 경계 판정은 봉 시각의 getUTC* 컴포넌트로
+// 수행 — wall-clock 인코딩(fake-UTC epoch)에 그대로 성립.
+// 순서 유지 (입력 ASC 라면 병합 후에도 배열 인덱스 순서 = ASC).
+export const foldPostCloseIndexBars = (
+  bars: readonly ChartBar[],
+  closeBoundary: string,
+): ChartBar[] => {
+  const hh = Number(closeBoundary.slice(0, 2));
+  const mm = Number(closeBoundary.slice(2, 4));
+  const ss = Number(closeBoundary.slice(4, 6));
+  const closeSecFromBar = (barSec: number): number => {
+    const d = new Date(barSec * 1000);
+    return Math.floor(
+      Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), hh, mm, ss) /
+        1000,
+    );
+  };
+  const buckets = new Map<number, ChartBar>();
+  const stringTimeBars: ChartBar[] = [];
+  const orderKey: (number | string)[] = [];
+  for (const b of bars) {
+    if (typeof b.time !== "number") {
+      stringTimeBars.push(b);
+      orderKey.push(`s${stringTimeBars.length - 1}`);
+      continue;
+    }
+    const closeSec = closeSecFromBar(b.time);
+    const key = b.time > closeSec ? closeSec : b.time;
+    const existing = buckets.get(key);
+    const incoming: ChartBar = { ...b, time: key };
+    if (existing) {
+      buckets.set(key, mergeChartBars(existing, incoming, key));
+    } else {
+      buckets.set(key, incoming);
+      orderKey.push(key);
+    }
+  }
+  return orderKey.map((k) => {
+    if (typeof k === "string") return stringTimeBars[Number(k.slice(1))];
+    return buckets.get(k) as ChartBar;
+  });
+};
+
 // useBarVolume=false: KIS 해외 분봉 volume 은 항상 0 이므로 강제 0.
 // useBarVolume=true: 봉의 volume 을 그대로 전달 (histogram 오버레이).
 export const toIntradaySnapshots = (
@@ -208,14 +259,12 @@ export const toIntradaySnapshots = (
 //   [] 또는 배열 — 정상. degraded (한쪽 실패) 도 성공으로 취급.
 export const getOverseasIndexIntradayPrices = async (
   indexCode: OverseasIntradayCode,
-  tradingDate?: string,
+  tradingDate: string,
 ): Promise<IndexIntradaySnapshot[] | null> => {
   // 캘린더는 모듈 memo — 시그니처로 뚫지 않는다 (route unstable_cache 캐시 키 오염 방지).
   const calendar = await getMarketCalendar();
-  const resolvedTradingDate =
-    tradingDate ?? getOverseasIndexTradingDate(indexCode, new Date(), calendar);
   const [dbBars, liveBars] = await Promise.all([
-    readOverseasIntradayFromDb(indexCode, resolvedTradingDate, calendar),
+    readOverseasIntradayFromDb(indexCode, tradingDate, calendar),
     fetchOverseasIndexIntradayChart(indexCode),
   ]);
 
