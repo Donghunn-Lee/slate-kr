@@ -22,6 +22,7 @@ import {
 } from "@/shared/constants/indices";
 import { INDEX_MINI_INTERVAL_MIN } from "@/shared/constants/chart";
 import { useNow } from "@/shared/hooks/useNow";
+import { useIsBelowMd } from "@/shared/hooks/useIsMobile";
 import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
 import {
   getKrxLastCloseDate,
@@ -87,9 +88,11 @@ type IndexCellProps = {
   isPreopen: boolean;
   // 미니차트가 그릴 거래일 — bars 에 섞인 전일 tail 을 잘라내는 축.
   tradingDate: string;
+  // <md 모바일 레이아웃 여부 — 트리의 md: 분기와 같은 기준으로 미니차트 옵션을 맞춘다.
+  compact: boolean;
 };
 
-const IndexCell = ({ label, cell, bars, prevClose, intradayFailed, intradayLoading, isPreopen, tradingDate }: IndexCellProps) => (
+const IndexCell = ({ label, cell, bars, prevClose, intradayFailed, intradayLoading, isPreopen, tradingDate, compact }: IndexCellProps) => (
   <div className={CELL_CLS}>
     <div>
       <div className="text-body font-bold text-muted-foreground">{label}</div>
@@ -142,7 +145,7 @@ const IndexCell = ({ label, cell, bars, prevClose, intradayFailed, intradayLoadi
     </div>
     <div className={CHART_AREA_CLS}>
       <div className="absolute inset-0">
-        <IndexMiniChart bars={bars} prevClose={prevClose} failed={intradayFailed} isLoading={intradayLoading} isPreopen={isPreopen} tradingDate={tradingDate} />
+        <IndexMiniChart bars={bars} prevClose={prevClose} failed={intradayFailed} isLoading={intradayLoading} isPreopen={isPreopen} tradingDate={tradingDate} compact={compact} />
       </div>
     </div>
   </div>
@@ -244,6 +247,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
   const { data: intraday, isLoading: intradayLoading } = useIndexIntraday();
   const now = useNow();
   const calendar = useMarketCalendar();
+  const compact = useIsBelowMd();
   // 개장 전 창 판정은 클라 시계 축. now=null(SSR·첫 렌더)은 false 로 흘려 hydration 유지.
   // 창 안의 intraday 는 전일 봉을 서빙하므로 미니차트가 비는 건 DB 0봉일 때뿐 — 그때만
   // empty 문구를 "장중 데이터 없음" 대신 "개장전" 으로 대체한다.
@@ -339,6 +343,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                     intradayLoading={intradayLoading}
                     isPreopen={openingWindow}
                     tradingDate={data.date}
+                    compact={compact}
                   />
                 ))}
               </div>

@@ -14,7 +14,6 @@ import {
   INDEX_MINI_MIN_BAR_SPACING,
   crosshairLocalization,
 } from "@/shared/constants/chart";
-import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import type { ChartBar } from "@/shared/types/quote";
 
 type IndexMiniChartProps = {
@@ -32,6 +31,8 @@ type IndexMiniChartProps = {
   isPreopen?: boolean;
   // 그릴 세션의 거래일 'YYYY-MM-DD' (KST). 미전달 시 마지막 봉 날짜로 폴백.
   tradingDate?: string;
+  // 부모 트리의 모바일 레이아웃(<md) 여부 — 축·폰트 축소를 레이아웃 분기점과 맞춘다.
+  compact: boolean;
 };
 
 type BaselinePalette = {
@@ -93,10 +94,10 @@ export const IndexMiniChart = ({
   isLoading,
   isPreopen = false,
   tradingDate,
+  compact,
 }: IndexMiniChartProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { resolvedTheme } = useTheme();
-  const isMobile = useIsMobile();
 
   // 미니는 한 세션(09:00–15:30)만. 축은 거래일 — 서버가 전일 tail 까지 함께 서빙하므로
   // 마지막 봉 날짜로 자르면 개장 전(08:00~09:00)에 전일 세션이 오늘로 오독된다.
@@ -126,7 +127,7 @@ export const IndexMiniChart = ({
         textColor: palette.text,
         fontFamily: "SUIT Variable, sans-serif",
         // 모바일 반폭 셀에서 가격축·시간축 라벨 폭·높이 축소.
-        ...(isMobile ? { fontSize: FONT_SIZE_MOBILE } : {}),
+        ...(compact ? { fontSize: FONT_SIZE_MOBILE } : {}),
         attributionLogo: false,
       },
       grid: {
@@ -142,12 +143,12 @@ export const IndexMiniChart = ({
         secondsVisible: false,
         minBarSpacing: INDEX_MINI_MIN_BAR_SPACING,
         // 모바일 반폭 셀에서 마지막 tick(15:30) 이 우측 여백 부족으로 렌더 스킵되어 소폭 여백 확보.
-        ...(isMobile ? { rightOffset: 2 } : {}),
+        ...(compact ? { rightOffset: 2 } : {}),
       },
       // 모바일 반폭 셀은 가격축 라벨이 값과 시각적으로 인접해 혼선 유발 → 축 숨김.
       // 현재가는 셀 상단 텍스트로 이미 표시. scaleMargins 는 축이 숨겨져도 플롯 배치에 적용된다.
       rightPriceScale: {
-        ...(isMobile ? { visible: false } : { borderColor: palette.border }),
+        ...(compact ? { visible: false } : { borderColor: palette.border }),
         scaleMargins: PRICE_SCALE_MARGINS,
       },
       handleScroll: false,
@@ -235,7 +236,7 @@ export const IndexMiniChart = ({
       if (rafId) cancelAnimationFrame(rafId);
       chart.remove();
     };
-  }, [sessionBars, prevClose, resolvedTheme, isMobile]);
+  }, [sessionBars, prevClose, resolvedTheme, compact]);
 
   if (isLoading && sessionBars.length === 0) {
     return (
