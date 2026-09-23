@@ -26,7 +26,6 @@ import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
 import {
   getKrxLastCloseDate,
   getKstDateAndMinutes,
-  isKrxBeforeMarketOpen,
   isKrxOpeningWindow,
 } from "@/shared/utils/market";
 import { buildIndexCell } from "@/shared/utils/buildIndexCell";
@@ -245,10 +244,9 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
   const { data: intraday, isLoading: intradayLoading } = useIndexIntraday();
   const now = useNow();
   const calendar = useMarketCalendar();
-  // 국내 개장 전(pre · preopen). intraday 서버가 [] 를 돌려주므로 미니차트 empty
-  // 문구를 "장중 데이터 없음" 대신 "개장 전" 으로 대체하고 헤더 라벨도 3-state 로 확장.
-  const beforeOpen = isKrxBeforeMarketOpen(data?.session);
   // 개장 전 창 판정은 클라 시계 축. now=null(SSR·첫 렌더)은 false 로 흘려 hydration 유지.
+  // 창 안의 intraday 는 전일 봉을 서빙하므로 미니차트가 비는 건 DB 0봉일 때뿐 — 그때만
+  // empty 문구를 "장중 데이터 없음" 대신 "개장 전" 으로 대체한다.
   const openingWindow =
     now !== null && isKrxOpeningWindow(data?.session, now, calendar);
 
@@ -339,7 +337,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                     prevClose={displayByCode[code].prevClose}
                     intradayFailed={intraday?.failed[code] ?? false}
                     intradayLoading={intradayLoading}
-                    isPreopen={beforeOpen}
+                    isPreopen={openingWindow}
                     tradingDate={data.date}
                   />
                 ))}

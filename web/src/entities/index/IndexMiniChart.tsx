@@ -27,7 +27,7 @@ type IndexMiniChartProps = {
   // 부모 useIndexIntraday 첫 응답 도착 전 구간. quote 훅이 먼저 도착해도
   // bars=[] 로 "장중 데이터 없음" 플래시가 나지 않도록 여기서 국소 placeholder 로 대체.
   isLoading: boolean;
-  // 국내 개장 전(pre · preopen) 여부. 빈 empty 문구를 "장중 데이터 없음" 대신
+  // 국내 개장 전 창(08:00~09:00) 여부. 빈 empty 문구를 "장중 데이터 없음" 대신
   // "개장 전" 으로 대체.
   isPreopen?: boolean;
   // 그릴 세션의 거래일 'YYYY-MM-DD' (KST). 미전달 시 마지막 봉 날짜로 폴백.

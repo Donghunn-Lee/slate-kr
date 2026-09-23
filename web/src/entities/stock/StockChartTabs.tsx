@@ -16,7 +16,7 @@ import type { QuoteMarket } from "@/shared/utils/market";
 import {
   KRX_AFTER_MARKET_START_MINUTES,
   defaultQuoteMarket,
-  isKrxBeforeMarketOpen,
+  isKrxOpeningWindow,
 } from "@/shared/utils/market";
 import { mergeLiveDayBar } from "@/shared/utils/mergeLiveDayBar";
 import { mergeLiveIntradayBar } from "@/shared/utils/mergeLiveIntradayBar";
@@ -235,9 +235,10 @@ export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsPro
 
   const dayBars = useMemo<ChartBar[]>(() => {
     const eod = stockPricesToBars(prices);
-    // 정규장 개장 전(pre · preopen)엔 quote를 null로 게이트 — NXT 프리마켓 실봉이
-    // KRX 라벨 일봉에 당일 캔들로 유입되는 것 차단.
-    const gatedQuote = isKrxBeforeMarketOpen(quoteData?.session)
+    // 개장 전 창(08:00~09:00)엔 quote를 null로 게이트 — NXT 프리마켓 실봉이
+    // KRX 라벨 일봉에 당일 캔들로 유입되는 것 차단. 06:00~08:00 은 quote 기준일이
+    // 전일이라 병합해도 저장 봉과 같은 값이다.
+    const gatedQuote = isKrxOpeningWindow(quoteData?.session, new Date(), calendar)
       ? null
       : quoteData?.quote ?? null;
     // 합성봉 등락 기준 = price − change (KIS prdy_vrss 축) — 헤더 등락률과 같은 소스.
@@ -245,7 +246,7 @@ export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsPro
       ? { ...gatedQuote, basePrice: gatedQuote.price - gatedQuote.change }
       : null;
     return mergeLiveDayBar(eod, liveForMerge, quoteData?.date);
-  }, [prices, quoteData]);
+  }, [prices, quoteData, calendar]);
 
   const weekBars = useMemo<ChartBar[]>(() => {
     const base = snapshotsToBars(resampleToWeekly(barsToSnapshots(dayBars)));
@@ -585,8 +586,7 @@ export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsPro
           className="flex w-full items-center justify-center rounded-md text-body text-muted-foreground"
           style={{ height: chartHeight }}
         >
-          {intradayQuery.data?.session === "pre" ||
-          intradayQuery.data?.session === "preopen"
+          {isKrxOpeningWindow(intradayQuery.data?.session, new Date(), calendar)
             ? "정규장 개장 전입니다 · 09:00 시작"
             : "당일 인트라데이 데이터 없음"}
         </div>

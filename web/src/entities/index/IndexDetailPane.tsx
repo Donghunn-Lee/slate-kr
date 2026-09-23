@@ -29,9 +29,7 @@ import {
   getKrxLastCloseDate,
   getKrxSessionState,
   getKstDateAndMinutes,
-  isKrxBeforeMarketOpen,
   isKrxOpeningWindow,
-  type KrxSession,
 } from "@/shared/utils/market";
 import { useNow } from "@/shared/hooks/useNow";
 import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
@@ -99,20 +97,16 @@ const StatCell = ({ label, children, className }: StatCellProps) => (
   </div>
 );
 
-// 국내 거래량 셀 소스. 라이브 quote 의 누적 거래량이 있고 개장 전(pre·preopen)이 아니면
+// 국내 거래량 셀 소스. 라이브 quote 의 누적 거래량이 있고 개장 전 창(08:00~09:00)이 아니면
 // 라이브 — 라벨 날짜는 quote 의 거래일(IndexChart 의 당일 합성봉과 같은 축). 그 외(라이브
-// 부재·개장 전)는 최신 EOD 봉. 개장 전 게이트는 IndexChart 의 domesticLiveQuote 와 동형.
+// 부재·개장 전 창)는 최신 EOD 봉. 창 게이트는 IndexChart 의 domesticLiveQuote 와 동형.
 export const resolveDomesticVolume = (
   live: { volume?: number } | null | undefined,
-  session: KrxSession | undefined,
+  openingWindow: boolean,
   liveDate: string | undefined,
   eod: { date: string; volume: number | null } | null,
 ): { volume: number | null; asOf: string | null } => {
-  if (
-    live?.volume !== undefined &&
-    liveDate !== undefined &&
-    !isKrxBeforeMarketOpen(session)
-  ) {
+  if (live?.volume !== undefined && liveDate !== undefined && !openingWindow) {
     return { volume: live.volume, asOf: liveDate.slice(5) };
   }
   return { volume: eod?.volume ?? null, asOf: eod?.date.slice(5) ?? null };
@@ -302,7 +296,7 @@ export const IndexDetailPane = ({
   const { volume, asOf: domesticVolumeAsOf } = isDomestic
     ? resolveDomesticVolume(
         cell?.live,
-        data?.session,
+        openingWindow,
         data?.date,
         latestDaily ? { date: latestDaily.date, volume: volumeByIndex[selected] } : null,
       )

@@ -7,7 +7,7 @@ import { useStockQuote } from "@/features/stock-quote/useStockQuote";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
 import type { QuoteMarket } from "@/shared/utils/market";
-import { defaultQuoteMarket, isKrxBeforeMarketOpen } from "@/shared/utils/market";
+import { defaultQuoteMarket, isKrxOpeningWindow } from "@/shared/utils/market";
 import { mergeLiveDayBar } from "@/shared/utils/mergeLiveDayBar";
 import type { ChartBar } from "@/shared/types/quote";
 import type { StockPriceSnapshot } from "@/shared/types/stock";
@@ -58,12 +58,12 @@ export const StockChart = ({
   const isMobile = useIsMobile();
 
   const bars = useMemo<ChartBar[]>(() => {
-    // 정규장 개장 전(pre · preopen)엔 quote를 null로 게이트 — StockChartTabs 와 동형.
-    const gatedQuote = isKrxBeforeMarketOpen(data?.session)
+    // 개장 전 창(08:00~09:00)엔 quote를 null로 게이트 — StockChartTabs 와 동형.
+    const gatedQuote = isKrxOpeningWindow(data?.session, new Date(), calendar)
       ? null
       : data?.quote ?? null;
     return mergeLiveDayBar(toBars(prices), gatedQuote, data?.date);
-  }, [prices, data]);
+  }, [prices, data, calendar]);
 
   if (prices.length === 0) {
     return (

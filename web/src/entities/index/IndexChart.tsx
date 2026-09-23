@@ -46,7 +46,7 @@ import { dateToKstStartSec } from "@/shared/utils/dateToKstStartSec";
 import {
   getPreviousKrxTradingDate,
   getPreviousOverseasIndexTradingDate,
-  isKrxBeforeMarketOpen,
+  isKrxOpeningWindow,
 } from "@/shared/utils/market";
 import { mergeLiveDayBar, type LiveQuoteForMerge } from "@/shared/utils/mergeLiveDayBar";
 import { resampleToMonthly } from "@/shared/utils/resampleToMonthly";
@@ -291,10 +291,11 @@ export const IndexChart = ({
   }, [rawIntraday, prevStartSec]);
 
   // 국내: /api/index-quotes 의 live. 해외: /api/overseas-index-quotes 직결 (헤더와 동일 소스).
-  // 정규장 개장 전(pre · preopen)엔 domestic quote 를 null 로 게이트 — 개장 전 당일
+  // 개장 전 창(08:00~09:00)엔 domestic quote 를 null 로 게이트 — 개장 전 당일
   // 지수봉이 EOD 축에 유입되는 것 차단 (StockChartTabs 와 동형).
   const domesticLiveQuote =
-    domesticCode !== null && !isKrxBeforeMarketOpen(quotesData?.session)
+    domesticCode !== null &&
+    !isKrxOpeningWindow(quotesData?.session, new Date(), calendar)
       ? quotesData?.quotes[domesticCode].live ?? null
       : null;
   const overseasQuote: IndexQuote | null = isOverseasIndex
@@ -582,7 +583,8 @@ export const IndexChart = ({
           className="flex w-full items-center justify-center rounded-md text-body text-muted-foreground"
           style={{ height: chartHeight }}
         >
-          {!isOverseasIndex && isKrxBeforeMarketOpen(quotesData?.session)
+          {!isOverseasIndex &&
+          isKrxOpeningWindow(quotesData?.session, new Date(), calendar)
             ? "개장 전"
             : "당일 인트라데이 데이터 없음"}
         </div>
