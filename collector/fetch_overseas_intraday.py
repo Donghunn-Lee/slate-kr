@@ -63,9 +63,7 @@ RETENTION_DAYS = 7
 # 도메인 index_code → KIS iscd. fetch_overseas_indices.py 및
 # web/src/lib/kis-overseas-quote-fetch.ts 의 DOMAIN_TO_ISCD 와 정합
 # (일봉 collector 는 8종, 여기는 intraday 7종 — .DJI 는 rt_cd=0 + 빈 배열).
-# 임포트 대신 사본 유지: fetch_overseas_indices 는 module-load 시점에
-# logging.basicConfig + logs/overseas_indices_*.log 를 생성해, 임포트하면
-# 우리 로그가 그쪽 핸들러로 뒤바뀐다 (root logger first-win 규약).
+# 임포트 대신 사본 유지: 일봉 매핑과 대상 집합이 달라(.DJI 제외) 공유하지 않는다.
 DOMAIN_TO_ISCD: dict[str, str] = {
     "SPX":    "SPX",
     "COMP":   "COMP",

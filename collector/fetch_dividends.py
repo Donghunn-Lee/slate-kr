@@ -20,14 +20,10 @@ CLI:
 from __future__ import annotations
 
 import argparse
-import io
 import logging
 import os
 import sys
 import time
-import xml.etree.ElementTree as ET
-import zipfile
-from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from typing import Optional
 
@@ -36,7 +32,9 @@ import requests
 from dotenv import load_dotenv
 
 from db import get_connection
+from fetch_financials import get_available_reports
 from log_setup import setup_logging
+from update_corp_codes import fetch_corp_codes
 
 # 재시도 대상 DB 예외 — fetch_financials.py 와 동일 (connection 절단류만).
 _DB_RETRY_EXC = (psycopg2.OperationalError, psycopg2.InterfaceError)
@@ -124,44 +122,6 @@ def _parse_value(raw: Optional[str]) -> Optional[Decimal]:
         return Decimal(s.replace(",", ""))
     except (InvalidOperation, ValueError):
         return None
-
-
-def get_available_years(years_back: int = 5) -> list[str]:
-    """사업보고서(11011)가 이미 공시된 사업연도 목록 (최근 N년).
-
-    fetch_financials.get_available_reports() 의 11011 판정 로직 복제 —
-    직접 import 하면 fetch_financials 의 module-level logging.basicConfig 가
-    먼저 실행되어 우리 로그가 financials_YYYYMMDD.log 로 흘러가므로 최소
-    복제로 대체한다.
-    """
-    today = datetime.today()
-    y, m = today.year, today.month
-    years: list[str] = []
-    for year in range(y - years_back, y + 1):
-        if year < y - 1 or (year == y - 1 and m >= 4):
-            years.append(str(year))
-    return years
-
-
-def fetch_corp_codes_from_dart() -> dict[str, str]:
-    """DART corpCode.xml → {ticker: corp_code}. dry-run 전용 (DB 대체).
-
-    update_corp_codes.fetch_corp_codes 와 동일 로직 — 그쪽 모듈을 import 하면
-    corp_codes_YYYYMMDD.log 초기화 사이드이펙트가 있어 최소 복제.
-    """
-    url = "https://opendart.fss.or.kr/api/corpCode.xml"
-    res = requests.get(url, params={"crtfc_key": DART_API_KEY}, timeout=30)
-    res.raise_for_status()
-    with zipfile.ZipFile(io.BytesIO(res.content)) as z:
-        with z.open("CORPCODE.xml") as f:
-            tree = ET.parse(f)
-    mapping: dict[str, str] = {}
-    for item in tree.getroot().findall("list"):
-        stock_code = (item.findtext("stock_code") or "").strip()
-        corp_code = (item.findtext("corp_code") or "").strip()
-        if stock_code and corp_code:
-            mapping[stock_code] = corp_code
-    return mapping
 
 
 def fetch_dividend(corp_code: str, bsns_year: str) -> tuple[Optional[dict], str]:
@@ -316,7 +276,7 @@ def _fmt_dry_metrics(m: Optional[dict]) -> str:
 def run_dry(years: list[str], tickers: list[str]) -> None:
     """DB 미접속. DART 호출만."""
     logger.info("[DRY] corpCode.xml 다운로드 중…")
-    corp_map = fetch_corp_codes_from_dart()
+    corp_map = fetch_corp_codes()
     logger.info("[DRY] corpCode 매핑 수: %d", len(corp_map))
 
     unmatched: set[str] = set()
@@ -511,7 +471,8 @@ def main() -> int:
             "ticker 필터: %d개 (%s)", len(ticker_filter), sorted(ticker_filter)
         )
 
-    years = get_available_years()[-args.years:]
+    years = [y for y, r in get_available_reports() if r == REPRT_CODE_ANNUAL]
+    years = years[-args.years:]
     logger.info("수집 대상 사업연도 (years=%d): %s", args.years, years)
 
     if args.dry_run:
