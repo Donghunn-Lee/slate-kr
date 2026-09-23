@@ -208,8 +208,8 @@ export const getPreviousKrxTradingDate = (
 
 // 지수 라벨용 "가장 최근 완결 정규장 마감일".
 // 오늘이 거래일이고 15:30 지났으면 오늘, 그 외(개장 전·주말·휴장·다음날 새벽/오전)엔 지난 거래일.
-// getKrxTradingDate 와 다른 점: pre(08:00~08:50 NXT 프리마켓)에서도 지난 마감일을 반환 —
-// 지수는 정규장 개장 전까지 어제 종가가 최신 완결값이므로.
+// getKrxTradingDate 와 다른 점: 거래일 08:00~15:30(pre·늦은 preopen·regular)에도 지난 마감일을
+// 반환 — 지수는 정규장 마감 전까지 어제 종가가 최신 완결값이므로.
 export const getKrxLastCloseDate = (
   now: Date = new Date(),
   calendar?: MarketCalendar,

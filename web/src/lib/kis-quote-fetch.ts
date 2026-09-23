@@ -949,7 +949,7 @@ export const fetchStockIntradayChart = async (
   // 캘린더는 모듈 memo — 시그니처로 뚫지 않는다.
   const calendar = await getMarketCalendar();
   const session = getKrxSessionState(now, calendar);
-  const todayTradingDate = getKrxTradingDate(now, calendar); // active 세션이면 오늘, 아니면 직전 거래일
+  const todayTradingDate = getKrxTradingDate(now, calendar); // 거래일 08:00 이후면 오늘, 아니면 직전 거래일
   const earlyPreopen = isKrxEarlyPreopen(now, calendar);
   const latePreopen = isKrxLatePreopen(now, calendar);
 
