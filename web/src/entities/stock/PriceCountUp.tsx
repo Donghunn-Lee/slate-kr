@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { getTickSize } from "@/lib/getTickSize";
+import { getTickSize } from "@/lib/get-tick-size";
 
 type PriceCountUpProps = {
   value: number;

@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { NavbarSearch } from "@/features/search/NavbarSearch";
 import { ThemeToggle } from "./ThemeToggle";
 
-export function Navbar() {
+export const Navbar = () => {
   return (
     <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-sm">
       <div className="mx-auto grid h-12 max-w-5xl grid-cols-[auto_1fr_auto] items-center gap-3 px-4 md:gap-4">
@@ -47,4 +47,4 @@ export function Navbar() {
       </div>
     </header>
   );
-}
+};

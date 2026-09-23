@@ -6,7 +6,7 @@ import {
   isSnapshotSession,
   snapshotToNxQuote,
   snapshotToQuote,
-} from "./quoteSnapshots";
+} from "./quote-snapshots";
 
 // row shape 은 lib 내부 타입이지만 테스트에서 부분 shape 으로 넘겨도 함수는 필드
 // 참조만 하므로 안전. as any 지양 위해 최소 필드로 helper 구성.

@@ -1,6 +1,6 @@
 import type { StockPriceSnapshot } from "@/shared/types/stock";
 import { getDailyPrices } from "@/lib/prices";
-import { fetchNxEligible } from "@/lib/quoteSnapshots";
+import { fetchNxEligible } from "@/lib/quote-snapshots";
 import { StockPanel, type StockPanelVariant } from "./StockPanel";
 import { StockChartDynamic } from "./StockChartDynamic";
 

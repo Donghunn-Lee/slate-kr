@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getTickSize } from "./getTickSize";
+import { getTickSize } from "./get-tick-size";
 
 describe("getTickSize", () => {
   describe("구간 내부값", () => {

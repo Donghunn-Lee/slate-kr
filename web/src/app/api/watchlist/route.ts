@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { readAnonId, writeAnonCookies } from "@/lib/anon-id";
 import { getAnonWatchlist, upsertAnonWatchlist } from "@/lib/anon-watchlist";
-import { parsePutBody } from "@/lib/parsePutBody";
+import { parsePutBody } from "@/lib/parse-put-body";
 import {
   watchlistSnapshotSchema,
   type WatchlistGetResponse,

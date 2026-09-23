@@ -13,7 +13,7 @@ const MIN_DAYS = 1;
 const MAX_DAYS = 30;
 
 // GET /api/disclosures/recent-count?tickers=005930,000660&days=7
-export async function GET(req: NextRequest) {
+export const GET = async (req: NextRequest) => {
   const raw = req.nextUrl.searchParams.get("tickers") ?? "";
   const tickers = raw
     .split(",")
@@ -56,4 +56,4 @@ export async function GET(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "공시 카운트를 불러오지 못했습니다" }, { status: 500 });
   }
-}
+};

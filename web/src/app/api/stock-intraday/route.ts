@@ -3,7 +3,7 @@ import {
   fetchStockIntradayChart,
   type StockIntradayChartResult,
 } from "@/lib/kis-quote-fetch";
-import { getMarketCalendar } from "@/lib/marketCalendar";
+import { getMarketCalendar } from "@/lib/market-calendar";
 import { getKrxSessionState, getKrxTradingDate } from "@/shared/utils/market";
 
 export const dynamic = "force-dynamic";

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildMinuteSlots, densifyIntradayBars } from "./densifyIntradayBars";
+import { buildMinuteSlots, densifyIntradayBars } from "./densify-intraday-bars";
 import { kstToFakeUtcSec } from "./kis-quote-fetch";
 import { isDomesticSessionGapFill } from "@/shared/utils/intradaySentinel";
 import type { ChartBar } from "@/shared/types/quote";

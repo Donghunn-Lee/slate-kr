@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { rowsToCalendar, type MarketTradingDayRow } from "./marketCalendar";
+import { rowsToCalendar, type MarketTradingDayRow } from "./market-calendar";
 
 describe("rowsToCalendar", () => {
   it("빈 rows → {}", () => {

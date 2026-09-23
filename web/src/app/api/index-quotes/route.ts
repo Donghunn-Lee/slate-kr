@@ -2,7 +2,7 @@ import { revalidateTag, unstable_cache } from "next/cache";
 import { NextResponse } from "next/server";
 import { fetchIndexQuote } from "@/lib/kis-quote-fetch";
 import { getLatestIndexPrice } from "@/lib/indices";
-import { getMarketCalendar } from "@/lib/marketCalendar";
+import { getMarketCalendar } from "@/lib/market-calendar";
 import {
   getKrxSessionState,
   getKrxTradingDate,
@@ -10,7 +10,7 @@ import {
   minutesSinceKrxClose,
   type KrxSession,
 } from "@/shared/utils/market";
-import { krxIndexRevalidate } from "@/lib/sessionCache";
+import { krxIndexRevalidate } from "@/lib/session-cache";
 import {
   DOMESTIC_INDEX_CODES,
   type DomesticIndexCode,

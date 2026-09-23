@@ -27,12 +27,12 @@ import {
   isKrxLatePreopen,
 } from "@/shared/utils/market";
 import type { MarketCalendar } from "@/shared/types/marketCalendar";
-import { getMarketCalendar } from "@/lib/marketCalendar";
-import { fetchNxEligible } from "@/lib/quoteSnapshots";
+import { getMarketCalendar } from "@/lib/market-calendar";
+import { fetchNxEligible } from "@/lib/quote-snapshots";
 import {
   buildMinuteSlots,
   densifyIntradayBars,
-} from "@/lib/densifyIntradayBars";
+} from "@/lib/densify-intraday-bars";
 import { mergeChartBars } from "@/shared/utils/toEndLabelBars";
 
 const BASE_URL = "https://openapi.koreainvestment.com:9443";

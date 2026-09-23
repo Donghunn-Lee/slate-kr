@@ -55,7 +55,7 @@ export const attachDividends = (
   });
 
 // 배당 조회 실패는 재무 섹션 전체를 죽이지 않도록 catch 후 빈 Map 반환.
-// (marketCalendar.ts 패턴 준용)
+// (market-calendar.ts 패턴 준용)
 export const getDividendsByYear = async (
   ticker: string
 ): Promise<Map<number, DividendMetrics>> => {

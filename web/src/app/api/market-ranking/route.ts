@@ -3,14 +3,14 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { fetchRanking } from "@/lib/kis-ranking-fetch";
 import { pool } from "@/lib/db";
-import { getMarketCalendar } from "@/lib/marketCalendar";
+import { getMarketCalendar } from "@/lib/market-calendar";
 import {
   getKrxSessionState,
   getKrxTradingDate,
   isKrxMarketOpen,
   type KrxSession,
 } from "@/shared/utils/market";
-import { krxRankingRevalidate } from "@/lib/sessionCache";
+import { krxRankingRevalidate } from "@/lib/session-cache";
 import {
   RANKING_KIND_IDS,
   type Market,

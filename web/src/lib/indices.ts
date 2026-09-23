@@ -8,7 +8,7 @@ import {
   toKisDate,
 } from "./kis-quote-fetch";
 import { fetchOverseasIndexIntradayChart } from "./kis-overseas-quote-fetch";
-import { getMarketCalendar } from "./marketCalendar";
+import { getMarketCalendar } from "./market-calendar";
 import {
   OVERSEAS_INDEX_CLOSE_LOCAL,
   type DomesticIndexCode,

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parsePutBody } from "./parsePutBody";
+import { parsePutBody } from "./parse-put-body";
 import { watchlistSnapshotSchema } from "@/shared/types/watchlist";
 
 const GID = "11111111-1111-4111-8111-111111111111";

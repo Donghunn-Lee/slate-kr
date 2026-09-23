@@ -108,8 +108,8 @@ export const StockHeaderLivePrice = ({
 
   // 지연 창 fetch 성공 시 표시 가격·라벨 날짜·labelSession 세 축을 함께 격상. 실패(live=null)
   // 는 아래 forceInitial 로 자연 폴백 → "전일 종가" 라벨 유지(실패 은폐 금지).
-  const useLiveKrxClose = isKrxDelayWindow && live !== null;
-  const forceInitial = isKrxOffRegular && !useLiveKrxClose;
+  const showLiveKrxClose = isKrxDelayWindow && live !== null;
+  const forceInitial = isKrxOffRegular && !showLiveKrxClose;
 
   const displayPrice = forceInitial
     ? initialPrice
@@ -145,7 +145,7 @@ export const StockHeaderLivePrice = ({
     market: marketArg, // undefined = 미지정 경로 — after 라벨만 16:00 경계를 더 본다.
     live: forceInitial ? null : live,
     // 지연 창 fetch 성공 시 initialDate 를 lastCloseDate 로 격상 → SSR 행 라벨이 마지막 마감일 축.
-    initialDate: useLiveKrxClose ? lastCloseDate : initialDate,
+    initialDate: showLiveKrxClose ? lastCloseDate : initialDate,
     kstToday: lastCloseDate,
     updatedAtText,
     openingWindow: isKrxOpeningWindow(labelSession, now, calendar),

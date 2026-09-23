@@ -5,7 +5,7 @@ import { getDailyPrices, getLatestKstDate } from "@/lib/prices";
 import { getCorpCode } from "@/lib/stocks";
 import { getCompanyProfile } from "@/lib/dart";
 import { fetchStockMarketAction } from "@/lib/kis-quote-fetch";
-import { fetchNxEligible } from "@/lib/quoteSnapshots";
+import { fetchNxEligible } from "@/lib/quote-snapshots";
 import { formatVolume, formatMarketCap } from "@/shared/format";
 import { WatchlistButton } from "@/features/watchlist/WatchlistButton";
 import { MemoButton } from "@/features/memo/MemoButton";

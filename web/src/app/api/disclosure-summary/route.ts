@@ -11,7 +11,7 @@ const RequestBodySchema = z.object({
   flr_nm: z.string().min(1),
 });
 
-export async function POST(req: NextRequest) {
+export const POST = async (req: NextRequest) => {
   let body: unknown;
   try {
     body = await req.json();
@@ -69,4 +69,4 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ ok: false, error: result.error });
-}
+};

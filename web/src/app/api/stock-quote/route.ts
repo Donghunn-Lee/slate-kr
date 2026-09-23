@@ -4,8 +4,8 @@ import {
   decideSingleSnapshot,
   fetchQuoteSnapshot,
   isSnapshotSession,
-} from "@/lib/quoteSnapshots";
-import { getMarketCalendar } from "@/lib/marketCalendar";
+} from "@/lib/quote-snapshots";
+import { getMarketCalendar } from "@/lib/market-calendar";
 import { getKrxSessionState, getKrxTradingDate } from "@/shared/utils/market";
 import type { QuoteMarket } from "@/shared/utils/market";
 import type { StockQuote } from "@/shared/types/quote";

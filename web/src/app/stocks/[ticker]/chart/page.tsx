@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import { getStockByTicker } from "@/lib/stocks";
 import { getDailyPrices } from "@/lib/prices";
-import { fetchNxEligible } from "@/lib/quoteSnapshots";
+import { fetchNxEligible } from "@/lib/quote-snapshots";
 import { StockChartTabsDynamic } from "@/entities/stock/StockChartTabsDynamic";
 import { ChartTabsSkeleton } from "@/entities/stock/Skeletons";
 import type { StockPriceSnapshot } from "@/shared/types/stock";

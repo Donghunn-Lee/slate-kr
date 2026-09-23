@@ -17,11 +17,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-function formatClose(close: number) {
+const formatClose = (close: number) => {
   return close.toLocaleString("ko-KR") + "원";
-}
+};
 
-export function WatchlistPreview() {
+export const WatchlistPreview = () => {
   const mounted = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -277,4 +277,4 @@ export function WatchlistPreview() {
       </StockPanel>
     </section>
   );
-}
+};

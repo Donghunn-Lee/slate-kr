@@ -12,7 +12,7 @@ import {
   isGlobalOverseasActive,
   type GlobalOverseasSession,
 } from "@/shared/utils/market";
-import { globalOverseasQuoteRevalidate } from "@/lib/sessionCache";
+import { globalOverseasQuoteRevalidate } from "@/lib/session-cache";
 import type { IndexQuote } from "@/shared/types/quote";
 
 export const dynamic = "force-dynamic";
