@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Star } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { StockPanel } from "@/entities/stock/StockPanel";
 import { PriceChange } from "@/shared/components/PriceChange";
 import { StatusBadge } from "@/shared/components/StatusBadge";
+import { useMounted } from "@/shared/hooks/useMounted";
 import { LIVE_TICKER_LIMIT, useMultiQuote } from "@/features/multi-quote/useMultiQuote";
 import { useWatchlistStore, type WatchlistItem } from "./store/useWatchlistStore";
 import type { TickerPriceSummary } from "@/shared/types/stock";
@@ -23,11 +24,7 @@ const formatClose = (close: number) => {
 };
 
 export const WatchlistPreview = () => {
-  const mounted = useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false
-  );
+  const mounted = useMounted();
   const groups = useWatchlistStore((s) => s.groups);
   const memberships = useWatchlistStore((s) => s.memberships);
   const stockMeta = useWatchlistStore((s) => s.stockMeta);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, CircleCheck, Star, X } from "lucide-react";
 import { toast } from "sonner";
 import { useShallow } from "zustand/react/shallow";
@@ -12,6 +12,7 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useMounted } from "@/shared/hooks/useMounted";
 import {
   MAX_WATCHLIST_SIZE,
   selectGroupsByTicker,
@@ -29,11 +30,7 @@ const CONFIRM_FADE_TRANSITION =
 const CONFIRM_HOLD_MS = 1200;
 
 export const WatchlistButton = ({ ticker, name, market }: WatchlistButtonProps) => {
-  const mounted = useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false
-  );
+  const mounted = useMounted();
 
   const [open, setOpen] = useState(false);
   const isInWatchlist = useWatchlistStore((s) => s.isInWatchlist(ticker));

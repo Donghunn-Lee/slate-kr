@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import { Check, NotebookPen, NotebookText, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/shared/components/StatusBadge";
+import { useMounted } from "@/shared/hooks/useMounted";
 import { MAX_MEMO_BODY_LENGTH } from "@/shared/types/memo";
 import { useMemoStore } from "./store/useMemoStore";
 
@@ -22,11 +23,7 @@ type MemoButtonProps = {
 };
 
 export const MemoButton = ({ ticker, name, market }: MemoButtonProps) => {
-  const mounted = useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false
-  );
+  const mounted = useMounted();
 
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<"edit" | "confirm">("edit");
