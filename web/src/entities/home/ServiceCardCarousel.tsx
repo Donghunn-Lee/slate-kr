@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ComponentType, ReactNode } from "react";
 import { TrendingUp, BarChart2, FileText } from "lucide-react";
 import { StockPanel, type StockPanelVariant } from "@/entities/stock/StockPanel";
 import { cn } from "@/lib/utils";
+import { usePrefersReducedMotion } from "@/shared/hooks/usePrefersReducedMotion";
 import {
   DisclosurePreview,
   MetricsPreview,
@@ -50,18 +51,6 @@ const CARDS: Card[] = [
 const AUTO_INTERVAL_MS = 3000;
 const SLIDE_WIDTH_CQW = 70;
 const CENTER_OFFSET_CQW = (100 - SLIDE_WIDTH_CQW) / 2;
-
-const usePrefersReducedMotion = () => {
-  return useSyncExternalStore(
-    (callback) => {
-      const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-      mq.addEventListener("change", callback);
-      return () => mq.removeEventListener("change", callback);
-    },
-    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-    () => false,
-  );
-};
 
 export const ServiceCardCarousel = () => {
   const [active, setActive] = useState(0);

@@ -1,12 +1,10 @@
 import { cookies } from "next/headers";
-import { z } from "zod";
+import { AnonIdSchema } from "@/shared/types/schemas";
 
 export const ANON_ID_COOKIE = "slatekr_uid";
 export const SYNC_MARKER_COOKIE = "slatekr_sync";
 
 const MAX_AGE_SEC = 60 * 60 * 24 * 365;
-
-const anonIdSchema = z.uuid();
 
 export type AnonCookieOptions = {
   path: "/";
@@ -33,7 +31,7 @@ export const readAnonId = async (): Promise<string | null> => {
   const store = await cookies();
   const raw = store.get(ANON_ID_COOKIE)?.value;
   if (!raw) return null;
-  const parsed = anonIdSchema.safeParse(raw);
+  const parsed = AnonIdSchema.safeParse(raw);
   return parsed.success ? parsed.data : null;
 };
 

@@ -1,13 +1,11 @@
 import { cache } from "react";
-import { z } from "zod";
+import { AnonIdSchema } from "@/shared/types/schemas";
 import { pool } from "./db";
 import {
-  watchlistSnapshotSchema,
+  WatchlistSnapshotSchema,
   type AnonWatchlistRecord,
   type WatchlistSnapshot,
 } from "@/shared/types/watchlist";
-
-const anonIdSchema = z.uuid();
 
 export type AnonWatchlistReadResult =
   | { ok: true; data: AnonWatchlistRecord | null }
@@ -48,7 +46,7 @@ export const parseAnonWatchlistRow = (row: unknown): AnonWatchlistRecord | null 
   const updatedAt = normalizeUpdatedAt(r.updated_at);
   if (updatedAt === null) return null;
 
-  const parsed = watchlistSnapshotSchema.safeParse(r.snapshot);
+  const parsed = WatchlistSnapshotSchema.safeParse(r.snapshot);
   if (!parsed.success) return null;
 
   return {
@@ -60,7 +58,7 @@ export const parseAnonWatchlistRow = (row: unknown): AnonWatchlistRecord | null 
 
 export const getAnonWatchlist = cache(
   async (anonId: string): Promise<AnonWatchlistReadResult> => {
-    anonIdSchema.parse(anonId);
+    AnonIdSchema.parse(anonId);
 
     try {
       const [rows] = await pool.query<AnonWatchlistRow[]>(
@@ -87,7 +85,7 @@ export const upsertAnonWatchlist = async (
   anonId: string,
   snapshot: WatchlistSnapshot
 ): Promise<AnonWatchlistWriteResult> => {
-  anonIdSchema.parse(anonId);
+  AnonIdSchema.parse(anonId);
 
   try {
     const [rows] = await pool.query<UpsertReturningRow[]>(

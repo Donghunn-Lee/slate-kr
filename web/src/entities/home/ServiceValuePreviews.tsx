@@ -1,19 +1,8 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-
-const usePrefersReducedMotion = () => {
-  return useSyncExternalStore(
-    (callback) => {
-      const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-      mq.addEventListener("change", callback);
-      return () => mq.removeEventListener("change", callback);
-    },
-    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-    () => false,
-  );
-};
+import { usePrefersReducedMotion } from "@/shared/hooks/usePrefersReducedMotion";
 
 // play=true 로 마운트되면 애니메이션 실행. play=false 면 최종 상태 정지 렌더.
 // 재재생은 부모가 key 를 바꿔 재마운트시키는 방식으로 트리거.

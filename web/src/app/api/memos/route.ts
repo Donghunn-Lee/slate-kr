@@ -3,7 +3,7 @@ import { readAnonId, writeAnonCookies } from "@/lib/anon-id";
 import { getAnonMemo, upsertAnonMemo } from "@/lib/anon-memo";
 import { parsePutBody } from "@/lib/parse-put-body";
 import {
-  memoSnapshotSchema,
+  MemoSnapshotSchema,
   type MemoGetResponse,
   type MemoPutResponse,
 } from "@/shared/types/memo";
@@ -38,7 +38,7 @@ export const GET = async () => {
 
 export const PUT = async (req: NextRequest) => {
   const text = await req.text();
-  const parsed = parsePutBody(text, memoSnapshotSchema);
+  const parsed = parsePutBody(text, MemoSnapshotSchema);
   if (!parsed.ok) {
     return json<MemoPutResponse>(
       { ok: false, error: { kind: parsed.kind } },

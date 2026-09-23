@@ -1,13 +1,11 @@
 import { cache } from "react";
-import { z } from "zod";
+import { AnonIdSchema } from "@/shared/types/schemas";
 import { pool } from "./db";
 import {
-  memoSnapshotSchema,
+  MemoSnapshotSchema,
   type AnonMemoRecord,
   type MemoSnapshot,
 } from "@/shared/types/memo";
-
-const anonIdSchema = z.uuid();
 
 export type AnonMemoReadResult =
   | { ok: true; data: AnonMemoRecord | null }
@@ -48,7 +46,7 @@ export const parseAnonMemoRow = (row: unknown): AnonMemoRecord | null => {
   const updatedAt = normalizeUpdatedAt(r.updated_at);
   if (updatedAt === null) return null;
 
-  const parsed = memoSnapshotSchema.safeParse(r.snapshot);
+  const parsed = MemoSnapshotSchema.safeParse(r.snapshot);
   if (!parsed.success) return null;
 
   return {
@@ -60,7 +58,7 @@ export const parseAnonMemoRow = (row: unknown): AnonMemoRecord | null => {
 
 export const getAnonMemo = cache(
   async (anonId: string): Promise<AnonMemoReadResult> => {
-    anonIdSchema.parse(anonId);
+    AnonIdSchema.parse(anonId);
 
     try {
       const [rows] = await pool.query<AnonMemoRow[]>(
@@ -87,7 +85,7 @@ export const upsertAnonMemo = async (
   anonId: string,
   snapshot: MemoSnapshot
 ): Promise<AnonMemoWriteResult> => {
-  anonIdSchema.parse(anonId);
+  AnonIdSchema.parse(anonId);
 
   try {
     const [rows] = await pool.query<UpsertReturningRow[]>(

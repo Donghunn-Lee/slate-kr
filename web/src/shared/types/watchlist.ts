@@ -1,12 +1,10 @@
 import { z } from "zod";
+import { MarketSchema, TickerSchema } from "./schemas";
 import { MAX_WATCHLIST_SIZE } from "@/features/watchlist/store/watchlistSnapshot";
-
-const marketSchema = z.enum(["KOSPI", "KOSDAQ"]);
-const tickerSchema = z.string().regex(/^[0-9A-Z]{6}$/);
 
 export const MAX_GROUP_NAME_LENGTH = 100;
 
-export const watchlistGroupSchema = z
+export const WatchlistGroupSchema = z
   .object({
     id: z.uuid(),
     name: z.string().max(MAX_GROUP_NAME_LENGTH),
@@ -15,34 +13,34 @@ export const watchlistGroupSchema = z
   })
   .strict();
 
-export const membershipSchema = z
+export const MembershipSchema = z
   .object({
     groupId: z.uuid(),
-    ticker: tickerSchema,
+    ticker: TickerSchema,
     addedAt: z.number().int(),
     order: z.number().int(),
   })
   .strict();
 
-export const stockMetaSchema = z
+export const StockMetaSchema = z
   .object({
     name: z.string().max(100),
-    market: marketSchema,
+    market: MarketSchema,
   })
   .strict();
 
-export const watchlistSnapshotSchema = z
+export const WatchlistSnapshotSchema = z
   .object({
-    groups: z.array(watchlistGroupSchema),
-    memberships: z.array(membershipSchema).max(MAX_WATCHLIST_SIZE),
-    stockMeta: z.record(tickerSchema, stockMetaSchema),
+    groups: z.array(WatchlistGroupSchema),
+    memberships: z.array(MembershipSchema).max(MAX_WATCHLIST_SIZE),
+    stockMeta: z.record(TickerSchema, StockMetaSchema),
   })
   .strict();
 
-export type WatchlistGroup = z.infer<typeof watchlistGroupSchema>;
-export type Membership = z.infer<typeof membershipSchema>;
-export type StockMeta = z.infer<typeof stockMetaSchema>;
-export type WatchlistSnapshot = z.infer<typeof watchlistSnapshotSchema>;
+export type WatchlistGroup = z.infer<typeof WatchlistGroupSchema>;
+export type Membership = z.infer<typeof MembershipSchema>;
+export type StockMeta = z.infer<typeof StockMetaSchema>;
+export type WatchlistSnapshot = z.infer<typeof WatchlistSnapshotSchema>;
 
 export type AnonWatchlistRecord = {
   snapshot: WatchlistSnapshot;

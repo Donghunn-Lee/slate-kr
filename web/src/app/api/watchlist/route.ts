@@ -3,7 +3,7 @@ import { readAnonId, writeAnonCookies } from "@/lib/anon-id";
 import { getAnonWatchlist, upsertAnonWatchlist } from "@/lib/anon-watchlist";
 import { parsePutBody } from "@/lib/parse-put-body";
 import {
-  watchlistSnapshotSchema,
+  WatchlistSnapshotSchema,
   type WatchlistGetResponse,
   type WatchlistPutResponse,
 } from "@/shared/types/watchlist";
@@ -38,7 +38,7 @@ export const GET = async () => {
 
 export const PUT = async (req: NextRequest) => {
   const text = await req.text();
-  const parsed = parsePutBody(text, watchlistSnapshotSchema);
+  const parsed = parsePutBody(text, WatchlistSnapshotSchema);
   if (!parsed.ok) {
     return json<WatchlistPutResponse>(
       { ok: false, error: { kind: parsed.kind } },

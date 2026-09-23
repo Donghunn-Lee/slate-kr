@@ -1,24 +1,22 @@
 import { z } from "zod";
-
-const marketSchema = z.enum(["KOSPI", "KOSDAQ"]);
-const tickerSchema = z.string().regex(/^[0-9A-Z]{6}$/);
+import { MarketSchema, TickerSchema } from "./schemas";
 
 export const MAX_MEMO_BODY_LENGTH = 500;
 export const MAX_MEMO_COUNT = 200;
 
-export const memoEntrySchema = z
+export const MemoEntrySchema = z
   .object({
     body: z.string().min(1).max(MAX_MEMO_BODY_LENGTH),
     name: z.string().min(1),
-    market: marketSchema,
+    market: MarketSchema,
     updatedAt: z.string(),
   })
   .strict();
 
-export const memoSnapshotSchema = z
+export const MemoSnapshotSchema = z
   .object({
     memos: z
-      .record(tickerSchema, memoEntrySchema)
+      .record(TickerSchema, MemoEntrySchema)
       .refine(
         (memos) => Object.keys(memos).length <= MAX_MEMO_COUNT,
         { message: `memos exceeds ${MAX_MEMO_COUNT} entries` }
@@ -26,8 +24,8 @@ export const memoSnapshotSchema = z
   })
   .strict();
 
-export type MemoEntry = z.infer<typeof memoEntrySchema>;
-export type MemoSnapshot = z.infer<typeof memoSnapshotSchema>;
+export type MemoEntry = z.infer<typeof MemoEntrySchema>;
+export type MemoSnapshot = z.infer<typeof MemoSnapshotSchema>;
 
 export type AnonMemoRecord = {
   snapshot: MemoSnapshot;

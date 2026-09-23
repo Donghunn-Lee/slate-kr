@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { MAX_WATCHLIST_SIZE } from "@/features/watchlist/store/watchlistSnapshot";
-import { watchlistSnapshotSchema } from "./watchlist";
+import { WatchlistSnapshotSchema } from "./watchlist";
 
 const GID_A = "11111111-1111-4111-8111-111111111111";
 const GID_B = "22222222-2222-4222-8222-222222222222";
@@ -22,14 +22,14 @@ const baseSnapshot = {
   },
 };
 
-describe("watchlistSnapshotSchema", () => {
+describe("WatchlistSnapshotSchema", () => {
   it("parses a realistic persist v2 snapshot (2 groups · 3 memberships · stockMeta)", () => {
-    const parsed = watchlistSnapshotSchema.safeParse(baseSnapshot);
+    const parsed = WatchlistSnapshotSchema.safeParse(baseSnapshot);
     expect(parsed.success).toBe(true);
   });
 
   it("parses an empty snapshot (no groups · no memberships · empty stockMeta)", () => {
-    const parsed = watchlistSnapshotSchema.safeParse({
+    const parsed = WatchlistSnapshotSchema.safeParse({
       groups: [],
       memberships: [],
       stockMeta: {},
@@ -48,7 +48,7 @@ describe("watchlistSnapshotSchema", () => {
     for (const m of memberships) {
       stockMeta[m.ticker] = { name: "종목", market: "KOSPI" };
     }
-    const parsed = watchlistSnapshotSchema.safeParse({
+    const parsed = WatchlistSnapshotSchema.safeParse({
       groups: baseSnapshot.groups,
       memberships,
       stockMeta,
@@ -57,7 +57,7 @@ describe("watchlistSnapshotSchema", () => {
   });
 
   it("rejects ticker not matching 6-char [0-9A-Z] format", () => {
-    const parsed = watchlistSnapshotSchema.safeParse({
+    const parsed = WatchlistSnapshotSchema.safeParse({
       ...baseSnapshot,
       memberships: [
         { groupId: GID_A, ticker: "5930", addedAt: 1_700_000_200_000, order: 0 },
@@ -68,7 +68,7 @@ describe("watchlistSnapshotSchema", () => {
   });
 
   it("rejects snapshot with an unknown top-level key (strict)", () => {
-    const parsed = watchlistSnapshotSchema.safeParse({
+    const parsed = WatchlistSnapshotSchema.safeParse({
       ...baseSnapshot,
       extra: "nope",
     });
@@ -76,7 +76,7 @@ describe("watchlistSnapshotSchema", () => {
   });
 
   it("rejects group object with an unknown key (strict)", () => {
-    const parsed = watchlistSnapshotSchema.safeParse({
+    const parsed = WatchlistSnapshotSchema.safeParse({
       ...baseSnapshot,
       groups: [
         { ...baseSnapshot.groups[0], color: "red" },
