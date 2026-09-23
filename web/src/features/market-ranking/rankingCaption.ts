@@ -1,3 +1,5 @@
+import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
+import { useNow } from "@/shared/hooks/useNow";
 import type { MarketCalendar } from "@/shared/types/marketCalendar";
 import type { KrxSession } from "@/shared/utils/market";
 import {
@@ -31,4 +33,11 @@ export const resolveRankingCaption = (
       : "정규장 마감 · KRX";
   }
   return "애프터마켓 마감 · KRX";
+};
+
+// 순위 화면 공용 캡션 — 분 단위 클라 시계·휴장 캘린더를 붙여 resolveRankingCaption 에 위임.
+export const useRankingCaption = (session: KrxSession | undefined): string | null => {
+  const now = useNow();
+  const calendar = useMarketCalendar();
+  return resolveRankingCaption(session, now, calendar);
 };

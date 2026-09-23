@@ -6,18 +6,19 @@ import { ArrowRight } from "lucide-react";
 import { StockPanel } from "@/entities/stock/StockPanel";
 import { PriceChange } from "@/shared/components/PriceChange";
 import { StatusBadge } from "@/shared/components/StatusBadge";
-import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
 import { formatMarketCap } from "@/shared/format";
-import { useNow } from "@/shared/hooks/useNow";
 import type { PriceSign } from "@/shared/types/quote";
 import type { Market, MarketRankingItem, MarketRankingKind } from "@/shared/types/ranking";
 import { cn } from "@/lib/utils";
-import { resolveRankingCaption } from "./rankingCaption";
-import { Pill } from "./RankingControls";
-import { RankingTabStrip, type RankingTabItem } from "./RankingTabStrip";
+import { Pill } from "./Pill";
+import { useRankingCaption } from "./rankingCaption";
+import { RankingTabStrip } from "./RankingTabStrip";
 import {
+  MARKET_LABEL,
+  MARKETS,
   RANKING_TABS,
   resolveRankingTab,
+  TAB_ITEMS,
   toRankingHref,
   toRankingKind,
   type RankingTabId,
@@ -141,17 +142,6 @@ const SkeletonRows = () => (
   </ul>
 );
 
-const MARKET_LABEL: Record<Market, string> = {
-  all: "전체",
-  kospi: "KOSPI",
-  kosdaq: "KOSDAQ",
-};
-const MARKETS: readonly Market[] = ["all", "kospi", "kosdaq"];
-
-const TAB_ITEMS: readonly RankingTabItem<RankingTabId>[] = RANKING_TABS.map(
-  (t) => ({ id: t.id, label: t.label }),
-);
-
 export const MarketRankingSlate = () => {
   const [tabId, setTabId] = useState<RankingTabId>(RANKING_TABS[0].id);
   const [market, setMarket] = useState<Market>("all");
@@ -163,9 +153,7 @@ export const MarketRankingSlate = () => {
 
   const { items, failed, session, isLoading, isError, isPlaceholderData } =
     useMarketRanking(kind);
-  const now = useNow();
-  const calendar = useMarketCalendar();
-  const caption = resolveRankingCaption(session, now, calendar);
+  const caption = useRankingCaption(session);
 
   const rows = items.slice(0, TOP_N);
   const showEmpty = !isLoading && !isError && rows.length === 0;

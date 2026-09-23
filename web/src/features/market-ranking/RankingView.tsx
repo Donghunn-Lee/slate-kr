@@ -7,16 +7,16 @@ import { RefreshCw, WifiOff } from "lucide-react";
 import type { TickerDisclosureCount } from "@/shared/types/stock";
 import { StockPanel } from "@/entities/stock/StockPanel";
 import { cn } from "@/lib/utils";
-import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
-import { useNow } from "@/shared/hooks/useNow";
 import type { Market } from "@/shared/types/ranking";
-import { resolveRankingCaption } from "./rankingCaption";
-import { Pill } from "./RankingControls";
+import { Pill } from "./Pill";
+import { useRankingCaption } from "./rankingCaption";
 import { RankingHeader, RankingRow, RankingRowSkeleton } from "./RankingRow";
-import { RankingTabStrip, type RankingTabItem } from "./RankingTabStrip";
+import { RankingTabStrip } from "./RankingTabStrip";
 import {
-  RANKING_TABS,
+  MARKET_LABEL,
+  MARKETS,
   resolveRankingTab,
+  TAB_ITEMS,
   toRankingHref,
   toRankingKind,
   type RankingTabId,
@@ -27,17 +27,6 @@ type RankingViewProps = {
   initialTabId: RankingTabId;
   initialMarket: Market;
 };
-
-const MARKET_LABEL: Record<Market, string> = {
-  all: "전체",
-  kospi: "KOSPI",
-  kosdaq: "KOSDAQ",
-};
-const MARKETS: readonly Market[] = ["all", "kospi", "kosdaq"];
-
-const TAB_ITEMS: readonly RankingTabItem<RankingTabId>[] = RANKING_TABS.map(
-  (t) => ({ id: t.id, label: t.label }),
-);
 
 const SKELETON_ROWS = 10;
 
@@ -70,9 +59,7 @@ export const RankingView = ({
     isFetching,
     refetch,
   } = useMarketRanking(kind);
-  const now = useNow();
-  const calendar = useMarketCalendar();
-  const caption = resolveRankingCaption(session, now, calendar);
+  const caption = useRankingCaption(session);
 
   const tickersKey = items.map((i) => i.ticker).join(",");
   const disclosureQuery = useQuery<TickerDisclosureCount[]>({

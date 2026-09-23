@@ -1,4 +1,5 @@
 import type { Market, MarketRankingKind } from "@/shared/types/ranking";
+import type { RankingTabItem } from "./RankingTabStrip";
 
 export type RankingTabId =
   | "up"
@@ -26,6 +27,17 @@ export const RANKING_TABS = [
   { id: "market-cap", label: "시총 상위", kind: "market-cap" },
   { id: "top-interest", label: "관심 등록 상위", kind: "top-interest" },
 ] as const satisfies readonly RankingTabDef[];
+
+export const TAB_ITEMS: readonly RankingTabItem<RankingTabId>[] = RANKING_TABS.map(
+  (t) => ({ id: t.id, label: t.label }),
+);
+
+export const MARKET_LABEL: Record<Market, string> = {
+  all: "전체",
+  kospi: "KOSPI",
+  kosdaq: "KOSDAQ",
+};
+export const MARKETS: readonly Market[] = ["all", "kospi", "kosdaq"];
 
 export const DEFAULT_RANKING_TAB_ID: RankingTabId = "up";
 
