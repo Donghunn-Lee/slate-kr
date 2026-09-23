@@ -25,7 +25,7 @@ web/tmp/
 web/coverage/
 
 # collector (Python)
-collector/__pycache__/
+collector/**/__pycache__/
 collector/*.pyc
 collector/.env
 collector/venv/
