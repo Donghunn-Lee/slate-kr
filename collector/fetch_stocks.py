@@ -5,22 +5,11 @@ from dotenv import load_dotenv
 from datetime import datetime, timedelta
 
 from db import get_connection
+from log_setup import setup_logging
 
 load_dotenv()
 
 # ── 로깅 설정 ──────────────────────────────────────────────
-_log_dir = os.path.join(os.path.dirname(__file__), "logs")
-os.makedirs(_log_dir, exist_ok=True)
-_log_file = os.path.join(_log_dir, f"stocks_{datetime.today().strftime('%Y%m%d')}.log")
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.FileHandler(_log_file, encoding="utf-8"),
-        logging.StreamHandler(),
-    ],
-)
 logger = logging.getLogger(__name__)
 
 FSS_API_KEY = os.getenv("FSS_API_KEY")
@@ -178,6 +167,7 @@ def get_latest_biz_date() -> str:
 
 
 def main():
+    setup_logging("stocks")
     logger.info("KRX 상장종목 조회 중...")
     try:
         stocks = fetch_stock_list()

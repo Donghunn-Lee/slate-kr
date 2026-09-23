@@ -19,28 +19,16 @@ from dotenv import load_dotenv
 
 from db import get_connection
 from kis_token import request_token, upsert_token
+from log_setup import setup_logging
 
 load_dotenv()
 
 # ── 로깅 설정 ──────────────────────────────────────────────
-_log_dir = os.path.join(os.path.dirname(__file__), "logs")
-os.makedirs(_log_dir, exist_ok=True)
-_log_file = os.path.join(
-    _log_dir, f"kis_token_{datetime.today().strftime('%Y%m%d')}.log"
-)
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.FileHandler(_log_file, encoding="utf-8"),
-        logging.StreamHandler(),
-    ],
-)
 logger = logging.getLogger(__name__)
 
 
 def main() -> None:
+    setup_logging("kis_token")
     app_key = os.getenv("KIS_APP_KEY")
     app_secret = os.getenv("KIS_APP_SECRET")
     if not app_key or not app_secret:

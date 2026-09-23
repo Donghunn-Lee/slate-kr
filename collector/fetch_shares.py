@@ -14,22 +14,11 @@ from dotenv import load_dotenv
 from typing import Optional, Tuple
 
 from db import get_connection
+from log_setup import setup_logging
 
 load_dotenv()
 
 # ── 로깅 설정 ──────────────────────────────────────────────
-_log_dir = os.path.join(os.path.dirname(__file__), "logs")
-os.makedirs(_log_dir, exist_ok=True)
-_log_file = os.path.join(_log_dir, f"shares_{datetime.today().strftime('%Y%m%d')}.log")
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.FileHandler(_log_file, encoding="utf-8"),
-        logging.StreamHandler(),
-    ],
-)
 logger = logging.getLogger(__name__)
 
 DART_API_KEY = os.getenv("DART_API_KEY")
@@ -87,6 +76,7 @@ def fetch_stock_amount(corp_code: str) -> Tuple[Optional[int], Optional[str]]:
 
 
 def main():
+    setup_logging("shares")
     conn = get_connection()
     cursor = conn.cursor()
 

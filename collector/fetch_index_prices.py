@@ -44,6 +44,7 @@ from dotenv import load_dotenv
 
 from db import get_connection
 from kis_token import get_token
+from log_setup import setup_logging
 from verify_daily_freshness import compute_expected_from_now, load_krx_calendar
 
 load_dotenv()
@@ -70,20 +71,6 @@ INDEX_CODE_TO_ISCD: dict[str, str] = {
 }
 
 # ── 로깅 (fetch_overseas_indices.py 와 동일 형태) ─────────────
-_log_dir = os.path.join(os.path.dirname(__file__), "logs")
-os.makedirs(_log_dir, exist_ok=True)
-_log_file = os.path.join(
-    _log_dir, f"index_prices_{datetime.today().strftime('%Y%m%d')}.log"
-)
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.FileHandler(_log_file, encoding="utf-8"),
-        logging.StreamHandler(),
-    ],
-)
 logger = logging.getLogger(__name__)
 
 
@@ -278,6 +265,7 @@ def run_one(conn, cursor, token: str, index_code: str, iscd: str, end: date):
 
 
 def main():
+    setup_logging("index_prices")
     if not KIS_APP_KEY or not KIS_APP_SECRET:
         logger.error("KIS_APP_KEY / KIS_APP_SECRET 미설정")
         sys.exit(1)

@@ -31,6 +31,7 @@ import requests
 from dotenv import load_dotenv
 
 from db import get_connection
+from log_setup import setup_logging
 
 load_dotenv()
 
@@ -38,20 +39,6 @@ KRX_KEY = os.getenv("KRX_OPEN_API_KEY")
 KRX_BASE = "https://data-dbg.krx.co.kr/svc/apis"
 
 # ── 로깅 (fetch_prices.py 와 동일 형태) ───────────────────────
-_log_dir = os.path.join(os.path.dirname(__file__), "logs")
-os.makedirs(_log_dir, exist_ok=True)
-_log_file = os.path.join(
-    _log_dir, f"index_backfill_{datetime.today().strftime('%Y%m%d')}.log"
-)
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.FileHandler(_log_file, encoding="utf-8"),
-        logging.StreamHandler(),
-    ],
-)
 logger = logging.getLogger(__name__)
 
 
@@ -257,6 +244,7 @@ def run_backfill(start_str: str, end_str: str):
 
 
 def main():
+    setup_logging("index_backfill")
     if not KRX_KEY:
         logger.error("KRX_OPEN_API_KEY 미설정 (collector/.env)")
         sys.exit(1)

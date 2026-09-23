@@ -73,30 +73,18 @@ import fetch_prices
 from db import get_connection
 from fetch_prices import KIS_DAILY_LAST_DATE, UPSERT_SQL, kis_daily_call, parse_bar
 from kis_token import get_token
+from log_setup import setup_logging
 
 load_dotenv()
 
 # ── 로깅 ──────────────────────────────────────────────────
-# fetch_prices import 가 root 를 prices_{날짜}.log 로 잡아 두므로 force 로 교체.
 _log_dir = os.path.join(os.path.dirname(__file__), "logs")
 os.makedirs(_log_dir, exist_ok=True)
 _stamp = datetime.today()
-_log_file = os.path.join(
-    _log_dir, f"prices_backfill_kis_{_stamp.strftime('%Y%m%d')}.log"
-)
 _report_file = os.path.join(
     _log_dir, f"prices_backfill_kis_{_stamp.strftime('%Y%m%d_%H%M%S')}.json"
 )
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.FileHandler(_log_file, encoding="utf-8"),
-        logging.StreamHandler(),
-    ],
-    force=True,
-)
 logger = logging.getLogger(__name__)
 
 END = KIS_DAILY_LAST_DATE
@@ -561,6 +549,7 @@ def run(tickers: list[str]) -> int:
 
 
 def main() -> int:
+    setup_logging("prices_backfill_kis")
     if not fetch_prices.KIS_APP_KEY or not fetch_prices.KIS_APP_SECRET:
         logger.error("KIS_APP_KEY / KIS_APP_SECRET 미설정 (collector/.env)")
         return 1

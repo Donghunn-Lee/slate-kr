@@ -36,6 +36,7 @@ import requests
 from dotenv import load_dotenv
 
 from db import get_connection
+from log_setup import setup_logging
 
 # 재시도 대상 DB 예외 — fetch_financials.py 와 동일 (connection 절단류만).
 _DB_RETRY_EXC = (psycopg2.OperationalError, psycopg2.InterfaceError)
@@ -43,20 +44,6 @@ _DB_RETRY_EXC = (psycopg2.OperationalError, psycopg2.InterfaceError)
 load_dotenv()
 
 # ── 로깅 설정 (fetch_financials.py 패턴) ─────────────────────
-_log_dir = os.path.join(os.path.dirname(__file__), "logs")
-os.makedirs(_log_dir, exist_ok=True)
-_log_file = os.path.join(
-    _log_dir, f"dividends_{datetime.today().strftime('%Y%m%d')}.log"
-)
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.FileHandler(_log_file, encoding="utf-8"),
-        logging.StreamHandler(),
-    ],
-)
 logger = logging.getLogger(__name__)
 
 DART_API_KEY = os.getenv("DART_API_KEY")
@@ -498,6 +485,7 @@ def run(
 
 
 def main() -> int:
+    setup_logging("dividends")
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--years", type=int, default=5,

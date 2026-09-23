@@ -27,27 +27,13 @@ from dotenv import load_dotenv
 
 from db import get_connection
 from fetch_stocks import get_latest_biz_date
+from log_setup import setup_logging
 
 load_dotenv()
 
 KRX_KEY = os.getenv("KRX_OPEN_API_KEY")
 KRX_BASE = "https://data-dbg.krx.co.kr/svc/apis"
 
-_log_dir = os.path.join(os.path.dirname(__file__), "logs")
-os.makedirs(_log_dir, exist_ok=True)
-_log_file = os.path.join(_log_dir, f"listed_at_{datetime.today().strftime('%Y%m%d')}.log")
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.FileHandler(_log_file, encoding="utf-8"),
-        logging.StreamHandler(),
-    ],
-    # fetch_stocks 를 import 하면 그쪽 모듈 로드 시 root logger 에 stocks_YYYYMMDD.log
-    # 핸들러가 먼저 설치되어 이 basicConfig 이 no-op 이 된다. force=True 로 재설정한다.
-    force=True,
-)
 logger = logging.getLogger(__name__)
 
 KRX_PATHS = ("sto/stk_isu_base_info", "sto/ksq_isu_base_info")
@@ -66,6 +52,7 @@ def _krx_call(bas_dd: str, path: str) -> list[dict]:
 
 
 def main():
+    setup_logging("listed_at")
     if not KRX_KEY:
         logger.error("KRX_OPEN_API_KEY 미설정 (collector/.env)")
         sys.exit(1)

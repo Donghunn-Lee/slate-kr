@@ -36,6 +36,7 @@ from dotenv import load_dotenv
 
 from db import get_connection
 from kis_token import get_token
+from log_setup import setup_logging
 
 load_dotenv()
 
@@ -55,20 +56,6 @@ OVERSEAS_MARKETS: tuple[str, ...] = ("US", "JP", "HK", "CN")
 KST = timezone(timedelta(hours=9))
 
 # ── 로깅 ──────────────────────────────────────────────────────────────
-_log_dir = os.path.join(os.path.dirname(__file__), "logs")
-os.makedirs(_log_dir, exist_ok=True)
-_log_file = os.path.join(
-    _log_dir, f"market_calendar_{datetime.today().strftime('%Y%m%d')}.log"
-)
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.FileHandler(_log_file, encoding="utf-8"),
-        logging.StreamHandler(),
-    ],
-)
 logger = logging.getLogger(__name__)
 
 
@@ -254,6 +241,7 @@ def fetch_overseas_for_date(conn, token: str, target: date, force: bool) -> None
 
 # ── main ──────────────────────────────────────────────────────────────
 def main() -> None:
+    setup_logging("market_calendar")
     parser = argparse.ArgumentParser(description="KIS 휴장·개장 캘린더 적재")
     parser.add_argument("--force", action="store_true",
                         help="중복 호출 가드 우회")

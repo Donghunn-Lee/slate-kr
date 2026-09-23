@@ -48,6 +48,7 @@ from dotenv import load_dotenv
 
 from db import get_connection
 from kis_token import get_token
+from log_setup import setup_logging
 
 load_dotenv()
 
@@ -80,20 +81,6 @@ OVERSEAS_CODES = tuple(DOMAIN_TO_ISCD.keys())
 MARKER_HOURS = {"999999", "888888"}
 
 # ── 로깅 ────────────────────────────────────────────
-_log_dir = os.path.join(os.path.dirname(__file__), "logs")
-os.makedirs(_log_dir, exist_ok=True)
-_log_file = os.path.join(
-    _log_dir, f"overseas_intraday_{datetime.today().strftime('%Y%m%d')}.log"
-)
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.FileHandler(_log_file, encoding="utf-8"),
-        logging.StreamHandler(),
-    ],
-)
 logger = logging.getLogger(__name__)
 
 
@@ -270,6 +257,7 @@ def run():
 
 
 def main():
+    setup_logging("overseas_intraday")
     if not KIS_APP_KEY or not KIS_APP_SECRET:
         logger.error("KIS_APP_KEY / KIS_APP_SECRET 미설정")
         sys.exit(1)

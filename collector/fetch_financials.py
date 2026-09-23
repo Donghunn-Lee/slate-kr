@@ -11,6 +11,7 @@ import requests
 import time
 
 from db import get_connection
+from log_setup import setup_logging
 
 # 재시도 대상 DB 예외 — connection 절단·소켓 종료류.
 # insert_financial/mark_non_filer 내부의 광범위 `except Exception` 이 이걸
@@ -20,20 +21,6 @@ _DB_RETRY_EXC = (psycopg2.OperationalError, psycopg2.InterfaceError)
 load_dotenv()
 
 # ── 로깅 설정 ──────────────────────────────────────────────
-_log_dir = os.path.join(os.path.dirname(__file__), "logs")
-os.makedirs(_log_dir, exist_ok=True)
-_log_file = os.path.join(
-    _log_dir, f"financials_{datetime.today().strftime('%Y%m%d')}.log"
-)
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.FileHandler(_log_file, encoding="utf-8"),
-        logging.StreamHandler(),
-    ],
-)
 logger = logging.getLogger(__name__)
 
 DART_API_KEY = os.getenv("DART_API_KEY")
@@ -838,7 +825,8 @@ def get_available_reports(years_back: int = 5) -> list[tuple[str, str]]:
     return reports
 
 
-if __name__ == "__main__":
+def main():
+    setup_logging("financials")
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--periods",
@@ -929,3 +917,7 @@ if __name__ == "__main__":
             "[GATE_SKIP] known non-KRW %d건 (X22 전 영구 skip) — 조치 불요",
             total_known_skip,
         )
+
+
+if __name__ == "__main__":
+    main()
