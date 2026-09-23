@@ -7,6 +7,7 @@ import { RefreshCw, WifiOff } from "lucide-react";
 import type { TickerDisclosureCount } from "@/shared/types/stock";
 import { StockPanel } from "@/entities/stock/StockPanel";
 import { cn } from "@/lib/utils";
+import { StatusBadge } from "@/shared/components/StatusBadge";
 import type { Market } from "@/shared/types/ranking";
 import { Pill } from "./Pill";
 import { useRankingCaption } from "./rankingCaption";
@@ -82,7 +83,8 @@ export const RankingView = ({
     [disclosureQuery.data],
   );
 
-  const showFailure = !isLoading && (isError || failed);
+  // 부분 실패(failed)는 행이 있으면 표시 유지 + "일시 지연" 배지 — 행이 0일 때만 실패 화면.
+  const showFailure = !isLoading && (isError || (failed && items.length === 0));
   const showEmpty = !isLoading && !showFailure && items.length === 0;
   const showResults = !isLoading && !showFailure && !showEmpty;
 
@@ -94,11 +96,14 @@ export const RankingView = ({
             {MARKET_LABEL[m]}
           </Pill>
         ))}
-        {caption !== null && (
-          <span className="ml-auto text-caption text-muted-foreground">
-            {caption}
-          </span>
-        )}
+        <div className="ml-auto flex items-center gap-2">
+          {failed && items.length > 0 && <StatusBadge label="일시 지연" />}
+          {caption !== null && (
+            <span className="text-caption text-muted-foreground">
+              {caption}
+            </span>
+          )}
+        </div>
       </div>
       <div className="mb-3 flex items-end gap-3 border-b border-border/60 sm:mb-4">
         <RankingTabStrip
