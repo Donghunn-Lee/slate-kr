@@ -17,6 +17,7 @@ export type StockQuoteResponse = {
 };
 
 type UseStockQuoteOptions = {
+  /** true 면 setInterval 폴링만 정지. useQuery 는 그대로라 캐시가 없거나 stale 이면 초기 fetch 는 발생한다. */
   subscribeOnly?: boolean;
   // 명시 시장 축. undefined 는 세션 결정 경로. queryKey 에 포함되어 축이 다른 폴링을
   // 별도 캐시로 분리한다.
@@ -61,6 +62,7 @@ export const useStockQuote = (
     enabled,
   });
 
+  // query 는 렌더마다 새 객체라 dep 에 넣으면 매 렌더 interval 이 재설정된다 — 의도적으로 제외.
   useEffect(() => {
     if (subscribeOnly || !enabled) return;
     const id = setInterval(() => {
