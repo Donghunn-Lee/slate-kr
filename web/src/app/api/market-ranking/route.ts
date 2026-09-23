@@ -2,8 +2,8 @@ import { revalidateTag, unstable_cache } from "next/cache";
 import { type NextRequest, NextResponse } from "next/server";
 
 import { fetchRanking } from "@/lib/kis-ranking-fetch";
-import { pool } from "@/lib/db";
 import { getMarketCalendar } from "@/lib/market-calendar";
+import { getMarketsByTickers } from "@/lib/stocks";
 import {
   getKrxSessionState,
   getKrxTradingDate,
@@ -17,7 +17,6 @@ import {
   type MarketRankingItem,
   type MarketRankingKind,
 } from "@/shared/types/ranking";
-import type { StockSummary } from "@/shared/types/stock";
 
 export const dynamic = "force-dynamic";
 
@@ -60,20 +59,12 @@ const parseKind = (params: URLSearchParams): MarketRankingKind | null => {
 // DB 조회로 종목별 시장 구분을 매핑. KIS 순위 응답에는 per-row market 이 없다.
 // 실패는 items 그대로 반환 — 순위 응답 실패 계약(failed flag)에는 영향 없음.
 // unstable_cache 내부에서 호출되므로 캐시 hit 시 DB 재조회하지 않는다.
-type StockMarketRow = { ticker: string; market: StockSummary["market"] };
-
 const enrichWithMarket = async (
   items: MarketRankingItem[],
 ): Promise<MarketRankingItem[]> => {
   if (items.length === 0) return items;
   try {
-    const tickers = items.map((i) => i.ticker);
-    const placeholders = tickers.map((_, i) => `$${i + 1}`).join(",");
-    const [rows] = await pool.query<StockMarketRow[]>(
-      `SELECT ticker, market FROM stocks WHERE ticker IN (${placeholders}) AND is_active = true`,
-      tickers,
-    );
-    const marketByTicker = new Map(rows.map((r) => [r.ticker, r.market]));
+    const marketByTicker = await getMarketsByTickers(items.map((i) => i.ticker));
     return items.map((i) => {
       const market = marketByTicker.get(i.ticker);
       return market ? { ...i, market } : i;

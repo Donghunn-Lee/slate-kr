@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { pool } from "./db";
-import type { PriceStats, StockPriceSnapshot } from "@/shared/types/stock";
+import type { PriceStats, StockPriceSnapshot, TickerPriceSummary } from "@/shared/types/stock";
 import { format, parseISO, subMonths, subYears } from "date-fns";
 
 type DailyPriceRow = {
@@ -138,6 +138,78 @@ export const getLatestPricesByTickers = async (
     };
   }
   return result;
+};
+
+type TickerLatestPriceRow = {
+  ticker: string;
+  close: number;
+  date: string;
+  base_price: number | null;
+};
+
+// tickers 각각의 최신 행(활성 종목만) + 등락. 기준가는 base_price 우선, NULL 인 행만
+// 직전 거래일 종가 lookback. lookback 개별 실패는 null 처리 — 메인 조회 실패만 throw.
+export const getPriceSummariesByTickers = async (
+  tickers: string[]
+): Promise<TickerPriceSummary[]> => {
+  const placeholders = tickers.map((_, i) => `$${i + 1}`).join(",");
+
+  const [rows] = await pool.query<TickerLatestPriceRow[]>(
+    // date 는 to_char 로 문자열 수신 — Neon HTTP 가 DATE 를 로컬 midnight Date 로
+    // 파싱해 환경 TZ 만큼 어긋나는 경로를 차단한다.
+    `SELECT p1.ticker, p1.close, to_char(p1.date, 'YYYY-MM-DD') AS date, p1.base_price
+     FROM daily_prices p1
+     INNER JOIN (
+       SELECT ticker, MAX(date) AS max_date
+       FROM daily_prices
+       WHERE ticker IN (${placeholders})
+       GROUP BY ticker
+     ) latest ON p1.ticker = latest.ticker AND p1.date = latest.max_date
+     INNER JOIN stocks s ON s.ticker = p1.ticker AND s.is_active = true
+     ORDER BY p1.ticker`,
+    tickers
+  );
+
+  const basisResults = await Promise.allSettled(
+    rows.map(async (row): Promise<number | null> => {
+      if (row.base_price !== null) return row.base_price;
+      const [prev] = await pool.query<{ close: number }[]>(
+        "SELECT close FROM daily_prices WHERE ticker = $1 AND date < $2 ORDER BY date DESC LIMIT 1",
+        [row.ticker, row.date]
+      );
+      return prev[0]?.close ?? null;
+    })
+  );
+
+  const basisMap = Object.fromEntries(
+    basisResults.map((result, i) => [
+      rows[i].ticker,
+      result.status === "fulfilled" ? result.value : null,
+    ])
+  );
+
+  const computeChange = (
+    current: number,
+    basis: number | null
+  ): { change: number | null; changePct: number | null } => {
+    if (basis === null) return { change: null, changePct: null };
+    const change = current - basis;
+    const changePct = basis === 0 ? null : (change / basis) * 100;
+    return { change, changePct };
+  };
+
+  return rows.map((row) => {
+    const basePrice = basisMap[row.ticker];
+    const { change, changePct } = computeChange(row.close, basePrice);
+    return {
+      ticker: row.ticker,
+      close: row.close,
+      basePrice,
+      change,
+      changePct,
+      date: row.date,
+    };
+  });
 };
 
 export const getPricesForStats = async (ticker: string): Promise<StockPriceSnapshot[]> => {

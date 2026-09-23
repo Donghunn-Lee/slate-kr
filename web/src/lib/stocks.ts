@@ -62,6 +62,18 @@ export const getAllTickers = async (): Promise<string[]> => {
   return rows.map((row) => row.ticker);
 };
 
+// 활성 종목의 ticker → 시장 구분. 결과에서 누락된 ticker 는 caller 가 부재로 처리한다.
+export const getMarketsByTickers = async (
+  tickers: string[]
+): Promise<Map<string, StockSummary["market"]>> => {
+  const placeholders = tickers.map((_, i) => `$${i + 1}`).join(",");
+  const [rows] = await pool.query<Pick<StockRow, "ticker" | "market">[]>(
+    `SELECT ticker, market FROM stocks WHERE ticker IN (${placeholders}) AND is_active = true`,
+    tickers
+  );
+  return new Map(rows.map((r) => [r.ticker, r.market]));
+};
+
 type SearchOptions = {
   limit?: number;
   offset?: number;
