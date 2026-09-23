@@ -11,7 +11,8 @@
     "format": "prettier --write .",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "check": "npm run typecheck && npm run lint && npm run test:run && npm run build"
   },
   "dependencies": {
     "@date-fns/tz": "^1.5.0",
