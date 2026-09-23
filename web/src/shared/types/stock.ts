@@ -9,6 +9,11 @@ export type DartDisclosure = {
   rmk: string;
 };
 
+export type TickerDisclosureCount = {
+  ticker: string;
+  count: number | null;
+};
+
 export type StockSummary = {
   ticker: string;
   name: string;
@@ -45,6 +50,17 @@ export type StockPriceSnapshot = {
   // 등락 기준가(전일 15:30 정규장 종가). close 는 20:00 마감 캔들이라 인접 행 close 차이는
   // KIS 등락률 축과 어긋난다. null 인 행은 직전 거래일 close 로 폴백.
   basePrice: number | null;
+};
+
+export type TickerPriceSummary = {
+  ticker: string;
+  close: number;
+  // 등락 기준가 — base_price(기준가), 없으면 직전 거래일 종가.
+  basePrice: number | null;
+  change: number | null;
+  changePct: number | null;
+  // close 가 속한 거래일.
+  date: string;
 };
 
 export type FinancialPeriod = {

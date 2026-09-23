@@ -1,22 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/lib/db";
+import type { TickerPriceSummary } from "@/shared/types/stock";
 
 type PriceRow = {
   ticker: string;
   close: number;
   date: string;
   base_price: number | null;
-};
-
-export type TickerPriceSummary = {
-  ticker: string;
-  close: number;
-  // 등락 기준가 — base_price(기준가), 없으면 직전 거래일 종가.
-  basePrice: number | null;
-  change: number | null;
-  changePct: number | null;
-  // close 가 속한 거래일.
-  date: string;
 };
 
 // GET /api/prices?tickers=005930,000660,035420

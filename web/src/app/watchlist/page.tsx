@@ -4,8 +4,7 @@ import { useMemo, useState } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
 import { Clock, Settings2, Star, StickyNote } from "lucide-react";
-import type { TickerPriceSummary } from "@/app/api/prices/route";
-import type { TickerDisclosureCount } from "@/app/api/disclosures/recent-count/route";
+import type { TickerDisclosureCount, TickerPriceSummary } from "@/shared/types/stock";
 import {
   selectTickersByGroup,
   useWatchlistStore,

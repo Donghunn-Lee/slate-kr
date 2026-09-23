@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCw, WifiOff } from "lucide-react";
-import type { TickerDisclosureCount } from "@/app/api/disclosures/recent-count/route";
+import type { TickerDisclosureCount } from "@/shared/types/stock";
 import { StockPanel } from "@/entities/stock/StockPanel";
 import { cn } from "@/lib/utils";
 import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";

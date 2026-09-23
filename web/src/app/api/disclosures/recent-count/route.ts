@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCorpCode } from "@/lib/stocks";
 import { getDisclosures } from "@/lib/dart";
-
-export type TickerDisclosureCount = {
-  ticker: string;
-  count: number | null;
-};
+import type { TickerDisclosureCount } from "@/shared/types/stock";
 
 const MAX_TICKERS = 30;
 const DEFAULT_DAYS = 7;

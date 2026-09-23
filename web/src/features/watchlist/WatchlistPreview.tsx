@@ -8,7 +8,7 @@ import { StockPanel } from "@/entities/stock/StockPanel";
 import { PriceChange } from "@/shared/components/PriceChange";
 import { LIVE_TICKER_LIMIT, useMultiQuote } from "@/features/multi-quote/useMultiQuote";
 import { useWatchlistStore, type WatchlistItem } from "./store/useWatchlistStore";
-import type { TickerPriceSummary } from "@/app/api/prices/route";
+import type { TickerPriceSummary } from "@/shared/types/stock";
 import {
   Select,
   SelectContent,

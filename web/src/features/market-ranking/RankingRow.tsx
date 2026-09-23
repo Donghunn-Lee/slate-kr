@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { TickerDisclosureCount } from "@/app/api/disclosures/recent-count/route";
+import type { TickerDisclosureCount } from "@/shared/types/stock";
 import { PriceChange } from "@/shared/components/PriceChange";
 import { formatMarketCap } from "@/shared/format";
 import type { PriceSign } from "@/shared/types/quote";

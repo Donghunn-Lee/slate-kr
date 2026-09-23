@@ -3,8 +3,7 @@
 import type { MouseEvent } from "react";
 import Link from "next/link";
 import { NotebookText, Trash2 } from "lucide-react";
-import type { TickerPriceSummary } from "@/app/api/prices/route";
-import type { TickerDisclosureCount } from "@/app/api/disclosures/recent-count/route";
+import type { TickerDisclosureCount, TickerPriceSummary } from "@/shared/types/stock";
 import type { WatchlistItem } from "@/features/watchlist/store/useWatchlistStore";
 import type { StockQuote } from "@/shared/types/quote";
 import { PriceChange } from "@/shared/components/PriceChange";
