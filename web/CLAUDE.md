@@ -56,7 +56,7 @@ AI 없이도 설득력 있어야 한다. AI는 투자 판단 도구가 아니라
 - **DB**: PostgreSQL on Neon (@neondatabase/serverless, lib/db.ts)
   - neon() 호환 래퍼: 기존 `[rows, null]` 패턴 유지
   - placeholder: `$1, $2` (PostgreSQL 스타일)
-- **DB 마이그레이션**: `web/sql/*.sql`에 DDL 추적. Neon 콘솔 수동 적용 (자동 실행 도구 없음)
+- **DB 마이그레이션**: `web/sql/*.sql`에 DDL·데이터 보정 DML·운영 템플릿을 추적, Neon 콘솔 수동 적용 (자동 실행 도구 없음)
 - **데이터 수집**: Python (collector/)
   - 일일(20:12 KST): fetch_daily_close.py (KIS J 멀티시세, 국내 종목 20:00 캔들 + base_price)
     / fetch_index_prices.py (KIS, 국내 지수 4종 EOD) / fetch_overseas_indices.py (KIS, 해외 지수 8종)
@@ -114,9 +114,11 @@ const StockCard = ({ stock }: StockCardProps) => { ... }
 const useWatchlist = () => { ... }
 const formatPrice = (price: number): string => { ... }
 
-// async Server Component — async function 허용
+// route 파일(page/layout/error/not-found/loading 등) — async 여부 무관 function 허용
 async function StockDetailPage({ params }: PageProps) { ... }
 ```
+
+- 예외: `components/ui/` shadcn 생성물은 CLI 원본 스타일(`function` 선언·kebab-case 파일명)을 유지한다
 
 ### TypeScript
 
@@ -154,9 +156,9 @@ type SummarizeError =
 
 - 컴포넌트 파일: PascalCase (`StockCard.tsx`)
 - 훅 파일: camelCase, use 접두사 (`useWatchlist.ts`)
-- 유틸/lib 파일: camelCase (`formatPrice.ts`)
+- `lib/` 파일: kebab-case (`kis-token.ts`), 그 외 유틸 파일: camelCase (`formatPrice.ts`)
 - 타입: PascalCase, 접두사 없음 (`StockSummary`)
-- 상수: SCREAMING_SNAKE_CASE (`MAX_WATCHLIST_SIZE`)
+- 상수: SCREAMING_SNAKE_CASE (`MAX_WATCHLIST_SIZE`)는 원시값·설정값. 인스턴스·클라이언트 싱글턴은 camelCase (`pool`)
 
 ---
 
