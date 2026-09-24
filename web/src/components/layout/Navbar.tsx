@@ -10,7 +10,7 @@ export const Navbar = () => {
         <Link href="/" className="text-sm font-semibold tracking-tight">
           SlateKR
         </Link>
-        <div className="justify-self-stretch md:w-64 md:justify-self-center">
+        <div className="justify-self-stretch sm:w-full sm:max-w-md sm:justify-self-center md:w-64">
           <Suspense fallback={<div className="h-8 w-full" />}>
             <NavbarSearch />
           </Suspense>
