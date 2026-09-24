@@ -89,7 +89,7 @@ export const StockMetricsFormulaTooltip = ({
             <span className="font-semibold">시가배당률</span> = 최근 결산 DPS ÷ 현재가
           </p>
         </section>
-        <section className="space-y-1 border-t border-primary-foreground/20 dark:border-white/15 pt-1.5 text-micro text-primary-foreground/80 dark:text-white/70">
+        <section className="space-y-1 border-t border-primary-foreground/20 dark:border-foreground/15 pt-1.5 text-micro text-primary-foreground/80 dark:text-foreground/70">
           <p>붉은색으로 표시된 기준이 이 종목에 적용된 산식입니다.</p>
           <p>
             분기 수가 부족한 종목은 보유 분기를 연 단위로 환산하며, 실제 연간 실적과

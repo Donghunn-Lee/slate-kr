@@ -4,6 +4,9 @@ import type { Time } from "lightweight-charts";
 // 브라우저 computed sRGB 를 hex 로 옮긴 값이다(oklch 수동 환산 아님).
 //   light: up oklch(0.52 0.2 25)=#c21725 · down oklch(0.48 0.18 260)=#1156c0
 //   dark : up oklch(0.62 0.19 25)=#e24947 · down oklch(0.62 0.16 260)=#4983e5
+// bg/text/border 도 같은 방식으로 --bg-elevated(차트가 놓이는 패널 배경)·--text-primary·--border-subtle 을 옮긴 값.
+//   light: bg oklch(0.995 0.003 85)=#fefdfb · text oklch(0.25 0.02 270)=#1e212b · border oklch(0.92 0.005 85)=#e6e4e1
+//   dark : bg oklch(0.21 0.004 85)=#191816 · text oklch(0.95 0.008 270)=#eceef4 · border oklch(0.26 0.005 85)=#252421
 // 토큰 값을 바꾸면 여기 hex 와 아래 rgba 파생값을 함께 갱신한다.
 // dim.{up,down} — 전일 봉 등 흐림 처리용 저채도 저대비 버전. 무채색 계열과 톤 충돌 없도록
 // 원색의 알파를 낮춰 배경에 자연스레 녹아들게 한다.
@@ -19,9 +22,9 @@ import type { Time } from "lightweight-charts";
 // 톤 충돌 없이 서로 구분되도록 노랑·보라·청록·주황 계열 (KR 일봉 차트 관행에 근접).
 export const CHART_THEME = {
   light: {
-    bg: "#ffffff",
-    text: "#1a1a1a",
-    border: "#e5e5e5",
+    bg: "#fefdfb",
+    text: "#1e212b",
+    border: "#e6e4e1",
     up: "#c21725",
     down: "#1156c0",
     dim: {
@@ -47,9 +50,9 @@ export const CHART_THEME = {
     ma: ["#eab308", "#a855f7", "#14b8a6", "#f97316"],
   },
   dark: {
-    bg: "#1a1a1a",
-    text: "#f0f0f0",
-    border: "rgba(255,255,255,0.1)",
+    bg: "#191816",
+    text: "#eceef4",
+    border: "#252421",
     up: "#e24947",
     down: "#4983e5",
     dim: {

@@ -84,6 +84,13 @@ export const ColorTokens = () => (
         <PriceChange change={0} changeRate={0} unit="원" />
       </div>
 
+      <SwatchGroup
+        title="Functional — 상태 (라이트·다크 공용)"
+        tokens={[
+          { token: "--live", value: "oklch(0.696 0.17 162.48)", label: "실시간 시세 점" },
+        ]}
+      />
+
       {ACCENT_COLORS.map(({ name, prefix }) => (
         <SwatchGroup
           key={prefix}

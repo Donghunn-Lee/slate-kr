@@ -190,7 +190,7 @@ const MarketStatus = ({
   if (marketOpen) {
     return (
       <div className="flex items-center gap-1.5 text-body-sm text-muted-foreground">
-        <span className="inline-block size-1.5 rounded-full bg-emerald-500" aria-hidden />
+        <span className="inline-block size-1.5 rounded-full bg-live" aria-hidden />
         <span>정규장{fetchedAt !== null ? ` · ${formatClock(new Date(fetchedAt))}` : ""}</span>
       </div>
     );

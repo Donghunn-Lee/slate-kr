@@ -18,9 +18,9 @@ const LABEL_BY_KIND: Record<MarketActionStatus["kind"], string> = {
 // 심각(거래정지/정리매매/투자위험) → red, 주의성(관리/단기과열/투자주의/투자경고) → amber,
 // 응답 축소 → 무채색. 상태 사실만 노출하고 원인 추정은 하지 않는다.
 const CLASS_BY_KIND: Record<MarketActionStatus["kind"], string> = {
-  suspended: "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300",
-  liquidation: "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300",
-  risk: "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300",
+  suspended: "bg-disclosure-market-action-bg text-disclosure-market-action-text",
+  liquidation: "bg-disclosure-market-action-bg text-disclosure-market-action-text",
+  risk: "bg-disclosure-market-action-bg text-disclosure-market-action-text",
   warning: "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
   managed: "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
   overheated: "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",

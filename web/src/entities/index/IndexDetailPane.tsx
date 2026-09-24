@@ -328,7 +328,7 @@ export const IndexDetailPane = ({
           {/* emerald dot 은 실시간(지연 0) live 전용. 지연 지수는 pill 배지로 신호. */}
           {showDot && (
             <span
-              className="inline-block size-1.5 rounded-full bg-emerald-500"
+              className="inline-block size-1.5 rounded-full bg-live"
               aria-hidden
             />
           )}

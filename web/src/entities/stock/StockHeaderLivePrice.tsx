@@ -199,7 +199,7 @@ export const StockHeaderLivePrice = ({
         )}
         <span className="mb-1.5 inline-flex items-center gap-1.5 text-body-sm text-muted-foreground">
           {session === "regular" && !isFailedQuote && (
-            <span className="inline-block size-1.5 rounded-full bg-emerald-500" aria-hidden />
+            <span className="inline-block size-1.5 rounded-full bg-live" aria-hidden />
           )}
           <span>{labelText}</span>
           {timeText && <span aria-hidden>·</span>}
