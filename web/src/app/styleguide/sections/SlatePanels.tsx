@@ -1,7 +1,8 @@
+import { StockPanel, type StockPanelVariant } from "@/entities/stock/StockPanel";
+
 type PanelVariant = {
   name: string;
-  bg: string;
-  border: string;
+  variant: StockPanelVariant;
   bgToken: string;
   borderToken: string;
   dot: string;
@@ -12,8 +13,7 @@ type PanelVariant = {
 const VARIANTS: PanelVariant[] = [
   {
     name: "Plain",
-    bg: "bg-elevated",
-    border: "border-subtle",
+    variant: "plain",
     bgToken: "--bg-elevated",
     borderToken: "--border-subtle",
     dot: "bg-muted",
@@ -22,8 +22,7 @@ const VARIANTS: PanelVariant[] = [
   },
   {
     name: "Sky",
-    bg: "bg-sky-bg",
-    border: "border-sky-border",
+    variant: "sky",
     bgToken: "--sky-bg",
     borderToken: "--sky-border",
     dot: "bg-sky-accent",
@@ -32,8 +31,7 @@ const VARIANTS: PanelVariant[] = [
   },
   {
     name: "Sage",
-    bg: "bg-sage-bg",
-    border: "border-sage-border",
+    variant: "sage",
     bgToken: "--sage-bg",
     borderToken: "--sage-border",
     dot: "bg-sage-accent",
@@ -42,8 +40,7 @@ const VARIANTS: PanelVariant[] = [
   },
   {
     name: "Amber",
-    bg: "bg-amber-bg",
-    border: "border-amber-border",
+    variant: "amber",
     bgToken: "--amber-bg",
     borderToken: "--amber-border",
     dot: "bg-amber-accent",
@@ -52,8 +49,7 @@ const VARIANTS: PanelVariant[] = [
   },
   {
     name: "Lavender",
-    bg: "bg-lavender-bg",
-    border: "border-lavender-border",
+    variant: "lavender",
     bgToken: "--lavender-bg",
     borderToken: "--lavender-border",
     dot: "bg-lavender-accent",
@@ -62,8 +58,7 @@ const VARIANTS: PanelVariant[] = [
   },
   {
     name: "Peach",
-    bg: "bg-peach-bg",
-    border: "border-peach-border",
+    variant: "peach",
     bgToken: "--peach-bg",
     borderToken: "--peach-border",
     dot: "bg-peach-accent",
@@ -78,19 +73,15 @@ export const SlatePanels = () => (
       Slate Panels
     </h2>
     <p className="mb-6 text-[13px] text-muted-foreground">
-      6종 패널 변형 — 동일 구조에서 배경·테두리 색만 교체
+      StockPanel variant 6종 — 동일 구조에서 배경·테두리 색만 교체. noBorder로 테두리 생략
     </p>
 
     <div
       className="grid gap-4"
       style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}
     >
-      {VARIANTS.map(({ name, bg, border, bgToken, borderToken, dot, codeBg, label }) => (
-        <div
-          key={name}
-          className={`${bg} border ${border} rounded-lg p-6`}
-          style={{ boxShadow: "var(--shadow-slate)" }}
-        >
+      {VARIANTS.map(({ name, variant, bgToken, borderToken, dot, codeBg, label }) => (
+        <StockPanel key={name} variant={variant}>
           <div className="mb-2 flex items-center gap-2">
             <div className={`size-2 shrink-0 rounded-full ${dot}`} />
             <p className="text-sm font-semibold text-foreground">패널 제목 — {name}</p>
@@ -108,7 +99,7 @@ export const SlatePanels = () => (
               border: {borderToken}
             </code>
           </div>
-        </div>
+        </StockPanel>
       ))}
     </div>
   </section>

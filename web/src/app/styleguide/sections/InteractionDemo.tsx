@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
+import { PriceCountUp } from "@/entities/stock/PriceCountUp";
 
 /* ──────────────────────────────────────────────
    공통: 섹션 래퍼
@@ -471,47 +472,18 @@ const PRICE_SEQUENCE = [
   { value: 218100, delta: -6700, pct: "-2.98%", dir: "down" as const },
 ];
 
-const easeOutCubic = (x: number) => 1 - Math.pow(1 - x, 3);
-
-const formatPrice = (n: number) => Math.round(n).toLocaleString("ko-KR") + "원";
-
 const CountUpDemo = () => {
   const [index, setIndex] = useState(0);
-  const [displayValue, setDisplayValue] = useState(PRICE_SEQUENCE[0].value);
-  const frameRef = useRef<number>(0);
 
   const current = PRICE_SEQUENCE[index];
 
-  const handleNext = () => {
-    const nextIndex = (index + 1) % PRICE_SEQUENCE.length;
-    const start = PRICE_SEQUENCE[index].value;
-    const end = PRICE_SEQUENCE[nextIndex].value;
-    const duration = 600;
-    const startTime = performance.now();
-
-    cancelAnimationFrame(frameRef.current);
-
-    const tick = (now: number) => {
-      const elapsed = now - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const eased = easeOutCubic(progress);
-      setDisplayValue(start + (end - start) * eased);
-      if (progress < 1) {
-        frameRef.current = requestAnimationFrame(tick);
-      }
-    };
-
-    frameRef.current = requestAnimationFrame(tick);
-    setIndex(nextIndex);
-  };
-
-  useEffect(() => () => cancelAnimationFrame(frameRef.current), []);
+  const handleNext = () => setIndex((index + 1) % PRICE_SEQUENCE.length);
 
   return (
     <DemoBlock
       title="숫자 카운트업"
-      description="재방문 시점 가격 변화 인지를 위한 부드러운 보간 — easeOutCubic 600ms"
-      token="requestAnimationFrame"
+      description="재방문 시점 가격 변화 인지를 위한 부드러운 보간 — ease-out cubic 800ms, 호가 단위 스냅"
+      token="PriceCountUp"
     >
       <div
         style={{
@@ -545,7 +517,7 @@ const CountUpDemo = () => {
               fontVariantNumeric: "tabular-nums",
             }}
           >
-            {formatPrice(displayValue)}
+            <PriceCountUp value={current.value} />원
           </span>
         </div>
         <p

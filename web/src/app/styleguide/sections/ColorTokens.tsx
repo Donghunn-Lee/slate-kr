@@ -71,6 +71,12 @@ export const ColorTokens = () => (
           { token: "--price-neutral", value: "oklch(0.55 0.01 270)", label: "보합" },
         ]}
       />
+      <ul className="-mt-5 list-disc space-y-0.5 pl-5 text-body-sm text-muted-foreground">
+        <li>가격·변동폭·등락률 모두 등락색(price-up / price-down)으로 표기한다.</li>
+        <li>보합(0%)은 text-foreground를 명시한다.</li>
+        <li>예외: 52주 고/저는 부호와 무관한 고정색(고=price-up, 저=price-down)을 유지한다.</li>
+        <li>차트(CHART_THEME)의 상승·하락 색은 CSS 토큰과 동일값이어야 한다.</li>
+      </ul>
 
       {ACCENT_COLORS.map(({ name, prefix }) => (
         <SwatchGroup
