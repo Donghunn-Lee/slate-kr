@@ -5,6 +5,7 @@ import { SlatePanels } from "./sections/SlatePanels";
 import { Tabs } from "./sections/Tabs";
 import { Modal } from "./sections/Modal";
 import { MotionTokens } from "./sections/MotionTokens";
+import { InteractionDemo } from "./sections/InteractionDemo";
 
 export const metadata: Metadata = {
   title: "Styleguide — SlateKR",
@@ -24,7 +25,7 @@ export default function StyleguidePage() {
             SlateKR에서 사용하는 색·타이포·모션 토큰 가이드
           </p>
           <div className="mt-4 flex flex-wrap gap-2 font-mono text-[11px] text-muted-foreground">
-            {["Base", "Functional", "Accent ×5", "Disclosure", "Typography", "Panels", "Tabs", "Modal", "Motion"].map((tag) => (
+            {["Base", "Functional", "Accent ×5", "Disclosure", "Typography", "Panels", "Tabs", "Modal", "Motion", "Interaction"].map((tag) => (
               <span key={tag} className="rounded bg-subtle px-2 py-0.5">
                 {tag}
               </span>
@@ -40,6 +41,7 @@ export default function StyleguidePage() {
           <Tabs />
           <Modal />
           <MotionTokens />
+          <InteractionDemo />
         </div>
 
         {/* 푸터 */}
