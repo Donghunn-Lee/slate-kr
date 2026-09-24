@@ -33,7 +33,6 @@ const EaseCurveSwatch = () => (
 const MOTION_TOKENS: MotionTokenCardProps[] = [
   { token: "--duration-fast", value: "150ms", label: "패널 hover, 행 인터랙션" },
   { token: "--duration-base", value: "250ms", label: "패널 expand, 전환 애니메이션" },
-  { token: "--duration-slow", value: "400ms", label: "페이지 레벨 전환" },
   {
     token: "--ease-smooth",
     value: "cubic-bezier(0.4, 0, 0.2, 1)",

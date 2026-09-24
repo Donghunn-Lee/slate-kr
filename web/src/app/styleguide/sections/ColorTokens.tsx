@@ -67,9 +67,7 @@ export const ColorTokens = () => (
         title="Functional — 등락 (상승 Red / 하락 Blue)"
         tokens={[
           { token: "--price-up", value: "oklch(0.52 0.2 25)", label: "상승" },
-          { token: "--price-up-muted", value: "oklch(0.52 0.2 25 / 12%)", label: "상승 배경" },
           { token: "--price-down", value: "oklch(0.48 0.18 260)", label: "하락" },
-          { token: "--price-down-muted", value: "oklch(0.48 0.18 260 / 12%)", label: "하락 배경" },
           { token: "--price-neutral", value: "oklch(0.55 0.01 270)", label: "보합" },
         ]}
       />
@@ -80,15 +78,6 @@ export const ColorTokens = () => (
           title={`Accent — ${name}`}
           tokens={[
             { token: `--${prefix}-bg`, value: `(hue ${prefix})`, label: "배경" },
-            ...(prefix === "lavender"
-              ? [
-                  {
-                    token: `--lavender-emphasis`,
-                    value: `(hue lavender)`,
-                    label: "hover·active 헤더 배경",
-                  },
-                ]
-              : []),
             { token: `--${prefix}-border`, value: `(hue ${prefix})`, label: "테두리" },
             { token: `--${prefix}-accent`, value: `(hue ${prefix})`, label: "아이콘·강조" },
           ]}
