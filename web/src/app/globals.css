@@ -255,22 +255,6 @@
   --ring: oklch(0.556 0 0);
 }
 
-/*
- * text-primary/secondary conflict with shadcn-generated classes from @theme inline.
- * @utility cannot override theme-generated names — it gets deduplicated away in compilation.
- * Raw @layer utilities appends after Tailwind's generated utilities, winning in the cascade.
- * shadcn components use text-primary-foreground / text-secondary-foreground, not these names.
- * text-tertiary needs no override: --color-tertiary already maps to --text-tertiary correctly.
- */
-@layer utilities {
-  .text-primary {
-    color: var(--text-primary);
-  }
-  .text-secondary {
-    color: var(--text-secondary);
-  }
-}
-
 @utility text-price-up {
   color: var(--price-up);
 }
