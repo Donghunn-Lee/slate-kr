@@ -38,9 +38,19 @@ const SwatchGroup = ({ title, tokens }: SwatchGroupProps) => (
 );
 
 const ACCENT_COLORS = [
-  { name: "Sky", prefix: "sky", hue: 220 },
+  {
+    name: "Sky",
+    prefix: "sky",
+    hue: 220,
+    extra: [{ token: "--sky-text", value: "oklch(0.5 0.12 220)", label: "틴트 배지 텍스트 (AA 4.5:1)" }],
+  },
   { name: "Sage", prefix: "sage", hue: 165 },
-  { name: "Amber", prefix: "amber", hue: 80 },
+  {
+    name: "Amber",
+    prefix: "amber",
+    hue: 80,
+    extra: [{ token: "--amber-text", value: "oklch(0.475 0.136 45)", label: "틴트 배지 텍스트 (AA 4.5:1)" }],
+  },
   { name: "Lavender", prefix: "lavender", hue: 290 },
   { name: "Peach", prefix: "peach", hue: 45 },
 ];
@@ -91,7 +101,7 @@ export const ColorTokens = () => (
         ]}
       />
 
-      {ACCENT_COLORS.map(({ name, prefix }) => (
+      {ACCENT_COLORS.map(({ name, prefix, extra = [] }) => (
         <SwatchGroup
           key={prefix}
           title={`Accent — ${name}`}
@@ -99,6 +109,7 @@ export const ColorTokens = () => (
             { token: `--${prefix}-bg`, value: `(hue ${prefix})`, label: "배경" },
             { token: `--${prefix}-border`, value: `(hue ${prefix})`, label: "테두리" },
             { token: `--${prefix}-accent`, value: `(hue ${prefix})`, label: "아이콘·강조" },
+            ...extra,
           ]}
         />
       ))}
@@ -141,12 +152,7 @@ export const ColorTokens = () => (
           {
             token: "--disclosure-shareholder-meeting-bg",
             value: "oklch(0.97 0.05 80)",
-            label: "주주총회 배경",
-          },
-          {
-            token: "--disclosure-shareholder-meeting-text",
-            value: "oklch(0.60 0.15 60)",
-            label: "주주총회 텍스트",
+            label: "주주총회 배경 (텍스트는 --amber-text)",
           },
           {
             token: "--disclosure-market-action-bg",

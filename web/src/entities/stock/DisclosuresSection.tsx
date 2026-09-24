@@ -213,7 +213,7 @@ const DisclosureItem = ({
                 "w-full rounded border border-sky-border bg-elevated px-0.5 py-0.5 text-micro font-medium whitespace-nowrap cursor-pointer",
                 isExpanded
                   ? "text-muted-foreground hover:text-foreground"
-                  : "text-sky-accent hover:bg-sky-bg"
+                  : "text-sky-text hover:bg-sky-bg"
               )}
               style={{
                 transition:

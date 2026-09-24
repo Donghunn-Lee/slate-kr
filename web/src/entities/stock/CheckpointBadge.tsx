@@ -15,7 +15,7 @@ export const DISCLOSURE_TYPE_BADGE_CLASSES: Record<DisclosureType, string> = {
   OWNERSHIP: "bg-disclosure-ownership-bg text-disclosure-ownership-text",
   AUDIT: "bg-disclosure-audit-bg text-disclosure-audit-text",
   SHAREHOLDER_MEETING:
-    "bg-disclosure-shareholder-meeting-bg text-disclosure-shareholder-meeting-text",
+    "bg-disclosure-shareholder-meeting-bg text-amber-text",
   MARKET_ACTION: "bg-disclosure-market-action-bg text-disclosure-market-action-text",
 };
 
@@ -31,7 +31,7 @@ export const DISCLOSURE_TYPE_CHIP_ON_CLASSES: Record<DisclosureType, string> = {
   AUDIT:
     "data-[state=on]:bg-disclosure-audit-bg data-[state=on]:text-disclosure-audit-text",
   SHAREHOLDER_MEETING:
-    "data-[state=on]:bg-disclosure-shareholder-meeting-bg data-[state=on]:text-disclosure-shareholder-meeting-text",
+    "data-[state=on]:bg-disclosure-shareholder-meeting-bg data-[state=on]:text-amber-text",
   MARKET_ACTION:
     "data-[state=on]:bg-disclosure-market-action-bg data-[state=on]:text-disclosure-market-action-text",
 };

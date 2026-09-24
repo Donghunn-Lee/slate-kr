@@ -21,10 +21,10 @@ const CLASS_BY_KIND: Record<MarketActionStatus["kind"], string> = {
   suspended: "bg-disclosure-market-action-bg text-disclosure-market-action-text",
   liquidation: "bg-disclosure-market-action-bg text-disclosure-market-action-text",
   risk: "bg-disclosure-market-action-bg text-disclosure-market-action-text",
-  warning: "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
-  managed: "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
-  overheated: "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
-  caution: "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
+  warning: "bg-amber-bg text-amber-text",
+  managed: "bg-amber-bg text-amber-text",
+  overheated: "bg-amber-bg text-amber-text",
+  caution: "bg-amber-bg text-amber-text",
   unavailable: "bg-muted text-muted-foreground",
 };
 

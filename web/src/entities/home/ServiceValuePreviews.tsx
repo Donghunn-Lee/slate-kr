@@ -13,9 +13,9 @@ const DISCLOSURE_CHIPS = [
   { label: "정기보고서", cls: "bg-disclosure-financial-bg text-disclosure-financial-text" },
   { label: "소유상황", cls: "bg-disclosure-ownership-bg text-disclosure-ownership-text" },
   { label: "감사", cls: "bg-disclosure-audit-bg text-disclosure-audit-text" },
-  { label: "주주총회", cls: "bg-disclosure-shareholder-meeting-bg text-disclosure-shareholder-meeting-text" },
+  { label: "주주총회", cls: "bg-disclosure-shareholder-meeting-bg text-amber-text" },
   { label: "시장조치", cls: "bg-disclosure-market-action-bg text-disclosure-market-action-text" },
-  { label: "AI 요약", cls: "bg-sky-bg text-sky-accent border border-sky-border" },
+  { label: "AI 요약", cls: "bg-sky-bg text-sky-text border border-sky-border" },
 ];
 
 export const DisclosurePreview = ({ play }: PreviewProps) => {

@@ -48,7 +48,6 @@
   --color-disclosure-audit-bg: var(--disclosure-audit-bg);
   --color-disclosure-audit-text: var(--disclosure-audit-text);
   --color-disclosure-shareholder-meeting-bg: var(--disclosure-shareholder-meeting-bg);
-  --color-disclosure-shareholder-meeting-text: var(--disclosure-shareholder-meeting-text);
   --color-disclosure-market-action-bg: var(--disclosure-market-action-bg);
   --color-disclosure-market-action-text: var(--disclosure-market-action-text);
   --color-disclosure-uncategorized-bg: var(--disclosure-uncategorized-bg);
@@ -57,12 +56,14 @@
   --color-sky-bg: var(--sky-bg);
   --color-sky-border: var(--sky-border);
   --color-sky-accent: var(--sky-accent);
+  --color-sky-text: var(--sky-text);
   --color-sage-bg: var(--sage-bg);
   --color-sage-border: var(--sage-border);
   --color-sage-accent: var(--sage-accent);
   --color-amber-bg: var(--amber-bg);
   --color-amber-border: var(--amber-border);
   --color-amber-accent: var(--amber-accent);
+  --color-amber-text: var(--amber-text);
   --color-lavender-bg: var(--lavender-bg);
   --color-lavender-border: var(--lavender-border);
   --color-lavender-accent: var(--lavender-accent);
@@ -117,7 +118,7 @@
   /* ── Functional tokens — 상태 (라이트·다크 공용) ── */
   --live: oklch(0.696 0.17 162.48); /* 실시간 시세 점 */
 
-  /* ── Disclosure category tokens (7 types × bg / text) ── */
+  /* ── Disclosure category tokens (7 types × bg / text — 주주총회 text 는 --amber-text 공용) ── */
   --disclosure-major-event-bg: oklch(0.93 0.09 55); /* light orange */
   --disclosure-major-event-text: oklch(0.55 0.17 50);
   --disclosure-financial-bg: oklch(0.92 0.05 260); /* light blue */
@@ -127,7 +128,6 @@
   --disclosure-audit-bg: oklch(0.96 0.04 185); /* light teal */
   --disclosure-audit-text: oklch(0.5 0.14 185);
   --disclosure-shareholder-meeting-bg: oklch(0.97 0.05 80); /* light amber */
-  --disclosure-shareholder-meeting-text: oklch(0.6 0.15 60);
   --disclosure-market-action-bg: oklch(0.92 0.09 22); /* saturated red */
   --disclosure-market-action-text: oklch(0.45 0.22 22);
   --disclosure-uncategorized-bg: oklch(0.955 0.006 85); /* neutral warm gray — chip only */
@@ -137,12 +137,14 @@
   --sky-bg: oklch(0.97 0.03 220);
   --sky-border: oklch(0.87 0.05 220);
   --sky-accent: oklch(0.55 0.12 220);
+  --sky-text: oklch(0.5 0.12 220); /* sky-bg 위 소형 텍스트 — accent 는 AA 4.5:1 미달 */
   --sage-bg: oklch(0.95 0.05 165);
   --sage-border: oklch(0.85 0.06 165);
   --sage-accent: oklch(0.5 0.12 165);
   --amber-bg: oklch(0.97 0.05 80);
   --amber-border: oklch(0.88 0.08 80);
   --amber-accent: oklch(0.6 0.15 60);
+  --amber-text: oklch(0.475 0.136 45); /* amber-bg 위 소형 텍스트 — accent 는 AA 4.5:1 미달 */
   --lavender-bg: oklch(0.96 0.04 290);
   --lavender-border: oklch(0.85 0.06 290);
   --lavender-accent: oklch(0.5 0.13 290);
@@ -226,7 +228,6 @@
   --disclosure-audit-bg: oklch(0.32 0.055 185);
   --disclosure-audit-text: oklch(0.75 0.1 185);
   --disclosure-shareholder-meeting-bg: oklch(0.33 0.06 80);
-  --disclosure-shareholder-meeting-text: oklch(0.8 0.12 70);
   --disclosure-market-action-bg: oklch(0.33 0.09 22);
   --disclosure-market-action-text: oklch(0.72 0.16 22);
   --disclosure-uncategorized-bg: oklch(0.27 0.005 85);
@@ -236,12 +237,14 @@
   --sky-bg: oklch(0.31 0.07 220);
   --sky-border: oklch(0.4 0.06 220);
   --sky-accent: oklch(0.7 0.11 220);
+  --sky-text: oklch(0.7 0.11 220); /* 다크 accent 는 AA 충족 → 동일값 */
   --sage-bg: oklch(0.31 0.075 165);
   --sage-border: oklch(0.38 0.06 165);
   --sage-accent: oklch(0.68 0.11 165);
   --amber-bg: oklch(0.32 0.07 80);
   --amber-border: oklch(0.36 0.05 80);
   --amber-accent: oklch(0.75 0.13 65);
+  --amber-text: oklch(0.8 0.12 70);
   --lavender-bg: oklch(0.31 0.075 290);
   --lavender-border: oklch(0.4 0.06 290);
   --lavender-accent: oklch(0.7 0.12 290);
