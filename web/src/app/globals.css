@@ -137,14 +137,14 @@
   --sky-bg: oklch(0.97 0.03 220);
   --sky-border: oklch(0.87 0.05 220);
   --sky-accent: oklch(0.55 0.12 220);
-  --sky-text: oklch(0.5 0.12 220); /* sky-bg 위 소형 텍스트 — accent 는 AA 4.5:1 미달 */
+  --sky-text: oklch(0.5 0.12 220); /* sky 글자색 — accent 는 틴트·일반 패널 위 모두 AA 4.5:1 미달 */
   --sage-bg: oklch(0.95 0.05 165);
   --sage-border: oklch(0.85 0.06 165);
   --sage-accent: oklch(0.5 0.12 165);
   --amber-bg: oklch(0.97 0.05 80);
   --amber-border: oklch(0.88 0.08 80);
   --amber-accent: oklch(0.6 0.15 60);
-  --amber-text: oklch(0.475 0.136 45); /* amber-bg 위 소형 텍스트 — accent 는 AA 4.5:1 미달 */
+  --amber-text: oklch(0.475 0.136 45); /* amber 글자색 — accent 는 틴트·일반 패널 위 모두 AA 4.5:1 미달 */
   --lavender-bg: oklch(0.96 0.04 290);
   --lavender-border: oklch(0.85 0.06 290);
   --lavender-accent: oklch(0.5 0.13 290);

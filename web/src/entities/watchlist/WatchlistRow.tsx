@@ -82,7 +82,7 @@ export const WatchlistRow = ({
                   <Link
                     href={`/stocks/${item.ticker}/disclosures`}
                     aria-label={`${item.name} 최근 공시 ${disclosure.count}건 보기`}
-                    className="relative z-10 -my-1.5 inline-flex items-center rounded-sm py-1.5 font-medium tabular-nums text-amber-accent hover:underline focus-visible:underline focus-visible:outline-none"
+                    className="relative z-10 -my-1.5 inline-flex items-center rounded-sm py-1.5 font-medium tabular-nums text-amber-text hover:underline focus-visible:underline focus-visible:outline-none"
                   >
                     {disclosure.count}건
                   </Link>
