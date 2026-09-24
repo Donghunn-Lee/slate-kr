@@ -1,6 +1,10 @@
 import type { Time } from "lightweight-charts";
 
-// KR 관행: 상승=레드, 하락=블루. Tailwind red-600/blue-600 톤으로 globals.css의 oklch와 매칭.
+// KR 관행: 상승=레드, 하락=블루. up/down 은 globals.css --price-up/--price-down 과 동일값 —
+// 브라우저 computed sRGB 를 hex 로 옮긴 값이다(oklch 수동 환산 아님).
+//   light: up oklch(0.52 0.2 25)=#c21725 · down oklch(0.48 0.18 260)=#1156c0
+//   dark : up oklch(0.62 0.19 25)=#e24947 · down oklch(0.62 0.16 260)=#4983e5
+// 토큰 값을 바꾸면 여기 hex 와 아래 rgba 파생값을 함께 갱신한다.
 // dim.{up,down} — 전일 봉 등 흐림 처리용 저채도 저대비 버전. 무채색 계열과 톤 충돌 없도록
 // 원색의 알파를 낮춰 배경에 자연스레 녹아들게 한다.
 // volume.{up,down} — 하단 histogram 오버레이용. 반투명이 관례이므로 원색 alpha 를 더 낮춘다.
@@ -15,21 +19,21 @@ export const CHART_THEME = {
     bg: "#ffffff",
     text: "#1a1a1a",
     border: "#e5e5e5",
-    up: "#dc2626",
-    down: "#2563eb",
+    up: "#c21725",
+    down: "#1156c0",
     dim: {
-      up: "rgba(220,38,38,0.28)",
-      down: "rgba(37,99,235,0.28)",
+      up: "rgba(194,23,37,0.28)",
+      down: "rgba(17,86,192,0.28)",
     },
     volume: {
-      up: "rgba(220,38,38,0.35)",
-      down: "rgba(37,99,235,0.35)",
+      up: "rgba(194,23,37,0.35)",
+      down: "rgba(17,86,192,0.35)",
     },
     baseline: {
-      topFill1: "rgba(220,38,38,0.28)",
-      topFill2: "rgba(220,38,38,0.05)",
-      bottomFill1: "rgba(37,99,235,0.28)",
-      bottomFill2: "rgba(37,99,235,0.05)",
+      topFill1: "rgba(194,23,37,0.28)",
+      topFill2: "rgba(194,23,37,0.05)",
+      bottomFill1: "rgba(17,86,192,0.28)",
+      bottomFill2: "rgba(17,86,192,0.05)",
     },
     neutralLine: "#525252",
     neutralTopFill: "rgba(82,82,82,0.18)",
@@ -40,21 +44,21 @@ export const CHART_THEME = {
     bg: "#1a1a1a",
     text: "#f0f0f0",
     border: "rgba(255,255,255,0.1)",
-    up: "#ef4444",
-    down: "#3b82f6",
+    up: "#e24947",
+    down: "#4983e5",
     dim: {
-      up: "rgba(239,68,68,0.35)",
-      down: "rgba(59,130,246,0.35)",
+      up: "rgba(226,73,71,0.35)",
+      down: "rgba(73,131,229,0.35)",
     },
     volume: {
-      up: "rgba(239,68,68,0.45)",
-      down: "rgba(59,130,246,0.45)",
+      up: "rgba(226,73,71,0.45)",
+      down: "rgba(73,131,229,0.45)",
     },
     baseline: {
-      topFill1: "rgba(239,68,68,0.28)",
-      topFill2: "rgba(239,68,68,0.05)",
-      bottomFill1: "rgba(59,130,246,0.28)",
-      bottomFill2: "rgba(59,130,246,0.05)",
+      topFill1: "rgba(226,73,71,0.28)",
+      topFill2: "rgba(226,73,71,0.05)",
+      bottomFill1: "rgba(73,131,229,0.28)",
+      bottomFill2: "rgba(73,131,229,0.05)",
     },
     neutralLine: "#a3a3a3",
     neutralTopFill: "rgba(163,163,163,0.18)",
