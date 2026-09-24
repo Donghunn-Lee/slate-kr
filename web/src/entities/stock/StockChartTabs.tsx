@@ -158,8 +158,8 @@ const CHART_HEIGHT_MOBILE = 320;
 const CHART_HEIGHT_DESKTOP = 450;
 
 // 시장 구분 뱃지 — 2행 라벨에서 데이터 소스 스코프(KRX 정규장 / KRX 애프터마켓 포함 /
-// KRX+NXT 확장 세션) 를 표시. StockHeaderLivePrice 의 "일시 지연" 배지 스타일 재사용 —
-// 소형 무채 outline.
+// KRX+NXT 확장 세션) 를 표시. 외형은 StatusBadge 와 동형이지만 부분 실패 신호가 아닌
+// 스코프 안내(툴팁 트리거)라 의미가 달라 별개로 둔다.
 type MarketScope = "KRX" | "KRX 애프터마켓" | "KRX+NXT";
 
 const MARKET_SCOPE_TOOLTIP: Record<MarketScope, string> = {
