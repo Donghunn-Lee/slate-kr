@@ -2,6 +2,8 @@ type PanelVariant = {
   name: string;
   bg: string;
   border: string;
+  bgToken: string;
+  borderToken: string;
   dot: string;
   codeBg: string;
   label: string;
@@ -12,6 +14,8 @@ const VARIANTS: PanelVariant[] = [
     name: "Plain",
     bg: "bg-elevated",
     border: "border-subtle",
+    bgToken: "--bg-elevated",
+    borderToken: "--border-subtle",
     dot: "bg-muted",
     codeBg: "bg-subtle",
     label: "기본 패널 — 관심종목·무채색 섹션",
@@ -20,6 +24,8 @@ const VARIANTS: PanelVariant[] = [
     name: "Sky",
     bg: "bg-sky-bg",
     border: "border-sky-border",
+    bgToken: "--sky-bg",
+    borderToken: "--sky-border",
     dot: "bg-sky-accent",
     codeBg: "bg-sky-border",
     label: "하늘색 강조 — 공시 섹션",
@@ -28,6 +34,8 @@ const VARIANTS: PanelVariant[] = [
     name: "Sage",
     bg: "bg-sage-bg",
     border: "border-sage-border",
+    bgToken: "--sage-bg",
+    borderToken: "--sage-border",
     dot: "bg-sage-accent",
     codeBg: "bg-sage-border",
     label: "민트/세이지 — 가격 통계 섹션",
@@ -36,6 +44,8 @@ const VARIANTS: PanelVariant[] = [
     name: "Amber",
     bg: "bg-amber-bg",
     border: "border-amber-border",
+    bgToken: "--amber-bg",
+    borderToken: "--amber-border",
     dot: "bg-amber-accent",
     codeBg: "bg-amber-border",
     label: "앰버 — 재무 요약 섹션",
@@ -44,6 +54,8 @@ const VARIANTS: PanelVariant[] = [
     name: "Lavender",
     bg: "bg-lavender-bg",
     border: "border-lavender-border",
+    bgToken: "--lavender-bg",
+    borderToken: "--lavender-border",
     dot: "bg-lavender-accent",
     codeBg: "bg-lavender-border",
     label: "라벤더 — 차트 섹션",
@@ -52,6 +64,8 @@ const VARIANTS: PanelVariant[] = [
     name: "Peach",
     bg: "bg-peach-bg",
     border: "border-peach-border",
+    bgToken: "--peach-bg",
+    borderToken: "--peach-border",
     dot: "bg-peach-accent",
     codeBg: "bg-peach-border",
     label: "피치 — 핵심 지표 섹션",
@@ -71,7 +85,7 @@ export const SlatePanels = () => (
       className="grid gap-4"
       style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}
     >
-      {VARIANTS.map(({ name, bg, border, dot, codeBg, label }) => (
+      {VARIANTS.map(({ name, bg, border, bgToken, borderToken, dot, codeBg, label }) => (
         <div
           key={name}
           className={`${bg} border ${border} rounded-lg p-6`}
@@ -86,12 +100,12 @@ export const SlatePanels = () => (
             <code
               className={`rounded font-mono text-[10px] text-muted-foreground ${codeBg} px-1.5 py-0.5`}
             >
-              bg: --{name.toLowerCase()}-bg
+              bg: {bgToken}
             </code>
             <code
               className={`rounded font-mono text-[10px] text-muted-foreground ${codeBg} px-1.5 py-0.5`}
             >
-              border: --{name.toLowerCase()}-border
+              border: {borderToken}
             </code>
           </div>
         </div>

@@ -18,7 +18,7 @@ const ROLES: Role[] = [
     mobilePx: 28,
     lineHeight: "1.15",
     letterSpacing: "-0.02em",
-    usage: "라이브 현재가·랜딩 히어로 수치",
+    usage: "라이브 현재가",
     replaces: "text-4xl",
     sample: "219,500원",
   },

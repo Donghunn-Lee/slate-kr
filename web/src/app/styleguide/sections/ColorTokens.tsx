@@ -40,7 +40,7 @@ const ACCENT_COLORS = [
   { name: "Sage", prefix: "sage", hue: 165 },
   { name: "Amber", prefix: "amber", hue: 80 },
   { name: "Lavender", prefix: "lavender", hue: 290 },
-  { name: "Peach", prefix: "peach", hue: 35 },
+  { name: "Peach", prefix: "peach", hue: 45 },
 ];
 
 export const ColorTokens = () => (
@@ -99,7 +99,7 @@ export const ColorTokens = () => (
           },
           {
             token: "--disclosure-financial-bg",
-            value: "oklch(0.96 0.03 260)",
+            value: "oklch(0.92 0.05 260)",
             label: "정기보고서 배경",
           },
           {
@@ -168,7 +168,7 @@ export const ColorTokens = () => (
           { token: "--muted", value: "oklch(0.94 0.006 85)", label: "muted 배경" },
           { token: "--muted-foreground", value: "→ text-secondary", label: "muted 텍스트" },
           { token: "--primary", value: "oklch(0.25 0.02 270)", label: "primary 버튼" },
-          { token: "--destructive", value: "oklch(0.577 0.245 27)", label: "삭제·경고" },
+          { token: "--destructive", value: "oklch(0.577 0.245 27.325)", label: "삭제·경고" },
         ]}
       />
     </div>
