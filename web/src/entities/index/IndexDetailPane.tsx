@@ -350,7 +350,12 @@ export const IndexDetailPane = ({
             <div className="h-8 w-56 animate-pulse rounded bg-muted" />
           ) : cell?.live ? (
             <div className="flex flex-wrap items-baseline gap-3">
-              <span className="text-headline font-semibold tabular-nums">
+              <span
+                className={cn(
+                  "text-headline font-semibold tabular-nums",
+                  priceToneClass(cell.live.sign),
+                )}
+              >
                 <PriceCountUp key={selected} value={cell.live.price} />
               </span>
               <PriceChange
@@ -363,7 +368,12 @@ export const IndexDetailPane = ({
             </div>
           ) : cell?.fallback ? (
             <div className="flex flex-wrap items-baseline gap-3">
-              <span className="text-headline font-semibold tabular-nums">
+              <span
+                className={cn(
+                  "text-headline font-semibold tabular-nums",
+                  priceToneClass(cell.fallback.change),
+                )}
+              >
                 {formatIndexPrice(cell.fallback.close)}
               </span>
               <PriceChange

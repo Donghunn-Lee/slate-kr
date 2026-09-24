@@ -20,6 +20,7 @@ import { buildIndexCell } from "@/shared/utils/buildIndexCell";
 import { isKrxOpeningWindow } from "@/shared/utils/market";
 import { useNow } from "@/shared/hooks/useNow";
 import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
+import { priceToneClass } from "@/shared/utils/priceTone";
 import { cn } from "@/lib/utils";
 
 type IndexChipStripProps = {
@@ -115,7 +116,12 @@ export const IndexChipStrip = ({
           <div className="mt-0.5 h-3.5 w-16 animate-pulse rounded bg-muted" />
         ) : cell?.live ? (
           <div className="flex items-baseline gap-1.5">
-            <span className="text-caption tabular-nums">
+            <span
+              className={cn(
+                "text-caption tabular-nums",
+                priceToneClass(cell.live.sign),
+              )}
+            >
               <PriceCountUp value={cell.live.price} />
             </span>
             <PriceChange
@@ -128,7 +134,12 @@ export const IndexChipStrip = ({
           </div>
         ) : cell?.fallback ? (
           <div className="flex items-baseline gap-1.5">
-            <span className="text-caption tabular-nums">
+            <span
+              className={cn(
+                "text-caption tabular-nums",
+                priceToneClass(cell.fallback.change),
+              )}
+            >
               {formatIndexPrice(cell.fallback.close)}
             </span>
             <PriceChange

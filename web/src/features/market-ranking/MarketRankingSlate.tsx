@@ -9,6 +9,7 @@ import { StatusBadge } from "@/shared/components/StatusBadge";
 import { formatMarketCap } from "@/shared/format";
 import type { PriceSign } from "@/shared/types/quote";
 import type { Market, MarketRankingItem, MarketRankingKind } from "@/shared/types/ranking";
+import { priceToneClass } from "@/shared/utils/priceTone";
 import { cn } from "@/lib/utils";
 import { Pill } from "./Pill";
 import { useRankingCaption } from "./rankingCaption";
@@ -91,7 +92,12 @@ const Row = ({ item, secondary }: RowProps) => (
             {item.name}
           </span>
           <div className="flex shrink-0 items-baseline gap-2">
-            <span className="text-body font-bold leading-none tabular-nums text-foreground">
+            <span
+              className={cn(
+                "text-body font-bold leading-none tabular-nums",
+                priceToneClass(toPriceSign(item.changeSign)),
+              )}
+            >
               {item.price.toLocaleString("ko-KR")}원
             </span>
             <PriceChange

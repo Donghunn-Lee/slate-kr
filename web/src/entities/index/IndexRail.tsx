@@ -26,6 +26,7 @@ import { buildIndexCell } from "@/shared/utils/buildIndexCell";
 import { isKrxOpeningWindow } from "@/shared/utils/market";
 import { useNow } from "@/shared/hooks/useNow";
 import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
+import { priceToneClass } from "@/shared/utils/priceTone";
 import { cn } from "@/lib/utils";
 
 type IndexRailProps = {
@@ -155,7 +156,12 @@ export const IndexRail = ({
                         <div className="mt-0.5 h-4 w-24 animate-pulse rounded bg-muted" />
                       ) : cell?.live ? (
                         <div className="flex items-baseline gap-2">
-                          <span className="text-body tabular-nums">
+                          <span
+                            className={cn(
+                              "text-body tabular-nums",
+                              priceToneClass(cell.live.sign),
+                            )}
+                          >
                             <PriceCountUp value={cell.live.price} />
                           </span>
                           <PriceChange
@@ -168,7 +174,12 @@ export const IndexRail = ({
                         </div>
                       ) : cell?.fallback ? (
                         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                          <span className="text-body tabular-nums">
+                          <span
+                            className={cn(
+                              "text-body tabular-nums",
+                              priceToneClass(cell.fallback.change),
+                            )}
+                          >
                             {formatIndexPrice(cell.fallback.close)}
                           </span>
                           <PriceChange

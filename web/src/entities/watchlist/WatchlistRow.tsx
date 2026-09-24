@@ -8,6 +8,8 @@ import type { WatchlistItem } from "@/features/watchlist/store/useWatchlistStore
 import type { StockQuote } from "@/shared/types/quote";
 import { PriceChange } from "@/shared/components/PriceChange";
 import { StatusBadge } from "@/shared/components/StatusBadge";
+import { priceToneClass } from "@/shared/utils/priceTone";
+import { cn } from "@/lib/utils";
 
 type WatchlistRowProps = {
   item: WatchlistItem;
@@ -103,7 +105,12 @@ export const WatchlistRow = ({
               {item.name}
             </span>
             <div className="flex shrink-0 items-end gap-2">
-              <span className="text-sm font-bold tabular-nums leading-none text-foreground md:text-base">
+              <span
+                className={cn(
+                  "text-sm font-bold tabular-nums leading-none md:text-base",
+                  priceToneClass(displaySign ?? displayChange),
+                )}
+              >
                 {displayPrice !== null ? `${displayPrice.toLocaleString("ko-KR")}원` : "—"}
               </span>
               {displayChange !== null && displayChangeRate !== null && (

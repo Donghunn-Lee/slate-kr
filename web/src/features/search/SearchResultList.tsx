@@ -111,7 +111,12 @@ const SearchResultRow = ({
         <span className="hidden font-mono text-[11px] text-muted-foreground md:block">
           {stock.market}
         </span>
-        <span className="justify-self-end text-sm font-bold tabular-nums text-foreground">
+        <span
+          className={cn(
+            "justify-self-end text-sm font-bold tabular-nums",
+            priceToneClass(sign)
+          )}
+        >
           {displayClose !== null ? displayClose.toLocaleString("ko-KR") : "—"}
           <span className="hidden md:inline">원</span>
         </span>

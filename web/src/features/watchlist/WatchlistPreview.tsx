@@ -8,6 +8,8 @@ import { StockPanel } from "@/entities/stock/StockPanel";
 import { PriceChange } from "@/shared/components/PriceChange";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { useMounted } from "@/shared/hooks/useMounted";
+import { priceToneClass } from "@/shared/utils/priceTone";
+import { cn } from "@/lib/utils";
 import { LIVE_TICKER_LIMIT, useMultiQuote } from "@/features/multi-quote/useMultiQuote";
 import { useWatchlistStore, type WatchlistItem } from "./store/useWatchlistStore";
 import type { TickerPriceSummary } from "@/shared/types/stock";
@@ -228,7 +230,12 @@ export const WatchlistPreview = () => {
                             <div className="flex shrink-0 items-baseline gap-2">
                               {displayPrice !== null ? (
                                 <>
-                                  <span className="text-body font-bold leading-none tabular-nums text-foreground">
+                                  <span
+                                    className={cn(
+                                      "text-body font-bold leading-none tabular-nums",
+                                      priceToneClass(displaySign ?? displayChange),
+                                    )}
+                                  >
                                     {formatClose(displayPrice)}
                                   </span>
                                   {displayChange !== null && displayChangeRate !== null && (

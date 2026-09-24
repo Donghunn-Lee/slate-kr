@@ -157,7 +157,12 @@ export const RankingRow = ({ item, disclosure, kind }: RankingRowProps) => {
         <span className="hidden font-mono text-micro text-muted-foreground md:block">
           {item.market ?? ""}
         </span>
-        <span className="justify-self-end text-xs font-medium tabular-nums text-foreground sm:text-sm sm:font-bold">
+        <span
+          className={cn(
+            "justify-self-end text-xs font-medium tabular-nums sm:text-sm sm:font-bold",
+            priceToneClass(sign),
+          )}
+        >
           {item.price.toLocaleString("ko-KR")}
           <span className="hidden md:inline">원</span>
         </span>

@@ -15,6 +15,7 @@ import {
   isKrxAfterMarketOpen,
   isKrxOpeningWindow,
 } from "@/shared/utils/market";
+import { priceToneClass } from "@/shared/utils/priceTone";
 import { cn } from "@/lib/utils";
 import { PriceCountUp } from "./PriceCountUp";
 import {
@@ -176,7 +177,12 @@ export const StockHeaderLivePrice = ({
         </div>
       )}
       <div className="flex flex-wrap items-end gap-3">
-        <span className="text-display font-bold tracking-tight">
+        <span
+          className={cn(
+            "text-display font-bold tracking-tight",
+            priceToneClass(displayChange),
+          )}
+        >
           {/* market 을 key 로 부여 → 탭 전환 시 remount 로 카운트업 애니 억제 (소스 전환).
               동일 탭 내 실시간 갱신은 key 유지 → 정상 카운트업. */}
           <PriceCountUp key={market} value={displayPrice} />원
