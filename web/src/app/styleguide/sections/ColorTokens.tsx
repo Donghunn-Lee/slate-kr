@@ -1,3 +1,5 @@
+import { PriceChange } from "@/shared/components/PriceChange";
+
 type SwatchGroupProps = {
   title: string;
   tokens: { token: string; value: string; label?: string }[];
@@ -71,11 +73,16 @@ export const ColorTokens = () => (
         ]}
       />
       <ul className="-mt-5 list-disc space-y-0.5 pl-5 text-body-sm text-muted-foreground">
-        <li>가격·변동폭·등락률 모두 등락색(price-up / price-down)으로 표기한다.</li>
-        <li>보합(0%)은 text-foreground를 명시한다.</li>
+        <li>가격·변동폭·등락률 모두 등락색(price-up / price-down)으로 표기한다. 클래스는 priceToneClass 단일 출처.</li>
+        <li>보합(변동 0)·데이터 없음(null)은 text-foreground를 명시한다.</li>
         <li>예외: 52주 고/저는 부호와 무관한 고정색(고=price-up, 저=price-down)을 유지한다.</li>
-        <li>차트(CHART_THEME)의 상승·하락 색은 CSS 토큰과 동일값이어야 한다.</li>
+        <li>차트(CHART_THEME)의 상승·하락 색은 CSS 토큰의 computed sRGB와 동일값이어야 한다(라이트·다크 각각).</li>
       </ul>
+      <div className="flex flex-wrap items-baseline gap-6">
+        <PriceChange change={1250} changeRate={1.84} unit="원" />
+        <PriceChange change={-830} changeRate={-1.12} unit="원" />
+        <PriceChange change={0} changeRate={0} unit="원" />
+      </div>
 
       {ACCENT_COLORS.map(({ name, prefix }) => (
         <SwatchGroup
