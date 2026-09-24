@@ -1,4 +1,5 @@
 import type { PriceSign } from "@/shared/types/quote";
+import { priceToneClass } from "@/shared/utils/priceTone";
 import { cn } from "@/lib/utils";
 
 type PriceChangeProps = {
@@ -14,12 +15,6 @@ type PriceChangeProps = {
   // 변동폭 소수 자리수 고정 (minimum=maximum). 미지정 시 콤마 포맷만.
   fractionDigits?: number;
   className?: string;
-};
-
-const SIGN_CLASS: Record<PriceSign, string> = {
-  up: "text-price-up",
-  down: "text-price-down",
-  flat: "text-muted-foreground",
 };
 
 const SIZE_CLASS = {
@@ -78,7 +73,7 @@ export const PriceChange = ({
         className={cn(
           "inline-flex flex-col items-end leading-tight whitespace-nowrap",
           SIZE_CLASS[size],
-          SIGN_CLASS[resolved],
+          priceToneClass(resolved),
           className,
         )}
       >
@@ -89,7 +84,7 @@ export const PriceChange = ({
   }
 
   return (
-    <span className={cn("whitespace-nowrap", SIZE_CLASS[size], SIGN_CLASS[resolved], className)}>
+    <span className={cn("whitespace-nowrap", SIZE_CLASS[size], priceToneClass(resolved), className)}>
       {changeText} ({rateText})
     </span>
   );

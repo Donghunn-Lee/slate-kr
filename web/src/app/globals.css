@@ -36,7 +36,6 @@
   /* ── Functional: 등락 ── */
   --color-price-up: var(--price-up);
   --color-price-down: var(--price-down);
-  --color-price-neutral: var(--price-neutral);
   /* ── Disclosure category tokens ── */
   --color-disclosure-major-event-bg: var(--disclosure-major-event-bg);
   --color-disclosure-major-event-text: var(--disclosure-major-event-text);
@@ -110,7 +109,6 @@
   /* ── Functional tokens — 등락 (Korean market: red=up, blue=down) ── */
   --price-up: oklch(0.52 0.2 25); /* 상승 — 레드 */
   --price-down: oklch(0.48 0.18 260); /* 하락 — 블루 */
-  --price-neutral: oklch(0.55 0.01 270); /* 보합 */
 
   /* ── Disclosure category tokens (7 types × bg / text) ── */
   --disclosure-major-event-bg: oklch(0.93 0.09 55); /* light orange */
@@ -208,7 +206,6 @@
   /* ── Functional: 등락 (hue 고정, L만 상향) ── */
   --price-up: oklch(0.62 0.19 25);
   --price-down: oklch(0.62 0.16 260);
-  --price-neutral: oklch(0.62 0.01 270);
 
   /* ── Disclosure (dark) ── */
   --disclosure-major-event-bg: oklch(0.32 0.06 55);
@@ -261,10 +258,6 @@
 
 @utility text-price-down {
   color: var(--price-down);
-}
-
-@utility text-price-neutral {
-  color: var(--price-neutral);
 }
 
 @utility scrollbar-hide {

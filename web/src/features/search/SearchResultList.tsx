@@ -9,6 +9,7 @@ import type { LatestPriceSummary } from "@/lib/prices";
 import type { PriceSign } from "@/shared/types/quote";
 import type { StockSearchResult } from "@/shared/types/stock";
 import { useMultiQuote } from "@/features/multi-quote/useMultiQuote";
+import { priceToneClass } from "@/shared/utils/priceTone";
 import { cn } from "@/lib/utils";
 
 // RankingRow 의 헤더/행 동기화 패턴 차용. 컬럼 수는 검색 도메인(rank·kind 없음)
@@ -19,12 +20,6 @@ const GRID_CLASS = cn(
   "sm:grid-cols-[minmax(0,1fr)_4.5rem_9rem_4.5rem_5rem]",
   "md:grid-cols-[minmax(0,1fr)_3.5rem_5rem_9rem_4.5rem_5rem]"
 );
-
-const SIGN_TEXT_CLASS: Record<PriceSign, string> = {
-  up: "text-price-up",
-  down: "text-price-down",
-  flat: "text-muted-foreground",
-};
 
 const resolveSign = (change: number | null): PriceSign => {
   if (change === null || change === 0) return "flat";
@@ -123,7 +118,7 @@ const SearchResultRow = ({
         <span
           className={cn(
             "justify-self-end text-xs font-medium tabular-nums sm:hidden",
-            SIGN_TEXT_CLASS[sign]
+            priceToneClass(sign)
           )}
         >
           {percentText(displayChangeRate, sign)}

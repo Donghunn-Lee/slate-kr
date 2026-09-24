@@ -68,7 +68,6 @@ export const ColorTokens = () => (
         tokens={[
           { token: "--price-up", value: "oklch(0.52 0.2 25)", label: "상승" },
           { token: "--price-down", value: "oklch(0.48 0.18 260)", label: "하락" },
-          { token: "--price-neutral", value: "oklch(0.55 0.01 270)", label: "보합" },
         ]}
       />
       <ul className="-mt-5 list-disc space-y-0.5 pl-5 text-body-sm text-muted-foreground">

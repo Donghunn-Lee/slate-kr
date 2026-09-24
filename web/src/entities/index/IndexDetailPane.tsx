@@ -35,6 +35,7 @@ import {
 } from "@/shared/utils/market";
 import { useNow } from "@/shared/hooks/useNow";
 import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
+import { priceToneClass } from "@/shared/utils/priceTone";
 import { cn } from "@/lib/utils";
 import { IndexChartDynamic } from "./IndexChartDynamic";
 
@@ -63,13 +64,6 @@ const toIsoDate = (yyyymmdd: string): string =>
 const formatReturn = (v: number): string => {
   const sign = v >= 0 ? "+" : "";
   return `${sign}${v.toFixed(2)}%`;
-};
-
-const returnColorClass = (v: number | null): string => {
-  if (v === null) return "text-muted-foreground";
-  if (v > 0) return "text-price-up";
-  if (v < 0) return "text-price-down";
-  return "text-price-neutral";
 };
 
 type StatCellProps = {
@@ -143,7 +137,7 @@ const StatsBlock = ({
       </StatCell>
       {returns.map(({ period, value }) => (
         <StatCell key={period} label={period}>
-          <span className={cn("font-medium", returnColorClass(value))}>
+          <span className={cn("font-medium", priceToneClass(value))}>
             {value === null ? "—" : formatReturn(value)}
           </span>
         </StatCell>

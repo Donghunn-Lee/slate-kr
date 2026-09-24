@@ -9,17 +9,12 @@ import type {
   MarketRankingItem,
   MarketRankingKind,
 } from "@/shared/types/ranking";
+import { priceToneClass } from "@/shared/utils/priceTone";
 import { cn } from "@/lib/utils";
 
 // KIS prdy_vrss_sign(1상한/2상승/3보합/4하한/5하락) → PriceSign 정규화.
 const toPriceSign = (code: string): PriceSign =>
   code === "3" ? "flat" : code === "1" || code === "2" ? "up" : "down";
-
-const SIGN_TEXT_CLASS: Record<PriceSign, string> = {
-  up: "text-price-up",
-  down: "text-price-down",
-  flat: "text-muted-foreground",
-};
 
 // PriceChange 내부 prefix 규칙과 동일 (수정 대신 소수 로직 재현).
 const percentText = (pct: number, sign: PriceSign): string => {
@@ -169,7 +164,7 @@ export const RankingRow = ({ item, disclosure, kind }: RankingRowProps) => {
         <span
           className={cn(
             "justify-self-end text-xs font-medium tabular-nums sm:hidden",
-            SIGN_TEXT_CLASS[sign],
+            priceToneClass(sign),
           )}
         >
           {percentText(item.changePct, sign)}

@@ -12,7 +12,6 @@ import type {
   ChartBar,
   IndexDailySnapshot,
   IndexIntradaySnapshot,
-  PriceSign,
 } from "@/shared/types/quote";
 import {
   DOMESTIC_INDEX_CODES,
@@ -32,21 +31,11 @@ import {
   isKrxOpeningWindow,
 } from "@/shared/utils/market";
 import { buildIndexCell } from "@/shared/utils/buildIndexCell";
+import { priceToneClass } from "@/shared/utils/priceTone";
 import { cn } from "@/lib/utils";
 import { useIndexQuotes, type IndexCellData } from "./useIndexQuotes";
 import { useIndexIntraday } from "./useIndexIntraday";
 import { OverseasIndexList } from "./OverseasIndexList";
-
-// 가격 span 등락색. flat 은 default foreground 유지 (색 없음) — 무채로 두어
-// "값 색상은 상승/하락 유의 신호" 인 의미를 보존.
-const PRICE_SIGN_CLASS: Record<PriceSign, string> = {
-  up: "text-price-up",
-  down: "text-price-down",
-  flat: "",
-};
-
-const signOfChange = (change: number): PriceSign =>
-  change > 0 ? "up" : change < 0 ? "down" : "flat";
 
 // 국내 지수 값 포맷 — KRW 소수점 없이 콤마.
 const formatKrw = (v: number): string => v.toLocaleString("ko-KR");
@@ -103,7 +92,7 @@ const IndexCell = ({ label, cell, bars, prevClose, intradayFailed, intradayLoadi
           <span
             className={cn(
               "text-value font-semibold tabular-nums md:text-headline md:font-medium",
-              PRICE_SIGN_CLASS[cell.live.sign],
+              priceToneClass(cell.live.sign),
             )}
           >
             <PriceCountUp value={cell.live.price} />
@@ -123,7 +112,7 @@ const IndexCell = ({ label, cell, bars, prevClose, intradayFailed, intradayLoadi
           <span
             className={cn(
               "text-value font-semibold tabular-nums md:text-headline md:font-medium",
-              PRICE_SIGN_CLASS[signOfChange(cell.fallback.change)],
+              priceToneClass(cell.fallback.change),
             )}
           >
             {formatKrw(cell.fallback.close)}

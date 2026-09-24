@@ -8,18 +8,13 @@ import {
   type OverseasIndexCode,
 } from "@/shared/constants/indices";
 import type { IndexDailySnapshot, PriceSign } from "@/shared/types/quote";
+import { priceToneClass } from "@/shared/utils/priceTone";
 import { cn } from "@/lib/utils";
 import { useOverseasIndexQuotes } from "./useOverseasIndexQuotes";
 
 type OverseasIndexListProps = {
   // SSR 로 채워지는 해외 EOD 스냅샷. live=null 일 때 fallback 원천.
   snapshotsByCode: Record<OverseasIndexCode, IndexDailySnapshot | null>;
-};
-
-const PRICE_SIGN_CLASS: Record<PriceSign, string> = {
-  up: "text-price-up",
-  down: "text-price-down",
-  flat: "",
 };
 
 const signOfChange = (change: number): PriceSign =>
@@ -72,7 +67,7 @@ export const OverseasIndexList = ({ snapshotsByCode }: OverseasIndexListProps) =
                 <span
                   className={cn(
                     "text-body-sm font-semibold tabular-nums",
-                    PRICE_SIGN_CLASS[sign],
+                    priceToneClass(sign),
                   )}
                 >
                   {formatIndexPrice(price)}

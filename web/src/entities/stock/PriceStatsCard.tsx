@@ -1,5 +1,6 @@
 import type { PriceStats } from "@/shared/types/stock";
 import { formatPrice } from "@/shared/format";
+import { priceToneClass } from "@/shared/utils/priceTone";
 import { cn } from "@/lib/utils";
 import { StockPanel } from "./StockPanel";
 
@@ -10,13 +11,6 @@ type PriceStatsCardProps = {
 const formatReturn = (value: number): string => {
   const sign = value >= 0 ? "+" : "";
   return `${sign}${value.toFixed(2)}%`;
-};
-
-const returnColorClass = (value: number | null): string => {
-  if (value === null) return "text-muted-foreground";
-  if (value > 0) return "text-price-up";
-  if (value < 0) return "text-price-down";
-  return "text-price-neutral";
 };
 
 export const PriceStatsCard = ({ stats }: PriceStatsCardProps) => {
@@ -60,7 +54,7 @@ export const PriceStatsCard = ({ stats }: PriceStatsCardProps) => {
               {returns.map(({ period, value }) => (
                 <div key={period} className="space-y-1">
                   <p className="text-caption text-muted-foreground">{period}</p>
-                  <p className={cn("text-body font-semibold", returnColorClass(value))}>
+                  <p className={cn("text-body font-semibold", priceToneClass(value))}>
                     {value === null ? "—" : formatReturn(value)}
                   </p>
                 </div>
