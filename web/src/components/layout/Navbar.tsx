@@ -7,7 +7,7 @@ export const Navbar = () => {
   return (
     <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-sm">
       <div className="mx-auto grid h-12 max-w-5xl grid-cols-[auto_1fr_auto] items-center gap-3 px-4 md:gap-4">
-        <Link href="/" className="text-sm font-semibold tracking-tight">
+        <Link href="/" className="text-body font-semibold tracking-tight">
           SlateKR
         </Link>
         <div className="justify-self-stretch sm:w-full sm:max-w-md sm:justify-self-center md:w-64">
@@ -15,7 +15,7 @@ export const Navbar = () => {
             <NavbarSearch />
           </Suspense>
         </div>
-        <nav className="flex items-center gap-3 text-sm text-muted-foreground md:gap-5">
+        <nav className="flex items-center gap-3 text-body text-muted-foreground md:gap-5">
           <Link
             href="/ranking"
             className="hidden transition-colors hover:text-foreground md:inline"

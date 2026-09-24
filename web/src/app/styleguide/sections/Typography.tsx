@@ -44,6 +44,16 @@ const ROLES: Role[] = [
     sample: "12.34배",
   },
   {
+    name: "body-lg",
+    utility: "text-body-lg",
+    desktopPx: 16,
+    mobilePx: 15,
+    lineHeight: "1.5",
+    usage: "슬레이트 소제목·AI 요약 헤드라인·관심종목 행 종목명/가격(md+)",
+    replaces: "text-base",
+    sample: "자기주식 취득 결정",
+  },
+  {
     name: "body",
     utility: "text-body",
     desktopPx: 14,

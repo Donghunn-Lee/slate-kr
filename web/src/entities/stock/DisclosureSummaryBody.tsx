@@ -9,7 +9,7 @@ export const DisclosureSummaryBody = ({ content }: DisclosureSummaryBodyProps) =
 
   return (
     <div className="space-y-3">
-      <p className="text-base font-semibold leading-snug">{headline}</p>
+      <p className="text-body-lg font-semibold leading-snug">{headline}</p>
 
       {facts.length > 0 && (
         <dl className="grid grid-cols-2 items-start gap-3 sm:grid-cols-[auto_minmax(0,1fr)] sm:gap-x-4 sm:gap-y-0">
@@ -18,10 +18,10 @@ export const DisclosureSummaryBody = ({ content }: DisclosureSummaryBodyProps) =
               key={i}
               className="flex min-w-0 flex-col gap-0.5 sm:col-span-2 sm:grid sm:grid-cols-subgrid sm:border-b sm:border-sky-border/30 sm:py-1.5 sm:last:border-b-0"
             >
-              <dt className="text-[11px] text-muted-foreground sm:whitespace-nowrap sm:text-sm">
+              <dt className="text-caption text-muted-foreground sm:whitespace-nowrap sm:text-body">
                 {fact.label}
               </dt>
-              <dd className="wrap-anywhere break-keep text-xs tabular-nums sm:text-sm">
+              <dd className="wrap-anywhere break-keep text-body-sm tabular-nums sm:text-body">
                 {fact.value}
               </dd>
             </div>
@@ -30,7 +30,7 @@ export const DisclosureSummaryBody = ({ content }: DisclosureSummaryBodyProps) =
       )}
 
       {detail !== "" && (
-        <p className="whitespace-pre-wrap text-sm leading-relaxed">{detail}</p>
+        <p className="whitespace-pre-wrap text-body leading-relaxed">{detail}</p>
       )}
     </div>
   );

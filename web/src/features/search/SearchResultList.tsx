@@ -44,7 +44,7 @@ const SearchResultHeader = () => (
   <div
     className={cn(
       GRID_CLASS,
-      "border-b border-subtle whitespace-nowrap px-2 pb-2 pt-1 text-[10px] font-medium text-muted-foreground sm:text-[11px]"
+      "border-b border-subtle whitespace-nowrap px-2 pb-2 pt-1 text-micro font-medium text-muted-foreground"
     )}
   >
     <span>종목</span>
@@ -103,17 +103,17 @@ const SearchResultRow = ({
         className={cn(GRID_CLASS, "px-2 py-2.5 transition-colors hover:bg-muted/40")}
       >
         <div className="flex min-w-0 items-center gap-2">
-          <span className="truncate text-sm font-semibold text-foreground">{stock.name}</span>
+          <span className="truncate text-body font-semibold text-foreground">{stock.name}</span>
           {isLiveFailed && (
             <StatusBadge label="일시 지연" className="shrink-0" />
           )}
         </div>
-        <span className="hidden font-mono text-[11px] text-muted-foreground md:block">
+        <span className="hidden font-mono text-micro text-muted-foreground md:block">
           {stock.market}
         </span>
         <span
           className={cn(
-            "justify-self-end text-sm font-bold tabular-nums",
+            "justify-self-end text-body font-bold tabular-nums",
             priceToneClass(sign)
           )}
         >
@@ -122,7 +122,7 @@ const SearchResultRow = ({
         </span>
         <span
           className={cn(
-            "justify-self-end text-xs font-medium tabular-nums sm:hidden",
+            "justify-self-end text-body-sm font-medium tabular-nums sm:hidden",
             priceToneClass(sign)
           )}
         >
@@ -140,13 +140,13 @@ const SearchResultRow = ({
               className="leading-none"
             />
           ) : (
-            <span className="text-xs text-muted-foreground">—</span>
+            <span className="text-caption text-muted-foreground">—</span>
           )}
         </div>
-        <span className="hidden justify-self-end text-xs tabular-nums text-muted-foreground sm:block md:text-[11px]">
+        <span className="hidden justify-self-end text-caption tabular-nums text-muted-foreground sm:block md:text-micro">
           {displayVolume !== null ? compactShares(displayVolume) : "—"}
         </span>
-        <span className="hidden justify-self-end text-xs tabular-nums text-muted-foreground sm:block md:text-[11px]">
+        <span className="hidden justify-self-end text-caption tabular-nums text-muted-foreground sm:block md:text-micro">
           {displayTradeValue !== null ? formatMarketCap(displayTradeValue) : "—"}
         </span>
       </Link>

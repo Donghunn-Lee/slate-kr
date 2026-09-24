@@ -54,7 +54,7 @@ export default async function RankingPage({ searchParams }: RankingPageProps) {
 
   return (
     <main className="container mx-auto max-w-4xl space-y-3 px-4 py-5 sm:space-y-4 sm:py-8">
-      <h1 className="text-xl font-bold sm:text-2xl">시장 순위</h1>
+      <h1 className="text-headline font-bold">시장 순위</h1>
       <RankingView initialTabId={tab.id} initialMarket={market} />
     </main>
   );

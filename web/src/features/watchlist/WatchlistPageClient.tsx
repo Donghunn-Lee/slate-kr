@@ -156,7 +156,7 @@ export const WatchlistPageClient = () => {
 
   const tabButtonClass = (selected: boolean, layout: "horizontal" | "vertical") =>
     cn(
-      "whitespace-nowrap rounded-md text-sm transition-colors",
+      "whitespace-nowrap rounded-md text-body transition-colors",
       layout === "horizontal" ? "px-3 py-1.5" : "block w-full px-3 py-2 text-left",
       selected
         ? "bg-muted font-medium text-foreground"
@@ -174,7 +174,7 @@ export const WatchlistPageClient = () => {
   return (
     <main className="container mx-auto max-w-4xl space-y-3 px-4 py-5 sm:space-y-4 sm:py-8">
       <div className="flex items-center gap-2">
-        <h1 className="text-xl font-bold sm:text-2xl">관심종목</h1>
+        <h1 className="text-headline font-bold">관심종목</h1>
         {showSyncBadge && (
           <StatusBadge label="서버 저장 안 됨" title="관심종목이 이 브라우저에만 저장되어 있어요" />
         )}
@@ -242,7 +242,7 @@ export const WatchlistPageClient = () => {
         <section className="min-w-0 flex-1">
           <header className="mb-3 flex h-8 items-center gap-2">
             {currentTabLabel !== null && (
-              <h2 className="truncate text-sm font-medium text-foreground">
+              <h2 className="truncate text-body font-medium text-foreground">
                 {currentTabLabel}
               </h2>
             )}
@@ -263,7 +263,7 @@ export const WatchlistPageClient = () => {
               <EmptyState {...emptyState} />
             </StockPanel>
           ) : pricesQuery.isError && countsQuery.isError ? (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-body text-muted-foreground">
               관심종목 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
             </p>
           ) : (

@@ -426,7 +426,7 @@ export const IndexDetailPane = ({
             intradayEnabled={isDomestic || isOverseasIntraday}
           />
         ) : (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-body text-muted-foreground">
             차트 데이터를 불러오지 못했습니다
           </p>
         )}

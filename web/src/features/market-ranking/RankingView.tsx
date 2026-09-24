@@ -132,10 +132,10 @@ export const RankingView = ({
             />
           </div>
           <div className="flex flex-col items-center gap-1 text-center">
-            <p className="text-sm font-medium text-foreground">
+            <p className="text-body font-medium text-foreground">
               순위 데이터를 일시적으로 불러오지 못했어요
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-caption text-muted-foreground">
               잠시 후 다시 시도해 주세요
             </p>
           </div>
@@ -143,7 +143,7 @@ export const RankingView = ({
             type="button"
             onClick={() => refetch()}
             disabled={isFetching}
-            className="inline-flex items-center gap-1.5 rounded-md border border-subtle bg-background px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-border hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-subtle disabled:hover:text-muted-foreground"
+            className="inline-flex items-center gap-1.5 rounded-md border border-subtle bg-background px-3 py-1.5 text-caption text-muted-foreground transition-colors hover:border-border hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-subtle disabled:hover:text-muted-foreground"
           >
             <RefreshCw
               className={cn("h-3 w-3", isFetching && "animate-spin")}
@@ -153,7 +153,7 @@ export const RankingView = ({
           </button>
         </div>
       ) : showEmpty ? (
-        <p className="py-6 text-center text-sm text-muted-foreground">
+        <p className="py-6 text-center text-body text-muted-foreground">
           표시할 순위가 없습니다
         </p>
       ) : (

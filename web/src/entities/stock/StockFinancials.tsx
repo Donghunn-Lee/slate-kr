@@ -40,13 +40,13 @@ export const StockFinancials = async ({ ticker, viewAllHref, compact }: StockFin
 
   const content = hasError ? (
     <>
-      <h2 className="mb-3 text-sm font-semibold text-muted-foreground">재무 요약</h2>
-      <p className="text-sm text-muted-foreground">재무 데이터를 불러오지 못했습니다</p>
+      <h2 className="mb-3 text-body font-semibold text-muted-foreground">재무 요약</h2>
+      <p className="text-body text-muted-foreground">재무 데이터를 불러오지 못했습니다</p>
     </>
   ) : isEmpty ? (
     <>
-      <h2 className="mb-3 text-sm font-semibold text-muted-foreground">재무 요약</h2>
-      <p className="text-sm text-muted-foreground">재무 데이터 없음</p>
+      <h2 className="mb-3 text-body font-semibold text-muted-foreground">재무 요약</h2>
+      <p className="text-body text-muted-foreground">재무 데이터 없음</p>
     </>
   ) : (
     <StockFinancialsClient

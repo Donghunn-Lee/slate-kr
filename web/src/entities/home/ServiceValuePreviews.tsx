@@ -35,7 +35,7 @@ export const DisclosurePreview = ({ play }: PreviewProps) => {
         <span
           key={chip.label}
           className={cn(
-            "inline-flex items-center rounded-sm px-1.5 py-0.5 text-[10px] font-medium",
+            "inline-flex items-center rounded-sm px-1.5 py-0.5 text-micro font-medium",
             chip.cls,
             shouldAnimate && "transition-all duration-500 ease-out",
             entered ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0",
@@ -180,7 +180,7 @@ const MetricValue = ({
   const value = useCountUp(metric.target, shouldAnimate);
   return (
     <div className="flex flex-col">
-      <span className="text-[10px] text-muted-foreground/80">{metric.label}</span>
+      <span className="text-micro text-muted-foreground/80">{metric.label}</span>
       <span className="tabular-nums text-body font-semibold text-foreground">
         {metric.format(value)}
       </span>

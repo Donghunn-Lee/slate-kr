@@ -136,7 +136,7 @@ const GroupCheckList = ({ ticker, name, market }: GroupCheckListProps) => {
 
   if (groups.length === 0) {
     return (
-      <p className="px-3 py-4 text-sm text-muted-foreground">
+      <p className="px-3 py-4 text-body text-muted-foreground">
         그룹이 없습니다. 관심종목 페이지에서 그룹을 먼저 만들어주세요.
       </p>
     );
@@ -169,7 +169,7 @@ const GroupCheckList = ({ ticker, name, market }: GroupCheckListProps) => {
               role="menuitemcheckbox"
               aria-checked={checked}
               onClick={() => handleToggle(g.id)}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent"
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-body hover:bg-accent"
             >
               <span className="flex size-4 shrink-0 items-center justify-center rounded border border-input">
                 {checked && <Check className="size-3" />}

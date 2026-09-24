@@ -17,10 +17,10 @@ const DATA_SOURCES: ReadonlyArray<{ category: string; value: string }> = [
 export default function CreditsPage() {
   return (
     <main className="container mx-auto max-w-4xl space-y-6 px-4 py-5 sm:space-y-8 sm:py-8">
-      <h1 className="text-xl font-bold sm:text-2xl">데이터 출처·라이선스</h1>
+      <h1 className="text-headline font-bold">데이터 출처·라이선스</h1>
 
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold">데이터 출처</h2>
+        <h2 className="text-value font-semibold">데이터 출처</h2>
         <StockPanel>
           <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 text-body">
             {DATA_SOURCES.map(({ category, value }) => (
@@ -58,7 +58,7 @@ export default function CreditsPage() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold">쿠키 사용 안내</h2>
+        <h2 className="text-value font-semibold">쿠키 사용 안내</h2>
         <StockPanel>
           <p className="text-body">
             관심종목·메모 서버 저장을 위해 익명 식별 쿠키(1년)를 사용합니다.
@@ -70,14 +70,14 @@ export default function CreditsPage() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold">오픈소스 라이선스</h2>
+        <h2 className="text-value font-semibold">오픈소스 라이선스</h2>
         <StockPanel>
           <div className="space-y-3">
             <div>
               <h3 className="text-body font-semibold">TradingView Lightweight Charts™</h3>
               <p className="text-caption text-muted-foreground">Apache License 2.0</p>
             </div>
-            <div className="rounded border border-subtle bg-elevated p-3 font-mono text-sm leading-relaxed">
+            <div className="rounded border border-subtle bg-elevated p-3 font-mono text-body leading-relaxed">
               <p>TradingView Lightweight Charts™</p>
               <p>
                 Copyright (с) 2025 TradingView, Inc.{" "}

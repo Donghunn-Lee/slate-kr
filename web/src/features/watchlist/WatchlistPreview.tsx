@@ -144,7 +144,7 @@ export const WatchlistPreview = () => {
         {/* 슬레이트 내부 좌측 상단에 붙이는 그룹 선택 — 제목 톤(semibold foreground). 트리거는 border/shadow/ring 제거해 클릭 시 시각적 확대감 없음. */}
         <div className="mb-3 flex min-w-0">
           {singleGroup ? (
-            <span className="truncate text-base font-semibold text-foreground">
+            <span className="truncate text-body-lg font-semibold text-foreground">
               {sortedGroups[0].name}
             </span>
           ) : (
@@ -153,7 +153,7 @@ export const WatchlistPreview = () => {
               onValueChange={setSelectedGroupId}
             >
               <SelectTrigger
-                className="h-auto min-w-0 gap-1.5 rounded-none border-0 bg-transparent p-0 text-base font-semibold text-foreground shadow-none hover:bg-transparent focus-visible:border-transparent focus-visible:ring-0"
+                className="h-auto min-w-0 gap-1.5 rounded-none border-0 bg-transparent p-0 text-body-lg font-semibold text-foreground shadow-none hover:bg-transparent focus-visible:border-transparent focus-visible:ring-0"
               >
                 <SelectValue />
               </SelectTrigger>
@@ -216,7 +216,7 @@ export const WatchlistPreview = () => {
                       >
                         <div className="border-b border-subtle py-1.5 group-last:border-b-0">
                           <div className="mb-0.5 flex items-center gap-2">
-                            <span className="text-[10px] leading-none tracking-wide text-muted-foreground">
+                            <span className="text-micro leading-none tracking-wide text-muted-foreground">
                               {item.market}
                             </span>
                             {isLiveFailed && (

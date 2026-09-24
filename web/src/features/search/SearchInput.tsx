@@ -123,8 +123,8 @@ export const SearchInput = ({
           disabled={disabled}
           className={cn(
             "w-full pr-9",
-            size === "sm" && "h-8 text-sm md:text-sm",
-            size === "lg" && "h-12 text-base md:text-base"
+            size === "sm" && "h-8 text-body md:text-body",
+            size === "lg" && "h-12 text-body-lg md:text-body-lg"
           )}
           autoComplete="off"
           autoFocus={autoFocus}
@@ -146,9 +146,9 @@ export const SearchInput = ({
         </button>
         {isOpen && (
           <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-md border bg-popover shadow-md">
-            {isLoading && <div className="px-4 py-3 text-sm text-muted-foreground">검색 중...</div>}
+            {isLoading && <div className="px-4 py-3 text-body text-muted-foreground">검색 중...</div>}
             {!isLoading && results.length === 0 && (
-              <div className="px-4 py-3 text-sm text-muted-foreground">검색 결과가 없습니다</div>
+              <div className="px-4 py-3 text-body text-muted-foreground">검색 결과가 없습니다</div>
             )}
             {!isLoading && results.length > 0 && (
               <ul role="listbox">
@@ -168,12 +168,12 @@ export const SearchInput = ({
                   >
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-sm font-medium truncate">{stock.name}</span>
-                        <span className="font-mono text-xs text-muted-foreground shrink-0">
+                        <span className="text-body font-medium truncate">{stock.name}</span>
+                        <span className="font-mono text-caption text-muted-foreground shrink-0">
                           {stock.ticker}
                         </span>
                       </div>
-                      <span className="text-xs text-muted-foreground shrink-0">{stock.market}</span>
+                      <span className="text-caption text-muted-foreground shrink-0">{stock.market}</span>
                     </div>
                   </li>
                 ))}

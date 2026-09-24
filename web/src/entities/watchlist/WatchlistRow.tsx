@@ -63,7 +63,7 @@ export const WatchlistRow = ({
       <div className="border-b border-subtle md:pb-3 md:pt-1 pb-1.5 pt-0.5 group-last:border-b-0">
         <div className="flex flex-col">
           <div className="flex min-h-7 items-center gap-2">
-            <span className="shrink-0 font-mono text-[11px] leading-none text-muted-foreground md:text-xs">
+            <span className="shrink-0 font-mono text-micro leading-none text-muted-foreground md:text-caption">
               {item.ticker} · {item.market}
             </span>
             <div className="ml-auto flex shrink-0 items-center gap-3">
@@ -71,13 +71,13 @@ export const WatchlistRow = ({
                 <StatusBadge label="일시 지연" />
               )}
               {hasMemo && (
-                <div className="flex items-center gap-1.5 text-[11px] leading-none md:text-xs">
+                <div className="flex items-center gap-1.5 text-micro leading-none md:text-caption">
                   <span className="text-muted-foreground">메모</span>
                   <NotebookText className="h-4 w-4 text-sky-accent" />
                 </div>
               )}
               {disclosure?.count != null && disclosure.count > 0 && (
-                <div className="flex items-center gap-1.5 text-[11px] leading-none md:text-xs">
+                <div className="flex items-center gap-1.5 text-micro leading-none md:text-caption">
                   <span className="text-muted-foreground">최근 공시</span>
                   <Link
                     href={`/stocks/${item.ticker}/disclosures`}
@@ -101,13 +101,13 @@ export const WatchlistRow = ({
             </div>
           </div>
           <div className="flex flex-row items-baseline justify-between gap-2 md:flex-col md:items-start md:justify-start md:gap-1">
-            <span className="min-w-0 truncate text-sm font-semibold text-foreground md:text-base">
+            <span className="min-w-0 truncate text-body font-semibold text-foreground md:text-body-lg">
               {item.name}
             </span>
             <div className="flex shrink-0 items-end gap-2">
               <span
                 className={cn(
-                  "text-sm font-bold tabular-nums leading-none md:text-base",
+                  "text-body font-bold tabular-nums leading-none md:text-body-lg",
                   priceToneClass(displaySign ?? displayChange),
                 )}
               >

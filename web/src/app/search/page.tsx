@@ -69,7 +69,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   if (!query) {
     return (
       <main className="mx-auto w-full max-w-2xl px-4 py-10">
-        <p className="text-sm text-muted-foreground">검색어를 입력해주세요.</p>
+        <p className="text-body text-muted-foreground">검색어를 입력해주세요.</p>
       </main>
     );
   }
@@ -83,7 +83,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   } catch {
     return (
       <main className="mx-auto w-full max-w-2xl px-4 py-10">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-body text-muted-foreground">
           검색 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.
         </p>
       </main>
@@ -99,7 +99,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   if (result.results.length === 0) {
     return (
       <main className="mx-auto w-full max-w-2xl px-4 py-10">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-body text-muted-foreground">
           &ldquo;{query}&rdquo;에 해당하는 종목이 없습니다.
         </p>
       </main>
@@ -124,7 +124,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-10">
-      <p className="mb-4 text-xs text-muted-foreground">{result.total}개 종목</p>
+      <p className="mb-4 text-caption text-muted-foreground">{result.total}개 종목</p>
       <SearchResultList results={result.results} basePrices={basePrices} />
       {totalPages > 1 && (
         <Pagination className="mt-6">

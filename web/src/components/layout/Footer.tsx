@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export const Footer = () => (
   <footer className="mt-auto border-t border-border/60 py-6">
-    <div className="mx-auto max-w-4xl space-y-1 px-4 text-center text-xs text-muted-foreground">
+    <div className="mx-auto max-w-4xl space-y-1 px-4 text-center text-caption text-muted-foreground">
       <p>이 서비스는 투자 참고용이며, 투자 권유 또는 종목 추천이 아닙니다.</p>
       <p>
         <Link href="/credits" className="hover:underline">

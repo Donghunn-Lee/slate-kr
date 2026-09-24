@@ -89,7 +89,7 @@ const metricLabels = (kind: MarketRankingKind): MetricLabel => {
   }
 };
 
-// < sm(<640): 5컬럼 (순위/종목명/현재가/등락률/거래량) 최대 압축, text-xs.
+// < sm(<640): 5컬럼 (순위/종목명/현재가/등락률/거래량) 최대 압축, text-body-sm.
 // sm~md(640~767): 6컬럼 (+ 등락 풀·최근 공시). sm 구간 공백이 남던 문제 해소.
 // md+(768+): 7컬럼 (+ 시장). 프로젝트 관례상 md가 데스크톱 갈림 지점.
 // 헤더/행/스켈레톤이 반드시 같은 템플릿을 공유한다.
@@ -148,10 +148,10 @@ export const RankingRow = ({ item, disclosure, kind }: RankingRowProps) => {
         className="absolute inset-0"
       />
       <div className={cn(GRID_CLASS, "px-4 py-1.5 sm:py-2 md:px-6")}>
-        <span className="justify-self-center font-mono text-xs tabular-nums text-muted-foreground sm:text-sm">
+        <span className="justify-self-center font-mono text-body-sm tabular-nums text-muted-foreground sm:text-body">
           {item.rank}
         </span>
-        <span className="min-w-0 truncate text-xs font-normal text-foreground sm:text-sm sm:font-semibold">
+        <span className="min-w-0 truncate text-body-sm font-normal text-foreground sm:text-body sm:font-semibold">
           {item.name}
         </span>
         <span className="hidden font-mono text-micro text-muted-foreground md:block">
@@ -159,7 +159,7 @@ export const RankingRow = ({ item, disclosure, kind }: RankingRowProps) => {
         </span>
         <span
           className={cn(
-            "justify-self-end text-xs font-medium tabular-nums sm:text-sm sm:font-bold",
+            "justify-self-end text-body-sm font-medium tabular-nums sm:text-body sm:font-bold",
             priceToneClass(sign),
           )}
         >
@@ -168,7 +168,7 @@ export const RankingRow = ({ item, disclosure, kind }: RankingRowProps) => {
         </span>
         <span
           className={cn(
-            "justify-self-end text-xs font-medium tabular-nums sm:hidden",
+            "justify-self-end text-body-sm font-medium tabular-nums sm:hidden",
             priceToneClass(sign),
           )}
         >
@@ -185,7 +185,7 @@ export const RankingRow = ({ item, disclosure, kind }: RankingRowProps) => {
             className="leading-none"
           />
         </div>
-        <span className="justify-self-end text-xs tabular-nums text-muted-foreground sm:text-sm md:text-[11px]">
+        <span className="justify-self-end text-body-sm tabular-nums text-muted-foreground sm:text-body md:text-micro">
           <span className="sm:hidden">{metricCell.mobile}</span>
           <span className="hidden sm:inline">{metricCell.desktop}</span>
         </span>
