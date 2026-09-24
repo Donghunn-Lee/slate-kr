@@ -11,6 +11,7 @@ import {
   type UTCTimestamp,
 } from "lightweight-charts";
 import {
+  CHART_THEME,
   INDEX_MINI_MIN_BAR_SPACING,
   crosshairLocalization,
 } from "@/shared/constants/chart";
@@ -34,40 +35,6 @@ type IndexMiniChartProps = {
   // 부모 트리의 모바일 레이아웃(<md) 여부 — 축·폰트 축소를 레이아웃 분기점과 맞춘다.
   compact: boolean;
 };
-
-type BaselinePalette = {
-  bg: string;
-  text: string;
-  border: string;
-  up: { line: string; fill1: string; fill2: string };
-  down: { line: string; fill1: string; fill2: string };
-  // flat: prevClose 미도착 시 AreaSeries fallback 용 무채색 톤.
-  flat: { line: string; top: string; bottom: string };
-};
-
-// IndexChart 풀사이즈와 동일한 up/down hex. baseline 그라데이션:
-// line 근처 fill1(진함) → baseline 근처 fill2(투명).
-const LIGHT: BaselinePalette = {
-  bg: "#ffffff",
-  text: "#1a1a1a",
-  border: "#e5e5e5",
-  up: { line: "#dc2626", fill1: "rgba(220,38,38,0.28)", fill2: "rgba(220,38,38,0)" },
-  down: { line: "#2563eb", fill1: "rgba(37,99,235,0.28)", fill2: "rgba(37,99,235,0)" },
-  flat: { line: "#737373", top: "rgba(115,115,115,0.15)", bottom: "rgba(115,115,115,0)" },
-};
-
-const DARK: BaselinePalette = {
-  bg: "#1a1a1a",
-  text: "#f0f0f0",
-  border: "rgba(255,255,255,0.1)",
-  up: { line: "#ef4444", fill1: "rgba(239,68,68,0.28)", fill2: "rgba(239,68,68,0)" },
-  down: { line: "#3b82f6", fill1: "rgba(59,130,246,0.28)", fill2: "rgba(59,130,246,0)" },
-  flat: { line: "#a3a3a3", top: "rgba(163,163,163,0.15)", bottom: "rgba(163,163,163,0)" },
-};
-
-// 전일종가 기준선 색상 — 무채색 muted. 축 라벨 없이 대시만.
-const PREV_CLOSE_LINE_LIGHT = "rgba(0,0,0,0.28)";
-const PREV_CLOSE_LINE_DARK = "rgba(255,255,255,0.28)";
 
 // 높이는 갖지 않는다 — 컨테이너를 100% 채우고(autoSize) 높이 결정은 부모
 // (IndexSlate IndexCell 의 차트 영역 클래스) 한 곳에 둔다.
@@ -115,7 +82,7 @@ export const IndexMiniChart = ({
     if (!containerRef.current) return;
     if (sessionBars.length === 0) return;
 
-    const palette = resolvedTheme === "dark" ? DARK : LIGHT;
+    const palette = resolvedTheme === "dark" ? CHART_THEME.dark : CHART_THEME.light;
 
     const pc = prevClose ?? 0;
     const hasPrevClose = pc > 0;
@@ -162,12 +129,12 @@ export const IndexMiniChart = ({
     const series = hasPrevClose
       ? chart.addSeries(BaselineSeries, {
           baseValue: { type: "price", price: pc },
-          topLineColor: palette.up.line,
-          bottomLineColor: palette.down.line,
-          topFillColor1: palette.up.fill1,
-          topFillColor2: palette.up.fill2,
-          bottomFillColor1: palette.down.fill1,
-          bottomFillColor2: palette.down.fill2,
+          topLineColor: palette.up,
+          bottomLineColor: palette.down,
+          topFillColor1: palette.baseline.topFill1,
+          topFillColor2: palette.baseline.topFillClear,
+          bottomFillColor1: palette.baseline.bottomFill1,
+          bottomFillColor2: palette.baseline.bottomFillClear,
           lineWidth: 2,
           priceFormat,
           autoscaleInfoProvider: (
@@ -185,9 +152,9 @@ export const IndexMiniChart = ({
           },
         })
       : chart.addSeries(AreaSeries, {
-          lineColor: palette.flat.line,
-          topColor: palette.flat.top,
-          bottomColor: palette.flat.bottom,
+          lineColor: palette.neutralLine,
+          topColor: palette.neutralTopFill,
+          bottomColor: palette.neutralBottomFill,
           lineWidth: 2,
           priceFormat,
         });
@@ -201,12 +168,11 @@ export const IndexMiniChart = ({
         })),
     );
 
-    // 전일종가 dashed line — 큰 차트 스타일 준용. 축 라벨 없이 순수 시각 기준선.
+    // 전일종가 dashed line — 축 라벨 없이 순수 시각 기준선.
     if (hasPrevClose) {
       series.createPriceLine({
         price: pc,
-        color:
-          resolvedTheme === "dark" ? PREV_CLOSE_LINE_DARK : PREV_CLOSE_LINE_LIGHT,
+        color: palette.prevCloseLine,
         lineStyle: LineStyle.Dashed,
         lineWidth: 1,
         axisLabelVisible: false,

@@ -10,8 +10,11 @@ import type { Time } from "lightweight-charts";
 // volume.{up,down} — 하단 histogram 오버레이용. 반투명이 관례이므로 원색 alpha 를 더 낮춘다.
 // baseline.{top,bottom}Fill{1,2} — intraday 선차트(BaselineSeries) 영역 그라데이션.
 // fill1(진함) → fill2(옅음) 로 baseline 에 가까워질수록 소멸. 렌더 확인 후 알파 미세조정 여지.
+// {top,bottom}FillClear — IndexMiniChart baseline 끝단(완전 투명). 미니 셀 높이에선 fill2 잔색도
+// 면으로 읽혀 0 까지 뺀다.
 // neutralLine / neutralTopFill / neutralBottomFill — baseline 개념 부재 뷰(EOD·주·월 선차트) 용
-// AreaSeries 무채색. IndexMiniChart flat 톤과 동일 계열. 알파 0.18 → 0.02 그라데이션.
+// AreaSeries 무채색. IndexMiniChart 의 prevClose 부재 fallback 도 같은 키를 쓴다. 알파 0.18 → 0.02 그라데이션.
+// prevCloseLine — IndexMiniChart 전일종가 dashed 기준선. 무채 반투명.
 // ma[] — 이동평균선 팔레트. period index 로 매핑, 초과 시 modulo 순환. 캔들 red/blue 와
 // 톤 충돌 없이 서로 구분되도록 노랑·보라·청록·주황 계열 (KR 일봉 차트 관행에 근접).
 export const CHART_THEME = {
@@ -34,10 +37,13 @@ export const CHART_THEME = {
       topFill2: "rgba(194,23,37,0.05)",
       bottomFill1: "rgba(17,86,192,0.28)",
       bottomFill2: "rgba(17,86,192,0.05)",
+      topFillClear: "rgba(194,23,37,0)",
+      bottomFillClear: "rgba(17,86,192,0)",
     },
     neutralLine: "#525252",
     neutralTopFill: "rgba(82,82,82,0.18)",
     neutralBottomFill: "rgba(82,82,82,0.02)",
+    prevCloseLine: "rgba(0,0,0,0.28)",
     ma: ["#eab308", "#a855f7", "#14b8a6", "#f97316"],
   },
   dark: {
@@ -59,10 +65,13 @@ export const CHART_THEME = {
       topFill2: "rgba(226,73,71,0.05)",
       bottomFill1: "rgba(73,131,229,0.28)",
       bottomFill2: "rgba(73,131,229,0.05)",
+      topFillClear: "rgba(226,73,71,0)",
+      bottomFillClear: "rgba(73,131,229,0)",
     },
     neutralLine: "#a3a3a3",
     neutralTopFill: "rgba(163,163,163,0.18)",
     neutralBottomFill: "rgba(163,163,163,0.02)",
+    prevCloseLine: "rgba(255,255,255,0.28)",
     ma: ["#facc15", "#c084fc", "#2dd4bf", "#fb923c"],
   },
 } as const;
