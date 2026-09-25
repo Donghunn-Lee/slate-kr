@@ -31,6 +31,7 @@ import {
   type ChartPalette,
 } from "@/shared/constants/chart";
 import type { ChartBar } from "@/shared/types/quote";
+import { suit } from "@/shared/fonts";
 import { makeLeadingWhitespace } from "@/entities/chart/leadingWhitespace";
 
 type PriceChartProps = {
@@ -572,7 +573,7 @@ export const PriceChart = ({
       layout: {
         background: { color: c.bg },
         textColor: c.text,
-        fontFamily: "SUIT Variable, sans-serif",
+        fontFamily: suit.style.fontFamily,
         attributionLogo: false,
       },
       grid: {
@@ -937,7 +938,15 @@ export const PriceChart = ({
       chart.subscribeCrosshairMove(crosshairHandler);
     }
 
+    // 캔버스 텍스트는 폰트 로드 후 자동으로 다시 그려지지 않는다 — 첫 페인트가 로드 전이면
+    // 축 라벨이 대체 글꼴로 남으므로 로드 완료 후 1회 재그리기.
+    let removed = false;
+    document.fonts.ready.then(() => {
+      if (!removed) chart.applyOptions({ layout: { fontFamily: suit.style.fontFamily } });
+    });
+
     return () => {
+      removed = true;
       if (crosshairHandler) chart.unsubscribeCrosshairMove(crosshairHandler);
       chart
         .timeScale()

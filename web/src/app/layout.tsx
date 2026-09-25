@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import localFont from "next/font/local";
 import "./globals.css";
 import { Providers } from "./Providers";
 import { Navbar } from "@/components/layout/Navbar";
@@ -10,13 +9,7 @@ import { IosInputZoomFix } from "@/shared/components/IosInputZoomFix";
 import { WatchlistSync } from "@/features/watchlist/WatchlistSync";
 import { MemoSync } from "@/features/memo/MemoSync";
 import { getMarketCalendar } from "@/lib/market-calendar";
-
-const suit = localFont({
-  src: "../../public/fonts/SUIT-Variable.woff2",
-  variable: "--font-suit",
-  display: "swap",
-  weight: "100 900",
-});
+import { suit } from "@/shared/fonts";
 
 export const viewport: Viewport = {
   width: "device-width",
