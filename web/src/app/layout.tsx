@@ -30,16 +30,16 @@ export const metadata: Metadata = {
     template: "%s | SlateKR",
     default: "SlateKR",
   },
-  description: "국내 상장 종목의 가격·재무·공시 정보를 빠르게 조회하세요",
+  description: "국내 상장 종목의 가격·재무·공시 정보를 손쉽게 조회하세요",
   openGraph: {
     title: "SlateKR",
-    description: "국내 상장 종목의 가격·재무·공시 정보를 빠르게 조회하세요",
+    description: "국내 상장 종목의 가격·재무·공시 정보를 손쉽게 조회하세요",
     type: "website",
   },
   twitter: {
     card: "summary",
     title: "SlateKR",
-    description: "국내 상장 종목의 가격·재무·공시 정보를 빠르게 조회하세요",
+    description: "국내 상장 종목의 가격·재무·공시 정보를 손쉽게 조회하세요",
   },
 };
 
