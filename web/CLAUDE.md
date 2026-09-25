@@ -52,7 +52,7 @@ AI 없이도 설득력 있어야 한다. AI는 투자 판단 도구가 아니라
 - **차트**: lightweight-charts v5 (v4와 API 차이 큼 — v4 예제 코드 사용 금지)
 - **유틸**: date-fns, Zod (외부 API 응답 런타임 검증), next-themes, @date-fns/tz (TZDate — KST/현지시각 변환)
 - **테스트**: Vitest (커밋 green 기준: tsc --noEmit, ESLint, next build, vitest)
-- **폰트**: SUIT Variable (로컬 로드)
+- **폰트**: Noto Sans KR (next/font/google 셀프 호스팅, 가변 굵기 100–900)
 - **DB**: PostgreSQL on Neon (@neondatabase/serverless, lib/db.ts)
   - neon() 호환 래퍼: 기존 `[rows, null]` 패턴 유지
   - placeholder: `$1, $2` (PostgreSQL 스타일)

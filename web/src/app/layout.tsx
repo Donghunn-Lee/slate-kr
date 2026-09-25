@@ -9,7 +9,7 @@ import { IosInputZoomFix } from "@/shared/components/IosInputZoomFix";
 import { WatchlistSync } from "@/features/watchlist/WatchlistSync";
 import { MemoSync } from "@/features/memo/MemoSync";
 import { getMarketCalendar } from "@/lib/market-calendar";
-import { suit } from "@/shared/fonts";
+import { notoSansKr } from "@/shared/fonts";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -39,7 +39,7 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const calendar = await getMarketCalendar();
   return (
-    <html lang="ko" suppressHydrationWarning className={suit.variable}>
+    <html lang="ko" suppressHydrationWarning className={notoSansKr.variable}>
       <body className="flex min-h-screen flex-col pb-[calc(3.5rem+env(safe-area-inset-bottom))] font-sans antialiased md:pb-0">
         <Providers calendar={calendar}>
           <IosInputZoomFix />

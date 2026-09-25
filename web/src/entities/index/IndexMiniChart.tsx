@@ -16,7 +16,7 @@ import {
   crosshairLocalization,
 } from "@/shared/constants/chart";
 import type { ChartBar } from "@/shared/types/quote";
-import { suit } from "@/shared/fonts";
+import { notoSansKr } from "@/shared/fonts";
 
 type IndexMiniChartProps = {
   bars: ChartBar[];
@@ -93,7 +93,7 @@ export const IndexMiniChart = ({
       layout: {
         background: { color: palette.bg },
         textColor: palette.text,
-        fontFamily: suit.style.fontFamily,
+        fontFamily: notoSansKr.style.fontFamily,
         // 모바일 반폭 셀에서 가격축·시간축 라벨 폭·높이 축소.
         ...(compact ? { fontSize: FONT_SIZE_MOBILE } : {}),
         attributionLogo: false,
@@ -200,7 +200,7 @@ export const IndexMiniChart = ({
     // 캔버스 텍스트는 폰트 로드 후 자동으로 다시 그려지지 않는다 — 첫 페인트가 로드 전이면
     // 축 라벨이 대체 글꼴로 남으므로 로드 완료 후 1회 재그리기.
     document.fonts.ready.then(() => {
-      if (!removed) chart.applyOptions({ layout: { fontFamily: suit.style.fontFamily } });
+      if (!removed) chart.applyOptions({ layout: { fontFamily: notoSansKr.style.fontFamily } });
     });
 
     return () => {

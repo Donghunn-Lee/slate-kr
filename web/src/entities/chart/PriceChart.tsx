@@ -31,7 +31,7 @@ import {
   type ChartPalette,
 } from "@/shared/constants/chart";
 import type { ChartBar } from "@/shared/types/quote";
-import { suit } from "@/shared/fonts";
+import { notoSansKr } from "@/shared/fonts";
 import { makeLeadingWhitespace } from "@/entities/chart/leadingWhitespace";
 
 type PriceChartProps = {
@@ -573,7 +573,7 @@ export const PriceChart = ({
       layout: {
         background: { color: c.bg },
         textColor: c.text,
-        fontFamily: suit.style.fontFamily,
+        fontFamily: notoSansKr.style.fontFamily,
         attributionLogo: false,
       },
       grid: {
@@ -942,7 +942,7 @@ export const PriceChart = ({
     // 축 라벨이 대체 글꼴로 남으므로 로드 완료 후 1회 재그리기.
     let removed = false;
     document.fonts.ready.then(() => {
-      if (!removed) chart.applyOptions({ layout: { fontFamily: suit.style.fontFamily } });
+      if (!removed) chart.applyOptions({ layout: { fontFamily: notoSansKr.style.fontFamily } });
     });
 
     return () => {
