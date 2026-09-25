@@ -13,7 +13,7 @@ import { getMarketCalendar } from "@/lib/market-calendar";
 
 const suit = localFont({
   src: "../../public/fonts/SUIT-Variable.woff2",
-  variable: "--font-sans",
+  variable: "--font-suit",
   display: "swap",
   weight: "100 900",
 });
