@@ -3,6 +3,7 @@ import "./globals.css";
 import { Providers } from "./Providers";
 import { Navbar } from "@/components/layout/Navbar";
 import { BottomTabBar } from "@/components/layout/BottomTabBar";
+import { ScrollToTopButton } from "@/components/layout/ScrollToTopButton";
 import { RecentVisitedBar } from "@/components/layout/RecentVisitedBar";
 import { Footer } from "@/components/layout/Footer";
 import { IosInputZoomFix } from "@/shared/components/IosInputZoomFix";
@@ -49,6 +50,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <RecentVisitedBar />
           <div className="flex-1">{children}</div>
           <Footer />
+          <ScrollToTopButton />
           <BottomTabBar />
         </Providers>
       </body>
