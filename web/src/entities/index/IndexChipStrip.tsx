@@ -149,7 +149,7 @@ export const IndexChipStrip = ({
               size="xs"
             />
             {(isDomestic || overseasAnswered) && (
-              <span className="text-micro text-muted-foreground">직전 거래일</span>
+              <span className="text-micro text-muted-foreground">종가 기준</span>
             )}
           </div>
         ) : (

@@ -190,7 +190,7 @@ export const IndexRail = ({
                           />
                           {(isDomestic || overseasAnswered) && (
                             <span className="text-micro text-muted-foreground">
-                              직전 거래일
+                              종가 기준
                             </span>
                           )}
                         </div>

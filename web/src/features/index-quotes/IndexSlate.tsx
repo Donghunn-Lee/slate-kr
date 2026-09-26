@@ -125,7 +125,7 @@ const IndexCell = ({ label, cell, bars, prevClose, intradayFailed, intradayLoadi
             stacked
             className="text-micro md:text-body-sm md:font-normal"
           />
-          <span className="text-micro text-muted-foreground">직전 거래일</span>
+          <span className="text-micro text-muted-foreground">종가 기준</span>
         </div>
       ) : (
         <div className="mt-1 flex items-baseline gap-2">
