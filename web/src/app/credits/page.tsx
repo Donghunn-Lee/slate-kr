@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { StockPanel } from "@/entities/stock/StockPanel";
+import { GEMINI_MODEL } from "@/shared/constants/gemini";
 
 export const metadata: Metadata = {
   title: "데이터 출처·라이선스",
@@ -11,7 +12,7 @@ const DATA_SOURCES: ReadonlyArray<{ category: string; value: string }> = [
   { category: "지수 과거 데이터", value: "KRX Marketplace" },
   { category: "종목 정보", value: "공공데이터포털(금융위 KRX 상장종목 정보)" },
   { category: "공시·재무", value: "DART(금융감독원 전자공시시스템)" },
-  { category: "AI 요약", value: "Google Gemini" },
+  { category: "AI 요약", value: `Google Gemini(${GEMINI_MODEL})` },
 ];
 
 export default function CreditsPage() {

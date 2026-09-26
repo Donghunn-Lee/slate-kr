@@ -1,11 +1,10 @@
 import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
+import { GEMINI_MODEL } from "@/shared/constants/gemini";
 import {
   DisclosureSummaryContentSchema,
   type DisclosureSummaryContent,
 } from "@/shared/types/disclosureSummary";
-
-const MODEL_NAME = "gemini-2.5-flash";
 
 const PROMPT_TEMPLATE = `당신은 한국 상장기업 공시를 일반 투자자에게 풀어 설명하는 도우미입니다.
 다음 공시 본문을 요약하세요.
@@ -87,7 +86,7 @@ const callGemini = async (text: string): Promise<SummarizeResult> => {
 
   try {
     const response = await ai.models.generateContent({
-      model: MODEL_NAME,
+      model: GEMINI_MODEL,
       contents: prompt,
       config: {
         abortSignal: controller.signal,
@@ -126,7 +125,7 @@ const callGemini = async (text: string): Promise<SummarizeResult> => {
       return { ok: false, error: { kind: "parse_failed" } };
     }
 
-    return { ok: true, content: parsed.data, modelName: MODEL_NAME };
+    return { ok: true, content: parsed.data, modelName: GEMINI_MODEL };
   } catch (err: unknown) {
     if (err instanceof Error && err.name === "AbortError") {
       return { ok: false, error: { kind: "timeout" } };
