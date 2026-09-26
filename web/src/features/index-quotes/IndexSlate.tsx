@@ -70,6 +70,7 @@ type IndexSlateProps = {
 };
 
 type IndexCellProps = {
+  code: DomesticIndexCode;
   label: string;
   cell: IndexCellData;
   bars: ChartBar[];
@@ -83,8 +84,14 @@ type IndexCellProps = {
   compact: boolean;
 };
 
-const IndexCell = ({ label, cell, bars, prevClose, intradayFailed, intradayLoading, isPreopen, tradingDate, compact }: IndexCellProps) => (
-  <div className={CELL_CLS}>
+const IndexCell = ({ code, label, cell, bars, prevClose, intradayFailed, intradayLoading, isPreopen, tradingDate, compact }: IndexCellProps) => (
+  <Link
+    href={`/stocks/indices?index=${encodeURIComponent(code)}`}
+    className={cn(
+      CELL_CLS,
+      "transition-colors hover:bg-lavender-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+    )}
+  >
     <div>
       <div className="text-body font-bold text-muted-foreground">{label}</div>
       {cell.live ? (
@@ -134,12 +141,14 @@ const IndexCell = ({ label, cell, bars, prevClose, intradayFailed, intradayLoadi
         </div>
       )}
     </div>
-    <div className={CHART_AREA_CLS}>
+    {/* 터치 기기에선 차트를 탭 대상에서 뺀다 — lightweight-charts 가 tap 뒤 touchend 를
+        preventDefault 해 셀 Link 의 click 합성이 막힌다. 마우스 크로스헤어는 유지. */}
+    <div className={cn(CHART_AREA_CLS, "pointer-coarse:pointer-events-none")}>
       <div className="absolute inset-0">
         <IndexMiniChart bars={bars} prevClose={prevClose} failed={intradayFailed} isLoading={intradayLoading} isPreopen={isPreopen} tradingDate={tradingDate} compact={compact} />
       </div>
     </div>
-  </div>
+  </Link>
 );
 
 // 실셀과 같은 컨테이너·차트 영역 클래스로 로딩→로드 전환 시 셀 높이 점프 방지.
@@ -319,6 +328,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
                 {DOMESTIC_GRID_ORDER.map((code) => (
                   <IndexCell
                     key={code}
+                    code={code}
                     label={INDEX_LABEL[code]}
                     cell={cellByCode?.[code] ?? data.quotes[code]}
                     bars={displayByCode[code].bars}

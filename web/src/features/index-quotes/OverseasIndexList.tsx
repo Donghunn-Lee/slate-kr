@@ -54,7 +54,7 @@ export const OverseasIndexList = ({ snapshotsByCode }: OverseasIndexListProps) =
       <li key={code}>
         <Link
           href={`/stocks/indices?index=${encodeURIComponent(code)}`}
-          className="flex items-center justify-between gap-2 px-4 py-1.5 transition-colors hover:bg-lavender-bg/50 md:px-6 md:py-2"
+          className="flex items-center justify-between gap-2 px-4 py-1.5 transition-colors hover:bg-lavender-bg/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:px-6 md:py-2"
         >
           {/* 캡션은 지수명 쪽에 둔다 — 숫자 블록에 붙이면 그 max-content 폭이 늘어 라벨이 먼저
               잘린다. <md 는 숫자가 1줄이라 같은 줄, md+ 는 숫자가 stacked 2줄이라 그 높이 안의
