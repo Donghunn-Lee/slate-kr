@@ -96,6 +96,20 @@ const removeStyleBlocks = (xml: string): string =>
 
 const stripTags = (xml: string): string => xml.replace(/<[^>]+>/g, "");
 
+const XML_ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
+
+// 태그를 벗긴 뒤에 한 번만 푼다. 먼저 풀면 본문의 &lt;…&gt;가 태그로 오인돼 지워지고,
+// 두 번 풀면 원문 리터럴 &amp;lt;까지 <로 바뀐다.
+const decodeEntities = (text: string): string =>
+  text.replace(
+    /&(?:#(\d+)|#x([0-9a-fA-F]+)|(amp|lt|gt|quot|apos));/g,
+    (match, dec: string | undefined, hex: string | undefined, name: string | undefined) => {
+      if (name) return XML_ENTITIES[name];
+      const code = dec !== undefined ? Number(dec) : parseInt(hex ?? "", 16);
+      return code <= 0x10ffff ? String.fromCodePoint(code) : match;
+    }
+  );
+
 const cleanWhitespace = (text: string): string => {
   const lines = text.split(/\r?\n/).map((ln) => ln.trim());
   const result: string[] = [];
@@ -130,7 +144,8 @@ export const fetchDisclosureText = async (rceptNo: string): Promise<FetchDisclos
   const noEng = removeEngAttributes(xml);
   const noStyle = removeStyleBlocks(noEng);
   const noTags = stripTags(noStyle);
-  const cleaned = cleanWhitespace(noTags);
+  const decoded = decodeEntities(noTags);
+  const cleaned = cleanWhitespace(decoded);
   const text = removeBoilerplate(cleaned);
   return { ok: true, text };
 };
