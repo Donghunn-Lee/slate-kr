@@ -77,9 +77,11 @@ const buildResponseJsonSchema = (): unknown => {
 
 const RESPONSE_JSON_SCHEMA = buildResponseJsonSchema();
 
-export type SummarizeResult =
+type CallResult =
   | { ok: true; content: DisclosureSummaryContent; modelName: string }
   | { ok: false; error: SummarizeError };
+
+export type SummarizeResult = CallResult & { attempts: number };
 
 export type SummarizeError =
   | { kind: "rate_limit" }
@@ -103,12 +105,20 @@ const getAI = (): GoogleGenAI => {
 const isTransient = (message: string): boolean =>
   message.includes("503") || message.includes("UNAVAILABLE");
 
+// 재시도·대기까지 포함한 요청 전체 예산. route maxDuration(60s) 안에 끝나야 한다.
+const SUMMARY_BUDGET_MS = 55_000;
+const CALL_TIMEOUT_MS = 30_000;
+// 잔여 예산이 이보다 짧으면 응답을 받기 전에 끊길 가능성이 커서 시도하지 않는다.
+const MIN_ATTEMPT_MS = 5_000;
+const RETRY_BACKOFF_MS = [1_000, 2_000, 4_000] as const;
+
 type SummarizeMeta = { title: string; corpName: string };
 
 const callGemini = async (
   text: string,
-  { title, corpName }: SummarizeMeta
-): Promise<SummarizeResult> => {
+  { title, corpName }: SummarizeMeta,
+  timeoutMs: number
+): Promise<CallResult> => {
   const ai = getAI();
   // 한 번에 치환해야 넣은 값 속의 {text} 같은 문자열이 다시 치환되지 않는다.
   // 문자열 치환값은 $&·$`·$$ 를 치환 패턴으로 해석하므로 함수로 넘긴다.
@@ -119,7 +129,7 @@ const callGemini = async (
   );
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 30_000);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const response = await ai.models.generateContent({
@@ -183,14 +193,25 @@ export const summarizeDisclosure = async (
   text: string,
   meta: SummarizeMeta
 ): Promise<SummarizeResult> => {
-  const first = await callGemini(text, meta);
-  if (first.ok) return first;
+  const deadline = Date.now() + SUMMARY_BUDGET_MS;
+  const attempt = () =>
+    callGemini(text, meta, Math.min(CALL_TIMEOUT_MS, deadline - Date.now()));
 
-  // 503 일시 과부하 시 1초 대기 후 1회 재시도
-  if (!first.ok && first.error.kind === "api_error" && isTransient(first.error.message)) {
-    await new Promise((resolve) => setTimeout(resolve, 1_000));
-    return callGemini(text, meta);
+  let result = await attempt();
+  let attempts = 1;
+
+  // 503 일시 과부하만 backoff 후 재시도한다. 429는 쿼터 소진이라 재시도해도 같은 응답이다.
+  for (const backoffMs of RETRY_BACKOFF_MS) {
+    if (result.ok || result.error.kind !== "api_error" || !isTransient(result.error.message)) {
+      break;
+    }
+    if (deadline - Date.now() - backoffMs < MIN_ATTEMPT_MS) {
+      return { ok: false, error: { kind: "timeout" }, attempts };
+    }
+    await new Promise((resolve) => setTimeout(resolve, backoffMs));
+    result = await attempt();
+    attempts++;
   }
 
-  return first;
+  return { ...result, attempts };
 };

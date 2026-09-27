@@ -9,6 +9,9 @@ import { TickerSchema } from "@/shared/types/schemas";
 import type { DartDisclosure } from "@/shared/types/stock";
 import { classifyDisclosure, DisclosureType } from "@/shared/utils/classifyDisclosure";
 
+// summarizeDisclosure의 요청 예산(55s)을 담는 함수 상한. 미지정이면 배포 플랫폼 기본값에 달린다.
+export const maxDuration = 60;
+
 const RequestBodySchema = z.object({
   rcept_no: z.string().regex(/^\d{14}$/),
   ticker: TickerSchema,
