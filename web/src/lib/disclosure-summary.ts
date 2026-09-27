@@ -79,7 +79,8 @@ const isTransient = (message: string): boolean =>
 
 const callGemini = async (text: string): Promise<SummarizeResult> => {
   const ai = getAI();
-  const prompt = PROMPT_TEMPLATE.replace("{text}", text);
+  // 문자열 치환값은 $&·$`·$$ 를 치환 패턴으로 해석한다. 원문을 그대로 넣으려면 함수로 넘긴다.
+  const prompt = PROMPT_TEMPLATE.replace("{text}", () => text);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 30_000);
