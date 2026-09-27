@@ -51,6 +51,7 @@ const GRID_COLS =
   "grid-cols-[minmax(0,1fr)_72px] gap-1 md:grid-cols-[72px_88px_minmax(0,1fr)_88px_72px_60px_56px] md:gap-2 items-center";
 
 type DisclosureItemProps = {
+  ticker: string;
   disclosure: DartDisclosure;
   isExpanded: boolean;
   hasAnyExpanded: boolean;
@@ -58,6 +59,7 @@ type DisclosureItemProps = {
 };
 
 const DisclosureItem = ({
+  ticker,
   disclosure,
   isExpanded,
   hasAnyExpanded,
@@ -94,11 +96,7 @@ const DisclosureItem = ({
       const res = await fetch("/api/disclosure-summary", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          rcept_no: disclosure.rcpNo,
-          disclosure_nm: disclosure.disclosureNm,
-          flr_nm: disclosure.flrNm,
-        }),
+        body: JSON.stringify({ rcept_no: disclosure.rcpNo, ticker }),
         signal: controller.signal,
       });
 
@@ -126,7 +124,7 @@ const DisclosureItem = ({
       setSettled({ kind: "error", errorKind: "api_error" });
       fetchInitiated.current = false;
     }
-  }, [disclosure.rcpNo, disclosure.disclosureNm, disclosure.flrNm]);
+  }, [disclosure.rcpNo, ticker]);
 
   const handleRetry = useCallback(() => {
     setSettled(null);
@@ -453,6 +451,7 @@ export const DisclosuresSection = ({
             {disclosures.map((d) => (
               <DisclosureItem
                 key={d.rcpNo}
+                ticker={ticker}
                 disclosure={d}
                 isExpanded={expandedId === d.rcpNo}
                 hasAnyExpanded={hasAnyExpanded}

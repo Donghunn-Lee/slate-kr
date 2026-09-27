@@ -1,14 +1,17 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { findDisclosure } from "@/lib/dart";
 import { fetchDisclosureText } from "@/lib/dart-document";
 import { summarizeDisclosure } from "@/lib/disclosure-summary";
 import { getDisclosureSummary, saveDisclosureSummary } from "@/lib/disclosure-summaries";
+import { getCorpCode } from "@/lib/stocks";
+import { TickerSchema } from "@/shared/types/schemas";
+import type { DartDisclosure } from "@/shared/types/stock";
 import { classifyDisclosure, DisclosureType } from "@/shared/utils/classifyDisclosure";
 
 const RequestBodySchema = z.object({
-  rcept_no: z.string().min(1),
-  disclosure_nm: z.string().min(1),
-  flr_nm: z.string().min(1),
+  rcept_no: z.string().regex(/^\d{14}$/),
+  ticker: TickerSchema,
 });
 
 export const POST = async (req: NextRequest) => {
@@ -24,7 +27,7 @@ export const POST = async (req: NextRequest) => {
     return NextResponse.json({ ok: false, error: { kind: "invalid_request" } }, { status: 400 });
   }
 
-  const { rcept_no, disclosure_nm, flr_nm } = parsed.data;
+  const { rcept_no, ticker } = parsed.data;
 
   let cached: Awaited<ReturnType<typeof getDisclosureSummary>>;
   try {
@@ -36,8 +39,27 @@ export const POST = async (req: NextRequest) => {
     return NextResponse.json({ ok: true, content: cached.content });
   }
 
+  // 제목·회사명은 프롬프트를 거쳐 공유 캐시에 남으므로 클라이언트 값을 받지 않고 DART 목록에서 찾는다.
+  let corpCode: string | null;
+  try {
+    corpCode = await getCorpCode(ticker);
+  } catch {
+    return NextResponse.json({ ok: false, error: { kind: "api_error", message: "DB 조회 실패" } });
+  }
+
+  let disclosure: DartDisclosure | null;
+  try {
+    disclosure = corpCode ? await findDisclosure(corpCode, rcept_no) : null;
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ ok: false, error: { kind: "api_error", message } });
+  }
+  if (!disclosure) {
+    return NextResponse.json({ ok: false, error: { kind: "invalid_request" } }, { status: 400 });
+  }
+
   // 클라이언트가 1차로 게이팅한다. 여기서는 FINANCIAL 만 2차 방어선으로 남긴다.
-  if (classifyDisclosure(disclosure_nm, flr_nm) === DisclosureType.FINANCIAL) {
+  if (classifyDisclosure(disclosure.disclosureNm, disclosure.flrNm) === DisclosureType.FINANCIAL) {
     return NextResponse.json({ ok: false, error: { kind: "not_summarizable" } });
   }
 
@@ -53,7 +75,10 @@ export const POST = async (req: NextRequest) => {
     return NextResponse.json({ ok: false, error: docResult.error });
   }
 
-  const result = await summarizeDisclosure(docResult.text);
+  const result = await summarizeDisclosure(docResult.text, {
+    title: disclosure.disclosureNm,
+    corpName: disclosure.corpName,
+  });
 
   if (result.ok) {
     try {

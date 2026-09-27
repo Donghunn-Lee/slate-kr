@@ -31,6 +31,7 @@ export type GetDisclosuresOptions = {
   pageCount?: number;
   bgnDate?: Date;
   endDate?: Date;
+  revalidate?: number;
 };
 
 const toYyyymmdd = (date: Date): string =>
@@ -42,7 +43,7 @@ export const getDisclosures = cache(
     options: GetDisclosuresOptions = {},
   ): Promise<DisclosuresResult> => {
     const apiKey = process.env.DART_API_KEY;
-    const { pageNo = 1, pageCount = 100, bgnDate, endDate } = options;
+    const { pageNo = 1, pageCount = 100, bgnDate, endDate, revalidate = 3600 } = options;
 
     const empty: DisclosuresResult = {
       items: [],
@@ -62,7 +63,7 @@ export const getDisclosures = cache(
     if (bgnDate) url.searchParams.set("bgn_de", toYyyymmdd(bgnDate));
     if (endDate) url.searchParams.set("end_de", toYyyymmdd(endDate));
 
-    const res = await fetch(url.toString(), { next: { revalidate: 3600 } });
+    const res = await fetch(url.toString(), { next: { revalidate } });
     if (!res.ok) throw new Error(`DART HTTP 오류: ${res.status}`);
 
     const json: unknown = await res.json();
@@ -90,6 +91,35 @@ export const getDisclosures = cache(
     };
   },
 );
+
+// rcept_no 앞 8자리는 접수일이다. 그날 하루의 목록에서 찾는다.
+// 찾는 공시는 대개 방금 접수된 것이라 캐시된 목록에는 아직 없을 수 있다 — 캐시를 쓰지 않는다.
+export const findDisclosure = async (
+  corpCode: string,
+  rceptNo: string
+): Promise<DartDisclosure | null> => {
+  // toYyyymmdd가 UTC 기준으로 날짜를 뽑으므로 UTC 자정으로 만든다.
+  const day = new Date(
+    Date.UTC(
+      Number(rceptNo.slice(0, 4)),
+      Number(rceptNo.slice(4, 6)) - 1,
+      Number(rceptNo.slice(6, 8))
+    )
+  );
+  let totalPage = 1;
+  for (let pageNo = 1; pageNo <= totalPage; pageNo++) {
+    const result = await getDisclosures(corpCode, {
+      pageNo,
+      bgnDate: day,
+      endDate: day,
+      revalidate: 0,
+    });
+    const found = result.items.find((item) => item.rcpNo === rceptNo);
+    if (found) return found;
+    totalPage = result.totalPage;
+  }
+  return null;
+};
 
 const CompanyResponseSchema = z.object({
   status: z.string(),
