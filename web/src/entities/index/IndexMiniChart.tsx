@@ -91,8 +91,7 @@ export const IndexMiniChart = ({
     const chart = createChart(containerRef.current, {
       autoSize: true,
       layout: {
-        // 투명 — 바닥은 셀 bg 가 맡아 셀 hover 틴트가 차트 영역까지 이어진다.
-        background: { color: "transparent" },
+        background: { color: palette.bg },
         textColor: palette.text,
         fontFamily: notoSansKr.style.fontFamily,
         // 모바일 반폭 셀에서 가격축·시간축 라벨 폭·높이 축소.

@@ -89,7 +89,7 @@ const IndexCell = ({ code, label, cell, bars, prevClose, intradayFailed, intrada
     href={`/stocks/indices?index=${encodeURIComponent(code)}`}
     className={cn(
       CELL_CLS,
-      "transition-colors hover:bg-lavender-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
     )}
   >
     <div>
