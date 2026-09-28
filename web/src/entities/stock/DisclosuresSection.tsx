@@ -47,6 +47,11 @@ const NOT_SUMMARIZABLE_MESSAGES = {
   unclassified: "요약을 제공하지 않는 유형의 공시입니다.",
 } as const satisfies Record<NotSummarizableReason, string>;
 
+// 정상 응답은 이 안에 온다. 넘기면 503 재시도·fallback 모델 경로에 들어갔을 가능성이 크다.
+const SLOW_NOTICE_MS = 15_000;
+const USUAL_WAIT_LABEL = "5~15초 소요";
+const SLOW_WAIT_LABEL = "평소보다 오래 걸리고 있습니다";
+
 const GRID_COLS =
   "grid-cols-[minmax(0,1fr)_72px] gap-1 md:grid-cols-[72px_88px_minmax(0,1fr)_88px_72px_60px_56px] md:gap-2 items-center";
 
@@ -77,10 +82,14 @@ const DisclosureItem = ({
   const [settled, setSettled] = useState<SettledState | null>(null);
   const fetchInitiated = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
+  // 접으면 로딩 문구는 사라지지만 요청은 계속되므로, 경과 시간은 요청 시작 기준으로 잰다.
+  const [slow, setSlow] = useState(false);
+  const slowTimerRef = useRef<number | undefined>(undefined);
 
   useEffect(
     () => () => {
       abortRef.current?.abort();
+      window.clearTimeout(slowTimerRef.current);
     },
     []
   );
@@ -90,8 +99,12 @@ const DisclosureItem = ({
 
   const doFetch = useCallback(async () => {
     abortRef.current?.abort();
+    window.clearTimeout(slowTimerRef.current);
     const controller = new AbortController();
     abortRef.current = controller;
+    setSlow(false);
+    const slowTimer = window.setTimeout(() => setSlow(true), SLOW_NOTICE_MS);
+    slowTimerRef.current = slowTimer;
     try {
       const res = await fetch("/api/disclosure-summary", {
         method: "POST",
@@ -123,6 +136,8 @@ const DisclosureItem = ({
       if (controller.signal.aborted) return;
       setSettled({ kind: "error", errorKind: "api_error" });
       fetchInitiated.current = false;
+    } finally {
+      window.clearTimeout(slowTimer);
     }
   }, [disclosure.rcpNo, ticker]);
 
@@ -265,7 +280,12 @@ const DisclosureItem = ({
                   className="flex min-h-[110px] flex-col items-center justify-center gap-2 text-lavender-accent"
                 >
                   <Loader2 className="size-5 animate-spin" aria-hidden="true" />
-                  <p className="text-caption">요약 생성 중…</p>
+                  <p className="text-caption">
+                    요약 생성 중 ({slow ? SLOW_WAIT_LABEL : USUAL_WAIT_LABEL})
+                  </p>
+                  <p className="break-keep text-center text-caption text-muted-foreground">
+                    서버 상황에 따라 최대 1분까지 소요될 수 있습니다
+                  </p>
                 </div>
               )}
 
