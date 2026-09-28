@@ -1,6 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
-import { GEMINI_MODEL } from "@/shared/constants/gemini";
+import { GEMINI_FALLBACK_MODEL, GEMINI_MODEL } from "@/shared/constants/gemini";
 import {
   DisclosureSummaryContentSchema,
   type DisclosureSummaryContent,
@@ -111,10 +111,13 @@ const CALL_TIMEOUT_MS = 30_000;
 // 잔여 예산이 이보다 짧으면 응답을 받기 전에 끊길 가능성이 커서 시도하지 않는다.
 const MIN_ATTEMPT_MS = 5_000;
 const RETRY_BACKOFF_MS = [1_000, 2_000, 4_000] as const;
+// primary 실패 뒤 잔여 예산이 이보다 짧으면 fallback 모델도 응답 전에 끊길 가능성이 커서 넘어가지 않는다.
+const MIN_FALLBACK_MS = 15_000;
 
 type SummarizeMeta = { title: string; corpName: string };
 
 const callGemini = async (
+  model: string,
   text: string,
   { title, corpName }: SummarizeMeta,
   timeoutMs: number
@@ -133,7 +136,7 @@ const callGemini = async (
 
   try {
     const response = await ai.models.generateContent({
-      model: GEMINI_MODEL,
+      model,
       contents: prompt,
       config: {
         abortSignal: controller.signal,
@@ -172,7 +175,7 @@ const callGemini = async (
       return { ok: false, error: { kind: "parse_failed" } };
     }
 
-    return { ok: true, content: parsed.data, modelName: GEMINI_MODEL };
+    return { ok: true, content: parsed.data, modelName: model };
   } catch (err: unknown) {
     if (err instanceof Error && err.name === "AbortError") {
       return { ok: false, error: { kind: "timeout" } };
@@ -189,13 +192,14 @@ const callGemini = async (
   }
 };
 
-export const summarizeDisclosure = async (
+const summarizeWithModel = async (
+  model: string,
   text: string,
-  meta: SummarizeMeta
+  meta: SummarizeMeta,
+  deadline: number
 ): Promise<SummarizeResult> => {
-  const deadline = Date.now() + SUMMARY_BUDGET_MS;
   const attempt = () =>
-    callGemini(text, meta, Math.min(CALL_TIMEOUT_MS, deadline - Date.now()));
+    callGemini(model, text, meta, Math.min(CALL_TIMEOUT_MS, deadline - Date.now()));
 
   let result = await attempt();
   let attempts = 1;
@@ -214,4 +218,25 @@ export const summarizeDisclosure = async (
   }
 
   return { ...result, attempts };
+};
+
+// fallback은 primary 모델 장애(쿼터 429·과부하 503·응답 지연)용이다 — 한도·부하는 모델별로 따로 걸린다.
+// 응답을 받았지만 쓸 수 없는 실패(안전 차단·파싱 실패)와 요청 오류는 장애가 아니라 넘어가지 않는다.
+const shouldFallback = (error: SummarizeError): boolean =>
+  error.kind === "rate_limit" ||
+  error.kind === "timeout" ||
+  (error.kind === "api_error" && isTransient(error.message));
+
+export const summarizeDisclosure = async (
+  text: string,
+  meta: SummarizeMeta
+): Promise<SummarizeResult> => {
+  const deadline = Date.now() + SUMMARY_BUDGET_MS;
+  const primary = await summarizeWithModel(GEMINI_MODEL, text, meta, deadline);
+  if (primary.ok || !shouldFallback(primary.error) || deadline - Date.now() < MIN_FALLBACK_MS) {
+    return primary;
+  }
+
+  const fallback = await summarizeWithModel(GEMINI_FALLBACK_MODEL, text, meta, deadline);
+  return { ...fallback, attempts: primary.attempts + fallback.attempts };
 };
