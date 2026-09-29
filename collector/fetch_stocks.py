@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 
 from db import get_connection
 from log_setup import setup_logging
-from verify_daily_freshness import compute_expected
+from verify_daily_freshness import compute_expected, is_trading_day
 
 load_dotenv()
 
@@ -177,6 +177,15 @@ def get_latest_biz_date() -> str:
 
 def main():
     setup_logging("stocks")
+    # daily 체인은 주말·휴장일에도 트리거되지만 FSS 는 영업일에만 게시한다 — 비거래일 run 은
+    # 새 basDt 가 없어 0행 exit 1 이 되므로 FSS 호출 전에 정상 종료한다.
+    today = datetime.now(KST).date()
+    if not is_trading_day(today):
+        logger.info(
+            "gate closed — non-trading day (%s). skip 후 정상 종료.", today.isoformat()
+        )
+        return
+
     logger.info("KRX 상장종목 조회 중...")
     biz_date = get_latest_biz_date()
     try:

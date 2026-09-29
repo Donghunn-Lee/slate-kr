@@ -22,6 +22,7 @@ jobs:
     env:
       DATABASE_URL: ${{ secrets.NEON_DIRECT_URL }}
       DART_API_KEY: ${{ secrets.DART_API_KEY }}
+      FSS_API_KEY: ${{ secrets.FSS_API_KEY }}
       KRX_OPEN_API_KEY: ${{ secrets.KRX_OPEN_API_KEY }}
       KIS_APP_KEY: ${{ secrets.KIS_APP_KEY }}
       KIS_APP_SECRET: ${{ secrets.KIS_APP_SECRET }}
@@ -46,6 +47,15 @@ jobs:
       # 국내 스텝 실행 조건: inputs.mode 로 제어.
       #   full(기본값) → 국내+해외 전체 실행.
       #   overseas-only → 국내 skip, 해외만 실행 (예: 국내는 정상, 해외만 재수집 · 토요일 US 금요일 마감분).
+      # fetch_stocks 는 fetch_daily_close 앞 — 신규 상장 종목이 당일 EOD 대상에 들어가야 한다.
+      # 비거래일이면 내부 guard 가 skip 후 정상 종료(success).
+      - name: Run fetch_stocks
+        id: fetch_stocks
+        if: ${{ inputs.mode != 'overseas-only' }}
+        working-directory: collector
+        run: python fetch_stocks.py
+        continue-on-error: true
+
       # fetch_daily_close.py 내부 게이트: KST 20:05 미만·휴장일이면 skip 후 정상 종료 —
       # 그 경우 verify 가 MAX(date) 불일치로 실패해 시각 오류를 드러낸다.
       - name: Run fetch_daily_close
@@ -111,6 +121,7 @@ jobs:
             domestic_expected=yes
           fi
           check fetch_market_calendar  "${{ steps.fetch_market_calendar.outcome }}"  yes
+          check fetch_stocks           "${{ steps.fetch_stocks.outcome }}"           "$domestic_expected"
           check fetch_daily_close      "${{ steps.fetch_daily_close.outcome }}"      "$domestic_expected"
           check fetch_index_prices     "${{ steps.fetch_index_prices.outcome }}"     "$domestic_expected"
           check fetch_overseas_indices "${{ steps.fetch_overseas_indices.outcome }}" yes
