@@ -7,6 +7,7 @@ import {
   isSnapshotEqual,
   selectSnapshot,
 } from "./store/watchlistSnapshot";
+import { shouldFlushOnPageHide } from "@/shared/utils/shouldFlushOnPageHide";
 import type {
   WatchlistGetResponse,
   WatchlistPutResponse,
@@ -234,8 +235,18 @@ export const useWatchlistSync = () => {
         window.clearTimeout(debounceTimerRef.current);
         debounceTimerRef.current = null;
       }
-      const snapshot = selectSnapshot(useWatchlistStore.getState());
-      if (isSnapshotEqual(snapshot, lastConfirmedRef.current)) return;
+      const state = useWatchlistStore.getState();
+      const snapshot = selectSnapshot(state);
+      if (
+        !shouldFlushOnPageHide(
+          state.syncStatus,
+          snapshot,
+          lastConfirmedRef.current,
+          isSnapshotEqual
+        )
+      ) {
+        return;
+      }
       try {
         fetch("/api/watchlist", {
           method: "PUT",

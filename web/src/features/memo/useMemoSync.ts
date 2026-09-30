@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useMemoStore } from "./store/useMemoStore";
 import { isSnapshotEqual, selectSnapshot } from "./store/memoSnapshot";
+import { shouldFlushOnPageHide } from "@/shared/utils/shouldFlushOnPageHide";
 import type {
   MemoGetResponse,
   MemoPutResponse,
@@ -188,8 +189,18 @@ export const useMemoSync = () => {
         window.clearTimeout(debounceTimerRef.current);
         debounceTimerRef.current = null;
       }
-      const snapshot = selectSnapshot(useMemoStore.getState());
-      if (isSnapshotEqual(snapshot, lastConfirmedRef.current)) return;
+      const state = useMemoStore.getState();
+      const snapshot = selectSnapshot(state);
+      if (
+        !shouldFlushOnPageHide(
+          state.syncStatus,
+          snapshot,
+          lastConfirmedRef.current,
+          isSnapshotEqual
+        )
+      ) {
+        return;
+      }
       try {
         fetch("/api/memos", {
           method: "PUT",
