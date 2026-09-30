@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { pool } from "./db";
 import { attachDividends, getDividendsByYear } from "./dividends";
-import type { FinancialPeriod, StockFinancials } from "@/shared/types/stock";
+import type { FinancialPeriod, StockFinancials, TtmEpsSource } from "@/shared/types/stock";
 
 type FinancialRow = {
   id: number;
@@ -325,13 +325,6 @@ export const getLatestFinancial = async (ticker: string): Promise<FinancialPerio
   if (rows.length === 0) return null;
   return rowToFinancialPeriod(rows[0]);
 };
-
-export type TtmEpsSource =
-  | "ttm"
-  | "ttm_negative"
-  | "annualized"
-  | "annual_fallback"
-  | "none";
 
 export type TtmEps = {
   value: number | null;

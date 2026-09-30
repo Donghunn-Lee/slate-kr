@@ -2,7 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { searchStocks } from "@/lib/stocks";
-import { getLatestPricesByTickers, type LatestPriceSummary } from "@/lib/prices";
+import { getLatestPricesByTickers } from "@/lib/prices";
+import type { LatestPriceSummary } from "@/shared/types/stock";
 import { SearchResultList } from "@/features/search/SearchResultList";
 import { buttonVariants } from "@/components/ui/button";
 import {

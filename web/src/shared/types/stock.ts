@@ -63,6 +63,15 @@ export type TickerPriceSummary = {
   date: string;
 };
 
+export type LatestPriceSummary = {
+  close: number;
+  // close 가 속한 거래일.
+  date: string;
+  change: number | null;
+  changeRate: number | null;
+  volume: number;
+};
+
 export type FinancialPeriod = {
   ticker: string;
   year: number;
@@ -97,6 +106,13 @@ export type StockFinancials = {
   annual: FinancialPeriod[]; // 최신순 (최대 5년)
   quarterly: FinancialPeriod[]; // 최신순 단분기 (Q1~Q4)
 };
+
+export type TtmEpsSource =
+  | "ttm"
+  | "ttm_negative"
+  | "annualized"
+  | "annual_fallback"
+  | "none";
 
 export type PriceStats = {
   range52w: { high: number; low: number; current: number; position: number } | null;

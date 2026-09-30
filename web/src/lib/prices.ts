@@ -1,6 +1,11 @@
 import { cache } from "react";
 import { pool } from "./db";
-import type { PriceStats, StockPriceSnapshot, TickerPriceSummary } from "@/shared/types/stock";
+import type {
+  LatestPriceSummary,
+  PriceStats,
+  StockPriceSnapshot,
+  TickerPriceSummary,
+} from "@/shared/types/stock";
 import { format, parseISO, subMonths, subYears } from "date-fns";
 
 type DailyPriceRow = {
@@ -85,15 +90,6 @@ export const getLatestPrice = cache(async (ticker: string): Promise<StockPriceSn
 // tickers 각각의 최신 종가·등락·거래량. 등락 기준은 base_price(기준가) — NULL 인 행은
 // LAG 로 직전 거래일 종가를 붙여 폴백한다. 10일 lookback 은 연휴/휴장 갭 대비.
 // 결과에서 누락된 ticker(시세 없음)는 caller 가 부재로 처리한다.
-export type LatestPriceSummary = {
-  close: number;
-  // close 가 속한 거래일.
-  date: string;
-  change: number | null;
-  changeRate: number | null;
-  volume: number;
-};
-
 type LatestPriceRow = {
   ticker: string;
   close: number;

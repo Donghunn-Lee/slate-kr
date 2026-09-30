@@ -2,7 +2,7 @@
 
 import { HelpCircle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import type { TtmEpsSource } from "@/lib/financials";
+import type { TtmEpsSource } from "@/shared/types/stock";
 
 type PerCase = {
   source: TtmEpsSource;
