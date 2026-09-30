@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { pool } from "./db";
 import { attachDividends, getDividendsByYear } from "./dividends";
 import type { FinancialPeriod, StockFinancials } from "@/shared/types/stock";
@@ -275,7 +276,7 @@ const buildQuarterlyPeriods = (
   return result.sort((a, b) => (a.quarter ?? 0) - (b.quarter ?? 0));
 };
 
-export const getFinancials = async (ticker: string): Promise<StockFinancials> => {
+export const getFinancials = cache(async (ticker: string): Promise<StockFinancials> => {
   const [[rows], priceMap, dividendsByYear] = await Promise.all([
     pool.query<FinancialRow[]>(
       "SELECT * FROM financial_statements WHERE ticker = $1 ORDER BY year DESC, quarter DESC",
@@ -313,7 +314,7 @@ export const getFinancials = async (ticker: string): Promise<StockFinancials> =>
   const quarterly = attachGrowthRates(quarterlyBase);
 
   return { annual, quarterly };
-};
+});
 
 export const getLatestFinancial = async (ticker: string): Promise<FinancialPeriod | null> => {
   const [rows] = await pool.query<FinancialRow[]>(
