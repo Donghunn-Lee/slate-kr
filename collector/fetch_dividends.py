@@ -32,7 +32,8 @@ import requests
 from dotenv import load_dotenv
 
 from db import get_connection
-from fetch_financials import get_available_reports
+# get_all_corps: 배당 미공시 종목도 is_financial_filer 규약(비공시 재시도 창 포함) 그대로 준용.
+from fetch_financials import get_all_corps, get_available_reports
 from log_setup import setup_logging
 from update_corp_codes import fetch_corp_codes
 
@@ -215,20 +216,6 @@ def parse_dividend(
 def get_existing_keys(cursor) -> set[tuple[str, int]]:
     cursor.execute("SELECT ticker, year FROM dividends")
     return {(row[0], row[1]) for row in cursor.fetchall()}
-
-
-def get_all_corps(cursor) -> list[tuple[str, str, str]]:
-    """fetch_financials.get_all_corps 와 동일 필터 — 배당 미공시 종목도
-    is_financial_filer 규약 그대로 준용."""
-    cursor.execute(
-        """
-        SELECT ticker, corp_code, name FROM stocks
-        WHERE corp_code IS NOT NULL
-          AND is_active = true
-          AND (is_financial_filer = true OR is_financial_filer IS NULL)
-        """
-    )
-    return cursor.fetchall()
 
 
 def insert_dividend(

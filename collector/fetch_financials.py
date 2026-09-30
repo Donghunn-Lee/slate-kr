@@ -117,6 +117,13 @@ CHECKED_UNIT_SUSPECTS = frozenset({
     ("217820", 2022),  # 2022 annual 정정·합병류 재작성 정황, 2021 원 filing 정합
 })
 
+# DART '조회된 데이터가 없습니다' — 비공시 마킹은 이 응답이 확정된 경우에만 한다.
+DART_NO_DATA = "013"
+
+# is_financial_filer=false 여도 상장 후 이 기간 안이면 매 run 재시도한다. 신규 상장은 첫 정기보고서
+# 전 period 를 조회하다 마킹되는데, 그 뒤 나온 보고서까지 영구 제외되지 않게 한다(F91).
+NON_FILER_RETRY_DAYS = 365
+
 _QUARTER_MAP = {"11011": 4, "11012": 2, "11013": 1, "11014": 3}
 _REPORT_TYPE_MAP = {
     "11011": "annual",
@@ -281,7 +288,9 @@ def _parse_financial_list(items: list) -> dict:
 
 def fetch_financial(
     corp_code: str, bsns_year: str, reprt_code: str, ticker: Optional[str] = None
-) -> Optional[dict]:
+) -> tuple[Optional[dict], bool]:
+    """반환 (data, no_data). no_data 는 CFS·OFS 모두 DART 가 '조회된 데이터 없음'(013)을
+    확정한 경우만 True — 요청 예외·다른 status·빈 파싱은 일시 실패일 수 있어 비공시 근거가 아니다."""
     url = "https://opendart.fss.or.kr/api/fnlttSinglAcntAll.json"
     base_params = {
         "crtfc_key": DART_API_KEY,
@@ -290,6 +299,7 @@ def fetch_financial(
         "reprt_code": reprt_code,
     }
 
+    statuses = []
     for fs_div in ("CFS", "OFS"):
         params = {**base_params, "fs_div": fs_div}
         try:
@@ -297,10 +307,11 @@ def fetch_financial(
             data = res.json()
         except Exception as e:
             logger.error("DART 요청 실패 %s: %s", corp_code, e)
-            return None
+            return None, False
 
         if data.get("status") == "000":
             break
+        statuses.append(data.get("status"))
 
         if fs_div == "CFS":
             # info 로 남겨 Actions 로그에서 OFS(별도) 종목을 집계할 수 있게 한다
@@ -313,11 +324,11 @@ def fetch_financial(
             )
             time.sleep(0.05)
     else:
-        return None
+        return None, statuses == [DART_NO_DATA, DART_NO_DATA]
 
     result = _parse_financial_list(data["list"])
     if not result:
-        return None
+        return None, False
     # 게이트 로그용 rcept_no 주입 (SQL 바인딩은 명시 컬럼만 참조하므로 무시됨)
     items = data.get("list") or []
     result["_rcept_no"] = items[0].get("rcept_no") if items else None
@@ -330,7 +341,7 @@ def fetch_financial(
         if cur and cur != EXPECTED_CURRENCY:
             result["_non_krw_currency"] = cur
             break
-    return result
+    return result, False
 
 
 def get_shares(cursor, ticker: str) -> Optional[int]:
@@ -508,36 +519,64 @@ def insert_financial(
     return "ok"
 
 
-def get_all_corps(cursor) -> list[tuple[str, str, str]]:
+def is_collect_target(is_financial_filer, listed_at, today) -> bool:
+    """비공시 마킹 종목은 상장 NON_FILER_RETRY_DAYS 이내(또는 상장일 미상)일 때만 다시 조회."""
+    if is_financial_filer is not False:
+        return True
+    return listed_at is None or (today - listed_at).days <= NON_FILER_RETRY_DAYS
+
+
+def get_all_corps(cursor, today=None) -> list[tuple[str, str, str]]:
+    today = today or datetime.today().date()
     cursor.execute(
         """
-        SELECT ticker, corp_code, name FROM stocks
+        SELECT ticker, corp_code, name, is_financial_filer, listed_at FROM stocks
         WHERE corp_code IS NOT NULL
           AND is_active = true
-          AND (is_financial_filer = true OR is_financial_filer IS NULL)
         """
     )
-    return cursor.fetchall()
+    return [
+        (ticker, corp_code, name)
+        for ticker, corp_code, name, filer, listed_at in cursor.fetchall()
+        if is_collect_target(filer, listed_at, today)
+    ]
 
 
 def mark_non_filer(conn, cursor, ticker: str, name: str) -> None:
-    """DART 응답이 없는 종목을 is_financial_filer = false로 표시.
+    """DART 가 데이터 없음(013)을 확정한 종목을 is_financial_filer = false로 표시.
     적재 이력이 전혀 없는 종목에만 호출할 것.
     """
     try:
+        # 재시도 대상은 이미 false 인 채로 매 run 다시 오므로 첫 마킹만 기록한다.
         cursor.execute(
-            "UPDATE stocks SET is_financial_filer = false WHERE ticker = %s",
+            "UPDATE stocks SET is_financial_filer = false "
+            "WHERE ticker = %s AND is_financial_filer IS DISTINCT FROM false",
             (ticker,),
         )
+        marked = cursor.rowcount > 0
         conn.commit()
-        logger.info(
-            "[MARK] %s (%s) → is_financial_filer=false (DART 미공시 확인)", ticker, name
-        )
+        if marked:
+            logger.info(
+                "[MARK] %s (%s) → is_financial_filer=false (DART 미공시 확인)", ticker, name
+            )
     except _DB_RETRY_EXC:
         raise
     except Exception as e:
         logger.error("is_financial_filer 업데이트 실패 %s: %s", ticker, e)
         conn.rollback()
+
+
+def restore_filers(cursor) -> int:
+    """적재 이력이 생긴 비공시 마킹 종목을 true 로 되돌린다. commit 은 호출부 몫. 복귀 종목 수 반환.
+    false 는 '적재 이력 없음'에서만 붙으므로, 재시도로 적재되면 그 전제가 깨진다."""
+    cursor.execute(
+        """
+        UPDATE stocks s SET is_financial_filer = true
+        WHERE s.is_financial_filer = false
+          AND EXISTS (SELECT 1 FROM financial_statements f WHERE f.ticker = s.ticker)
+        """
+    )
+    return cursor.rowcount
 
 
 def check_unit_suspects(cursor) -> None:
@@ -686,13 +725,13 @@ def run(
             skip += 1
             continue
 
-        data = fetch_financial(corp_code, bsns_year, reprt_code, ticker=ticker)
+        data, no_data = fetch_financial(corp_code, bsns_year, reprt_code, ticker=ticker)
 
         if data is None:
             logger.debug(
-                "DART 응답 없음 (공시 미존재): %s %s/%s", ticker, bsns_year, reprt_code
+                "DART 응답 없음 (no_data=%s): %s %s/%s", no_data, ticker, bsns_year, reprt_code
             )
-            if not force and ticker not in filed_tickers:
+            if no_data and not force and ticker not in filed_tickers:
                 try:
                     mark_non_filer(conn, cursor, ticker, name)
                 except _DB_RETRY_EXC:
@@ -891,6 +930,12 @@ def main():
 
     conn = get_connection()
     cursor = conn.cursor()
+    try:
+        logger.info("[FILER_RESTORE] %d종목 is_financial_filer=true 복귀", restore_filers(cursor))
+        conn.commit()
+    except Exception as e:
+        logger.warning("[WARN] filer 복귀 보류 — 다음 run 에 맡김: %s", e)
+        conn.rollback()
     # 이번 run 에 shares 없이 적재된 행을 채운다 — shares 변동분은 daily fetch_shares 가 맞춘다.
     try:
         logger.info("[BPS_SYNC] %d행 재계산", sync_bps(cursor))
