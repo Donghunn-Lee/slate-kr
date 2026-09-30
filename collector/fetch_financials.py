@@ -4,9 +4,11 @@ import os
 import re
 import sys
 from datetime import datetime
+from decimal import ROUND_HALF_UP, Decimal
 from dotenv import load_dotenv
 from typing import Optional
 import psycopg2
+from psycopg2.extras import execute_values
 import requests
 import time
 
@@ -56,6 +58,7 @@ _PREFERRED_ACCOUNTS = {
 }
 
 RECONNECT_EVERY = 500  # period 내 연속 스킵 시 Neon SSL 타임아웃 방지
+BPS_UPDATE_PAGE_SIZE = 500
 
 # 부풀림 sanity 게이트 상수 — |값| 이 이 이상이면 삽입 skip.
 # 실측 정상 최대 신한지주 total_assets ≈ 8.16e14, 관측 최소 부풀림 ≈ 5.8e15
@@ -331,7 +334,7 @@ def fetch_financial(
 
 
 def get_shares(cursor, ticker: str) -> Optional[int]:
-    """stocks 테이블에서 발행주식총수를 조회한다."""
+    """stocks 테이블에서 상장주식수(KRX LIST_SHRS)를 조회한다."""
     cursor.execute("SELECT shares FROM stocks WHERE ticker = %s", (ticker,))
     row = cursor.fetchone()
     if row and row[0] and row[0] > 0:
@@ -339,61 +342,51 @@ def get_shares(cursor, ticker: str) -> Optional[int]:
     return None
 
 
-def get_bps_null_tickers(cursor, year: int, quarter: int, report_type: str) -> set[str]:
-    """해당 period 에서 bps 가 NULL 이지만 total_equity 는 있는 ticker 집합.
+def compute_bps(total_equity, shares) -> Optional[Decimal]:
+    """round(total_equity / shares, 4). 반올림은 기존 SQL 재계산(ROUND numeric)과 같은 half-up.
+    지분 없음(격리된 non-KRW 행 포함)·shares 없음이면 None."""
+    if total_equity is None or not shares or shares <= 0:
+        return None
+    return (Decimal(total_equity) / Decimal(shares)).quantize(
+        Decimal("0.0001"), rounding=ROUND_HALF_UP
+    )
 
-    적재 시점에 stocks.shares 가 없던 종목(신규 상장이 fetch_shares 보다 먼저
-    적재되는 순서 문제)이 여기에 남는다. shares 가 채워진 뒤 재계산 대상.
+
+def plan_bps_sync(rows) -> list[tuple[int, Decimal]]:
+    """rows: (id, total_equity, bps, shares). 현재 shares 로 계산한 값과 저장값이 다른 행만.
+
+    bps 는 저장값이라 shares 가 바뀌면(병합·분할·소각, KRX 일일 갱신) 스스로 따라오지 않는다.
+    NULL 은 "다름"에 포함 — 적재 시점에 shares 가 없던 행도 같은 경로로 채운다.
     """
+    targets = []
+    for row_id, total_equity, bps, shares in rows:
+        new = compute_bps(total_equity, shares)
+        if new is not None and bps != new:
+            targets.append((row_id, new))
+    return targets
+
+
+def sync_bps(cursor) -> int:
+    """전 행 bps 를 현재 stocks.shares 에 맞춘다. commit 은 호출부 몫. 갱신 행 수 반환."""
     cursor.execute(
         """
-        SELECT ticker FROM financial_statements
-        WHERE year = %s AND quarter = %s AND report_type = %s
-          AND bps IS NULL AND total_equity IS NOT NULL
-        """,
-        (year, quarter, report_type),
+        SELECT f.id, f.total_equity, f.bps, s.shares
+        FROM financial_statements f
+        JOIN stocks s ON s.ticker = f.ticker
+        WHERE f.total_equity IS NOT NULL AND s.shares > 0
+        """
     )
-    return {row[0] for row in cursor.fetchall()}
-
-
-def backfill_bps(
-    conn, cursor, ticker: str, year: int, quarter: int, report_type: str
-) -> bool:
-    """기존 행의 bps 만 재계산한다 (bps IS NULL 이고 stocks.shares 가 있을 때).
-
-    계산식은 insert_financial 과 동일: round(total_equity / shares, 4).
-    total_equity·shares 모두 bigint 이라 ::numeric 캐스팅 없이는 정수 나눗셈이 된다.
-    """
-    try:
-        cursor.execute(
-            """
-            UPDATE financial_statements f
-            SET bps = ROUND(f.total_equity::numeric / s.shares, 4)
-            FROM stocks s
-            WHERE s.ticker = f.ticker
-              AND f.ticker = %s AND f.year = %s AND f.quarter = %s AND f.report_type = %s
-              AND f.bps IS NULL AND f.total_equity IS NOT NULL
-              AND s.shares IS NOT NULL AND s.shares > 0
-            """,
-            (ticker, year, quarter, report_type),
+    targets = plan_bps_sync(cursor.fetchall())
+    if targets:
+        execute_values(
+            cursor,
+            "UPDATE financial_statements AS f SET bps = v.bps "
+            "FROM (VALUES %s) AS v(id, bps) WHERE f.id = v.id",
+            targets,
+            template="(%s, %s::numeric)",
+            page_size=BPS_UPDATE_PAGE_SIZE,
         )
-        updated = cursor.rowcount > 0
-        conn.commit()
-    except _DB_RETRY_EXC as e:
-        # best-effort — 연결 절단이면 재시도하지 않고 다음 run 에 맡긴다.
-        # rollback 도 하지 않음 (죽은 conn 에서 새 예외 유발). 재연결은 다음
-        # DB 접근(insert_financial / mark_non_filer / RECONNECT_EVERY)이 처리.
-        logger.warning("[WARN] bps 재계산 보류 (DB 연결 절단) %s: %s", ticker, e)
-        return False
-    except Exception as e:
-        logger.error("bps 재계산 실패 %s (%s Q%s): %s", ticker, year, quarter, e)
-        conn.rollback()
-        return False
-    if updated:
-        logger.info(
-            "[BPS_BACKFILL] %s %s Q%s — shares 확보 후 bps 재계산", ticker, year, quarter
-        )
-    return updated
+    return len(targets)
 
 
 def _check_value_cap(data: dict) -> Optional[tuple[str, float]]:
@@ -466,11 +459,7 @@ def insert_financial(
         return "gate_skip"
 
     total_equity = data.get("total_equity")
-    shares = get_shares(cursor, ticker)
-    if total_equity is not None and shares is not None:
-        bps = round(total_equity / shares, 4)
-    else:
-        bps = None
+    bps = compute_bps(total_equity, get_shares(cursor, ticker))
 
     sql = """
         INSERT INTO financial_statements (
@@ -669,8 +658,6 @@ def run(
     quarter = _QUARTER_MAP.get(reprt_code, 4)
     report_type = _REPORT_TYPE_MAP.get(reprt_code, "annual")
     filed_tickers = {key[0] for key in existing_keys}
-    # 기존 키 skip 분기에서 bps 만 재계산할 대상 — period 당 1회 조회
-    bps_null_tickers = get_bps_null_tickers(cursor, int(bsns_year), quarter, report_type)
     logger.info(
         "재무제표 적재 시작: %s Q%s (%s) — 총 %d개 종목",
         bsns_year,
@@ -695,8 +682,6 @@ def run(
         key = (ticker, int(bsns_year), quarter, report_type)
 
         if key in existing_keys:
-            if ticker in bps_null_tickers:
-                backfill_bps(conn, cursor, ticker, int(bsns_year), quarter, report_type)
             logger.debug("이미 적재됨 스킵: %s %s Q%s", ticker, bsns_year, quarter)
             skip += 1
             continue
@@ -906,6 +891,13 @@ def main():
 
     conn = get_connection()
     cursor = conn.cursor()
+    # 이번 run 에 shares 없이 적재된 행을 채운다 — shares 변동분은 daily fetch_shares 가 맞춘다.
+    try:
+        logger.info("[BPS_SYNC] %d행 재계산", sync_bps(cursor))
+        conn.commit()
+    except Exception as e:
+        logger.warning("[WARN] bps 동기화 보류 — 다음 run 에 맡김: %s", e)
+        conn.rollback()
     check_unit_suspects(cursor)
     cursor.close()
     conn.close()

@@ -84,6 +84,15 @@ jobs:
         run: python verify_daily_freshness.py --mode ${{ inputs.mode || 'full' }}
         continue-on-error: true
 
+      # EOD·검증 뒤 — KRX 호출·bps 재계산이 EOD 적재를 늦추지 않게 한다.
+      # 비거래일이면 내부 guard 가 skip 후 정상 종료(success).
+      - name: Run fetch_shares
+        id: fetch_shares
+        if: ${{ inputs.mode != 'overseas-only' }}
+        working-directory: collector
+        run: python fetch_shares.py
+        continue-on-error: true
+
       # Gate: silent green 방지. 위 스텝 중 하나라도 실패·취소·의도치 않은 skip 이면
       # 워크플로우 실패로 만든다.
       #   failure/cancelled → 항상 실패로 판정
@@ -126,6 +135,7 @@ jobs:
           check fetch_index_prices     "${{ steps.fetch_index_prices.outcome }}"     "$domestic_expected"
           check fetch_overseas_indices "${{ steps.fetch_overseas_indices.outcome }}" yes
           check verify_freshness       "${{ steps.verify_freshness.outcome }}"       yes
+          check fetch_shares           "${{ steps.fetch_shares.outcome }}"           "$domestic_expected"
           if [ "$fail" = "1" ]; then
             exit 1
           fi

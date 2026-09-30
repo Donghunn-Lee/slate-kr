@@ -9,9 +9,9 @@ jobs:
     # Job-level 단일 캡. step-level timeout은 사용하지 않는다 (step timeout +
     # continue-on-error 조합은 cancelled outcome을 gate가 감지해야 하는 구조인
     # 반면, job timeout은 run 자체를 fail시켜 gate 의존이 없음).
-    # 비피크 ~1.5h·분기보고서 피크 ~4.6h 실측 기준, 피크 커버 + hard limit(6h)
-    # 전 차단 여유.
-    timeout-minutes: 330  # 분기보고서 마감 피크(2·5·8·11월) 실측 ~4.6h 기준, hosted runner 상한 6h 이내
+    # fetch_shares(~1h) 가 daily 로 옮겨간 뒤 실측 비피크 ~0.2~0.7h·분기보고서 피크 ~1.6h(8/16).
+    # 캡은 이전 피크 실측 ~4.6h(fetch_shares 포함) 기준 그대로 — 피크 커버 + hard limit(6h) 전 차단 여유.
+    timeout-minutes: 330  # 분기보고서 마감 피크(2·5·8·11월) 커버, hosted runner 상한 6h 이내
 
     env:
       DATABASE_URL: ${{ secrets.NEON_DIRECT_URL }}
@@ -39,12 +39,6 @@ jobs:
         id: update_corp_codes
         working-directory: collector
         run: python update_corp_codes.py --execute
-        continue-on-error: true
-
-      - name: Run fetch_shares
-        id: fetch_shares
-        working-directory: collector
-        run: python fetch_shares.py
         continue-on-error: true
 
       - name: Run fetch_financials
@@ -76,7 +70,6 @@ jobs:
           }
           check fetch_listed_at    "${{ steps.fetch_listed_at.outcome }}"
           check update_corp_codes  "${{ steps.update_corp_codes.outcome }}"
-          check fetch_shares       "${{ steps.fetch_shares.outcome }}"
           check fetch_financials   "${{ steps.fetch_financials.outcome }}"
           check fetch_dividends    "${{ steps.fetch_dividends.outcome }}"
           if [ "$fail" = "1" ]; then
