@@ -11,6 +11,7 @@ const DATA_SOURCES: ReadonlyArray<{ category: string; value: string }> = [
   { category: "시세", value: "한국투자증권 KIS OpenAPI" },
   { category: "지수 과거 데이터", value: "KRX Marketplace" },
   { category: "종목 정보", value: "공공데이터포털(금융위 KRX 상장종목 정보)" },
+  { category: "상장주식수", value: "KRX Marketplace" },
   { category: "공시·재무", value: "DART(금융감독원 전자공시시스템)" },
   {
     category: "AI 요약",
