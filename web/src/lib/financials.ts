@@ -320,6 +320,20 @@ const buildQuarterlyPeriods = (
   return result.sort((a, b) => (a.quarter ?? 0) - (b.quarter ?? 0));
 };
 
+// 분기 PER = 분기말 종가 ÷ 그 분기까지 직전 4분기 EPS 합. 단분기 EPS 로 나누면 연간 PER 의 약 4배로
+// 부풀어 연간 뷰와 비교할 수 없다 — buildQuarterlyPeriods 의 단분기 per 를 덮어쓴다.
+// 4분기가 온전할 때(ttm)만 표시하고 연환산·연간 폴백은 쓰지 않는다. 합 ≤ 0·기준 불일치는 null.
+// quarterly 는 최신순 단분기 전체 — 잘라서 넘기면 창 끝 3분기가 null 이 된다.
+const attachQuarterlyTtmPer = (
+  quarterly: FinancialPeriod[],
+  priceMap: PriceMap
+): FinancialPeriod[] =>
+  quarterly.map((p, i) => {
+    const ttm = computeTtmEps(quarterly.slice(i), null);
+    const close = p.quarter === null ? null : (priceMap.get(priceKey(p.year, p.quarter)) ?? null);
+    return { ...p, per: ttm.source === "ttm" ? calcPer(close, ttm.value) : null };
+  });
+
 // getFinancials 의 순수 코어. rows 는 조회 SQL 과 같은 year DESC·quarter DESC 정렬 전제.
 // shares = 현재 상장주식수 (null 이면 기준 판정 불가 → 전 기간 shareBasisMismatch false).
 // export 는 테스트용 (다른 lib 에서 import 하지 말 것).
@@ -354,7 +368,7 @@ export const buildFinancials = (
     );
   }
   quarterlyBase.sort((a, b) => b.year - a.year || (b.quarter ?? 0) - (a.quarter ?? 0));
-  const quarterly = attachGrowthRates(quarterlyBase);
+  const quarterly = attachGrowthRates(attachQuarterlyTtmPer(quarterlyBase, priceMap));
 
   return { annual, quarterly };
 };

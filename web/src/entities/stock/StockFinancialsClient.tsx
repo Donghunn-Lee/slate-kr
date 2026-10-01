@@ -18,6 +18,8 @@ type MetricRow = {
   getRaw: (p: FinancialPeriod) => number | null;
   // 분기 행에는 배당 필드가 항상 null 이라 렌더에서 제외한다.
   annualOnly?: boolean;
+  // 분기 뷰에서 값의 기준이 연간 뷰와 다를 때 라벨 아래 보조 표기.
+  quarterlyNote?: string;
 };
 
 const METRIC_ROWS: MetricRow[] = [
@@ -64,7 +66,12 @@ const METRIC_ROWS: MetricRow[] = [
   // 주당 / 밸류에이션
   { label: "EPS(원)", getValue: (p) => formatEps(p.eps, false), getRaw: (p) => p.eps },
   { label: "BPS(원)", getValue: (p) => formatEps(p.bps, false), getRaw: (p) => p.bps },
-  { label: "PER(배)", getValue: (p) => formatRatio(p.per, 2, false), getRaw: (p) => p.per },
+  {
+    label: "PER(배)",
+    getValue: (p) => formatRatio(p.per, 2, false),
+    getRaw: (p) => p.per,
+    quarterlyNote: "최근 4분기 기준",
+  },
   { label: "PBR(배)", getValue: (p) => formatRatio(p.pbr, 2, false), getRaw: (p) => p.pbr },
   // 배당 (연간만 채움)
   {
@@ -157,6 +164,11 @@ const FinancialsTable = ({ periods, mode, compact }: FinancialsTableProps) => {
                 className={`sticky left-0 z-10 bg-amber-bg border-r border-amber-border ${compact ? "py-1.5 pr-3 text-caption" : "py-2 pr-3 sm:py-3 sm:pr-4 text-body"} font-medium whitespace-nowrap`}
               >
                 {row.label}
+                {mode === "quarterly" && row.quarterlyNote && (
+                  <span className="block text-micro font-normal text-muted-foreground">
+                    {row.quarterlyNote}
+                  </span>
+                )}
               </td>
               {ordered.map((p) => {
                 const raw = row.getRaw(p);

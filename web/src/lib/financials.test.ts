@@ -504,3 +504,33 @@ describe("buildFinancials — 기간 기준 판정", () => {
     expect([...annual, ...quarterly].every((p) => !p.shareBasisMismatch)).toBe(true);
   });
 });
+
+describe("buildFinancials — 분기 PER (최근 4분기 기준)", () => {
+  // 연간 EPS 1,000 = Q1~Q3 각 300 + 파생 Q4 100 → Q4 시점 직전 4분기 합이 연간 EPS 와 같다.
+  const year2025 = [aRow(2025, 1_000), qRow(2025, 3, 300), qRow(2025, 2, 300), qRow(2025, 1, 300)];
+
+  it("Q4 PER = 같은 연도 연간 PER (연말 종가 ÷ 4분기 합)", () => {
+    const { annual, quarterly } = buildFinancials(year2025, prices, NO_DIVIDENDS, SHARES);
+    expect(quarterOf(quarterly, 4).per).toBe(50);
+    expect(quarterOf(quarterly, 4).per).toBe(annual[0].per);
+  });
+
+  it("직전 4분기가 다 없으면 → null (연환산·연간 폴백 미사용)", () => {
+    const { quarterly } = buildFinancials(year2025, prices, NO_DIVIDENDS, SHARES);
+    expect(quarterOf(quarterly, 3).per).toBeNull();
+    expect(quarterOf(quarterly, 1).per).toBeNull();
+  });
+
+  it("4분기 합 ≤ 0 → null", () => {
+    const rows = [aRow(2025, -1_000), qRow(2025, 3, -300), qRow(2025, 2, -300), qRow(2025, 1, -300)];
+    const { quarterly } = buildFinancials(rows, prices, NO_DIVIDENDS, SHARES);
+    expect(quarterOf(quarterly, 4).per).toBeNull();
+  });
+
+  it("4분기 중 기준 불일치 기간 포함 → null", () => {
+    const rows = [aRow(2025, 1_000), qRow(2025, 3, 300), qRow(2025, 2, 300, 600_000), qRow(2025, 1, 300)];
+    const { quarterly } = buildFinancials(rows, prices, NO_DIVIDENDS, SHARES);
+    expect(quarterOf(quarterly, 2).shareBasisMismatch).toBe(true);
+    expect(quarterOf(quarterly, 4).per).toBeNull();
+  });
+});
