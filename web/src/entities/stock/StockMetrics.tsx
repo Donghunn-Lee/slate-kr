@@ -104,7 +104,7 @@ export const StockMetrics = async ({ ticker }: StockMetricsProps) => {
           <MetricItem label="PER" value={formatRatio(per)} />
           <MetricItem label="PBR" value={formatRatio(pbr)} />
           <MetricItem label="EPS" value={formatEps(displayEps)} />
-          <MetricItem label="BPS" value={formatEps(displayBps)} />
+          <MetricItem label="BPS" value={formatEps(displayBps, true, 0)} />
           <MetricItem label="DPS" value={formatEps(displayDps)} />
           <MetricItem label="시가배당률" value={formatPercent(dividendYield)} />
         </div>

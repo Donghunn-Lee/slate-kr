@@ -22,9 +22,19 @@ export const formatRatio = (value: number | null, digits = 2, withUnit = true): 
   return withUnit ? value.toFixed(digits) + "배" : value.toFixed(digits);
 };
 
-export const formatEps = (value: number | null, withUnit = true): string => {
+// 주당 금액(EPS·BPS·DPS). 기본 소수 3자리는 DART 가 소수로 공시한 EPS 를 보존하는 값.
+// BPS 는 저장값이 지분 ÷ 주식수의 소수 4자리라 호출측이 0 을 넘겨 표시 단계에서만 정수 원으로 반올림한다.
+// signDisplay negative: 0 으로 반올림된 음수가 "-0" 으로 보이지 않게.
+export const formatEps = (
+  value: number | null,
+  withUnit = true,
+  maxFractionDigits = 3
+): string => {
   if (value === null) return "—";
-  const num = value.toLocaleString("ko-KR");
+  const num = value.toLocaleString("ko-KR", {
+    maximumFractionDigits: maxFractionDigits,
+    signDisplay: "negative",
+  });
   return withUnit ? num + "원" : num;
 };
 

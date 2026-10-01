@@ -65,7 +65,7 @@ const METRIC_ROWS: MetricRow[] = [
   { label: "ROA(%)", getValue: (p) => formatPercent(p.roa, false), getRaw: (p) => p.roa },
   // 주당 / 밸류에이션
   { label: "EPS(원)", getValue: (p) => formatEps(p.eps, false), getRaw: (p) => p.eps },
-  { label: "BPS(원)", getValue: (p) => formatEps(p.bps, false), getRaw: (p) => p.bps },
+  { label: "BPS(원)", getValue: (p) => formatEps(p.bps, false, 0), getRaw: (p) => p.bps },
   {
     label: "PER(배)",
     getValue: (p) => formatRatio(p.per, 2, false),
