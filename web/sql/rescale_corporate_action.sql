@@ -11,7 +11,8 @@
 --   f 는 20:00 종가 기준이라 애프터마켓 체결이 있으면 KIS 정규장 종가와 어긋난다.
 --   ② 재적재 전에 9/11 행에서 KIS 수정 종가 ÷ DB 종가 로 구해 둔다 — 재적재 뒤에는 1.0 이 된다.
 -- volume 은 KIS 역보정 관례(÷factor) — 정지 구간은 0 이라 무관, 실거래 구간이면 volume 행을 추가한다.
--- 권리락은 전 열 ×factor 가 아니라 실거래 패턴 — 별도 판단.
+-- 권리락도 KIS 는 전 행에 가격 ×factor · 거래량 ÷factor 를 적용한다 (042940 2026-09-22 권리락 실측:
+--   9/11 이전 3,094행 close ×0.9627 · volume ×1.0387) — 실거래 구간이라 volume 행을 추가한다.
 
 -- ── 검증 SELECT (기대: 2026-09-14 ~ event_date 직전 거래일의 행 수, 구 스케일 close) ──
 SELECT count(*) AS rows_to_rescale, min(date) AS first_date, max(date) AS last_date,
