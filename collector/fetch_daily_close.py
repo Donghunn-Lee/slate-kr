@@ -20,14 +20,17 @@ KIS 다종목 시세(J) → daily_prices 당일 일봉 (20:10 KST 캡처).
   sdpr == 0            → base_price NULL
   prpr − prdy_vrss ≠ sdpr 는 기준가 축 감시용 카운트만 — 적재를 막지 않는다.
 
-기업행위 감시 (#162 F89)
-  base_price / 직전 저장 close 가 CORP_ACTION_RATIO 밖이면 감자·분할·병합 등 기업행위로
-  보고 WARN (corporate action suspected). 과거 봉이 KIS 수정주가 축에서 벗어나므로
-  backfill_prices_kis.py --tickers 로 수동 재적재한다. 적재는 그대로 진행. 직전 행이
-  없는 종목(신규 상장)은 판정 제외.
+기업행위 감시 (#162 F89 · F115)
+  base_price 가 직전 저장 봉 [L, H] 를 1틱 초과해 벗어나면 감자·분할·병합·권리락 등
+  기업행위로 보고 WARN (corporate action suspected). 과거 봉이 KIS 수정주가 축에서
+  벗어나므로 backfill_prices_kis.py --tickers 로 수동 재적재한다. 적재는 그대로 진행.
+  직전 행이 없는 종목(신규 상장)·기준가 없는 행은 판정 제외. 범위 안인데
+  base_price / 직전 close 가 CORP_ACTION_RATIO 밖이면 애프터마켓 드리프트 — drift 로그만.
+  미처리 건은 verify_daily_freshness(full) 가 실패로 올린다.
   WARN 종목은 KIS 일봉(FHKST03010100 · adj=0) 1콜로 직전 봉이 f 배 조정됐는지 판별해
-  kis_adj 를 같이 남긴다 — 1(병합·분할, KIS 조정): 재적재 + 9/14 이후 행 수동 rescale
-  (web/sql/rescale_corporate_action.sql) / 0(감자, KIS 미조정): 손대지 않음 /
+  kis_adj 를 같이 남긴다 — 1(병합·분할·권리락 등, KIS 조정): 재적재 + 9/14 이후 행 수동 rescale
+  (web/sql/rescale_corporate_action.sql) / 0(감자, KIS 미조정): 행은 손대지 않고
+  verify_daily_freshness.KNOWN_BASE_ADJ 에 등록 /
   ?·unknown: 수동 확인. 판별 실패는 WARN 만, 적재·exit code 무관.
 
 end 시각 게이트
@@ -105,20 +108,50 @@ def is_base_consistent(j: dict) -> bool:
 
 
 # ── 기업행위 감시 ─────────────────────────────────────────────────────
-# 기준가는 전일 정규장 종가(권리락일은 조정 기준가). 직전 저장 close 대비 이 범위 밖이면
-# 하루 등락(±30%)으로 설명되지 않는 축 변경 = 기업행위 의심.
+# 기업행위가 없으면 기준가(D) = D−1 정규장 종가라 D−1 저장 봉 [L, H] 안에 있다 — 이탈이
+# 의심 기준. 직전 저장 close 는 20:00 종가라 비율 판정은 애프터마켓 드리프트를 배율로 오인하고
+# 비율이 작은 이벤트(권리락 등)는 놓친다 → 범위 안인데 이 비율 밖이면 drift 라벨만 남긴다.
 CORP_ACTION_RATIO = (0.6, 1.5)
 
 
-def get_prev_closes(cursor, bar_date: date) -> dict[str, tuple[date, int]]:
-    """활성 종목별 bar_date 직전 저장 봉 (date, close). 직전 행 없는 종목은 누락.
+def tick_size(price: int) -> int:
+    """KRX 호가단위. web/src/lib/get-tick-size.ts 와 같은 표 — 양쪽 동시 갱신."""
+    if price < 2_000:
+        return 1
+    if price < 5_000:
+        return 5
+    if price < 20_000:
+        return 10
+    if price < 50_000:
+        return 50
+    if price < 200_000:
+        return 100
+    if price < 500_000:
+        return 500
+    return 1_000
+
+
+def is_outside_prev_range(
+    base_price: int | None, prev_low: int | None, prev_high: int | None,
+) -> bool:
+    """base_price 가 직전 저장 봉 [L, H] 를 1틱(base 기준) 초과해 벗어남 = 기업행위 의심.
+    1틱 허용은 과거 rescale 의 반올림 잔차(+1원·+3원) 흡수용. 기준가·직전 봉 없으면 False.
+    20:12 job 과 verify_daily_freshness 가 같이 쓴다."""
+    if not base_price or prev_low is None or prev_high is None:
+        return False
+    tick = tick_size(base_price)
+    return base_price < prev_low - tick or base_price > prev_high + tick
+
+
+def get_prev_bars(cursor, bar_date: date) -> dict[str, tuple[date, int, int, int]]:
+    """활성 종목별 bar_date 직전 저장 봉 (date, close, low, high). 직전 행 없는 종목은 누락.
     LATERAL + (ticker, date) 인덱스 역방향 LIMIT 1 — DISTINCT ON 은 전체 정렬로 60s 초과."""
     cursor.execute(
         """
-        SELECT s.ticker, d.date, d.close
+        SELECT s.ticker, d.date, d.close, d.low, d.high
           FROM stocks s
          CROSS JOIN LATERAL (
-               SELECT date, close FROM daily_prices
+               SELECT date, close, low, high FROM daily_prices
                 WHERE ticker = s.ticker AND date < %s
                 ORDER BY date DESC LIMIT 1
          ) d
@@ -126,10 +159,10 @@ def get_prev_closes(cursor, bar_date: date) -> dict[str, tuple[date, int]]:
         """,
         (bar_date,),
     )
-    return {t: (d, c) for t, d, c in cursor.fetchall() if c}
+    return {t: (d, c, lo, hi) for t, d, c, lo, hi in cursor.fetchall() if c}
 
 
-def is_corp_action_suspected(prev_close: int | None, base_price: int | None) -> bool:
+def is_ratio_outside(prev_close: int | None, base_price: int | None) -> bool:
     """base_price / prev_close 가 CORP_ACTION_RATIO 밖. 어느 쪽이든 없으면 False."""
     if not prev_close or not base_price:
         return False
@@ -196,13 +229,13 @@ def run(bar_date: date) -> int:
     conn = get_connection()
     cur = conn.cursor()
     tickers = get_active_tickers(cur)
-    prev_closes = get_prev_closes(cur, bar_date)
+    prev_bars = get_prev_bars(cur, bar_date)
     token = get_token(conn)
     total = len(tickers)
     logger.info("daily_prices 당일 일봉 적재 시작 · date=%s · 총 %d종목", bar_date, total)
 
     chunk_ok = chunk_err = row_ok = row_flat = row_skip = row_missing = 0
-    base_mismatch = corp_action = 0
+    base_mismatch = corp_action = drift = 0
     kis_adj_counts = {"1": 0, "0": 0, "?": 0, "unknown": 0}
     for chunk_idx in range(0, total, CHUNK_SIZE):
         chunk = tickers[chunk_idx: chunk_idx + CHUNK_SIZE]
@@ -230,8 +263,10 @@ def run(bar_date: date) -> int:
                 row_flat += 1
             if not is_base_consistent(j):
                 base_mismatch += 1
-            prev_date, prev_close = prev_closes.get(t, (None, None))
-            if is_corp_action_suspected(prev_close, r[7]):
+            prev_date, prev_close, prev_low, prev_high = prev_bars.get(
+                t, (None, None, None, None)
+            )
+            if is_outside_prev_range(r[7], prev_low, prev_high):
                 corp_action += 1
                 kis_adj, kis_prev_close, reason = classify_kis_adj(
                     token, t, prev_date, bar_date, prev_close, r[7]
@@ -239,9 +274,16 @@ def run(bar_date: date) -> int:
                 kis_adj_counts[kis_adj] += 1
                 logger.warning(
                     "corporate action suspected ticker=%s prev_close=%s base_price=%s "
-                    "f=%.2f kis_adj=%s kis_prev_close=%s%s",
-                    t, prev_close, r[7], r[7] / prev_close, kis_adj, kis_prev_close,
-                    f" reason={reason}" if reason else "",
+                    "prev_low=%s prev_high=%s f=%.2f kis_adj=%s kis_prev_close=%s%s",
+                    t, prev_close, r[7], prev_low, prev_high, r[7] / prev_close,
+                    kis_adj, kis_prev_close, f" reason={reason}" if reason else "",
+                )
+            elif is_ratio_outside(prev_close, r[7]):
+                drift += 1
+                logger.info(
+                    "drift ticker=%s prev_close=%s base_price=%s "
+                    "prev_low=%s prev_high=%s f=%.2f",
+                    t, prev_close, r[7], prev_low, prev_high, r[7] / prev_close,
                 )
             rows.append(r)
 
@@ -278,10 +320,10 @@ def run(bar_date: date) -> int:
     logger.info(
         "완료: 대상=%d · chunks ok=%d err=%d · rows upsert=%d (flat=%d) · "
         "skip(prpr=0)=%d · 응답 누락=%d · base 불일치(prpr−prdy_vrss≠sdpr)=%d · "
-        "기업행위 의심=%d (adj 1=%d 0=%d ?=%d unknown=%d)",
+        "기업행위 의심=%d (adj 1=%d 0=%d ?=%d unknown=%d) · drift=%d",
         total, chunk_ok, chunk_err, row_ok, row_flat, row_skip, row_missing,
         base_mismatch, corp_action, kis_adj_counts["1"], kis_adj_counts["0"],
-        kis_adj_counts["?"], kis_adj_counts["unknown"],
+        kis_adj_counts["?"], kis_adj_counts["unknown"], drift,
     )
 
     # 대량 upsert 뒤 planner 통계 갱신. 실패는 데이터 적재 성공을 덮으면 안 되므로

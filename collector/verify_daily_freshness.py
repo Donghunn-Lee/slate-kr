@@ -2,7 +2,8 @@
 일일 적재 후 freshness 검증.
 
 모드 (argparse --mode)
-  full (기본값)   국내 EOD(daily_prices, index_daily_prices) + 국내 지수 1분봉 4종 하한.
+  full (기본값)   국내 EOD(daily_prices, index_daily_prices) + 국내 지수 1분봉 4종 하한
+                  + 미처리 기업행위(기준가의 직전 봉 범위 이탈) 스캔.
                   expected: 거래일이면 today(KST), 아니면 직전 거래일.
                   거래일 판정: market_trading_days(KRX) 우선, 부재 시 KRX_HOLIDAYS_2026 폴백.
   overseas-only   해외 EOD(index_daily_prices 8종) + 해외 intraday(overseas_index_intraday 7종) 하한.
@@ -73,6 +74,17 @@ DOMESTIC_INDEX_CODES = ("KOSPI", "KOSDAQ", "KOSPI200", "KOSDAQ150")
 # fetch_index_minute.py 가 채우는 domestic_index_intraday 4종 공통.
 # 정규장 393분(09:00~15:30) × 0.9 = 353 (#108류 부분 적재 silent PASS 방어).
 DOMESTIC_INTRADAY_FLOOR = 353
+
+# 미처리 기업행위 (F115).
+# KIS_DAILY_LAST_DATE 이후 활성 종목 전 행에서 base_price 가 직전 저장 봉 [L, H] 를 1틱 초과해
+# 벗어나면 FAIL — fetch_daily_close 의 WARN 이 exit 0 이라 로그에만 남아 방치되던 것 대응.
+# 처리 = backfill_prices_kis.py --tickers + web/sql/rescale_corporate_action.sql 뒤 재스캔 0건.
+# 재적재로 해소할 수 없는 건(kis_adj=0 등)만 사유 주석과 함께 (ticker, date) 로 등록 —
+# 등록하면 FAIL 이 영구 억제되므로 원인 확인 후에만.
+KNOWN_BASE_ADJ: frozenset[tuple[str, str]] = frozenset()
+
+# 실패 사유에 싣는 이탈 건수 상한 (최근 날짜순). 초과분은 총계 1줄.
+CORP_ACTION_REPORT_LIMIT = 10
 
 # ── 해외 검사 (--mode overseas-only) ─────────────────────────────
 # EOD 8종: index_daily_prices 에 base_date=expected 행이 있어야 한다.
@@ -254,6 +266,70 @@ def check_domestic_intraday(cursor, expected: date) -> list[str]:
     return failures
 
 
+def check_corp_action_range(cursor) -> list[str]:
+    """KIS_DAILY_LAST_DATE 이후 활성 종목 전 행 — is_outside_prev_range ∧ KNOWN_BASE_ADJ 밖이면
+    실패 사유 (종목 · 날짜 · base · 직전 봉 [L, H]). 기준가 NULL·직전 봉 없는 행은 제외.
+    SQL 은 [L, H] 밖만 거르는 상위 집합 — 1틱 허용은 fetch_daily_close 의 판정 함수가 한다."""
+    # 지연 import — fetch_daily_close·fetch_prices 가 이 모듈을 import 한다 (순환).
+    from fetch_daily_close import is_outside_prev_range
+    from fetch_prices import KIS_DAILY_LAST_DATE
+
+    # 직전 봉: 창 안은 LAG, 종목별 창 첫 행(rn=1)만 LATERAL 로 창 밖 봉 — 행마다 LATERAL 은
+    # 버퍼 접근이 ~10배 (29k행 실측 0.28s vs 0.08s).
+    cursor.execute(
+        """
+        WITH x AS (
+          SELECT d.ticker, d.date, d.base_price,
+                 LAG(d.low)  OVER w AS prev_low,
+                 LAG(d.high) OVER w AS prev_high,
+                 ROW_NUMBER() OVER w AS rn
+            FROM daily_prices d
+            JOIN stocks s ON s.ticker = d.ticker AND s.is_active
+           WHERE d.date > %s
+          WINDOW w AS (PARTITION BY d.ticker ORDER BY d.date)
+        )
+        SELECT x.ticker, x.date, x.base_price,
+               COALESCE(x.prev_low, p.low), COALESCE(x.prev_high, p.high)
+          FROM x
+          LEFT JOIN LATERAL (
+               SELECT low, high FROM daily_prices
+                WHERE ticker = x.ticker AND date < x.date AND x.rn = 1
+                ORDER BY date DESC LIMIT 1
+          ) p ON true
+         WHERE x.base_price < COALESCE(x.prev_low, p.low)
+            OR x.base_price > COALESCE(x.prev_high, p.high)
+         ORDER BY x.date DESC, x.ticker
+        """,
+        (KIS_DAILY_LAST_DATE,),
+    )
+    found: list[str] = []
+    known = 0
+    for ticker, d, base, low, high in cursor.fetchall():
+        if not is_outside_prev_range(base, low, high):
+            continue
+        if (ticker, d.isoformat()) in KNOWN_BASE_ADJ:
+            known += 1
+            continue
+        found.append(f"{ticker} {d} base {base} vs prev [L {low}, H {high}]")
+
+    scope = f"date > {KIS_DAILY_LAST_DATE}, known {known}"
+    if not found:
+        print(f"  OK corp action range: unprocessed 0 ({scope})")
+        return []
+    failures: list[str] = []
+    for msg in found[:CORP_ACTION_REPORT_LIMIT]:
+        print(f"  !! corp action unprocessed {msg}")
+        failures.append(f"corp action unprocessed {msg}")
+    if len(found) > CORP_ACTION_REPORT_LIMIT:
+        total = (
+            f"corp action unprocessed total {len(found)} "
+            f"(showing latest {CORP_ACTION_REPORT_LIMIT}; {scope})"
+        )
+        print(f"  !! {total}")
+        failures.append(total)
+    return failures
+
+
 def check_overseas_section(cursor, expected: date) -> list[str]:
     """해외 EOD 8종 + intraday 7종. 시장 휴장이면 그 시장의 지수는 skip.
     시장 캘린더가 부재하면 실패로 취급하고 해당 시장의 지수는 skip."""
@@ -349,6 +425,7 @@ def _run_full(cur, now_kst: datetime, calendar: dict[date, bool]) -> list[str]:
     if idx_floor_fail:
         failures.append(idx_floor_fail)
     failures.extend(check_domestic_intraday(cur, expected))
+    failures.extend(check_corp_action_range(cur))
     return failures
 
 
