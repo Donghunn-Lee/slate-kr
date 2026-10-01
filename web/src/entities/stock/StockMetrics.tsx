@@ -1,6 +1,11 @@
 import type { StockPriceSnapshot, FinancialPeriod } from "@/shared/types/stock";
 import { getLatestPrice } from "@/lib/prices";
-import { calcDividendYield, getFinancials, computeTtmEps } from "@/lib/financials";
+import {
+  calcLatestDividendYield,
+  calcPer,
+  getFinancials,
+  computeTtmEps,
+} from "@/lib/financials";
 import { getListedAt } from "@/lib/stocks";
 import { formatRatio, formatEps, formatPercent } from "@/shared/format";
 import { isNonKrwTicker } from "@/shared/constants/nonKrwTickers";
@@ -56,17 +61,14 @@ export const StockMetrics = async ({ ticker }: StockMetricsProps) => {
   const displayBps = latestAnnual?.bps ?? null;
   const displayDps = latestAnnual?.dps ?? null;
 
-  const per =
-    currentPrice !== null && displayEps !== null && displayEps > 0
-      ? currentPrice / displayEps
-      : null;
+  const per = calcPer(currentPrice, displayEps);
 
   const pbr =
     currentPrice !== null && displayBps !== null && displayBps > 0
       ? currentPrice / displayBps
       : null;
 
-  const dividendYield = calcDividendYield(currentPrice, displayDps);
+  const dividendYield = calcLatestDividendYield(currentPrice, latestAnnual);
 
   const sourceLabel = (() => {
     const period = (() => {

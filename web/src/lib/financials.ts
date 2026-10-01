@@ -1,9 +1,11 @@
 import { cache } from "react";
 import { pool } from "./db";
-import { attachDividends, getDividendsByYear } from "./dividends";
+import { attachDividends, getDividendsByYear, type DividendMetrics } from "./dividends";
+import { getShares } from "./stocks";
 import type { FinancialPeriod, StockFinancials, TtmEpsSource } from "@/shared/types/stock";
 
-type FinancialRow = {
+// export 는 테스트 fixture 용 (UI 에서 import 하지 말 것).
+export type FinancialRow = {
   id: number;
   ticker: string;
   corp_code: string | null;
@@ -21,9 +23,10 @@ type FinancialRow = {
 };
 
 type PriceRow = { yr: number; qtr: number; close: number };
-type PriceMap = Map<string, number>; // key: `${year}-${quarter}`
+type PriceMap = ReadonlyMap<string, number>; // key: priceKey(year, quarter)
 
-const priceKey = (year: number, quarter: number) => `${year}-${quarter}`;
+// export 는 테스트용 (fixture priceMap 키 생성).
+export const priceKey = (year: number, quarter: number) => `${year}-${quarter}`;
 
 const fetchClosePricesByQuarter = async (ticker: string): Promise<PriceMap> => {
   const [rows] = await pool.query<PriceRow[]>(
@@ -36,7 +39,7 @@ const fetchClosePricesByQuarter = async (ticker: string): Promise<PriceMap> => {
      ORDER BY yr, qtr, date DESC`,
     [ticker]
   );
-  const map: PriceMap = new Map();
+  const map = new Map<string, number>();
   for (const row of rows) {
     map.set(priceKey(row.yr, row.qtr), row.close);
   }
@@ -48,9 +51,31 @@ const safeDivide = (a: number | null, b: number | null): number | null => {
   return a / b;
 };
 
-const calcPer = (close: number | undefined, eps: number | null): number | null => {
-  if (close === undefined || eps === null || eps <= 0) return null;
+// PER = 주가 ÷ EPS. EPS ≤ 0 이면 null (적자 PER 은 표기하지 않는다).
+export const calcPer = (close: number | null, eps: number | null): number | null => {
+  if (close === null || eps === null || eps <= 0) return null;
   return close / eps;
+};
+
+// r = 현재 상장주식수 ÷ (순이익 ÷ EPS) 의 일치 밴드. 경계값은 일치로 본다.
+// 하한 0.6: 2:1 병합이 r≈0.5 — 이를 잡으면서 정상 범위와 거리를 둔다.
+// 상한 2.0: EPS 분모가 자사주 제외 가중평균이라 정상 종목의 r 도 1 위쪽으로 치우친다.
+const SHARE_BASIS_RATIO_MIN = 0.6;
+const SHARE_BASIS_RATIO_MAX = 2.0;
+
+// DART EPS 는 공시 당시 주식수 기준이라 병합·분할 뒤에는 현재 주가와 조합한 PER 이 배율만큼
+// 틀린다. EPS 가 전제한 주식수(순이익 ÷ EPS)를 역산해 현재 상장주식수와 비교한다.
+// 판정 불가(NULL·0·순이익과 EPS 부호 불일치)는 false — 표시를 유지한다.
+export const isShareBasisMismatch = (
+  netIncome: number | null,
+  eps: number | null,
+  currentShares: number | null
+): boolean => {
+  if (netIncome === null || eps === null || currentShares === null) return false;
+  if (netIncome === 0 || eps === 0 || currentShares <= 0) return false;
+  if ((netIncome > 0) !== (eps > 0)) return false;
+  const r = currentShares / (netIncome / eps);
+  return r < SHARE_BASIS_RATIO_MIN || r > SHARE_BASIS_RATIO_MAX;
 };
 
 const calcPbr = (close: number | undefined, bps: number | null): number | null => {
@@ -67,6 +92,16 @@ export const calcDividendYield = (
   if (close === null || close <= 0) return null;
   if (dps === null || dps <= 0) return null;
   return dps / close;
+};
+
+// 핵심 지표 시가배당률 — 최신 연간 DPS ÷ 현재가. DPS 는 같은 회계연도 연간 기간에 붙어 있으므로
+// 그 기간이 기준 주식수 불일치면 현재 주가와 조합하지 않는다 (DPS 표시 자체는 소비측 몫).
+export const calcLatestDividendYield = (
+  close: number | null,
+  latestAnnual: FinancialPeriod | null
+): number | null => {
+  if (latestAnnual === null || latestAnnual.shareBasisMismatch) return null;
+  return calcDividendYield(close, latestAnnual.dps);
 };
 
 // YoY 성장률 = (cur - prev) / prev. 소수 규약 (formatPercent 100×).
@@ -132,11 +167,14 @@ const calculateDerivedMetrics = (
   return { operatingMargin, netMargin, debtRatio, roe, roa };
 };
 
+// shares = 현재 상장주식수. null 이면 기준 판정 불가 → shareBasisMismatch false.
 const rowToFinancialPeriod = (
   row: FinancialRow,
   close?: number,
-  prevRow?: FinancialRow | null
+  prevRow?: FinancialRow | null,
+  shares: number | null = null
 ): FinancialPeriod => {
+  const shareBasisMismatch = isShareBasisMismatch(row.net_income, row.eps, shares);
   const raw = {
     revenue: row.revenue,
     operatingProfit: row.operating_profit,
@@ -159,7 +197,7 @@ const rowToFinancialPeriod = (
     totalEquity: row.total_equity,
     eps: row.eps,
     bps: row.bps,
-    per: calcPer(close, row.eps),
+    per: shareBasisMismatch ? null : calcPer(close ?? null, row.eps),
     pbr: calcPbr(close, row.bps),
     ...calculateDerivedMetrics(raw, prevTotals),
     // 배당은 annual 만 채우며 attachDividends 가 병합. rowToFinancialPeriod
@@ -171,6 +209,7 @@ const rowToFinancialPeriod = (
     revenueGrowth: null,
     operatingProfitGrowth: null,
     netIncomeGrowth: null,
+    shareBasisMismatch,
   };
 };
 
@@ -192,7 +231,8 @@ const buildQuarterlyPeriods = (
   quarterRows: FinancialRow[],
   annualRow: FinancialRow | null,
   priceMap: PriceMap,
-  prevAnnualRow: FinancialRow | null
+  prevAnnualRow: FinancialRow | null,
+  shares: number | null
 ): FinancialPeriod[] => {
   const byQuarter = new Map<number, FinancialRow>();
   for (const row of quarterRows) {
@@ -211,7 +251,7 @@ const buildQuarterlyPeriods = (
   for (const row of byQuarter.values()) {
     const close = priceMap.get(priceKey(row.year, row.quarter!));
     const prevRow = prevByQuarter.get(row.quarter!) ?? null;
-    result.push(rowToFinancialPeriod(row, close, prevRow));
+    result.push(rowToFinancialPeriod(row, close, prevRow, shares));
   }
 
   if (annualRow) {
@@ -248,6 +288,9 @@ const buildQuarterlyPeriods = (
     // Q4 종가 = 해당 연도 마지막 거래일 종가 (= 연간 마지막 분기)
     const q4Close = priceMap.get(priceKey(annualRow.year, 4));
 
+    // 파생 Q4 는 차감 노이즈가 커 자체 r 을 쓰지 않고 같은 연도 연간 행의 판정을 따른다.
+    const q4Mismatch = isShareBasisMismatch(annualRow.net_income, annualRow.eps, shares);
+
     result.push({
       ticker: annualRow.ticker,
       year: annualRow.year,
@@ -260,7 +303,7 @@ const buildQuarterlyPeriods = (
       totalEquity: annualRow.total_equity,
       eps: q4Eps,
       bps: annualRow.bps,
-      per: calcPer(q4Close, q4Eps),
+      per: q4Mismatch ? null : calcPer(q4Close ?? null, q4Eps),
       pbr: calcPbr(q4Close, annualRow.bps),
       ...calculateDerivedMetrics(raw, q3PrevTotals),
       // 분기 행은 배당 null 유지.
@@ -270,22 +313,22 @@ const buildQuarterlyPeriods = (
       revenueGrowth: null,
       operatingProfitGrowth: null,
       netIncomeGrowth: null,
+      shareBasisMismatch: q4Mismatch,
     });
   }
 
   return result.sort((a, b) => (a.quarter ?? 0) - (b.quarter ?? 0));
 };
 
-export const getFinancials = cache(async (ticker: string): Promise<StockFinancials> => {
-  const [[rows], priceMap, dividendsByYear] = await Promise.all([
-    pool.query<FinancialRow[]>(
-      "SELECT * FROM financial_statements WHERE ticker = $1 ORDER BY year DESC, quarter DESC",
-      [ticker]
-    ),
-    fetchClosePricesByQuarter(ticker),
-    getDividendsByYear(ticker),
-  ]);
-
+// getFinancials 의 순수 코어. rows 는 조회 SQL 과 같은 year DESC·quarter DESC 정렬 전제.
+// shares = 현재 상장주식수 (null 이면 기준 판정 불가 → 전 기간 shareBasisMismatch false).
+// export 는 테스트용 (다른 lib 에서 import 하지 말 것).
+export const buildFinancials = (
+  rows: readonly FinancialRow[],
+  priceMap: PriceMap,
+  dividendsByYear: ReadonlyMap<number, DividendMetrics>,
+  shares: number | null
+): StockFinancials => {
   const annualRows = rows.filter((r) => r.report_type === "annual").slice(0, 5);
   const quarterRows = rows.filter((r) => r.report_type === "quarter");
 
@@ -294,7 +337,7 @@ export const getFinancials = cache(async (ticker: string): Promise<StockFinancia
   const annualBase = annualRows.map((row, i) => {
     const close = priceMap.get(priceKey(row.year, 4));
     const prevRow = annualRows[i + 1] ?? null;
-    return rowToFinancialPeriod(row, close, prevRow);
+    return rowToFinancialPeriod(row, close, prevRow, shares);
   });
   const annualWithDividends = attachDividends(annualBase, dividendsByYear);
   const annual = attachGrowthRates(annualWithDividends);
@@ -307,13 +350,32 @@ export const getFinancials = cache(async (ticker: string): Promise<StockFinancia
     const annualForYear = annualRows.find((r) => r.year === year) ?? null;
     const prevAnnualForYear = annualRows.find((r) => r.year === year - 1) ?? null;
     quarterlyBase.push(
-      ...buildQuarterlyPeriods(yearQuarters, annualForYear, priceMap, prevAnnualForYear)
+      ...buildQuarterlyPeriods(yearQuarters, annualForYear, priceMap, prevAnnualForYear, shares)
     );
   }
   quarterlyBase.sort((a, b) => b.year - a.year || (b.quarter ?? 0) - (a.quarter ?? 0));
   const quarterly = attachGrowthRates(quarterlyBase);
 
   return { annual, quarterly };
+};
+
+export const getFinancials = cache(async (ticker: string): Promise<StockFinancials> => {
+  const [[rows], priceMap, dividendsByYear, shares] = await Promise.all([
+    pool.query<FinancialRow[]>(
+      "SELECT * FROM financial_statements WHERE ticker = $1 ORDER BY year DESC, quarter DESC",
+      [ticker]
+    ),
+    fetchClosePricesByQuarter(ticker),
+    getDividendsByYear(ticker),
+    // 주식수 조회 실패는 기준 판정 불가로 강등 — 재무 섹션 전체를 죽이지 않는다.
+    getShares(ticker).catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`[financials] shares load failed for ${ticker}: ${message}`);
+      return null;
+    }),
+  ]);
+
+  return buildFinancials(rows, priceMap, dividendsByYear, shares);
 });
 
 export const getLatestFinancial = async (ticker: string): Promise<FinancialPeriod | null> => {
@@ -356,6 +418,11 @@ const countTopConsecutive = (quarterly: FinancialPeriod[]): number => {
   return count;
 };
 
+// 값을 만든 기간 중 하나라도 기준 주식수가 어긋나면 합산 결과(부호 포함)보다 우선한다.
+const BASIS_MISMATCH: TtmEps = { value: null, source: "basis_mismatch" };
+const anyMismatch = (periods: readonly FinancialPeriod[]): boolean =>
+  periods.some((p) => p.shareBasisMismatch);
+
 export const computeTtmEps = (
   quarterly: FinancialPeriod[],
   latestAnnual: FinancialPeriod | null,
@@ -366,13 +433,17 @@ export const computeTtmEps = (
   const annualFallback: TtmEps =
     annualEps === null
       ? { value: null, source: "none" }
-      : { value: annualEps, source: "annual_fallback" };
+      : latestAnnual?.shareBasisMismatch
+        ? BASIS_MISMATCH
+        : { value: annualEps, source: "annual_fallback" };
 
   const consecutive = countTopConsecutive(quarterly);
 
   // #1 / #2: 최근 4분기 완결
   if (consecutive === 4) {
-    const sum = sumFlow(quarterly.slice(0, 4).map((q) => q.eps));
+    const used = quarterly.slice(0, 4);
+    if (anyMismatch(used)) return BASIS_MISMATCH;
+    const sum = sumFlow(used.map((q) => q.eps));
     if (sum === null) return annualFallback;
     return sum > 0
       ? { value: sum, source: "ttm" }
@@ -386,7 +457,9 @@ export const computeTtmEps = (
     const notYetFourQuarters =
       monthsSinceListing !== null && monthsSinceListing < RECENTLY_LISTED_MAX_MONTHS;
     if (notYetFourQuarters) {
-      const sum = sumFlow(quarterly.slice(0, consecutive).map((q) => q.eps));
+      const used = quarterly.slice(0, consecutive);
+      if (anyMismatch(used)) return BASIS_MISMATCH;
+      const sum = sumFlow(used.map((q) => q.eps));
       if (sum === null) return annualFallback;
       const annualized = sum * (4 / consecutive);
       return annualized > 0

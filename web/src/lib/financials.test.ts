@@ -1,8 +1,20 @@
 import { describe, it, expect } from "vitest";
-import { attachGrowthRates, calcDividendYield, calcGrowth, computeTtmEps } from "./financials";
+import {
+  attachGrowthRates,
+  buildFinancials,
+  calcDividendYield,
+  calcGrowth,
+  calcLatestDividendYield,
+  calcPer,
+  computeTtmEps,
+  isShareBasisMismatch,
+  priceKey,
+} from "./financials";
+import type { FinancialRow } from "./financials";
+import type { DividendMetrics } from "./dividends";
 import type { FinancialPeriod } from "@/shared/types/stock";
 
-// computeTtmEps가 실제 참조하는 필드는 quarterly의 year/quarter/eps와 latestAnnual의 eps뿐.
+// computeTtmEps가 실제 참조하는 필드는 year/quarter/eps/shareBasisMismatch뿐.
 // 나머지는 FinancialPeriod 타입 만족용 padding.
 const makeFP = (o: Partial<FinancialPeriod>): FinancialPeriod => ({
   ticker: "TEST",
@@ -29,6 +41,7 @@ const makeFP = (o: Partial<FinancialPeriod>): FinancialPeriod => ({
   revenueGrowth: null,
   operatingProfitGrowth: null,
   netIncomeGrowth: null,
+  shareBasisMismatch: false,
   ...o,
 });
 
@@ -288,5 +301,206 @@ describe("attachGrowthRates", () => {
     expect(out[0]).not.toBe(orig2025);
     expect(orig2025.revenueGrowth).toBeNull();
     expect(orig2024.revenueGrowth).toBeNull();
+  });
+});
+
+describe("isShareBasisMismatch", () => {
+  // EPS 가 전제한 주식수 = 1,000,000 ÷ 1,000 = 1,000 → r = 현재 주식수 ÷ 1,000.
+  const NI = 1_000_000;
+  const EPS = 1_000;
+
+  it("r = 1 → false", () => {
+    expect(isShareBasisMismatch(NI, EPS, 1_000)).toBe(false);
+  });
+
+  it("경계 r = 0.6 → false (일치)", () => {
+    expect(isShareBasisMismatch(NI, EPS, 600)).toBe(false);
+  });
+
+  it("경계 r = 2.0 → false (일치)", () => {
+    expect(isShareBasisMismatch(NI, EPS, 2_000)).toBe(false);
+  });
+
+  it("r ≈ 0.5 (2:1 병합) → true", () => {
+    expect(isShareBasisMismatch(NI, EPS, 500)).toBe(true);
+  });
+
+  it("r = 0.2 (5:1 병합) → true", () => {
+    expect(isShareBasisMismatch(NI, EPS, 200)).toBe(true);
+  });
+
+  it("r ≈ 2.1 (1:2 분할) → true", () => {
+    expect(isShareBasisMismatch(NI, EPS, 2_100)).toBe(true);
+  });
+
+  it("순이익·EPS 모두 음수(적자)여도 r 로 판정", () => {
+    expect(isShareBasisMismatch(-NI, -EPS, 1_000)).toBe(false);
+    expect(isShareBasisMismatch(-NI, -EPS, 500)).toBe(true);
+  });
+
+  it("NULL 입력 → false (판정 불가)", () => {
+    expect(isShareBasisMismatch(null, EPS, 200)).toBe(false);
+    expect(isShareBasisMismatch(NI, null, 200)).toBe(false);
+    expect(isShareBasisMismatch(NI, EPS, null)).toBe(false);
+  });
+
+  it("0 입력 → false (판정 불가)", () => {
+    expect(isShareBasisMismatch(0, EPS, 200)).toBe(false);
+    expect(isShareBasisMismatch(NI, 0, 200)).toBe(false);
+    expect(isShareBasisMismatch(NI, EPS, 0)).toBe(false);
+  });
+
+  it("순이익·EPS 부호 불일치 → false (판정 불가)", () => {
+    expect(isShareBasisMismatch(NI, -EPS, 200)).toBe(false);
+    expect(isShareBasisMismatch(-NI, EPS, 200)).toBe(false);
+  });
+});
+
+describe("computeTtmEps — 기준 주식수 불일치", () => {
+  const mkQm = (year: number, quarter: number, eps: number, mismatch: boolean): FinancialPeriod =>
+    makeFP({ year, quarter, reportType: "quarter", eps, shareBasisMismatch: mismatch });
+
+  it("최근 4분기 중 1개 불일치 → basis_mismatch, 값 없음", () => {
+    const quarterly = [
+      mkQm(2026, 1, 100, false),
+      mkQm(2025, 4, 200, false),
+      mkQm(2025, 3, 150, true),
+      mkQm(2025, 2, 50, false),
+    ];
+    const result = computeTtmEps(quarterly, mkA(2025, 999));
+    expect(result).toEqual({ value: null, source: "basis_mismatch" });
+  });
+
+  it("불일치가 사용한 4분기 밖(5번째)이면 → ttm 그대로", () => {
+    const quarterly = [
+      mkQm(2026, 1, 100, false),
+      mkQm(2025, 4, 200, false),
+      mkQm(2025, 3, 150, false),
+      mkQm(2025, 2, 50, false),
+      mkQm(2025, 1, 999, true),
+    ];
+    const result = computeTtmEps(quarterly, mkA(2025, 999));
+    expect(result).toEqual({ value: 500, source: "ttm" });
+  });
+
+  it("연환산 경로의 분기 1개 불일치 → basis_mismatch", () => {
+    const listedAt = new Date("2025-01-01T00:00:00Z");
+    const now = new Date("2026-01-01T00:00:00Z");
+    const quarterly = [mkQm(2026, 3, 100, false), mkQm(2026, 2, 200, true), mkQm(2026, 1, 300, false)];
+    const result = computeTtmEps(quarterly, mkA(2025, 999), listedAt, now);
+    expect(result).toEqual({ value: null, source: "basis_mismatch" });
+  });
+
+  it("연간 폴백 경로의 연간 기간 불일치 → basis_mismatch", () => {
+    const quarterly = [mkQm(2026, 1, 100, false)];
+    const latestAnnual = makeFP({ year: 2025, eps: 500, shareBasisMismatch: true });
+    const result = computeTtmEps(quarterly, latestAnnual);
+    expect(result).toEqual({ value: null, source: "basis_mismatch" });
+  });
+});
+
+describe("calcPer", () => {
+  it("정상: close / eps", () => {
+    expect(calcPer(50_000, 2_500)).toBe(20);
+  });
+
+  it("eps ≤ 0 → null (적자 PER 미표기)", () => {
+    expect(calcPer(50_000, 0)).toBeNull();
+    expect(calcPer(50_000, -100)).toBeNull();
+  });
+
+  it("close === null → null", () => {
+    expect(calcPer(null, 2_500)).toBeNull();
+  });
+
+  it("eps === null → null", () => {
+    expect(calcPer(50_000, null)).toBeNull();
+  });
+});
+
+describe("calcLatestDividendYield", () => {
+  it("연간 기간 일치 → dps / close", () => {
+    const latestAnnual = makeFP({ year: 2025, dps: 1446 });
+    expect(calcLatestDividendYield(60000, latestAnnual)).toBeCloseTo(0.0241, 6);
+  });
+
+  it("DPS 회계연도의 연간 기간이 기준 불일치 → null", () => {
+    const latestAnnual = makeFP({ year: 2025, dps: 1446, shareBasisMismatch: true });
+    expect(calcLatestDividendYield(60000, latestAnnual)).toBeNull();
+  });
+
+  it("연간 기간 없음 → null (DPS 자체가 없음)", () => {
+    expect(calcLatestDividendYield(60000, null)).toBeNull();
+  });
+});
+
+// buildFinancials fixture — 현재 주식수 1,000 기준: 순이익 = EPS × 1,000 이면 r = 1,
+// × 2,000 이면 r = 0.5(2:1 병합 상당).
+const SHARES = 1_000;
+const NO_DIVIDENDS = new Map<number, DividendMetrics>();
+const mkRow = (
+  o: Partial<FinancialRow> & Pick<FinancialRow, "year" | "quarter" | "report_type">
+): FinancialRow => ({
+  id: 0,
+  ticker: "TEST",
+  corp_code: null,
+  revenue: null,
+  operating_profit: null,
+  net_income: null,
+  total_assets: null,
+  total_equity: null,
+  eps: null,
+  bps: null,
+  created_at: new Date(0),
+  ...o,
+});
+// 연간 행은 DB 에 quarter=4 로 저장된다.
+const aRow = (year: number, eps: number, netIncome = eps * SHARES) =>
+  mkRow({ year, quarter: 4, report_type: "annual", eps, net_income: netIncome });
+const qRow = (year: number, quarter: number, eps: number, netIncome = eps * SHARES) =>
+  mkRow({ year, quarter, report_type: "quarter", eps, net_income: netIncome });
+const prices = new Map([
+  [priceKey(2025, 1), 40_000],
+  [priceKey(2025, 2), 45_000],
+  [priceKey(2025, 3), 48_000],
+  [priceKey(2025, 4), 50_000],
+]);
+const quarterOf = (periods: FinancialPeriod[], quarter: number) =>
+  periods.find((p) => p.quarter === quarter)!;
+
+describe("buildFinancials — 기간 기준 판정", () => {
+  it("연간 기간 일치 → per = 연말 종가 ÷ 연간 EPS", () => {
+    const { annual } = buildFinancials([aRow(2025, 1_000)], prices, NO_DIVIDENDS, SHARES);
+    expect(annual[0].shareBasisMismatch).toBe(false);
+    expect(annual[0].per).toBe(50);
+  });
+
+  it("연간 기간 불일치 → shareBasisMismatch true · per null", () => {
+    const rows = [aRow(2025, 1_000, 2_000_000)];
+    const { annual } = buildFinancials(rows, prices, NO_DIVIDENDS, SHARES);
+    expect(annual[0].shareBasisMismatch).toBe(true);
+    expect(annual[0].per).toBeNull();
+  });
+
+  it("파생 Q4 는 같은 연도 연간 판정을 상속 (연간 불일치 → Q4 불일치)", () => {
+    const rows = [aRow(2025, 1_000, 2_000_000), qRow(2025, 3, 300), qRow(2025, 2, 300), qRow(2025, 1, 300)];
+    const { quarterly } = buildFinancials(rows, prices, NO_DIVIDENDS, SHARES);
+    expect(quarterOf(quarterly, 4).shareBasisMismatch).toBe(true);
+    expect(quarterOf(quarterly, 3).shareBasisMismatch).toBe(false);
+  });
+
+  it("파생 Q4 자체 r 이 밴드 밖이어도 연간이 일치면 false", () => {
+    // Q3 순이익만 키워 파생 Q4 = (1,000,000 − 990,000) ÷ (1,000 − 900) → 전제 주식수 100, r = 10.
+    const rows = [aRow(2025, 1_000), qRow(2025, 3, 300, 390_000), qRow(2025, 2, 300), qRow(2025, 1, 300)];
+    const { quarterly } = buildFinancials(rows, prices, NO_DIVIDENDS, SHARES);
+    const q4 = quarterOf(quarterly, 4);
+    expect(isShareBasisMismatch(q4.netIncome, q4.eps, SHARES)).toBe(true);
+    expect(q4.shareBasisMismatch).toBe(false);
+  });
+
+  it("shares null → 판정 불가, 전 기간 false", () => {
+    const rows = [aRow(2025, 1_000, 2_000_000), qRow(2025, 3, 300, 600_000), qRow(2025, 2, 300), qRow(2025, 1, 300)];
+    const { annual, quarterly } = buildFinancials(rows, prices, NO_DIVIDENDS, null);
+    expect([...annual, ...quarterly].every((p) => !p.shareBasisMismatch)).toBe(true);
   });
 });

@@ -14,6 +14,10 @@ const PER_CASES: PerCase[] = [
   { source: "ttm_negative", label: "최근 4분기 합이 음수 → 표시 안 함" },
   { source: "annualized", label: "상장 1년 미만 → 연환산" },
   { source: "annual_fallback", label: "분기 결측 → 연간 EPS" },
+  {
+    source: "basis_mismatch",
+    label: "EPS 기준 주식수가 현재 상장주식수와 크게 다름(주식 병합·분할 등) → 표시 안 함",
+  },
   { source: "none", label: "데이터 없음 → 표시 안 함" },
 ];
 

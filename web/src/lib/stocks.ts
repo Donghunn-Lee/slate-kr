@@ -15,15 +15,21 @@ type StockRow = {
   updated_at: Date;
 };
 
-export const getStockByTicker = cache(async (ticker: string): Promise<StockSummary | null> => {
-  const [rows] = await pool.query<StockRow[]>(
+type ActiveStockRow = Pick<StockRow, "ticker" | "name" | "market" | "sector" | "shares">;
+
+// getStockByTicker·getShares 가 공유하는 요청 단위 조회 — 한 요청에서 stocks 행을 한 번만 읽는다.
+const getActiveStockRow = cache(async (ticker: string): Promise<ActiveStockRow | null> => {
+  const [rows] = await pool.query<ActiveStockRow[]>(
     "SELECT ticker, name, market, sector, shares FROM stocks WHERE ticker = $1 AND is_active = true",
     [ticker]
   );
+  return rows[0] ?? null;
+});
 
-  if (rows.length === 0) return null;
+export const getStockByTicker = cache(async (ticker: string): Promise<StockSummary | null> => {
+  const row = await getActiveStockRow(ticker);
+  if (!row) return null;
 
-  const row = rows[0];
   const latestPrice = await getLatestPrice(row.ticker);
   const marketCap =
     row.shares != null && Number(row.shares) > 0 && latestPrice != null
@@ -38,6 +44,14 @@ export const getStockByTicker = cache(async (ticker: string): Promise<StockSumma
     marketCap,
   };
 });
+
+// 현재 상장주식수(KRX). 재무 정규화의 EPS 기준 주식수 판정 입력 — 종목 페이지는 layout·metadata 가
+// 이미 getStockByTicker 를 호출하므로 같은 요청 캐시를 타 추가 쿼리가 없다.
+export const getShares = async (ticker: string): Promise<number | null> => {
+  const row = await getActiveStockRow(ticker);
+  if (row?.shares == null || Number(row.shares) <= 0) return null;
+  return Number(row.shares);
+};
 
 export const getListedAt = cache(async (ticker: string): Promise<Date | null> => {
   const [rows] = await pool.query<Pick<StockRow, "listed_at">[]>(

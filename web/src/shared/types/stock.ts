@@ -100,6 +100,9 @@ export type FinancialPeriod = {
   revenueGrowth: number | null;
   operatingProfitGrowth: number | null;
   netIncomeGrowth: number | null;
+  // EPS 가 전제한 주식수(순이익 ÷ EPS)가 현재 상장주식수와 크게 다름 — 병합·분할 등.
+  // true 면 이 기간의 EPS·DPS 를 현재 주가와 조합한 PER·시가배당률을 표시하지 않는다.
+  shareBasisMismatch: boolean;
 };
 
 export type StockFinancials = {
@@ -112,6 +115,7 @@ export type TtmEpsSource =
   | "ttm_negative"
   | "annualized"
   | "annual_fallback"
+  | "basis_mismatch" // 사용한 기간 중 하나라도 shareBasisMismatch — 값 없음
   | "none";
 
 export type PriceStats = {
