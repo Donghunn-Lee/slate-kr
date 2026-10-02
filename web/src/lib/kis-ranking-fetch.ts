@@ -148,13 +148,15 @@ const buildMarketCapParams = (
   FID_DIV_CLS_CODE: "0",
   FID_INPUT_ISCD: MARKET_TO_ISCD[market],
   FID_TRGT_CLS_CODE: "0",
-  FID_TRGT_EXLS_CLS_CODE: "0",
+  FID_TRGT_EXLS_CLS_CODE: TRGT_EXLS_CODE,
   FID_INPUT_PRICE_1: "",
   FID_INPUT_PRICE_2: "",
   FID_VOL_CNT: "",
 });
 
 // FID_INPUT_ISCD_2 는 이 TR 고정 요구값(000000). 시장 필터는 FID_INPUT_ISCD 재사용.
+// 이 TR 은 FID_TRGT_EXLS_CLS_CODE 에 제외 코드를 넣으면 에러로 거부한다(실측) — 대신
+// FID_DIV_CLS_CODE=6(보통주)을 쓴다. 이 값은 우선주만 거르고 ETF 는 남긴다.
 const buildTopInterestParams = (
   market: Market,
   marketDiv: RankingMarketDiv,
@@ -168,11 +170,12 @@ const buildTopInterestParams = (
   FID_INPUT_PRICE_1: "",
   FID_INPUT_PRICE_2: "",
   FID_VOL_CNT: "",
-  FID_DIV_CLS_CODE: "0",
+  FID_DIV_CLS_CODE: "6",
   FID_INPUT_CNT_1: "1",
 });
 
-const resolveRequest = (
+// export 는 테스트용 (다른 lib 에서 import 하지 말 것).
+export const resolveRequest = (
   kind: MarketRankingKind,
   marketDiv: RankingMarketDiv,
 ): { path: string; trId: string; params: Record<string, string> } => {

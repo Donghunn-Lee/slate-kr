@@ -17,8 +17,8 @@ export const RANKING_KIND_IDS = [
 
 // changeSign 은 KIS prdy_vrss_sign 원본 문자열 (1=상한, 2=상승, 3=보합, 4=하한, 5=하락).
 // PriceChange 로 넘길 때 up/down/flat 정규화가 필요하면 소비 계층에서 처리한다.
-// market 은 route 계층이 stocks 조회로 채우는 optional 필드. DB 매핑 실패해도
-// row 는 살아남아야 하므로 undefined 를 허용한다. 요청 필터용 Market("all"/"kospi"/"kosdaq") 과
+// market 은 route 계층이 stocks 조회로 채우는 optional 필드. 부재는 stocks 미등록 종목이거나
+// 매핑 조회 실패 — 둘은 route 응답의 marketResolved 로 구분한다. 요청 필터용 Market("all"/"kospi"/"kosdaq") 과
 // 값 도메인이 다르므로 (StockSummary["market"] 는 "KOSPI"/"KOSDAQ") 혼동 방지.
 // marketCap 은 원 단위(tradeValue 관례와 동일) — KIS stck_avls(억원)에 ×1e8 환산.
 export type MarketRankingItem = {

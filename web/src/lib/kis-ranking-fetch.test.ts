@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { normalizeRow, rankingMarketDiv } from "./kis-ranking-fetch";
+import { normalizeRow, rankingMarketDiv, resolveRequest } from "./kis-ranking-fetch";
 import type { MarketRankingKind } from "@/shared/types/ranking";
 import type { KrxSession } from "@/shared/utils/market";
 
@@ -244,5 +244,25 @@ describe("rankingMarketDiv", () => {
   it("regular·after·after_close·closed → J", () => {
     const sessions: KrxSession[] = ["regular", "after", "after_close", "closed"];
     for (const s of sessions) expect(rankingMarketDiv(s)).toBe("J");
+  });
+});
+
+describe("resolveRequest — 대상 제외 파라미터", () => {
+  const exlsOf = (kind: MarketRankingKind): string | undefined =>
+    resolveRequest(kind, "J").params.FID_TRGT_EXLS_CLS_CODE;
+
+  it("시총 탭은 등락·거래량 탭과 같은 제외 코드", () => {
+    expect(exlsOf(FLUCTUATION_KIND)).toBe("0000101101");
+    expect(exlsOf(VOLUME_KIND)).toBe("0000101101");
+    expect(exlsOf(MCAP_KIND)).toBe("0000101101");
+  });
+
+  it("관심 탭은 종목 구분 6(보통주)", () => {
+    expect(resolveRequest(INTEREST_KIND, "J").params.FID_DIV_CLS_CODE).toBe("6");
+  });
+
+  // 관심 TR 은 제외 코드를 넣으면 에러로 거부한다 — 다른 탭과 상수를 공유해도 여기엔 번지면 안 된다.
+  it("관심 탭에는 제외 코드가 들어가지 않는다", () => {
+    expect(exlsOf(INTEREST_KIND)).toBe("0");
   });
 });

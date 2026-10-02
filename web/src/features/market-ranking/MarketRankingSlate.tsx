@@ -13,6 +13,7 @@ import { priceToneClass } from "@/shared/utils/priceTone";
 import { cn } from "@/lib/utils";
 import { Pill } from "./Pill";
 import { useRankingCaption } from "./rankingCaption";
+import { isRankingRowLinkable } from "./rankingLink";
 import { RankingTabStrip } from "./RankingTabStrip";
 import {
   MARKET_LABEL,
@@ -70,12 +71,18 @@ const resolveSecondary = (
 type RowProps = {
   item: MarketRankingItem;
   secondary: string | null;
+  linkable: boolean;
 };
 
 // 좌측 순위 전용 컬럼 + 우측 콘텐츠. rank 는 숫자만, mono/muted, 세로 중앙 정렬.
 // 상단 mini row: 좌=시장구분(KOSPI/KOSDAQ), 우=secondary(현재 탭 값 열). 양쪽 다 없으면 mini row 자체를 생략.
-const Row = ({ item, secondary }: RowProps) => (
-  <li className="group relative -mx-6 bg-transparent px-6 transition-colors hover:bg-muted/40">
+const Row = ({ item, secondary, linkable }: RowProps) => (
+  <li
+    className={cn(
+      "group relative -mx-6 bg-transparent px-6 transition-colors",
+      linkable && "hover:bg-muted/40",
+    )}
+  >
     <div className="flex items-stretch gap-3 border-b border-subtle py-1.5 group-last:border-b-0">
       <span className="flex w-7 shrink-0 items-center justify-center font-mono text-body tabular-nums text-muted-foreground">
         {item.rank}
@@ -113,11 +120,13 @@ const Row = ({ item, secondary }: RowProps) => (
         </div>
       </div>
     </div>
-    <Link
-      href={`/stocks/${item.ticker}`}
-      aria-label={`${item.name} 상세 보기`}
-      className="absolute inset-0"
-    />
+    {linkable && (
+      <Link
+        href={`/stocks/${item.ticker}`}
+        aria-label={`${item.name} 상세 보기`}
+        className="absolute inset-0"
+      />
+    )}
   </li>
 );
 
@@ -157,8 +166,15 @@ export const MarketRankingSlate = () => {
     [tabId, market],
   );
 
-  const { items, failed, session, isLoading, isError, isPlaceholderData } =
-    useMarketRanking(kind);
+  const {
+    items,
+    failed,
+    marketResolved,
+    session,
+    isLoading,
+    isError,
+    isPlaceholderData,
+  } = useMarketRanking(kind);
   const caption = useRankingCaption(session);
 
   const rows = items.slice(0, TOP_N);
@@ -225,6 +241,7 @@ export const MarketRankingSlate = () => {
                 key={item.ticker}
                 item={item}
                 secondary={resolveSecondary(item, kind)}
+                linkable={isRankingRowLinkable(item, marketResolved)}
               />
             ))}
           </ul>

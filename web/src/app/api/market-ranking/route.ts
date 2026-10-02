@@ -56,32 +56,41 @@ const parseKind = (params: URLSearchParams): MarketRankingKind | null => {
   return null;
 };
 
+// marketResolved: stocks 매핑 조회 성공 여부. true 일 때만 market 부재가 "미등록 종목"을 뜻한다.
+type RankingPayload = {
+  items: MarketRankingItem[];
+  marketResolved: boolean;
+};
+
 // DB 조회로 종목별 시장 구분을 매핑. KIS 순위 응답에는 per-row market 이 없다.
-// 실패는 items 그대로 반환 — 순위 응답 실패 계약(failed flag)에는 영향 없음.
+// 실패는 items 그대로 + marketResolved=false — 순위 응답 실패 계약(failed flag)에는 영향 없음.
 // unstable_cache 내부에서 호출되므로 캐시 hit 시 DB 재조회하지 않는다.
 const enrichWithMarket = async (
   items: MarketRankingItem[],
-): Promise<MarketRankingItem[]> => {
-  if (items.length === 0) return items;
+): Promise<RankingPayload> => {
+  if (items.length === 0) return { items, marketResolved: true };
   try {
     const marketByTicker = await getMarketsByTickers(items.map((i) => i.ticker));
-    return items.map((i) => {
-      const market = marketByTicker.get(i.ticker);
-      return market ? { ...i, market } : i;
-    });
+    return {
+      items: items.map((i) => {
+        const market = marketByTicker.get(i.ticker);
+        return market ? { ...i, market } : i;
+      }),
+      marketResolved: true,
+    };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[market-ranking] market enrich failed: ${message}`);
-    return items;
+    return { items, marketResolved: false };
   }
 };
 
-// fetchRanking 은 discriminated union 반환 — 캐시에는 items | null 로 축소해 저장.
+// fetchRanking 은 discriminated union 반환 — 캐시에는 payload | null 로 축소해 저장.
 // 실패 kind 세부(token/http/business/…) 는 lib 에서 이미 console.error, route/클라이언트는 failed 만 소비.
 const runFetch = async (
   kind: MarketRankingKind,
   session: KrxSession,
-): Promise<MarketRankingItem[] | null> => {
+): Promise<RankingPayload | null> => {
   const r = await fetchRanking(kind, session);
   if (!r.ok) return null;
   return enrichWithMarket(r.items);
@@ -95,7 +104,7 @@ const cacheTag = (key: string, session: KrxSession): string =>
 // F41(stock-intraday) 패턴 확장: session + tradingDate 를 key 축으로 넣어 세션·일 경계에서 자동 miss.
 // 이전 open/closed 이분 tag 는 tradingDate 부재로 서버 인스턴스가 다음날까지 살 경우
 // 어제 랭크가 preopen 에 재사용될 여지가 있었다.
-type RankingFetcher = () => Promise<MarketRankingItem[] | null>;
+type RankingFetcher = () => Promise<RankingPayload | null>;
 const fetchers = new Map<string, RankingFetcher>();
 
 const cacheKeyOf = (
@@ -103,6 +112,10 @@ const cacheKeyOf = (
   session: KrxSession,
   tradingDate: string,
 ): string => `${key}::${session}::${tradingDate}`;
+
+// Data Cache 는 배포를 넘어 남는다 — 캐시 값(RankingPayload) 형태가 바뀌면 이 버전을 올려
+// 이전 형태로 저장된 엔트리를 새 코드가 읽지 않게 한다.
+const CACHE_SHAPE_VERSION = "v2";
 
 const getCachedFetcher = (
   kind: MarketRankingKind,
@@ -116,7 +129,7 @@ const getCachedFetcher = (
   const tag = cacheTag(key, session);
   const fresh = unstable_cache(
     () => runFetch(kind, session),
-    ["market-ranking", key, session, tradingDate],
+    ["market-ranking", CACHE_SHAPE_VERSION, key, session, tradingDate],
     { revalidate: krxRankingRevalidate(session), tags: [tag] },
   );
   fetchers.set(mapKey, fresh);
@@ -126,6 +139,7 @@ const getCachedFetcher = (
 type RankingResponse = {
   items: MarketRankingItem[];
   failed: boolean;
+  marketResolved: boolean;
   session: KrxSession;
   marketOpen: boolean;
 };
@@ -151,21 +165,27 @@ export const GET = async (req: NextRequest) => {
 
   try {
     const { fetcher, key } = getCachedFetcher(kind, session, tradingDate);
-    const items = await fetcher();
-    if (items === null) {
+    const payload = await fetcher();
+    if (payload === null) {
       // 실패 캐시 오염 방지 (#075) — 세션별 tag 정밀 evict.
       revalidateTag(cacheTag(key, session), { expire: 0 });
       const body: RankingResponse = {
         items: [],
         failed: true,
+        marketResolved: false,
         session,
         marketOpen,
       };
       return NextResponse.json(body);
     }
+    // 매핑 실패본은 이번 응답에만 쓰고 축출 — 세션 TTL 동안 market 없는 행이 고정되지 않게 한다.
+    if (!payload.marketResolved) {
+      revalidateTag(cacheTag(key, session), { expire: 0 });
+    }
     const body: RankingResponse = {
-      items,
+      items: payload.items,
       failed: false,
+      marketResolved: payload.marketResolved,
       session,
       marketOpen,
     };
@@ -176,6 +196,7 @@ export const GET = async (req: NextRequest) => {
     const body: RankingResponse = {
       items: [],
       failed: true,
+      marketResolved: false,
       session,
       marketOpen,
     };

@@ -132,21 +132,34 @@ type RankingRowProps = {
   item: MarketRankingItem;
   disclosure?: TickerDisclosureCount;
   kind: MarketRankingKind;
+  linkable: boolean;
 };
 
-export const RankingRow = ({ item, disclosure, kind }: RankingRowProps) => {
+export const RankingRow = ({
+  item,
+  disclosure,
+  kind,
+  linkable,
+}: RankingRowProps) => {
   const sign = toPriceSign(item.changeSign);
   const metricCell = resolveMetricCell(item, kind);
   const count = disclosure?.count ?? null;
   const disclosureText = count !== null && count > 0 ? `${count}건` : "";
 
   return (
-    <li className="relative -mx-4 border-b border-subtle transition-colors last:border-b-0 hover:bg-muted/40 md:-mx-6">
-      <Link
-        href={`/stocks/${item.ticker}`}
-        aria-label={`${item.name} 상세 보기`}
-        className="absolute inset-0"
-      />
+    <li
+      className={cn(
+        "relative -mx-4 border-b border-subtle transition-colors last:border-b-0 md:-mx-6",
+        linkable && "hover:bg-muted/40",
+      )}
+    >
+      {linkable && (
+        <Link
+          href={`/stocks/${item.ticker}`}
+          aria-label={`${item.name} 상세 보기`}
+          className="absolute inset-0"
+        />
+      )}
       <div className={cn(GRID_CLASS, "px-4 py-1.5 sm:py-2 md:px-6")}>
         <span className="justify-self-center font-mono text-body-sm tabular-nums text-muted-foreground sm:text-body">
           {item.rank}

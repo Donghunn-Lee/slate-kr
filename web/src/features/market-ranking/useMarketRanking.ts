@@ -9,6 +9,7 @@ import { isKrxActiveSession, type KrxSession } from "@/shared/utils/market";
 type MarketRankingResponse = {
   items: MarketRankingItem[];
   failed: boolean;
+  marketResolved: boolean;
   session: KrxSession;
   marketOpen: boolean;
 };
@@ -53,6 +54,8 @@ const toSearchParams = (k: MarketRankingKind): string => {
 type UseMarketRankingResult = {
   items: MarketRankingItem[];
   failed: boolean;
+  // items 와 같은 응답에서 온 값 — 행 링크 판정(isRankingRowLinkable) 입력.
+  marketResolved: boolean;
   session: KrxSession | undefined;
   isLoading: boolean;
   isError: boolean;
@@ -90,6 +93,7 @@ export const useMarketRanking = (
   return {
     items: query.data?.items ?? [],
     failed: query.data?.failed ?? false,
+    marketResolved: query.data?.marketResolved ?? false,
     session: query.data?.session,
     isLoading: query.isLoading,
     isError: query.isError,

@@ -11,6 +11,7 @@ import { StatusBadge } from "@/shared/components/StatusBadge";
 import type { Market } from "@/shared/types/ranking";
 import { Pill } from "./Pill";
 import { useRankingCaption } from "./rankingCaption";
+import { isRankingRowLinkable } from "./rankingLink";
 import { RankingHeader, RankingRow, RankingRowSkeleton } from "./RankingRow";
 import { RankingTabStrip } from "./RankingTabStrip";
 import {
@@ -53,6 +54,7 @@ export const RankingView = ({
   const {
     items,
     failed,
+    marketResolved,
     session,
     isLoading,
     isError,
@@ -171,6 +173,7 @@ export const RankingView = ({
                 item={item}
                 disclosure={disclosureMap[item.ticker]}
                 kind={kind}
+                linkable={isRankingRowLinkable(item, marketResolved)}
               />
             ))}
           </ul>
