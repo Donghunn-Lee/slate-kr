@@ -51,7 +51,7 @@ export default function CreditsPage() {
             등락률은 전일 정규장(15:30) 종가를 기준가로 계산하며, 증권사·네이버 표기와 같은 기준입니다.
           </p>
           <p className="mt-1 text-caption text-muted-foreground">
-            PER·EPS·시가배당률은 DART 공시 EPS·DPS 기준이며, 주식 병합·분할 등으로 기준 주식수가 현재 상장주식수와 크게 다르면 표시하지 않습니다.
+            PER·EPS·시가배당률은 DART 공시 값과 일봉 종가로 계산합니다. 주식 병합·분할·무상증자 등으로 주식수가 바뀐 종목은 공시 EPS의 기준 주식수가 현재와 달라 값이 어긋날 수 있습니다. 차이가 크게 감지되면 표시하지 않지만, 변동 폭이 작거나 최근에 발생한 경우에는 감지되지 않아 다른 서비스와 다른 값이 표시될 수 있습니다. 12월 결산이 아닌 종목은 분기 기준 값이 정확하지 않을 수 있습니다.
           </p>
           <p className="mt-1 text-caption text-muted-foreground">
             지수 시세·분봉은 장중 약 1~2분 간격으로 갱신됩니다.
