@@ -2,6 +2,7 @@ import { cache } from "react";
 import { pool } from "./db";
 import { attachDividends, getDividendsByYear, type DividendMetrics } from "./dividends";
 import { getShares } from "./stocks";
+import { getBonusIssueExDate } from "@/shared/constants/bonusIssueExDates";
 import type { FinancialPeriod, StockFinancials, TtmEpsSource } from "@/shared/types/stock";
 
 // export 는 테스트 fixture 용 (UI 에서 import 하지 말 것).
@@ -77,6 +78,25 @@ export const isShareBasisMismatch = (
   const r = currentShares / (netIncome / eps);
   return r < SHARE_BASIS_RATIO_MIN || r > SHARE_BASIS_RATIO_MAX;
 };
+
+// 12월 결산 전제 — 무상증자 등록 종목은 모두 12월 결산이다.
+const PERIOD_END_MMDD: Readonly<Record<number, string>> = {
+  1: "03-31",
+  2: "06-30",
+  3: "09-30",
+  4: "12-31",
+};
+
+// 권리락일 전에 끝난 기간의 공시 EPS 는 무상증자 전 주식수 기준이다.
+const isBeforeBonusExDate = (row: FinancialRow): boolean => {
+  const exDate = getBonusIssueExDate(row.ticker);
+  const quarter = row.report_type === "annual" ? 4 : row.quarter;
+  if (exDate === null || quarter === null) return false;
+  return `${row.year}-${PERIOD_END_MMDD[quarter]}` < exDate;
+};
+
+const isRowBasisMismatch = (row: FinancialRow, shares: number | null): boolean =>
+  isShareBasisMismatch(row.net_income, row.eps, shares) || isBeforeBonusExDate(row);
 
 const calcPbr = (close: number | undefined, bps: number | null): number | null => {
   if (close === undefined || bps === null || bps <= 0) return null;
@@ -167,14 +187,14 @@ const calculateDerivedMetrics = (
   return { operatingMargin, netMargin, debtRatio, roe, roa };
 };
 
-// shares = 현재 상장주식수. null 이면 기준 판정 불가 → shareBasisMismatch false.
+// shares = 현재 상장주식수. null 이면 r 판정 불가 — 무상증자 등록 행 판정만 남는다.
 const rowToFinancialPeriod = (
   row: FinancialRow,
   close?: number,
   prevRow?: FinancialRow | null,
   shares: number | null = null
 ): FinancialPeriod => {
-  const shareBasisMismatch = isShareBasisMismatch(row.net_income, row.eps, shares);
+  const shareBasisMismatch = isRowBasisMismatch(row, shares);
   const raw = {
     revenue: row.revenue,
     operatingProfit: row.operating_profit,
@@ -291,7 +311,7 @@ const buildQuarterlyPeriods = (
     // 파생 Q4 는 차감 노이즈가 커 자체 r 을 쓰지 않고 재료 행의 판정을 따른다. 연간이 일치여도
     // 빼는 Q1~Q3 중 하나가 다른 주식수 기준이면 차감 결과는 기준이 섞인 값이다.
     const q4Mismatch = [annualRow, q1, q2, q3].some(
-      (row) => row !== undefined && isShareBasisMismatch(row.net_income, row.eps, shares)
+      (row) => row !== undefined && isRowBasisMismatch(row, shares)
     );
 
     result.push({
@@ -338,7 +358,7 @@ const attachQuarterlyTtmPer = (
   });
 
 // getFinancials 의 순수 코어. rows 는 조회 SQL 과 같은 year DESC·quarter DESC 정렬 전제.
-// shares = 현재 상장주식수 (null 이면 기준 판정 불가 → 전 기간 shareBasisMismatch false).
+// shares = 현재 상장주식수 (null 이면 r 판정 불가 — 무상증자 등록 행 판정만 남는다).
 // export 는 테스트용 (다른 lib 에서 import 하지 말 것).
 export const buildFinancials = (
   rows: readonly FinancialRow[],

@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   attachGrowthRates,
   buildFinancials,
@@ -13,6 +13,11 @@ import {
 import type { FinancialRow } from "./financials";
 import type { DividendMetrics } from "./dividends";
 import type { FinancialPeriod } from "@/shared/types/stock";
+
+// 등록 목록은 권리락 전 기간이 계산에서 빠지면 정리되므로 테스트 전용 티커로 고정한다.
+vi.mock("@/shared/constants/bonusIssueExDates", () => ({
+  getBonusIssueExDate: (ticker: string) => (ticker === "BONUS" ? "2025-06-30" : null),
+}));
 
 // computeTtmEps가 실제 참조하는 필드는 year/quarter/eps/shareBasisMismatch뿐.
 // 나머지는 FinancialPeriod 타입 만족용 padding.
@@ -545,5 +550,45 @@ describe("buildFinancials — 분기 PER (최근 4분기 기준)", () => {
     const { quarterly } = buildFinancials(rows, prices, NO_DIVIDENDS, SHARES);
     expect(quarterOf(quarterly, 2).shareBasisMismatch).toBe(true);
     expect(quarterOf(quarterly, 4).per).toBeNull();
+  });
+});
+
+describe("buildFinancials — 무상증자 권리락일", () => {
+  // 권리락일 2025-06-30 = Q2 기간말 — 같은 날은 권리락 후로 보는 경계.
+  const bonus = (row: FinancialRow): FinancialRow => ({ ...row, ticker: "BONUS" });
+
+  it("기간말이 권리락일 전인 행 → 불일치, 같은 날·이후 → 일치", () => {
+    const rows = [aRow(2025, 1_000), qRow(2025, 3, 300), qRow(2025, 2, 300), qRow(2025, 1, 300), aRow(2024, 1_000)];
+    const { annual, quarterly } = buildFinancials(rows.map(bonus), prices, NO_DIVIDENDS, SHARES);
+    expect(quarterOf(quarterly, 1).shareBasisMismatch).toBe(true);
+    expect(quarterOf(quarterly, 2).shareBasisMismatch).toBe(false);
+    expect(quarterOf(quarterly, 3).shareBasisMismatch).toBe(false);
+    expect(annual.map((a) => a.shareBasisMismatch)).toEqual([false, true]);
+  });
+
+  it("미등록 종목 → 영향 없음", () => {
+    const rows = [aRow(2025, 1_000), qRow(2025, 3, 300), qRow(2025, 2, 300), qRow(2025, 1, 300), aRow(2024, 1_000)];
+    const { annual, quarterly } = buildFinancials(rows, prices, NO_DIVIDENDS, SHARES);
+    expect([...annual, ...quarterly].every((p) => !p.shareBasisMismatch)).toBe(true);
+  });
+
+  it("TTM 재료에 권리락 전 행이 없으면 값 표시", () => {
+    const rows = [aRow(2026, 1_000), qRow(2026, 3, 300), qRow(2026, 2, 300), qRow(2026, 1, 300), qRow(2025, 1, 300)];
+    const { annual, quarterly } = buildFinancials(rows.map(bonus), prices, NO_DIVIDENDS, SHARES);
+    expect(computeTtmEps(quarterly, annual[0])).toEqual({ value: 1_000, source: "ttm" });
+  });
+
+  it("파생 Q4 재료에 권리락 전 행이 있으면 TTM 숨김", () => {
+    const rows = [
+      qRow(2026, 2, 300),
+      qRow(2026, 1, 300),
+      aRow(2025, 1_000),
+      qRow(2025, 3, 300),
+      qRow(2025, 2, 300),
+      qRow(2025, 1, 300),
+    ];
+    const { annual, quarterly } = buildFinancials(rows.map(bonus), prices, NO_DIVIDENDS, SHARES);
+    expect(quarterOf(quarterly, 4).shareBasisMismatch).toBe(true);
+    expect(computeTtmEps(quarterly, annual[0]).source).toBe("basis_mismatch");
   });
 });
