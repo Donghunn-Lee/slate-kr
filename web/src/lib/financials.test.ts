@@ -489,6 +489,19 @@ describe("buildFinancials — 기간 기준 판정", () => {
     expect(quarterOf(quarterly, 3).shareBasisMismatch).toBe(false);
   });
 
+  it("연간 일치 + 재료 Q2 불일치 → 파생 Q4 불일치", () => {
+    const rows = [aRow(2025, 1_000), qRow(2025, 3, 300), qRow(2025, 2, 300, 600_000), qRow(2025, 1, 300)];
+    const { quarterly } = buildFinancials(rows, prices, NO_DIVIDENDS, SHARES);
+    expect(quarterOf(quarterly, 4).shareBasisMismatch).toBe(true);
+    expect(quarterOf(quarterly, 3).shareBasisMismatch).toBe(false);
+  });
+
+  it("연간 일치 + 재료 Q1~Q3 일치 → 파생 Q4 일치", () => {
+    const rows = [aRow(2025, 1_000), qRow(2025, 3, 300), qRow(2025, 2, 300), qRow(2025, 1, 300)];
+    const { quarterly } = buildFinancials(rows, prices, NO_DIVIDENDS, SHARES);
+    expect(quarterOf(quarterly, 4).shareBasisMismatch).toBe(false);
+  });
+
   it("파생 Q4 자체 r 이 밴드 밖이어도 연간이 일치면 false", () => {
     // Q3 순이익만 키워 파생 Q4 = (1,000,000 − 990,000) ÷ (1,000 − 900) → 전제 주식수 100, r = 10.
     const rows = [aRow(2025, 1_000), qRow(2025, 3, 300, 390_000), qRow(2025, 2, 300), qRow(2025, 1, 300)];

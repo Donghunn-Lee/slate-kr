@@ -288,8 +288,11 @@ const buildQuarterlyPeriods = (
     // Q4 종가 = 해당 연도 마지막 거래일 종가 (= 연간 마지막 분기)
     const q4Close = priceMap.get(priceKey(annualRow.year, 4));
 
-    // 파생 Q4 는 차감 노이즈가 커 자체 r 을 쓰지 않고 같은 연도 연간 행의 판정을 따른다.
-    const q4Mismatch = isShareBasisMismatch(annualRow.net_income, annualRow.eps, shares);
+    // 파생 Q4 는 차감 노이즈가 커 자체 r 을 쓰지 않고 재료 행의 판정을 따른다. 연간이 일치여도
+    // 빼는 Q1~Q3 중 하나가 다른 주식수 기준이면 차감 결과는 기준이 섞인 값이다.
+    const q4Mismatch = [annualRow, q1, q2, q3].some(
+      (row) => row !== undefined && isShareBasisMismatch(row.net_income, row.eps, shares)
+    );
 
     result.push({
       ticker: annualRow.ticker,
