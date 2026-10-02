@@ -44,7 +44,7 @@ export const generateMetadata = async ({
   const params = await searchParams;
   const tab = resolveRankingTab(params.tab);
   const market = parseMarket(params.market);
-  return { title: `${buildTitle(tab, market)} — SlateKR` };
+  return { title: buildTitle(tab, market) };
 };
 
 export default async function RankingPage({ searchParams }: RankingPageProps) {

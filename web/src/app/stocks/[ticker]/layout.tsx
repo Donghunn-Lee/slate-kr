@@ -25,12 +25,17 @@ export async function generateMetadata({
   try {
     stock = await getStockByTicker(ticker);
   } catch {
-    return { title: "종목을 찾을 수 없습니다" };
+    return {};
   }
-  if (!stock) return { title: "종목을 찾을 수 없습니다" };
+  if (!stock) return {};
+  // title 은 두지 않는다 — layout 의 title 은 하위 세그먼트(chart·financials·disclosures)에서
+  // 루트 title.template 을 대체해 접미사가 빠진다. 탭별 title 은 각 page 몫.
+  // openGraph·twitter 는 세그먼트 단위로 통째 교체되므로 루트의 type·card 를 다시 적는다.
+  const shareTitle = `${stock.name}(${ticker}) | SlateKR`;
   return {
-    title: `${stock.name} (${ticker})`,
     description: `${stock.name}(${ticker}) 주가, 재무정보, 공시를 확인하세요`,
+    openGraph: { title: shareTitle, type: "website" },
+    twitter: { card: "summary", title: shareTitle },
   };
 }
 

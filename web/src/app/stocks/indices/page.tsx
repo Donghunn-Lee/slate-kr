@@ -28,7 +28,7 @@ export const generateMetadata = async ({ searchParams }: PageProps): Promise<Met
   const selected = resolveIndex(index);
   const label = INDEX_LABEL[selected];
   return {
-    title: `${label} 지수 · SlateKR`,
+    title: `${label} 지수`,
     description: `${label} 지수의 당일/일봉/월봉 차트를 확인하세요.`,
   };
 };

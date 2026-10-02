@@ -9,7 +9,7 @@ import { InteractionDemo } from "./sections/InteractionDemo";
 import { StatusIndicators } from "./sections/StatusIndicators";
 
 export const metadata: Metadata = {
-  title: "Styleguide — SlateKR",
+  title: "Styleguide",
   robots: { index: false },
 };
 

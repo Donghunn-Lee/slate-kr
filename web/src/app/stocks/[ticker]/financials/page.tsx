@@ -13,9 +13,9 @@ type PageProps = {
 export const generateMetadata = async ({ params }: PageProps): Promise<Metadata> => {
   const { ticker } = await params;
   const stock = await getStockByTicker(ticker);
-  if (!stock) return { title: "종목을 찾을 수 없습니다 | SlateKR" };
+  if (!stock) return { title: "종목을 찾을 수 없습니다" };
   return {
-    title: `${stock.name}(${ticker}) 재무 정보 | SlateKR`,
+    title: `${stock.name}(${ticker}) 재무 정보`,
     description: `${stock.name}의 5년 연간 및 분기 재무제표 주요 지표를 제공합니다.`,
   };
 };

@@ -56,10 +56,10 @@ export const generateMetadata = async ({ searchParams }: SearchPageProps): Promi
   const query = q?.trim() ?? "";
   const page = parsePage(pageRaw);
   if (!query) {
-    return { title: "검색 — SlateKR" };
+    return { title: "검색" };
   }
   const suffix = page > 1 ? ` (${page}페이지)` : "";
-  return { title: `"${query}" 검색 결과${suffix} — SlateKR` };
+  return { title: `"${query}" 검색 결과${suffix}` };
 };
 
 export default async function SearchPage({ searchParams }: SearchPageProps) {
