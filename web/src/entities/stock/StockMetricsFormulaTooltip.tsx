@@ -41,7 +41,7 @@ export const StockMetricsFormulaTooltip = ({
       </button>
     </TooltipTrigger>
     <TooltipContent side="left" className="max-w-xs px-3 py-2 text-left">
-      <div className="space-y-2">
+      <div className="space-y-2 break-keep">
         <section>
           <p className="mb-1 font-semibold">PER = 현재가 ÷ EPS</p>
           <ul className="space-y-0.5 pl-2">
