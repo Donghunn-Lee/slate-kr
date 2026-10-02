@@ -96,8 +96,11 @@ const SearchResultRow = ({
 
   return (
     <li className="border-b border-subtle last:border-b-0">
+      {/* 종목 layout 은 렌더마다 KIS 현재가를 호출한다 — prefetch 를 두면 보이는 행 수만큼
+          KIS 호출이 한꺼번에 나간다. */}
       <Link
         href={`/stocks/${stock.ticker}`}
+        prefetch={false}
         aria-label={`${stock.name} 상세 보기`}
         className={cn(GRID_CLASS, "px-2 py-2.5 transition-colors hover:bg-muted/40")}
       >

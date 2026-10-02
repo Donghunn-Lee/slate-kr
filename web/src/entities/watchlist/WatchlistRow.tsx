@@ -54,8 +54,11 @@ export const WatchlistRow = ({
 
   return (
     <li className="group relative -mx-6 bg-transparent px-6 transition-colors hover:bg-muted/40">
+      {/* 종목 layout 은 렌더마다 KIS 현재가를 호출한다 — prefetch 를 두면 보이는 행 수만큼
+          KIS 호출이 한꺼번에 나간다. */}
       <Link
         href={`/stocks/${item.ticker}`}
+        prefetch={false}
         aria-label={`${item.name} 상세 보기`}
         className="absolute inset-0"
       />
@@ -79,8 +82,10 @@ export const WatchlistRow = ({
               {disclosure?.count != null && disclosure.count > 0 && (
                 <div className="flex items-center gap-1.5 text-micro leading-none md:text-caption">
                   <span className="text-muted-foreground">최근 공시</span>
+                  {/* 공시 탭도 같은 종목 layout 을 렌더하므로 행 링크와 함께 prefetch 를 끈다. */}
                   <Link
                     href={`/stocks/${item.ticker}/disclosures`}
+                    prefetch={false}
                     aria-label={`${item.name} 최근 공시 ${disclosure.count}건 보기`}
                     className="relative z-10 -my-1.5 inline-flex items-center rounded-sm py-1.5 font-medium tabular-nums text-amber-text hover:underline focus-visible:underline focus-visible:outline-none"
                   >

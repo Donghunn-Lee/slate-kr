@@ -256,8 +256,11 @@ export const WatchlistPreview = () => {
                             </div>
                           </div>
                         </div>
+                        {/* 종목 layout 은 렌더마다 KIS 현재가를 호출한다 — prefetch 를 두면 보이는
+                            행 수만큼 KIS 호출이 한꺼번에 나간다. */}
                         <Link
                           href={`/stocks/${item.ticker}`}
+                          prefetch={false}
                           aria-label={`${item.name} 상세 보기`}
                           className="absolute inset-0"
                         />
