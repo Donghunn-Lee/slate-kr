@@ -63,7 +63,7 @@ UI는 "slate(판)" 메타포입니다. 정보 단위마다 독립 패널, 공시
 
 ```
 DB / 외부 API
-  → lib/            조회 + 정규화 (Zod 런타임 검증, 순수 함수)
+  → lib/            조회 + 정규화 (순수 함수 · Zod 검증: 외부 API 응답 · JSONB 스냅샷 · 요청 바디)
     → shared/types/ 도메인 모델
       → UI          도메인 모델만 소비
 ```
@@ -86,7 +86,7 @@ web/sql/         DDL · 데이터 보정 · 캐시 리셋 SQL (Neon 콘솔 수�
 
 | 데이터 | 위치 | 이유 |
 |---|---|---|
-| 종목 기본 정보 · 재무 · 공시 · 차트 | Server Component + segment `revalidate` | 읽기 전용, SEO, 주기 갱신으로 충분 |
+| 종목 기본 정보 · 재무 · 공시 · 차트 | Server Component(요청 시 서버 렌더) | 읽기 전용, SEO. DB는 요청마다 조회, DART만 fetch revalidate |
 | 지수 시세 · 분봉 | Client + TanStack Query | 장 세션별 폴링 주기, 탭 복귀 처리 |
 | 관심종목 · 메모 · 최근 조회 | Zustand persist + 익명 서버 스냅샷 | 사용자 소유 데이터, 로그인 없음 |
 
@@ -100,13 +100,13 @@ web/sql/         DDL · 데이터 보정 · 캐시 리셋 SQL (Neon 콘솔 수�
 
 KIS API는 초당 호출 한도가 있고, 홈 한 화면이 지수 12셀을 장중에 갱신합니다. route 캐시가 요청을 병합해 KIS 호출 수를 사용자 수와 분리하는 것이 목표였습니다.
 
-- **페이지 층** — route segment `revalidate`. 기본 정보 24h / 재무 12h / 공시·차트 1h
+- **페이지 층** — 페이지 단위 캐시(ISR)는 홈 1h뿐. 종목 상세·지수·순위·검색은 요청 시 서버 렌더이고 캐시는 데이터 단위 — 지수·순위 KIS는 route `unstable_cache`, DART 공시 목록·기업개황은 fetch `revalidate`, AI 요약은 DB, DB 조회는 요청 단위 중복 제거(`React.cache`)만
 - **route 층** — `unstable_cache` + 장 세션별 TTL. 국내 장중 60초 · 장외 1시간, 해외는 세션별 별도
-- **`lib/` 층** — `React.cache`로 요청 단위 중복 제거만. 시간 기반 캐시는 상위 층 소관
+- **`lib/` 층** — `React.cache`로 요청 단위 중복 제거가 기본. 시간 기반 캐시는 예외 3곳(DART fetch `revalidate` · KIS 토큰 모듈 캐시 · 장 캘린더 모듈 memo)이고, Route Handler에서는 `React.cache`가 동작하지 않음
 
-**의도치 않은 negative caching.** KIS 일시 장애 시 빈 차트가 캐시에 남아 복구 후에도 TTL 동안 서빙됐습니다. `unstable_cache`는 `null`도 직렬화해 저장하므로(`JSON.stringify(null) === "null"`) 저장 시점에 막을 수 없었고, **실패 감지 즉시 `revalidateTag`로 무효화**하는 방식으로 전환했습니다. 전제로 빈 값(`[]`)과 실패(`null`)를 데이터 층에서 분리했습니다.
+**의도치 않은 negative caching.** KIS 일시 장애 시 빈 차트가 캐시에 남아 복구 후에도 TTL 동안 서빙됐습니다. `unstable_cache`는 `null`도 직렬화해 저장하므로(`JSON.stringify(null) === "null"`) 저장 시점에 막을 수 없었고, **실패 감지 즉시 `revalidateTag`로 무효화**하는 방식으로 전환했습니다(국내·해외 지수 quote·분봉 4개 route와 순위 route). 전제로 빈 값(`[]`)과 실패(`null`)를 데이터 층에서 분리했습니다.
 
-**분봉 호출 축소.** 1분봉 API를 30분 단위로 fan-out하면 종목당 최대 26회. 실측에서 15회 중 4회가 HTTP 500으로 떨어졌고, 결손 구간이 정상 봉으로 렌더되는 **silent failure**였습니다. 120분 단위 API로 전환해 최대 7회로 줄이고, 응답을 분 단위 슬롯으로 채워(densify) 시간축을 유지했습니다.
+**분봉 호출 축소.** 1분봉 API를 30분 단위로 fan-out하면 종목당 최대 26회(30분 anchor 25 + 전일 tail 1). 실측에서 15회 중 4회가 HTTP 500으로 떨어졌고, 결손 구간이 정상 봉으로 렌더되는 **silent failure**였습니다. 120분 단위 API로 전환해 최대 7회(anchor 6 + 전일 tail 1, 재시도 제외)로 줄이고, 응답을 분 단위 슬롯으로 채워(densify) 시간축을 유지했습니다.
 
 "실시간" 표기는 제거했습니다. 1초 폴링으로 정당화하는 안도 검토했지만, route 캐시가 사용자 수를 흡수하는 구조에서 병목은 KIS가 아니라 함수 호출 수이고, REST 폴링은 간격과 무관하게 push가 아닙니다. 라벨은 장 세션 명칭(정규장 · 애프터마켓 · 마감 시각)으로 표기하고, 갱신 주기는 `/credits`에 명시했습니다.
 
@@ -116,7 +116,7 @@ KIS API는 초당 호출 한도가 있고, 홈 한 화면이 지수 12셀을 장
 
 종목 상세 한 페이지가 4~5개 외부 소스에 의존합니다. 초기 구현은 섹션별 `try-catch` → 빈 배열 폴백으로, 페이지는 유지됐지만 **빈 값과 조회 실패가 구분되지 않았습니다.** `/api/prices`는 `Promise.all`이라 종목 하나의 실패가 전체 500으로 번졌습니다.
 
-- 섹션 단위 격리 — loading / empty / error / **partial** 네 상태 분리. 색·아이콘 추가 없이 메시지로만 구분
+- 섹션 단위 격리 — loading / empty / error / **부분 실패**(값 유지 + "일시 지연" 배지) 네 상태 분리. 색·아이콘 추가 없이 메시지로만 구분
 - 다건 조회는 `allSettled`. 지수 셀은 실패 셀만 종가 기준 값 + "종가 기준" 캡션으로 graceful degradation, 나머지 정상 렌더
 - 종목 분봉은 실패 구간 1회 재시도 → 잔여 실패 시 `failed: true` 응답 → 클라이언트는 직전 정상 응답(last-known-good) 유지
 
@@ -135,7 +135,7 @@ DART 공시 원문의 읽기 부담을 Gemini 요약으로 줄이되, LLM 응답
 ```
 
 - Zod 스키마가 단일 소스(single source of truth) — `z.toJSONSchema` → Gemini `responseJsonSchema`, 응답도 동일 스키마로 `safeParse`. `maxItems` 같은 제약이 스키마 레벨에서 강제
-- 결과는 discriminated union — 실패 7종(`rate_limit · timeout · safety_blocked · empty_response · parse_failed · not_summarizable · api_error`)이 타입에 있어 처리 누락이 컴파일 단에서 검출(exhaustiveness check). 환경 오류(API 키 미설정)만 fail-fast throw
+- 결과는 discriminated union — 실패 7종(`rate_limit · timeout · safety_blocked · empty_response · parse_failed · not_summarizable · api_error`)이 타입으로 구분. 환경 오류(API 키 미설정)만 fail-fast throw
 - 클라이언트 입력은 `{ rcept_no, ticker }`뿐. 제목·회사명은 서버가 DART 공시 목록에서 조회 — 클라 문자열이 프롬프트와 공유 캐시에 닿는 경로를 차단
 - primary gemini-3.8-flash, 429·503 소진·timeout 시 gemini-2.5-flash로 1회 폴백(요청 예산 55s 안에서 503 backoff). 무료 티어의 503 스파이크와 일일 한도를 폴백 하나로 흡수
 - 동일 공시는 DB 캐시. 요약은 사용자 요청 시에만 실행
@@ -151,11 +151,11 @@ DART 공시 원문의 읽기 부담을 Gemini 요약으로 줄이되, LLM 응답
 
 관심종목은 localStorage로 시작했습니다. 인증을 붙이는 순간 조회형 서비스의 범위를 넘는다고 봤고, 대신 기기 간 동기화와 저장소 유실 복구를 포기했습니다. 마무리 단계에서 **로그인 없이 브라우저를 식별해 서버에 저장**하는 방식으로 후자만 되돌렸습니다.
 
-- 식별자는 서버 발급 UUID를 httpOnly 쿠키에. 첫 저장 성공 시점에 지연 발급 — 조회만 하는 방문자에겐 쿠키도 서버 호출도 없음
+- 식별자는 서버 발급 UUID(httpOnly `slatekr_uid`) + JS 판독용 마커(`slatekr_sync`) 쿠키 2개. 첫 저장 성공 시점에 지연 발급하고 마커가 없으면 GET도 생략 — 조회만 하는 방문자에겐 쿠키도 서버 호출도 없음(예외: 마커 없이 로컬 관심종목이 남아 있으면 로드 시 마이그레이션 PUT 1회)
 - 저장 단위는 정규화 테이블이 아닌 **JSONB 스냅샷 1행**. 정규화의 이점을 쓰는 곳이 없고, Neon HTTP 드라이버는 대화형 트랜잭션 미지원
 - 기준 상태는 Zustand, 서버는 백업. **server-wins 단방향 동기화** — 로드 성공 시 서버가 로컬을 덮고, 로드 실패 시 쓰기 차단
 
-쓰기 차단의 이유: localStorage 유실 + 서버 조회 실패 상태에서 종목 하나를 추가하면 stale 로컬이 서버 전체 목록을 덮어씁니다. 조회 성공 이력이 없으면 쓰지 않고, 차단 상태는 패널 헤더에 "서버 저장 안 됨" 배지로 노출합니다. 양방향 병합·충돌 해결은 두지 않으며, 종목별 메모는 같은 구조를 복제하되 공용 훅 추출은 보류했습니다(rule of three).
+쓰기 차단의 이유: localStorage 유실 + 서버 조회 실패 상태에서 종목 하나를 추가하면 stale 로컬이 서버 전체 목록을 덮어씁니다. 조회 성공 이력이 없으면 쓰지 않고, 차단 상태는 패널 헤더에 "서버 저장 안 됨" 배지로 노출합니다. 양방향 병합·충돌 해결은 두지 않으며, 종목별 메모는 같은 흐름을 단순화해 따르고(pagehide flush 판정만 공용 유틸) 공용 훅 추출은 보류했습니다(rule of three).
 
 → [#141 로그인 없는 식별과 스냅샷 동기화](https://velog.io/@dh82680/SlateKR-141-관심종목-서버-저장-로그인-없는-식별과-스냅샷-동기화)
 
@@ -220,6 +220,11 @@ npm run typecheck && npm run lint && npm run test:run   # tsc --noEmit · ESLint
 - 일봉 고가·저가·종가는 애프터마켓 체결 포함, 거래량은 대량매매 포함 누적. 등락률은 전일 정규장(15:30) 종가 기준가 — 증권사·네이버 시세창과 같은 축이나, 네이버 차트와는 소수 종목에서 거래량·종가 차이 가능
 - KIS 순간 호출 초과 시 HTTP 500 — 종목 분봉은 재시도 + 직전 정상 응답 유지, 지수는 종가 기준 폴백
 - PER·PBR·시가총액은 DART EPS/BPS + 종가로 직접 계산. 2025년 2월 KRX 구조 변경 이후 기존 라이브러리 값 신뢰 불가
+
+**주식수가 바뀐 종목의 지표.** PER·EPS·시가배당률은 공시 EPS와 현재 주가를 조합하므로, 병합·분할·무상증자로 주식수가 바뀐 종목은 EPS의 기준 주식수가 현재와 달라 값이 어긋날 수 있습니다.
+
+- 감지된 경우 — EPS가 전제한 주식수(순이익 ÷ EPS)가 현재 상장주식수와 크게 다르거나 등록된 무상증자의 권리락 전 기간이면, 핵심 지표의 PER·EPS·시가배당률을 "—"로 표시하고 툴팁에 사유를 노출(재무 슬레이트는 해당 기간 PER만 "—")
+- 감지되지 않는 경우 — 변동 폭이 작거나 최근에 발생한 주식수 변동, 12월 결산이 아닌 종목의 분기 값. 다른 서비스와 값이 다를 수 있음
 
 ---
 
