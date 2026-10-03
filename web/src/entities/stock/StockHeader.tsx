@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { ExternalLink } from "lucide-react";
 import type { CompanyProfile, StockSummary, StockPriceSnapshot } from "@/shared/types/stock";
 import type { MarketActionStatus } from "@/shared/types/quote";
@@ -19,47 +20,42 @@ type StockHeaderProps = {
   stock: StockSummary;
 };
 
+type MarketActionSlotProps = {
+  status: Promise<MarketActionStatus | null>;
+};
+
+// 시장조치 배지는 KIS 단발 조회라 헤더와 따로 스트리밍한다 — 헤더 표시가 KIS 응답을 기다리지 않는다.
+const MarketActionSlot = async ({ status }: MarketActionSlotProps) => {
+  const resolved = await status;
+  return resolved ? <MarketActionBadge status={resolved} /> : null;
+};
+
 export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
-  let prices: StockPriceSnapshot[] = [];
-  let hasError = false;
-  let profile: CompanyProfile | null = null;
-  let marketAction: MarketActionStatus | null = null;
-  // null 은 "판정 불가" — 토글 미노출로 폴백된다. 예외도 동일 처리.
-  let nxEligible: boolean | null = null;
-  // SELECT to_char 로 문자열 수신하는 최신 거래일. 환경 TZ 와 무관하게 저장 일자 그대로.
-  let initialKstDate: string | null = null;
-
-  try {
-    prices = await getDailyPrices(ticker, 2);
-  } catch {
-    hasError = true;
-  }
-
-  try {
-    const corpCode = await getCorpCode(ticker);
-    if (corpCode) profile = await getCompanyProfile(corpCode);
-  } catch {
-    profile = null;
-  }
-
+  // 헤더 진입 시 바로 시작해 promise 로 넘긴다 — 슬롯 안에서 시작하면 아래 DB·DART 대기 뒤로 밀린다.
   // 실패는 조용히 null — 배지 미표시로 폴백. 헤더 자체 렌더는 막지 않는다.
-  try {
-    marketAction = await fetchStockMarketAction(ticker);
-  } catch {
-    marketAction = null;
-  }
+  const marketAction = fetchStockMarketAction(ticker).catch(() => null);
 
-  try {
-    nxEligible = await fetchNxEligible(ticker);
-  } catch {
-    nxEligible = null;
-  }
+  // 조회별 실패를 격리한다 — 실패한 요소만 빠진다(Promise.all 이면 하나의 실패가 전체를 reject).
+  const [pricesResult, profileResult, nxResult, kstDateResult] = await Promise.allSettled([
+    getDailyPrices(ticker, 2),
+    (async () => {
+      const corpCode = await getCorpCode(ticker);
+      return corpCode ? getCompanyProfile(corpCode) : null;
+    })(),
+    fetchNxEligible(ticker),
+    getLatestKstDate(ticker),
+  ]);
 
-  try {
-    initialKstDate = await getLatestKstDate(ticker);
-  } catch {
-    initialKstDate = null;
-  }
+  const hasError = pricesResult.status === "rejected";
+  const prices: StockPriceSnapshot[] =
+    pricesResult.status === "fulfilled" ? pricesResult.value : [];
+  const profile: CompanyProfile | null =
+    profileResult.status === "fulfilled" ? profileResult.value : null;
+  // null 은 "판정 불가" — 토글 미노출로 폴백된다. 예외도 동일 처리.
+  const nxEligible: boolean | null = nxResult.status === "fulfilled" ? nxResult.value : null;
+  // SELECT to_char 로 문자열 수신하는 최신 거래일. 환경 TZ 와 무관하게 저장 일자 그대로.
+  const initialKstDate: string | null =
+    kstDateResult.status === "fulfilled" ? kstDateResult.value : null;
 
   const latest = prices[0] ?? null;
   const prev = prices[1] ?? null;
@@ -87,7 +83,9 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
                 {profile.sectorName}
               </span>
             )}
-            {marketAction && <MarketActionBadge status={marketAction} />}
+            <Suspense fallback={null}>
+              <MarketActionSlot status={marketAction} />
+            </Suspense>
             {profile?.homepageUrl && (
               <a
                 href={profile.homepageUrl}
@@ -128,7 +126,9 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
               {profile.sectorName}
             </span>
           )}
-          {marketAction && <MarketActionBadge status={marketAction} />}
+          <Suspense fallback={null}>
+            <MarketActionSlot status={marketAction} />
+          </Suspense>
           {profile?.homepageUrl && (
             <a
               href={profile.homepageUrl}
