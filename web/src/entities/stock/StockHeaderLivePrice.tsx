@@ -76,16 +76,22 @@ export const StockHeaderLivePrice = ({
   // 뒤처지면 KRX 확정 종가 1회 조회로 라벨/값을 격상.
   const isKrxDelayWindow =
     isKrxOffRegular && initialDate !== null && initialDate < lastCloseDate;
+  // 지연 창엔 fetch 를 살려두고 폴링만 정지 (subscribeOnly).
+  const queryEnabled = !isKrxOffRegular || isKrxDelayWindow;
 
-  const { data, dataUpdatedAt } = useStockQuote(ticker, {
+  const { data: sharedData, dataUpdatedAt: sharedUpdatedAt } = useStockQuote(ticker, {
     market: marketArg,
-    // 지연 창엔 fetch 를 살려두고 폴링만 정지 (subscribeOnly).
-    enabled: !isKrxOffRegular || isKrxDelayWindow,
+    enabled: queryEnabled,
     // subscribeOnly 는 setInterval 만 끄고 useQuery 초기 fetch 1회는 그대로 발생.
     subscribeOnly: isKrxDelayWindow,
-    // 15:30 통과로 lastCloseDate 가 오늘로 바뀌면 queryKey 갱신 → 확정 종가 재조회 1회.
+    // 15:30 통과로 lastCloseDate 가 오늘로 바뀌면 확정 종가 재조회 1회.
     closeDate: market === "krx" ? lastCloseDate : undefined,
   });
+  // 캐시 항목을 차트 구독과 공유하므로, 조회가 꺼진 동안엔 차트가 채운 응답을 읽지 않는다 —
+  // 꺼진 헤더는 응답 없음 축(SSR 값·clientSession)으로만 표시해야 차트의 실패가 "일시 지연"
+  // 배지로, 차트가 받아 둔 지난 세션이 개장 전 창 리셋 판정으로 새지 않는다.
+  const data = queryEnabled ? sharedData : undefined;
+  const dataUpdatedAt = queryEnabled ? sharedUpdatedAt : 0;
 
   const live = data?.quote ?? null;
   const session = data?.session;

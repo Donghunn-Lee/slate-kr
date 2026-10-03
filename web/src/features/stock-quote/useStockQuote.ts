@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { StockQuote } from "@/shared/types/quote";
 import type { MarketCalendar } from "@/shared/types/marketCalendar";
@@ -24,12 +24,17 @@ type UseStockQuoteOptions = {
   market?: QuoteMarket;
   // false 로 두면 fetch·폴링 모두 중단 (응답이 항상 null 로 확정된 경우 낭비 방지).
   enabled?: boolean;
-  // 확정 종가 date. 값이 바뀌면 queryKey 가 갱신되어 새 캐시 슬롯에서 초기 fetch 1회 발생.
-  // undefined 는 queryKey 미포함 — 다른 호출처 캐시 키와 정합 유지.
+  // 확정 종가 date. 값이 바뀌면 같은 캐시 항목을 1회 refetch — queryKey 에는 넣지 않아
+  // 차트 구독(closeDate 미지정)과 항목을 공유한다.
   closeDate?: string;
 };
 
 const POLL_INTERVAL_MS = 60_000;
+
+// 헤더 폴링과 차트 구독이 같은 캐시 항목을 보도록 키 조립은 이 함수 한 곳에서만 한다.
+// market undefined 는 "auto" sentinel 로 캐시 키 안정화 (미지정 경로가 지정 경로와 섞이지 않게).
+export const stockQuoteQueryKey = (ticker: string, market?: QuoteMarket) =>
+  ["stock-quote", ticker, market ?? "auto"] as const;
 
 // market.ts 의 isKrxActiveSession 을 클라 시계에 얹은 얇은 어댑터.
 // useStockIntraday(서버 응답 session 을 인자로 넘김)와 동일 술어를 공유.
@@ -45,13 +50,10 @@ export const useStockQuote = (
 ) => {
   const { subscribeOnly = false, market, enabled = true, closeDate } = options;
   const calendar = useMarketCalendar();
-  // market undefined 는 "auto" sentinel 로 캐시 키 안정화 (미지정 경로가 지정 경로와 섞이지 않게).
   const marketKey: QuoteMarket | "auto" = market ?? "auto";
 
   const query = useQuery<StockQuoteResponse>({
-    queryKey: closeDate
-      ? ["stock-quote", ticker, marketKey, closeDate]
-      : ["stock-quote", ticker, marketKey],
+    queryKey: stockQuoteQueryKey(ticker, market),
     queryFn: async () => {
       const params = new URLSearchParams({ ticker });
       if (market) params.set("market", market);
@@ -70,6 +72,16 @@ export const useStockQuote = (
     }, POLL_INTERVAL_MS);
     return () => clearInterval(id);
   }, [ticker, subscribeOnly, enabled, marketKey, calendar]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 날짜 → 날짜 변화만 본다. 시장 탭 전환(undefined ↔ 날짜)은 키 자체가 바뀌어 useQuery 가 처리한다.
+  const { refetch } = query;
+  const prevCloseDate = useRef(closeDate);
+  useEffect(() => {
+    const prev = prevCloseDate.current;
+    prevCloseDate.current = closeDate;
+    if (!enabled || prev === undefined || closeDate === undefined || prev === closeDate) return;
+    void refetch();
+  }, [closeDate, enabled, refetch]);
 
   return query;
 };
