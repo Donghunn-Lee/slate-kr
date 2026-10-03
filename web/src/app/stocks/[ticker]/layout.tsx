@@ -41,12 +41,8 @@ export async function generateMetadata({
 
 export default async function StockDetailLayout({ children, params }: LayoutProps) {
   const { ticker } = await params;
-  let stock = null;
-  try {
-    stock = await getStockByTicker(ticker);
-  } catch {
-    notFound();
-  }
+  // 조회 실패(throw)는 잡지 않고 error 경계로 보낸다 — 404 는 종목 없음(null)에만 쓴다.
+  const stock = await getStockByTicker(ticker);
   if (!stock) notFound();
 
   return (
