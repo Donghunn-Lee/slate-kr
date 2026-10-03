@@ -13,8 +13,6 @@ type LayoutProps = {
   params: Promise<{ ticker: string }>;
 };
 
-export const revalidate = 86400;
-
 export async function generateMetadata({
   params,
 }: {

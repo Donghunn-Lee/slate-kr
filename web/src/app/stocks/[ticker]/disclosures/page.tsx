@@ -10,8 +10,6 @@ import {
   type PeriodPreset,
 } from "@/features/disclosure/types";
 
-export const revalidate = 3600;
-
 type SearchParams = {
   preset?: string;
   bgn?: string;

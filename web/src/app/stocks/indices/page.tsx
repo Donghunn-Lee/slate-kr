@@ -11,8 +11,6 @@ import { getPriceStats } from "@/lib/prices";
 import type { IndexDailySnapshot } from "@/shared/types/quote";
 import type { PriceStats } from "@/shared/types/stock";
 
-export const revalidate = 3600;
-
 type PageProps = {
   searchParams: Promise<{ index?: string }>;
 };

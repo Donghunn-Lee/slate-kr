@@ -4,8 +4,6 @@ import { getStockByTicker } from "@/lib/stocks";
 import { StockFinancials } from "@/entities/stock/StockFinancials";
 import { FinancialsSkeleton } from "@/entities/stock/Skeletons";
 
-export const revalidate = 43200;
-
 type PageProps = {
   params: Promise<{ ticker: string }>;
 };

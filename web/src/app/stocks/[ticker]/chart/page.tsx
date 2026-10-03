@@ -8,8 +8,6 @@ import { ChartTabsSkeleton } from "@/entities/stock/Skeletons";
 import { SectionError } from "@/entities/stock/SectionError";
 import type { StockPriceSnapshot } from "@/shared/types/stock";
 
-export const revalidate = 3600;
-
 type PageProps = {
   params: Promise<{ ticker: string }>;
 };

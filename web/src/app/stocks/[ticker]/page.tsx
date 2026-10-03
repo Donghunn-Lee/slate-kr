@@ -12,8 +12,6 @@ import {
   PriceStatsSkeleton,
 } from "@/entities/stock/Skeletons";
 
-export const revalidate = 3600;
-
 type PageProps = {
   params: Promise<{ ticker: string }>;
 };
