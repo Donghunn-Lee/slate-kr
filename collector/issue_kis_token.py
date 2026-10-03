@@ -1,7 +1,8 @@
 """
 KIS 토큰을 발급해 Neon kis_token 단일행 테이블에 저장한다.
 
-GitHub Actions cron(12시간 주기)로 실행한다. web(앱)은 이 행을 read만 한다.
+GitHub Actions(kis-token.yml, workflow_dispatch)를 cron-job.org가 12시간 주기로 트리거해 실행한다.
+web(앱)은 평상시 이 행을 read하고, 이 행에 유효한 토큰이 없을 때만 직접 발급해 같은 행에 write-back한다.
 expires_at_ms는 raw 만료(버퍼 미적용)로 저장하고, 버퍼는 web read 쪽에서 적용한다.
 
 발급·저장 로직은 kis_token.request_token / kis_token.upsert_token 재사용.

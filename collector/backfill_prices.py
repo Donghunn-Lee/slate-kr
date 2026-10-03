@@ -1,10 +1,11 @@
 """
-pykrx 종목 일봉 → daily_prices 대량 백필 (idempotent upsert).
+pykrx 종목 일봉 → daily_prices 갭 채움 백필 (idempotent upsert).
 
 용도
-  대량 과거 구간 백필 전용. 일일 갱신은 fetch_prices.py (KIS) 소관.
-  pykrx 는 D+1 08:00 KST 공표 특성상 당일 EOD 회귀에 부적합하나, 과거 구간
-  정합·재적재는 신뢰도가 높아 백필 소스로 유지.
+  2026-09-14 이후 구간의 갭 채움 전용 (fetch_daily_close.py 가 적재하지 않은 행 등).
+  일일 갱신은 fetch_daily_close.py, 2026-09-11 이전 전면 재적재는 backfill_prices_kis.py 소관.
+  pykrx 기본 경로(adjusted=True, 네이버)는 daily_prices 의 20:00 마감 캔들 정의와 일치한다.
+  adjusted=False(KRX 경유)는 정의가 달라 쓰지 않는다. 대량매매 V 미포함 등 소수 종목 편차는 있다.
 
 사용
   python backfill_prices.py --backfill YYYY-MM-DD YYYY-MM-DD
