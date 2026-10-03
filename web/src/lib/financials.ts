@@ -415,16 +415,6 @@ export const getFinancials = cache(async (ticker: string): Promise<StockFinancia
   return buildFinancials(rows, priceMap, dividendsByYear, shares);
 });
 
-export const getLatestFinancial = async (ticker: string): Promise<FinancialPeriod | null> => {
-  const [rows] = await pool.query<FinancialRow[]>(
-    "SELECT * FROM financial_statements WHERE ticker = $1 AND report_type = 'annual' ORDER BY year DESC LIMIT 1",
-    [ticker]
-  );
-
-  if (rows.length === 0) return null;
-  return rowToFinancialPeriod(rows[0]);
-};
-
 export type TtmEps = {
   value: number | null;
   source: TtmEpsSource;
