@@ -39,13 +39,7 @@ describe("snapshotToQuote", () => {
       high: 0,
       low: 0,
       volume: 34_401_475,
-      source: "un",
     });
-  });
-
-  it("source 는 un 고정 (UN 축 변환)", () => {
-    expect(snapshotToQuote(mkRow({})).source).toBe("un");
-    expect(snapshotToQuote(mkRow({ un_change: -100 })).source).toBe("un");
   });
 
   // KRX 애프터마켓은 전 종목 대상이라 비NXT 의 un_close 도 20:00 애프터 종가 — nx_eligible 은
@@ -71,7 +65,6 @@ describe("snapshotToQuote", () => {
       high: 0,
       low: 0,
       volume: 1_800_149,
-      source: "un",
     });
   });
 
@@ -105,7 +98,6 @@ describe("snapshotToNxQuote", () => {
       high: 0,
       low: 0,
       volume: 11_105_431,
-      source: "nx",
     });
   });
 
@@ -199,7 +191,6 @@ describe("decideSingleSnapshot", () => {
     expect(d.kind).toBe("serve");
     if (d.kind !== "serve") throw new Error();
     expect(d.quote?.price).toBe(255000);
-    expect(d.quote?.source).toBe("un");
   });
 
   it("대상 세션 + 부분 miss (row 없지만 date 존재) → serve null", () => {
@@ -217,14 +208,13 @@ describe("decideSingleSnapshot", () => {
   describe("market=nxt", () => {
     const divergedRow = mkRow({ un_close: 250500, un_change: 5500, nx_close: 250000 });
 
-    it("NXT + nx_close 有 → nx 축 serve (price=nx_close, source=nx)", () => {
+    it("NXT + nx_close 有 → nx 축 serve (price=nx_close)", () => {
       const d = decideSingleSnapshot("after_close", divergedRow, true, "nxt");
       expect(d.kind).toBe("serve");
       if (d.kind !== "serve") throw new Error();
       expect(d.quote?.price).toBe(250000);
       expect(d.quote?.change).toBe(5000);
       expect(d.quote?.volume).toBe(11_105_431);
-      expect(d.quote?.source).toBe("nx");
     });
 
     it("krx / 미지정 은 같은 row 라도 UN 축 유지", () => {
@@ -232,7 +222,6 @@ describe("decideSingleSnapshot", () => {
         const d = decideSingleSnapshot("after_close", divergedRow, true, market);
         if (d.kind !== "serve") throw new Error();
         expect(d.quote?.price).toBe(250500);
-        expect(d.quote?.source).toBe("un");
       }
     });
 
@@ -245,7 +234,6 @@ describe("decideSingleSnapshot", () => {
       );
       if (d.kind !== "serve") throw new Error();
       expect(d.quote?.price).toBe(250500);
-      expect(d.quote?.source).toBe("un");
     });
 
     it("비NXT (nx_eligible=false) → UN 축 (종전과 동일)", () => {
@@ -257,7 +245,6 @@ describe("decideSingleSnapshot", () => {
       );
       if (d.kind !== "serve") throw new Error();
       expect(d.quote?.price).toBe(255000);
-      expect(d.quote?.source).toBe("un");
     });
   });
 });

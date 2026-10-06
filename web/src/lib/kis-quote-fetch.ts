@@ -445,12 +445,6 @@ const MARKET_DIV_INTEGRATED = "UN";
 
 type QuoteMarketDiv = "J" | "NX" | typeof MARKET_DIV_INTEGRATED;
 
-const QUOTE_SOURCE_BY_DIV: Record<QuoteMarketDiv, StockQuote["source"]> = {
-  J: "krx",
-  NX: "nx",
-  UN: "un",
-};
-
 export const fetchStockQuote = async (
   ticker: string,
   marketDiv: QuoteMarketDiv,
@@ -508,7 +502,7 @@ export const fetchStockQuote = async (
       return null;
     }
 
-    return normalizeStockQuote(parsed.data.output, QUOTE_SOURCE_BY_DIV[marketDiv]);
+    return normalizeStockQuote(parsed.data.output);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[kis] stock quote fetch failed: ${message}`);
