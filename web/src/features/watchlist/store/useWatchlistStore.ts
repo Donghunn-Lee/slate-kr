@@ -16,12 +16,6 @@ import type {
   WatchlistSnapshot,
 } from "@/shared/types/watchlist";
 
-export type {
-  Membership,
-  StockMeta,
-  WatchlistGroup,
-  WatchlistSnapshot,
-} from "@/shared/types/watchlist";
 export { MAX_WATCHLIST_SIZE } from "./watchlistSnapshot";
 
 export type WatchlistItem = {

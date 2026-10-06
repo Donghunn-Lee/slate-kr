@@ -24,9 +24,6 @@ import {
   isPreMarketReset,
 } from "./stockHeaderLabel";
 
-// 술어는 stockHeaderLabel 에 co-locate, 외부 소비 편의 위해 re-export.
-export { isPreMarketReset, isClosedLikeMiss };
-
 type StockHeaderLivePriceProps = {
   ticker: string;
   initialPrice: number;

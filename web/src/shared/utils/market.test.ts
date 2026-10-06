@@ -11,17 +11,12 @@ import {
   getOverseasIndexTradingDate,
   getPreviousKrxTradingDate,
   getPreviousOverseasIndexTradingDate,
-  getUsSessionState,
-  getEtDateAndMinutes,
-  getUsTradingDate,
-  getPreviousUsTradingDate,
   isKrxAfterMarketOpen,
   isKrxBeforeMarketOpen,
   isKrxEarlyPreopen,
   isKrxLatePreopen,
   isKrxOpeningWindow,
   isOverseasIndexHoliday,
-  isUsMarketOpen,
   minutesSinceKrxClose,
   minutesSinceOverseasIndexClose,
 } from "./market";
@@ -31,118 +26,6 @@ import {
 const utc = (
   y: number, m: number, d: number, h: number, min = 0,
 ): Date => new Date(Date.UTC(y, m - 1, d, h, min));
-
-describe("getUsSessionState", () => {
-  it("EDT 정규장 중 (2026-07-23 목 15:00 UTC → 11:00 ET) → regular", () => {
-    expect(getUsSessionState(utc(2026, 7, 23, 15, 0))).toBe("regular");
-  });
-
-  it("EDT 정규장 시작 경계 (13:30 UTC → 09:30 ET) → regular", () => {
-    expect(getUsSessionState(utc(2026, 7, 23, 13, 30))).toBe("regular");
-  });
-
-  it("EDT 정규장 종료 경계 (20:00 UTC → 16:00 ET) → closed (16:00 미포함)", () => {
-    expect(getUsSessionState(utc(2026, 7, 23, 20, 0))).toBe("closed");
-  });
-
-  it("EDT 정규장 시작 직전 (13:29 UTC → 09:29 ET) → closed", () => {
-    expect(getUsSessionState(utc(2026, 7, 23, 13, 29))).toBe("closed");
-  });
-
-  it("EST 정규장 중 (2026-12-15 화 15:00 UTC → 10:00 ET) → regular", () => {
-    expect(getUsSessionState(utc(2026, 12, 15, 15, 0))).toBe("regular");
-  });
-
-  it("EST 정규장 시작 경계 (14:30 UTC → 09:30 ET) → regular", () => {
-    expect(getUsSessionState(utc(2026, 12, 15, 14, 30))).toBe("regular");
-  });
-
-  it("EST 정규장 종료 경계 (21:00 UTC → 16:00 ET) → closed", () => {
-    expect(getUsSessionState(utc(2026, 12, 15, 21, 0))).toBe("closed");
-  });
-
-  it("주말 (토요일 EDT 15:00 UTC) → closed", () => {
-    expect(getUsSessionState(utc(2026, 7, 25, 15, 0))).toBe("closed");
-  });
-
-  it("주말 (일요일 EDT 15:00 UTC) → closed", () => {
-    expect(getUsSessionState(utc(2026, 7, 26, 15, 0))).toBe("closed");
-  });
-
-  it("휴장일 Independence Day observed (2026-07-03 EDT 15:00 UTC) → closed", () => {
-    expect(getUsSessionState(utc(2026, 7, 3, 15, 0))).toBe("closed");
-  });
-
-  it("휴장일 MLK Day (2026-01-19 EST 15:00 UTC) → closed", () => {
-    expect(getUsSessionState(utc(2026, 1, 19, 15, 0))).toBe("closed");
-  });
-});
-
-describe("isUsMarketOpen", () => {
-  it("정규장 → true", () => {
-    expect(isUsMarketOpen(utc(2026, 7, 23, 15, 0))).toBe(true);
-  });
-  it("폐장 → false", () => {
-    expect(isUsMarketOpen(utc(2026, 7, 23, 4, 0))).toBe(false);
-  });
-});
-
-describe("getEtDateAndMinutes", () => {
-  it("EDT: 2026-07-23 04:00 UTC = 2026-07-23 00:00 ET (자정)", () => {
-    const r = getEtDateAndMinutes(utc(2026, 7, 23, 4, 0));
-    expect(r.date).toBe("2026-07-23");
-    expect(r.minutes).toBe(0);
-  });
-
-  it("EDT: 2026-07-23 03:59 UTC = 2026-07-22 23:59 ET (전날)", () => {
-    const r = getEtDateAndMinutes(utc(2026, 7, 23, 3, 59));
-    expect(r.date).toBe("2026-07-22");
-    expect(r.minutes).toBe(23 * 60 + 59);
-  });
-
-  it("EST: 2026-12-15 05:00 UTC = 2026-12-15 00:00 ET", () => {
-    const r = getEtDateAndMinutes(utc(2026, 12, 15, 5, 0));
-    expect(r.date).toBe("2026-12-15");
-    expect(r.minutes).toBe(0);
-  });
-});
-
-describe("getUsTradingDate", () => {
-  it("EDT 정규장 중 → 오늘 ET", () => {
-    expect(getUsTradingDate(utc(2026, 7, 23, 15, 0))).toBe("2026-07-23");
-  });
-
-  it("EDT 개장 전 (12:00 UTC = 08:00 ET) → 직전 거래일", () => {
-    expect(getUsTradingDate(utc(2026, 7, 23, 12, 0))).toBe("2026-07-22");
-  });
-
-  it("EDT 마감 후 (21:00 UTC = 17:00 ET) → 오늘 (직전 거래일)", () => {
-    // 세션 종료 후엔 오늘의 마감된 세션이 최신 완결일. getUsTradingDate 구현은
-    // regular 아니면 findRecent(shift(-1)) 이므로 어제로 fallback — 이는 KRX 관례와
-    // 대칭 (다음 세션 개장 전까지 어제 세션이 최신 완결값으로 노출).
-    expect(getUsTradingDate(utc(2026, 7, 23, 21, 0))).toBe("2026-07-22");
-  });
-
-  it("일요일 → 직전 금요일", () => {
-    expect(getUsTradingDate(utc(2026, 7, 26, 15, 0))).toBe("2026-07-24");
-  });
-
-  it("휴장일 (Independence Day observed 7/3) 정규장 시간대 → 직전 거래일 (7/2)", () => {
-    expect(getUsTradingDate(utc(2026, 7, 3, 15, 0))).toBe("2026-07-02");
-  });
-});
-
-describe("getPreviousUsTradingDate", () => {
-  it("금요일 → 목요일", () => {
-    expect(getPreviousUsTradingDate("2026-07-24")).toBe("2026-07-23");
-  });
-  it("월요일 → 금요일 (주말 스킵)", () => {
-    expect(getPreviousUsTradingDate("2026-07-27")).toBe("2026-07-24");
-  });
-  it("휴장일 다음날 (7/6 월) → 7/2 목 (7/3 관측 휴장 + 7/4~5 주말 스킵)", () => {
-    expect(getPreviousUsTradingDate("2026-07-06")).toBe("2026-07-02");
-  });
-});
 
 // KRX preopen 세분화 — fetchStockIntradayChart 의 fallback 분기 게이트.
 // KST = UTC+9. 06:00 KST = 21:00 UTC 전일.
@@ -217,7 +100,7 @@ describe("isKrxAfterMarketOpen", () => {
 });
 
 // ── 해외 지수별 세션 (거래소 TZ) ─────────────────
-// SPX 는 getUsSessionState 와 동치 검증. NI225·HSI·SHCOMP·DAX 는 각 로컬 마감/개장.
+// NI225·HSI·SHCOMP·DAX 는 각 로컬 마감/개장.
 describe("getOverseasIndexSessionState", () => {
   it("SPX EDT 정규장 중 (2026-07-23 15:00 UTC → 11:00 ET) → regular", () => {
     expect(getOverseasIndexSessionState("SPX", utc(2026, 7, 23, 15, 0))).toBe(
@@ -294,23 +177,21 @@ describe("getOverseasIndexSessionState", () => {
 });
 
 describe("getOverseasIndexTradingDate", () => {
-  it("SPX EDT 정규장 중 → 오늘 ET (getUsTradingDate 와 동치)", () => {
+  it("SPX EDT 정규장 중 → 오늘 ET", () => {
     expect(getOverseasIndexTradingDate("SPX", utc(2026, 7, 23, 15, 0))).toBe(
       "2026-07-23",
     );
-    expect(getUsTradingDate(utc(2026, 7, 23, 15, 0))).toBe("2026-07-23");
   });
-  it("SPX EDT 개장 전 → 직전 거래일 (getUsTradingDate 와 동치, 휴장 캘린더 부재로 어제)", () => {
-    // 개장 전 어제 = 7-22 (평일). getUsTradingDate 도 동일.
+  it("SPX EDT 개장 전 → 직전 거래일 (휴장 캘린더 부재로 어제)", () => {
+    // 개장 전 어제 = 7-22 (평일).
     expect(getOverseasIndexTradingDate("SPX", utc(2026, 7, 23, 12, 0))).toBe(
       "2026-07-22",
     );
   });
-  it("SPX 일요일 → 직전 금요일 (getUsTradingDate 와 동치)", () => {
+  it("SPX 일요일 → 직전 금요일", () => {
     expect(getOverseasIndexTradingDate("SPX", utc(2026, 7, 26, 15, 0))).toBe(
       "2026-07-24",
     );
-    expect(getUsTradingDate(utc(2026, 7, 26, 15, 0))).toBe("2026-07-24");
   });
 
   it("NI225 월요일 08:30 JST (개장 전) → 직전 금요일", () => {
@@ -377,14 +258,14 @@ describe("getOverseasIndexTradingDate", () => {
 });
 
 describe("getPreviousOverseasIndexTradingDate", () => {
-  it("SPX 는 getPreviousUsTradingDate 와 동치 (일요일 → 금요일)", () => {
+  it("SPX 일요일 → 금요일", () => {
     expect(getPreviousOverseasIndexTradingDate("SPX", "2026-07-27")).toBe(
-      getPreviousUsTradingDate("2026-07-27"),
+      "2026-07-24",
     );
   });
-  it("SPX 는 getPreviousUsTradingDate 와 동치 (휴장 반영: 7-6 → 7-2)", () => {
+  it("SPX 휴장 반영: 7-6 → 7-2", () => {
     expect(getPreviousOverseasIndexTradingDate("SPX", "2026-07-06")).toBe(
-      getPreviousUsTradingDate("2026-07-06"),
+      "2026-07-02",
     );
   });
   it("NI225 월요일 → 금요일 (아시아 휴장 캘린더 없음, 주말만 skip)", () => {

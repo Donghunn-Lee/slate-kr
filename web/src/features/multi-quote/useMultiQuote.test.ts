@@ -30,7 +30,7 @@ const listPreReset = (session: KrxSession | undefined, now: Date | null): boolea
   isPreMarketReset(session, "krx", now);
 
 // 리스트 표면 3곳(WatchlistRow · WatchlistPreview · SearchResultList)이 공유하는 조립식.
-// 공용 헬퍼로 추출하지 않으므로 StockHeaderLivePrice.test.ts 의 tabSession 관례대로
+// 공용 헬퍼로 추출하지 않으므로 stockHeaderLabel.test.ts 의 tabSession 관례대로
 // 테스트에 복제해 고정한다. eod=null 은 EOD 행 부재(폴백 팔 자체가 없음).
 type Eod = { change: number | null; changePct: number | null } | null;
 const displayChange = (

@@ -11,5 +11,4 @@ export const DisclosureSummaryContentSchema = z.object({
   detail: z.string().describe("표 밖의 근거·조건·절차 산문. 없으면 빈 문자열"),
 });
 
-export type DisclosureSummaryFact = z.infer<typeof DisclosureSummaryFactSchema>;
 export type DisclosureSummaryContent = z.infer<typeof DisclosureSummaryContentSchema>;

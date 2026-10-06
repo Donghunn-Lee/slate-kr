@@ -2,8 +2,6 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { MemoEntry, MemoSnapshot } from "@/shared/types/memo";
 
-export type { MemoEntry, MemoSnapshot } from "@/shared/types/memo";
-
 export type MemoSyncStatus =
   | "idle"
   | "loading"
