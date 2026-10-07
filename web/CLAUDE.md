@@ -71,8 +71,9 @@ AI 없이도 설득력 있어야 한다. AI는 투자 판단 도구가 아니라
     / backfill_index_prices.py (KRX Marketplace) / backfill_overseas_index_prices.py (KIS)
   - 토큰: issue_kis_token.py + kis_token.py (공용 헬퍼)
   - 공통: db.py (Neon 커넥션), kis_multi.py (멀티시세 청크 호출 + 적재 게이트), 로깅, 에러 격리, incremental update
-- **스케줄링**: GitHub Actions 워크플로우 6개 전부 workflow_dispatch만 사용,
+- **스케줄링**: GitHub Actions 수집 워크플로우 6개 전부 workflow_dispatch만 사용,
   cron-job.org가 API로 트리거 (schedule 이벤트는 지연/드롭 이슈로 제거)
+- **CI**: `web-ci.yml` — main push·PR에서 `web/**`(또는 워크플로우 파일 자체) 변경 시 typecheck·lint·test (Node 24, next build 제외)
 - **배포**: Vercel (Next.js) + Neon (PostgreSQL)
 - **외부 API**: KIS OpenAPI (국내 종목/지수 시세, 해외 지수 일봉·분봉·quote), KRX Marketplace (국내 지수 과거 일봉 · 상장주식수 · 상장일), DART OpenAPI (공시 데이터 + 재무제표), FSS API (종목 목록)
 - **AI 요약**: Gemini API (@google/genai SDK) (`lib/disclosure-summary.ts`), `POST /api/disclosure-summary` API Route, Zod 스키마 단일 소스 (`shared/types/disclosureSummary.ts`)
@@ -235,7 +236,7 @@ DB / 외부 API
 - 종목 시세·분봉 route(`stock-quote`·`stock-intraday`): force-dynamic, 시간 캐시 없음 — 장외 시세는 `quote_snapshots` DB 우선, 분봉은 동시 요청 dedupe만
 - AI 요약: DB 캐시 (동일 공시 재요청 방지, `disclosure_summaries` 테이블)
 - 지수 quote·분봉: API route 층 unstable_cache + 세션 기반 revalidate
-  (국내 regular 60s·그 외 3600s / 해외 quote active 60s·idle 3600s / 해외 분봉 regular 120s·그 외 3600s)
+  (국내 regular 60s·마감 후 정산 15분 60s·그 외 3600s / 해외 quote active 60s·idle 3600s / 해외 분봉 regular 120s·마감 후 정산 45분 60s·그 외 3600s)
 - 순위 route: 세션 TTL(`krxRankingRevalidate`, active 60s / 그 외 3600s)
 - 순위 캐시 키의 `CACHE_SHAPE_VERSION`: Data Cache는 배포를 넘어 남으므로 캐시 값(`RankingPayload`) 형태가 바뀌면 올린다
 - 지수 캐시 태그: `{도메인}-{code}-{session}` 형식.
