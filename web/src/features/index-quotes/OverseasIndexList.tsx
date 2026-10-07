@@ -8,6 +8,7 @@ import {
   type OverseasIndexCode,
 } from "@/shared/constants/indices";
 import type { IndexDailySnapshot, PriceSign } from "@/shared/types/quote";
+import { formatIndexPrice } from "@/shared/format";
 import { priceToneClass } from "@/shared/utils/priceTone";
 import { cn } from "@/lib/utils";
 import { useOverseasIndexQuotes } from "./useOverseasIndexQuotes";
@@ -19,13 +20,6 @@ type OverseasIndexListProps = {
 
 const signOfChange = (change: number): PriceSign =>
   change > 0 ? "up" : change < 0 ? "down" : "flat";
-
-// 소수 2자리 고정 — 정수 지수도 47,000.00 으로 표시해 자릿수 흔들림 없이 열 정렬.
-const formatIndexPrice = (v: number): string =>
-  v.toLocaleString("ko-KR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
 
 // 해외 지수 리스트 — 8행. useOverseasIndexQuotes 라이브 우선, null 이면 SSR EOD fallback.
 // 스파크라인 없음 (텍스트만).

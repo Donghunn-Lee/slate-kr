@@ -31,14 +31,12 @@ import {
   isKrxOpeningWindow,
 } from "@/shared/utils/market";
 import { buildIndexCell } from "@/shared/utils/buildIndexCell";
+import { formatIndexPrice } from "@/shared/format";
 import { priceToneClass } from "@/shared/utils/priceTone";
 import { cn } from "@/lib/utils";
 import { useIndexQuotes, type IndexCellData } from "./useIndexQuotes";
 import { useIndexIntraday } from "./useIndexIntraday";
 import { OverseasIndexList } from "./OverseasIndexList";
-
-// 국내 지수 값 포맷 — KRW 소수점 없이 콤마.
-const formatKrw = (v: number): string => v.toLocaleString("ko-KR");
 
 // 국내 4셀 DOM 순서. row-major 2×2 라 데스크톱 열 페어(KOSPI/KOSPI200 · KOSDAQ/KOSDAQ150)와
 // 모바일 행 페어(KOSPI/KOSDAQ · KOSPI200/KOSDAQ150)가 같은 순서에서 동시에 성립한다.
@@ -102,7 +100,7 @@ const IndexCell = ({ code, label, cell, bars, prevClose, intradayFailed, intrada
               priceToneClass(cell.live.sign),
             )}
           >
-            <PriceCountUp value={cell.live.price} />
+            <PriceCountUp value={cell.live.price} format={formatIndexPrice} />
           </span>
           <PriceChange
             change={cell.live.change}
@@ -111,6 +109,7 @@ const IndexCell = ({ code, label, cell, bars, prevClose, intradayFailed, intrada
             symbol="arrow"
             size="xs"
             stacked
+            fractionDigits={2}
             className="text-micro md:text-body-sm md:font-normal"
           />
         </div>
@@ -122,7 +121,7 @@ const IndexCell = ({ code, label, cell, bars, prevClose, intradayFailed, intrada
               priceToneClass(cell.fallback.change),
             )}
           >
-            {formatKrw(cell.fallback.close)}
+            {formatIndexPrice(cell.fallback.close)}
           </span>
           <PriceChange
             change={cell.fallback.change}
@@ -130,6 +129,7 @@ const IndexCell = ({ code, label, cell, bars, prevClose, intradayFailed, intrada
             symbol="arrow"
             size="xs"
             stacked
+            fractionDigits={2}
             className="text-micro md:text-body-sm md:font-normal"
           />
           <span className="text-micro text-muted-foreground">종가 기준</span>

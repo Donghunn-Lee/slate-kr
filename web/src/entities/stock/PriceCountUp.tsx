@@ -6,13 +6,15 @@ import { getTickSize } from "@/lib/get-tick-size";
 type PriceCountUpProps = {
   value: number;
   duration?: number;
+  // 표시 포맷. 미지정 시 콤마 포맷만.
+  format?: (v: number) => string;
   className?: string;
 };
 
 // 마운트 시 value 를 정적으로 표시. 이후 value 변경 시에만 이전 표시값에서 새 값으로
 // ease-out cubic 애니. 다른 대상의 값을 보여줘야 하는 위치(예: 지수 탭 pane)에서는
 // 호출부가 key 로 remount 시켜 정적 리셋을 강제한다.
-export const PriceCountUp = ({ value, duration = 800, className }: PriceCountUpProps) => {
+export const PriceCountUp = ({ value, duration = 800, format, className }: PriceCountUpProps) => {
   const [displayed, setDisplayed] = useState(value);
   // "실제 화면에 반영된 값"을 추적. Strict Mode 의 effect 이중 실행으로 첫 RAF 가 취소되어도
   // setDisplayed 가 발화되지 않았으면 ref 도 그대로라 두 번째 라운드에서 애니가 정상 시작된다.
@@ -53,5 +55,9 @@ export const PriceCountUp = ({ value, duration = 800, className }: PriceCountUpP
     };
   }, [value, duration]);
 
-  return <span className={className}>{displayed.toLocaleString("ko-KR")}</span>;
+  return (
+    <span className={className}>
+      {format ? format(displayed) : displayed.toLocaleString("ko-KR")}
+    </span>
+  );
 };

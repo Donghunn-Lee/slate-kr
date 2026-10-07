@@ -2,6 +2,13 @@ export const formatPrice = (price: number): string => price.toLocaleString("ko-K
 
 export const formatVolume = (volume: number): string => volume.toLocaleString("ko-KR") + "주";
 
+// 소수 2자리 고정 — 정수 지수도 47,000.00 으로 표시해 자릿수 흔들림 없이 열 정렬.
+export const formatIndexPrice = (v: number): string =>
+  v.toLocaleString("ko-KR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
 export const formatMarketCap = (value: number | null): string => {
   if (value === null) return "-";
   const trillion = value / 1_000_000_000_000;

@@ -16,6 +16,7 @@ import {
   crosshairLocalization,
 } from "@/shared/constants/chart";
 import type { ChartBar } from "@/shared/types/quote";
+import { formatIndexPrice } from "@/shared/format";
 import { notoSansKr } from "@/shared/fonts";
 
 type IndexMiniChartProps = {
@@ -45,6 +46,11 @@ const FONT_SIZE_MOBILE = 10;
 // 기본 top 0.2 는 플롯 상단 1/5 이 빈 행. 2px 선 절반 + 크로스헤어 마커 반경 4 = 5px 을
 // 100px 대 플롯 높이 비율로 환산해 상하 대칭 적용 — 극값에서 선·마커가 잘리지 않는 최소.
 const PRICE_SCALE_MARGINS = { top: 0.05, bottom: 0.05 };
+
+// 가격축 폭은 라벨 글자 수를 따라가므로 정수 자릿수가 다른 지수끼리 셀마다 플롯 폭이 어긋난다.
+// 정수 4자리 라벨(`6,900.00`, 12px Noto Sans KR)이 만드는 폭을 하한으로 둬 3~4자리 지수를 같은
+// 폭에 맞춘다. minimumWidth 는 하한이라 정수 5자리 이상은 그 셀만 넓어진다.
+const PRICE_SCALE_MIN_WIDTH = 68;
 
 // time 은 KST를 UTC로 위장한 epoch 초이므로 getUTC* 가 원래 KST 컴포넌트를 돌려준다.
 // tradingDate 와 직접 비교하도록 'YYYY-MM-DD' 로 맞춘다.
@@ -104,7 +110,8 @@ export const IndexMiniChart = ({
       },
       crosshair: { mode: 1 },
       // 크로스헤어 라벨은 intraday 포맷 `MM-DD HH:mm` (shared/constants/chart).
-      localization: crosshairLocalization(true),
+      // 가격축 눈금·크로스헤어 가격 라벨은 셀 상단 값과 같은 표기.
+      localization: { ...crosshairLocalization(true), priceFormatter: formatIndexPrice },
       timeScale: {
         borderColor: palette.border,
         timeVisible: true,
@@ -116,7 +123,9 @@ export const IndexMiniChart = ({
       // 모바일 반폭 셀은 가격축 라벨이 값과 시각적으로 인접해 혼선 유발 → 축 숨김.
       // 현재가는 셀 상단 텍스트로 이미 표시. scaleMargins 는 축이 숨겨져도 플롯 배치에 적용된다.
       rightPriceScale: {
-        ...(compact ? { visible: false } : { borderColor: palette.border }),
+        ...(compact
+          ? { visible: false }
+          : { borderColor: palette.border, minimumWidth: PRICE_SCALE_MIN_WIDTH }),
         scaleMargins: PRICE_SCALE_MARGINS,
       },
       handleScroll: false,
@@ -124,6 +133,9 @@ export const IndexMiniChart = ({
     });
 
     const priceFormat = { type: "price" as const, precision: 2, minMove: 0.01 };
+    // 현재가는 셀 상단(quote)이 보여 준다. 마지막 값 라벨은 마지막 분봉 종가라 마감 후에도
+    // quote 와 어긋날 수 있어 숨긴다.
+    const lastValueVisible = false;
 
     // BaselineSeries: baseValue 기준 위/아래 2색. hasPrevClose 미충족 시 AreaSeries
     // 무채색 fallback — PriceChart 동일 패턴.
@@ -138,6 +150,7 @@ export const IndexMiniChart = ({
           bottomFillColor2: palette.baseline.bottomFillClear,
           lineWidth: 2,
           priceFormat,
+          lastValueVisible,
           autoscaleInfoProvider: (
             original: () => AutoscaleInfo | null,
           ): AutoscaleInfo | null => {
@@ -158,6 +171,7 @@ export const IndexMiniChart = ({
           bottomColor: palette.neutralBottomFill,
           lineWidth: 2,
           priceFormat,
+          lastValueVisible,
         });
 
     series.setData(
