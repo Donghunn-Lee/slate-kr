@@ -16,7 +16,8 @@ export const DisclosureSummaryBody = ({ content }: DisclosureSummaryBodyProps) =
           {facts.map((fact, i) => (
             <div
               key={i}
-              className="flex min-w-0 flex-col gap-0.5 sm:col-span-2 sm:grid sm:grid-cols-subgrid sm:border-b sm:border-sky-border/30 sm:py-1.5 sm:last:border-b-0"
+              // gap 은 세로만 — 열 gap 까지 주면 sm+ subgrid 가 부모 dl 의 열 간격(gap-x-4)을 상속하지 않는다.
+              className="flex min-w-0 flex-col gap-y-0.5 sm:col-span-2 sm:grid sm:grid-cols-subgrid sm:border-b sm:border-sky-border/30 sm:py-1.5 sm:last:border-b-0"
             >
               <dt className="text-caption text-muted-foreground sm:whitespace-nowrap sm:text-body">
                 {fact.label}
