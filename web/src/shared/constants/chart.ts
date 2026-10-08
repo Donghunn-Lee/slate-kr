@@ -1,4 +1,5 @@
 import type { Time } from "lightweight-charts";
+import { toKstWallClockSec } from "@/shared/utils/toKstWallClockSec";
 
 // KR 관행: 상승=레드, 하락=블루. up/down 은 globals.css --price-up/--price-down 과 동일값 —
 // 브라우저 computed sRGB 를 hex 로 옮긴 값이다(oklch 수동 환산 아님).
@@ -107,14 +108,21 @@ export const INDEX_MINI_INTERVAL_MIN = 1;
 export const INDEX_MINI_MIN_BAR_SPACING = 0.2;
 
 // 크로스헤어 시간 라벨 포맷터. intraday(timeVisible)= `MM-DD HH:mm` / EOD= `YYYY-MM-DD`.
-// timestamp 는 국내 KST · 해외 ET 벽시계를 UTC 로 위장한 epoch 초 → getUTC* 로 원본
-// 컴포넌트 복원 (로컬 TZ 변환 금지). 하단 tickMarkFormatter 는 별도 관리.
+// timestamp 는 국내 KST · 해외 거래소 현지 벽시계를 UTC 로 위장한 epoch 초 → getUTC* 로 원본
+// 컴포넌트 복원 (로컬 TZ 변환 금지). barTimeZone 을 받으면 그 거래소 벽시계를 KST 로 옮긴 뒤
+// 같은 방식으로 복원한다 — 문자열 time(일봉 거래일)은 옮기지 않는다. 하단 tickMarkFormatter 는 별도 관리.
 const pad2 = (n: number): string => String(n).padStart(2, "0");
 
-const formatCrosshairTime = (time: Time, timeVisible: boolean): string => {
+const formatCrosshairTime = (
+  time: Time,
+  timeVisible: boolean,
+  barTimeZone?: string,
+): string => {
   let y: number, m: number, d: number, hh = 0, mm = 0;
   if (typeof time === "number") {
-    const dt = new Date(time * 1000);
+    const dt = new Date(
+      (barTimeZone ? toKstWallClockSec(time, barTimeZone) : time) * 1000,
+    );
     y = dt.getUTCFullYear();
     m = dt.getUTCMonth() + 1;
     d = dt.getUTCDate();
@@ -135,7 +143,8 @@ const formatCrosshairTime = (time: Time, timeVisible: boolean): string => {
     : `${y}-${pad2(m)}-${pad2(d)}`;
 };
 
-export const crosshairLocalization = (timeVisible: boolean) => ({
+export const crosshairLocalization = (timeVisible: boolean, barTimeZone?: string) => ({
   locale: "ko-KR",
-  timeFormatter: (time: Time): string => formatCrosshairTime(time, timeVisible),
+  timeFormatter: (time: Time): string =>
+    formatCrosshairTime(time, timeVisible, barTimeZone),
 });

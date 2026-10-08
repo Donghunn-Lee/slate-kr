@@ -27,6 +27,7 @@ import { useOverseasIndexQuotes } from "@/features/index-quotes/useOverseasIndex
 import {
   getIndexMeta,
   INDICES_WITHOUT_VOLUME,
+  OVERSEAS_INDEX_TIMEZONE,
   isOverseasIntradayCode,
   type DomesticIndexCode,
   type IndexCode,
@@ -611,6 +612,12 @@ export const IndexChart = ({
           priceFormatter={formatIndexPrice}
           // 분봉은 quote 를 병합하지 않아 마지막 봉이 헤더 값과 다를 수 있다 — 일·주·월은 병합값이라 유지.
           lastValueVisible={!renderIntraday}
+          // 해외 분봉 time 은 거래소 벽시계 인코딩이라 표시만 KST 로 옮긴다. 일봉은 거래일이라 제외.
+          barTimeZone={
+            renderIntraday && overseasCode !== null
+              ? OVERSEAS_INDEX_TIMEZONE[overseasCode]
+              : undefined
+          }
           visibleBars={renderIntraday ? undefined : barCount}
           onVisibleBarsChange={renderIntraday ? undefined : setBarCount}
           prevLookbackBars={INTRADAY_PREV_LOOKBACK_BARS}

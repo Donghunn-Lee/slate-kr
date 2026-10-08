@@ -32,6 +32,7 @@ import {
 } from "@/shared/constants/chart";
 import type { ChartBar } from "@/shared/types/quote";
 import { notoSansKr } from "@/shared/fonts";
+import { toKstWallClockSec } from "@/shared/utils/toKstWallClockSec";
 import { makeLeadingWhitespace } from "@/entities/chart/leadingWhitespace";
 
 type PriceChartProps = {
@@ -70,6 +71,9 @@ type PriceChartProps = {
   priceFormatter?: (price: number) => string;
   // 메인 시리즈 우측 마지막 값 라벨. 헤더와 다른 소스를 그리는 뷰에서 끈다.
   lastValueVisible?: boolean;
+  // 숫자 봉 time 이 인코딩한 거래소 벽시계의 IANA 시간대. 주면 분봉(timeVisible) 눈금·크로스헤어를
+  // KST 로 옮겨 표시한다. 일봉 날짜는 거래일이라 옮기지 않는다 — timeVisible 일 때만 적용.
+  barTimeZone?: string;
   // 최근 N봉만 보이도록 시계축 논리 범위를 제어. null/undefined = 전체 표시.
   // 데이터를 자르지 않고 표시 창만 조정 → 툴바 조작 시 계산/네트워크 비용 없이 즉시 반영.
   // intraday 뷰에서는 무시 (applyLockedRange 가 초기 창을 잡고 이후 사용자 조작 존중).
@@ -372,6 +376,28 @@ const chartTickFormatter = (time: Time, tickMarkType: TickMarkType): string => {
   }
 };
 
+// 거래소 벽시계로 인코딩된 분봉 눈금을 KST 로 옮겨 라벨링. 눈금 위치·종류는 라이브러리가 원래
+// time 으로 정하므로 날짜 눈금은 현지 날짜가 바뀌는 자리(세션 시작)에 남는다.
+// 시각은 직접 HH:mm 으로 낸다 — 기본 포맷(ko-KR · hour12:false)은 자정을 "24:00" 으로 낸다.
+// 날짜 눈금은 기본 포맷과 같은 옵션("8일" · "10월" · "2026년")에 KST 날짜만 바꿔 넣는다.
+const kstIntradayTickFormatter =
+  (barTimeZone: string) =>
+  (time: Time, tickMarkType: TickMarkType, locale: string): string | null => {
+    if (typeof time !== "number") return null;
+    const kst = new Date(toKstWallClockSec(time, barTimeZone) * 1000);
+    const date = new Date(kst.getUTCFullYear(), kst.getUTCMonth(), kst.getUTCDate());
+    switch (tickMarkType) {
+      case TickMarkType.Year:
+        return date.toLocaleString(locale, { year: "numeric" });
+      case TickMarkType.Month:
+        return date.toLocaleString(locale, { month: "short" });
+      case TickMarkType.DayOfMonth:
+        return date.toLocaleString(locale, { day: "numeric" });
+      default:
+        return `${String(kst.getUTCHours()).padStart(2, "0")}:${String(kst.getUTCMinutes()).padStart(2, "0")}`;
+    }
+  };
+
 // locked 뷰의 가시 범위. from = 전일 마지막 dim 봉(anchor)에서 lookbackBars 만큼
 // 되짚은 봉의 logical index, to = 마지막 봉 + 우측 빈 슬롯. 시각이 아닌 봉 인덱스로
 // 잡는 이유: setVisibleRange 는 to 가 마지막 봉을 넘으면 마지막 봉으로 클램프해 우측
@@ -425,6 +451,7 @@ export const PriceChart = ({
   baseline,
   priceFormatter,
   lastValueVisible = true,
+  barTimeZone,
   visibleBars,
   onVisibleBarsChange,
   resetKey = 0,
@@ -590,7 +617,7 @@ export const PriceChart = ({
       crosshair: { mode: 1 },
       // 크로스헤어 시간 라벨: intraday=`MM-DD HH:mm`, EOD=`YYYY-MM-DD` (shared/constants/chart).
       localization: {
-        ...crosshairLocalization(timeVisible),
+        ...crosshairLocalization(timeVisible, timeVisible ? barTimeZone : undefined),
         ...(priceFormatter ? { priceFormatter } : {}),
       },
       timeScale: {
@@ -603,8 +630,13 @@ export const PriceChart = ({
         // 첫 봉보다 더 왼쪽으로 팬 금지 — 네이티브 옵션이 whitespace 를 그대로 처리해준다.
         // 우측 경계는 의도적으로 자유 — 미래 공백으로 자유 이동 허용, 기본 range 는 리셋 버튼으로 복구.
         fixLeftEdge: true,
-        // 축 tick 도 한국식 연-월-일 순. intraday(timeVisible) 는 기본 시간 포맷 유지.
-        ...(!timeVisible ? { tickMarkFormatter: chartTickFormatter } : {}),
+        // 축 tick 도 한국식 연-월-일 순. intraday(timeVisible) 는 기본 시간 포맷 유지 —
+        // barTimeZone 이 있는 분봉만 KST 로 옮긴다.
+        ...(!timeVisible
+          ? { tickMarkFormatter: chartTickFormatter }
+          : barTimeZone
+            ? { tickMarkFormatter: kstIntradayTickFormatter(barTimeZone) }
+            : {}),
       },
       rightPriceScale: { borderColor: c.border },
       handleScroll: interactive,
@@ -981,7 +1013,7 @@ export const PriceChart = ({
     };
     // maPeriodsKey 로 배열 값 변화를 감지 (참조 대신 값 비교).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [precision, priceFormatter, lastValueVisible, timeVisible, interactive, resolvedTheme, intraday, dimBefore, showVolume, maPeriodsKey, showLegend, seriesKind, hasBaseline]);
+  }, [precision, priceFormatter, lastValueVisible, barTimeZone, timeVisible, interactive, resolvedTheme, intraday, dimBefore, showVolume, maPeriodsKey, showLegend, seriesKind, hasBaseline]);
 
   // baseline 값만 바뀌면 baseValue 만 갱신 — 시리즈 재생성 회피. Baseline 시리즈가 아니면 no-op.
   useEffect(() => {
