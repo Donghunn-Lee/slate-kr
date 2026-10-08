@@ -23,6 +23,8 @@ type WatchlistRowProps = {
   disclosure?: TickerDisclosureCount;
   hasMemo?: boolean;
   onRemove?: () => void;
+  // 숨기지 않고 비활성으로 둔다 — 버튼이 빠지면 행 상단 배지들이 밀린다.
+  isRemoveDisabled?: boolean;
 };
 
 export const WatchlistRow = ({
@@ -34,6 +36,7 @@ export const WatchlistRow = ({
   disclosure,
   hasMemo = false,
   onRemove,
+  isRemoveDisabled = false,
 }: WatchlistRowProps) => {
   const handleRemove = (e: MouseEvent) => {
     e.preventDefault();
@@ -93,12 +96,14 @@ export const WatchlistRow = ({
                   </Link>
                 </div>
               )}
+              {/* 비활성에 pointer-events-none 을 쓰지 않는다 — 클릭이 아래 행 링크로 빠져 종목 페이지로 이동한다. */}
               {onRemove && (
                 <button
                   type="button"
                   onClick={handleRemove}
+                  disabled={isRemoveDisabled}
                   aria-label={`${item.name} 관심종목 해제`}
-                  className="relative z-10 -mr-2 shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="relative z-10 -mr-2 shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>

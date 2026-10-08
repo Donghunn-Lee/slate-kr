@@ -68,7 +68,6 @@ const fetchPut = async (
 
 export const useWatchlistSync = () => {
   const lastConfirmedRef = useRef<WatchlistSnapshot | null>(null);
-  const dirtyDuringLoadRef = useRef(false);
   const debounceTimerRef = useRef<number | null>(null);
   const inFlightRef = useRef(false);
   const rescheduleRef = useRef(false);
@@ -186,27 +185,15 @@ export const useWatchlistSync = () => {
           useWatchlistStore.getState()
         );
         setStatus("synced");
-        dirtyDuringLoadRef.current = false;
         return;
       }
 
       const serverSnapshot = response.data.snapshot;
-      if (dirtyDuringLoadRef.current) {
-        // 로컬이 더 새것. 서버 스냅샷은 적용하지 않고 baseline 으로만 잡아
-        // 이어지는 write 판정이 로컬 전체를 PUT 하게 한다.
-        lastConfirmedRef.current = serverSnapshot;
-        setStatus("synced");
-        dirtyDuringLoadRef.current = false;
-        scheduleFlush();
-        return;
-      }
-
       useWatchlistStore.getState().replaceAll(serverSnapshot);
       // replaceAll 의 stockMeta GC 결과를 baseline 으로 잡아야 이후 write 판정이
       // 불필요한 PUT 을 유발하지 않는다.
       lastConfirmedRef.current = selectSnapshot(useWatchlistStore.getState());
       setStatus("synced");
-      dirtyDuringLoadRef.current = false;
     };
 
     const unsubscribe = useWatchlistStore.subscribe((state, prev) => {
@@ -218,10 +205,7 @@ export const useWatchlistSync = () => {
       ) {
         return;
       }
-      if (state.syncStatus === "loading") {
-        dirtyDuringLoadRef.current = true;
-        return;
-      }
+      if (state.syncStatus === "loading") return;
       if (state.syncStatus === "blocked") return;
 
       const snapshot = selectSnapshot(state);

@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { useMounted } from "@/shared/hooks/useMounted";
 import { MAX_MEMO_BODY_LENGTH } from "@/shared/types/memo";
+import { isSyncPending } from "@/shared/utils/isSyncPending";
 import { useMemoStore } from "./store/useMemoStore";
 
 type MemoButtonProps = {
@@ -41,7 +42,7 @@ export const MemoButton = ({ ticker, name, market }: MemoButtonProps) => {
     setOpen(next);
   };
 
-  if (!mounted) {
+  if (!mounted || isSyncPending(syncStatus)) {
     return (
       <Button variant="outline" size="sm" disabled aria-label="메모 작성">
         <NotebookPen />

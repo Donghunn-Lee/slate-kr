@@ -12,7 +12,7 @@ const edited: Snapshot = { tickers: ["005930", "000660"] };
 
 describe("shouldFlushOnPageHide", () => {
   // loading·blocked 의 기준 스냅샷은 항상 null — 비교만으로는 "다름"이 나온다.
-  it("loading · 로딩 중 편집분이 있어도 → 보내지 않음", () => {
+  it("loading · 로컬이 기준과 달라 보여도 → 보내지 않음", () => {
     expect(shouldFlushOnPageHide("loading", edited, null, isEqual)).toBe(false);
   });
 

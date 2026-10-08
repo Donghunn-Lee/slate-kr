@@ -18,6 +18,7 @@ import { WatchlistRow, WatchlistRowSkeleton } from "@/entities/watchlist/Watchli
 import { StockPanel } from "@/entities/stock/StockPanel";
 import { EmptyState } from "@/shared/components/EmptyState";
 import { StatusBadge } from "@/shared/components/StatusBadge";
+import { isSyncPending } from "@/shared/utils/isSyncPending";
 import { Button } from "@/components/ui/button";
 import { GroupManagementModal } from "@/features/watchlist/GroupManagementModal";
 import { cn } from "@/lib/utils";
@@ -53,6 +54,7 @@ export const WatchlistPageClient = () => {
   const removeMembership = useWatchlistStore((s) => s.removeMembership);
   const syncStatus = useWatchlistStore((s) => s.syncStatus);
   const showSyncBadge = syncStatus === "blocked" || syncStatus === "error";
+  const isPending = isSyncPending(syncStatus);
   const recentVisited = useRecentVisitedStore((s) => s.items);
   const memos = useMemoStore((s) => s.memos);
 
@@ -251,6 +253,7 @@ export const WatchlistPageClient = () => {
               variant="ghost"
               size="sm"
               onClick={() => setModalOpen(true)}
+              disabled={isPending}
               className="ml-auto gap-1.5"
             >
               <Settings2 className="size-4" />
@@ -286,6 +289,7 @@ export const WatchlistPageClient = () => {
                             ? undefined
                             : () => removeMembership(item.ticker, currentGroup.id)
                         }
+                        isRemoveDisabled={isPending}
                       />
                     ))}
               </ul>

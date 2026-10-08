@@ -13,6 +13,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useMounted } from "@/shared/hooks/useMounted";
+import { isSyncPending } from "@/shared/utils/isSyncPending";
 import {
   MAX_WATCHLIST_SIZE,
   selectGroupsByTicker,
@@ -34,8 +35,9 @@ export const WatchlistButton = ({ ticker, name, market }: WatchlistButtonProps) 
 
   const [open, setOpen] = useState(false);
   const isInWatchlist = useWatchlistStore((s) => s.isInWatchlist(ticker));
+  const syncStatus = useWatchlistStore((s) => s.syncStatus);
 
-  if (!mounted) {
+  if (!mounted || isSyncPending(syncStatus)) {
     return (
       <Button variant="outline" size="sm" disabled aria-label="관심 등록">
         <Star />
