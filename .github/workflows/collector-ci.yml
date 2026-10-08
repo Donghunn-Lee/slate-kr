@@ -1,0 +1,37 @@
+name: Collector CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "collector/**"
+      - ".github/workflows/collector-ci.yml"
+  pull_request:
+    paths:
+      - "collector/**"
+      - ".github/workflows/collector-ci.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: collector
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # 3.12: 수집 워크플로 런타임과 일치.
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # 조회·DB 함수를 mock 하므로 secrets 없이 통과한다.
+      # tests/ 는 패키지가 아니라 인자 없는 discover 는 0건 — 시작 디렉토리를 준다.
+      - name: Test
+        run: python -m unittest discover -s tests

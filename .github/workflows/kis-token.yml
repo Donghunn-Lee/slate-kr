@@ -6,6 +6,11 @@ on:
 jobs:
   issue:
     runs-on: ubuntu-latest
+    # Job-level 단일 캡. step-level timeout 은 사용하지 않는다 (step timeout +
+    # continue-on-error 조합은 cancelled outcome 을 gate 가 감지해야 하는 구조인
+    # 반면, job timeout 은 run 자체를 fail 시켜 gate 의존이 없음). 실측 ~1분 —
+    # ~2배(2분)는 pip install 변동에 빠듯해 5분.
+    timeout-minutes: 5
 
     env:
       DATABASE_URL: ${{ secrets.NEON_DIRECT_URL }}
