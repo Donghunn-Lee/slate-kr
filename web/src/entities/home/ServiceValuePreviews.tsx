@@ -83,7 +83,7 @@ export const PricePreview = ({ play }: PreviewProps) => {
   const markerTopPct = (SPARKLINE_END_Y / SPARKLINE_VIEW_H) * 100;
 
   return (
-    <div className="relative h-full w-full text-lavender-accent">
+    <div className="relative h-14 w-full text-lavender-accent sm:h-16">
       <svg
         viewBox={`0 0 ${SPARKLINE_VIEW_W} ${SPARKLINE_VIEW_H}`}
         preserveAspectRatio="none"

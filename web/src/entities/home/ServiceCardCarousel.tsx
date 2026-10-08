@@ -139,7 +139,8 @@ export const ServiceCardCarousel = () => {
                     <p className="mt-2 text-caption text-muted-foreground">
                       {card.description}
                     </p>
-                    <div className="mt-4 flex h-14 items-center sm:h-16">
+                    {/* 높이는 각 프리뷰가 정한다. 칸을 고정하면 차트보다 낮은 배지·지표 프리뷰 아래가 빈다. */}
+                    <div className="mt-4 flex items-center">
                       <Preview
                         key={isActive ? `play-${activationSeq}` : "idle"}
                         play={isActive}
