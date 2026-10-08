@@ -248,6 +248,9 @@ export const WatchlistPageClient = () => {
                 {currentTabLabel}
               </h2>
             )}
+            {countsQuery.isError && !pricesQuery.isError && (
+              <StatusBadge label="일시 지연" title="최근 공시 건수를 불러오지 못했어요" />
+            )}
             <Button
               type="button"
               variant="ghost"
@@ -261,39 +264,45 @@ export const WatchlistPageClient = () => {
             </Button>
           </header>
 
+          {/* 동기화 로드 중 빈 그룹은 곧 서버 목록으로 채워질 수 있어 "없음" 문구를 미룬다. */}
           {displayItems.length === 0 ? (
-            <StockPanel variant="plain" className="py-10">
-              <EmptyState {...emptyState} />
-            </StockPanel>
-          ) : pricesQuery.isError && countsQuery.isError ? (
-            <p className="text-body text-muted-foreground">
-              관심종목 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
-            </p>
+            isPending && !isFixedTab ? null : (
+              <StockPanel variant="plain" className="py-10">
+                <EmptyState {...emptyState} />
+              </StockPanel>
+            )
           ) : (
-            <StockPanel variant="plain" className="py-2">
-              <ul>
-                {pricesQuery.isLoading
-                  ? displayItems.map((item) => <WatchlistRowSkeleton key={item.ticker} />)
-                  : displayItems.map((item) => (
-                      <WatchlistRow
-                        key={item.ticker}
-                        item={item}
-                        price={pricesMap[item.ticker]}
-                        liveQuote={liveQuotes[item.ticker]}
-                        isLiveFailed={liveFailed[item.ticker] ?? false}
-                        preReset={preReset}
-                        disclosure={countsMap[item.ticker]}
-                        hasMemo={item.ticker in memos}
-                        onRemove={
-                          isFixedTab || !currentGroup
-                            ? undefined
-                            : () => removeMembership(item.ticker, currentGroup.id)
-                        }
-                        isRemoveDisabled={isPending}
-                      />
-                    ))}
-              </ul>
-            </StockPanel>
+            <>
+              {pricesQuery.isError && (
+                <p className="mb-2 text-body text-muted-foreground">
+                  관심종목 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
+                </p>
+              )}
+              <StockPanel variant="plain" className="py-2">
+                <ul>
+                  {pricesQuery.isLoading
+                    ? displayItems.map((item) => <WatchlistRowSkeleton key={item.ticker} />)
+                    : displayItems.map((item) => (
+                        <WatchlistRow
+                          key={item.ticker}
+                          item={item}
+                          price={pricesMap[item.ticker]}
+                          liveQuote={liveQuotes[item.ticker]}
+                          isLiveFailed={liveFailed[item.ticker] ?? false}
+                          preReset={preReset}
+                          disclosure={countsMap[item.ticker]}
+                          hasMemo={item.ticker in memos}
+                          onRemove={
+                            isFixedTab || !currentGroup
+                              ? undefined
+                              : () => removeMembership(item.ticker, currentGroup.id)
+                          }
+                          isRemoveDisabled={isPending}
+                        />
+                      ))}
+                </ul>
+              </StockPanel>
+            </>
           )}
         </section>
       </div>
