@@ -152,7 +152,7 @@ export const ServiceCardCarousel = () => {
           })}
         </div>
       </div>
-      <div className="mt-4 flex items-center justify-center gap-2">
+      <div className="mt-4 flex items-center justify-center">
         {CARDS.map((card, i) => {
           const isActive = i === active;
           return (
@@ -165,11 +165,19 @@ export const ServiceCardCarousel = () => {
               onClick={() => goTo(i)}
               aria-label={`${card.title} 슬라이드`}
               aria-current={isActive}
-              className={cn(
-                "h-1.5 rounded-full transition-all duration-300 ease-out",
-                isActive ? "w-6 bg-foreground" : "w-1.5 bg-foreground/30 hover:bg-foreground/50",
-              )}
-            />
+              // 보이는 점은 6px 이지만 터치 타깃은 24×24. 음수 세로 마진으로 행 높이는 점 높이(6px)에 맞춘다.
+              className="group/dot -my-[9px] flex size-6 items-center justify-center"
+            >
+              <span
+                aria-hidden
+                className={cn(
+                  "h-1.5 rounded-full transition-all duration-300 ease-out",
+                  isActive
+                    ? "w-6 bg-foreground"
+                    : "w-1.5 bg-foreground/30 group-hover/dot:bg-foreground/50",
+                )}
+              />
+            </button>
           );
         })}
       </div>

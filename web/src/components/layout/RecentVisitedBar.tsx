@@ -15,6 +15,10 @@ const COLLAPSED_HEIGHT_PX = 20;
 // → 스크롤 단서 확보. 실기기 렌더 폰트 메트릭에 따라 미세 조정 여지.
 const EXPANDED_CAP_MOBILE_PX = 56;
 
+// 칩 이름 버튼은 터치 타깃 24px(h-6)을 20px 행에 -my-0.5 로 겹쳐 놓아 위아래로 2px 씩 행 밖으로 나간다.
+// 칩 영역에 같은 폭의 세로 패딩(py-0.5 · -my-0.5)을 두고 max-height 에 더해 그 2px 가 클리핑되지 않게 한다.
+const CHIP_HIT_SLACK_PX = 2;
+
 // 헤더 하단에 매달린 패널. items=0 이면 미렌더.
 // 레이아웃: [라벨 | chip 영역 | chevron] 3열 grid, items-start 로 라벨·chevron 은 상단 고정.
 // chip 영역만 세로로 확장돼서 접힘/펼침 시 상단 정보(라벨) 는 자리에 그대로 남아있음.
@@ -82,17 +86,19 @@ export const RecentVisitedBar = () => {
             id="recent-visited-list"
             ref={scrollRef}
             className={cn(
-              "transition-[max-height] duration-200 ease-out motion-reduce:transition-none",
+              "-my-0.5 py-0.5 transition-[max-height] duration-200 ease-out motion-reduce:transition-none",
               open && isMobile
                 ? "overflow-y-auto overscroll-contain"
                 : "overflow-hidden",
             )}
             style={{
-              maxHeight: open
-                ? isMobile
-                  ? Math.min(naturalHeight, EXPANDED_CAP_MOBILE_PX)
-                  : naturalHeight
-                : COLLAPSED_HEIGHT_PX,
+              maxHeight:
+                (open
+                  ? isMobile
+                    ? Math.min(naturalHeight, EXPANDED_CAP_MOBILE_PX)
+                    : naturalHeight
+                  : COLLAPSED_HEIGHT_PX) +
+                CHIP_HIT_SLACK_PX * 2,
             }}
           >
             <div
@@ -108,7 +114,7 @@ export const RecentVisitedBar = () => {
                       e.stopPropagation();
                       goTo(s.ticker);
                     }}
-                    className="cursor-pointer text-muted-foreground transition-colors hover:text-foreground hover:underline"
+                    className="-my-0.5 inline-flex h-6 cursor-pointer items-center text-muted-foreground transition-colors hover:text-foreground hover:underline"
                   >
                     {s.name}
                   </button>
