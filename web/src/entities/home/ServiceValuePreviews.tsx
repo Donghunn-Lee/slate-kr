@@ -6,6 +6,8 @@ import { usePrefersReducedMotion } from "@/shared/hooks/usePrefersReducedMotion"
 
 // play=true 로 마운트되면 애니메이션 실행. play=false 면 최종 상태 정지 렌더.
 // 재재생은 부모가 key 를 바꿔 재마운트시키는 방식으로 트리거.
+// 하이드레이션은 reduced-motion 을 서버 스냅샷(false)으로 읽어 애니메이션 대기 상태로 마운트한 뒤
+// 곧바로 reduce 로 바뀔 수 있다. 그때 진입 effect 가 건너뛰어지므로 표시는 shouldAnimate 가 꺼지면 항상 최종 상태다.
 type PreviewProps = { play: boolean };
 
 const DISCLOSURE_CHIPS = [
@@ -38,7 +40,7 @@ export const DisclosurePreview = ({ play }: PreviewProps) => {
             "inline-flex items-center rounded-sm px-1.5 py-0.5 text-micro font-medium",
             chip.cls,
             shouldAnimate && "transition-all duration-500 ease-out",
-            entered ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0",
+            entered || !shouldAnimate ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0",
           )}
           style={shouldAnimate ? { transitionDelay: `${i * 150}ms` } : undefined}
         >
@@ -116,7 +118,7 @@ export const PricePreview = ({ play }: PreviewProps) => {
           pathLength={1}
           style={{
             strokeDasharray: 1,
-            strokeDashoffset: entered ? 0 : 1,
+            strokeDashoffset: entered || !shouldAnimate ? 0 : 1,
             transition: shouldAnimate ? "stroke-dashoffset 1s ease-out" : "none",
           }}
         />
@@ -127,7 +129,7 @@ export const PricePreview = ({ play }: PreviewProps) => {
         style={{
           left: `${markerLeftPct}%`,
           top: `${markerTopPct}%`,
-          opacity: entered ? 1 : 0,
+          opacity: entered || !shouldAnimate ? 1 : 0,
           transition: shouldAnimate ? "opacity 250ms ease-out 900ms" : "none",
         }}
       />
@@ -167,7 +169,7 @@ const useCountUp = (target: number, shouldAnimate: boolean) => {
     return () => cancelAnimationFrame(raf);
   }, [target, shouldAnimate]);
 
-  return value;
+  return shouldAnimate ? value : target;
 };
 
 const MetricValue = ({
