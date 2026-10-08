@@ -7,6 +7,7 @@ import {
   computeScrollAvailability,
   type ScrollAvailability,
 } from "./scrollAvailability";
+import { nearestScrollLeft } from "./nearestScrollLeft";
 
 export type RankingTabItem<TId extends string> = {
   id: TId;
@@ -50,9 +51,15 @@ export const RankingTabStrip = <TId extends string>({
     };
   }, []);
 
-  // inline: "nearest" — 이미 보이는 탭이면 스크롤 없음, 가려진 탭만 살짝 진입.
+  // 이미 보이는 탭이면 스크롤 없음, 가려진 탭만 살짝 진입. scrollIntoView 는 block: "nearest" 여도
+  // 스트립이 뷰포트 밖에 있으면 페이지까지 세로로 내리므로, 스트립의 가로 스크롤만 직접 움직인다.
   useEffect(() => {
-    activeRef.current?.scrollIntoView({ inline: "nearest", block: "nearest" });
+    const el = scrollRef.current;
+    const tab = activeRef.current;
+    if (!el || !tab) return;
+    const tabRect = tab.getBoundingClientRect();
+    const start = tabRect.left - el.getBoundingClientRect().left + el.scrollLeft;
+    el.scrollLeft = nearestScrollLeft(start, start + tabRect.width, el.scrollLeft, el.clientWidth);
   }, [activeId]);
 
   const scrollByHalf = (dir: "left" | "right") => {
