@@ -209,6 +209,9 @@ DB / 외부 API
 - 셀 조립: `shared/utils/buildIndexCell.ts` 공용.
   KIS sentinel 봉·국내 세션 갭 fill 판정: `shared/utils/intradaySentinel.ts`
 - 시각 표시: `@date-fns/tz` TZDate로 KST 변환 (IANA DB 위임, DST 대응)
+- 해외 분봉 `time`은 거래소 현지 벽시계 인코딩을 유지하고, 눈금·crosshair 표시에서만 KST로 변환한다(`toKstWallClockSec`).
+  병합·fold·직전 종가 조회가 이 인코딩에 기댄다
+- 시각 라벨은 KST, 일봉 날짜·기준일은 거래소 거래일
 - KIS 토큰: GitHub Actions(kis-token.yml, 12h)가 발급 → Neon `kis_token` 단일행 캐시.
   앱은 `lib/kis-token.ts`에서 모듈 캐시 → Neon(버퍼 600s) → fallback 직접 발급 순
 
