@@ -252,6 +252,7 @@ DB / 외부 API
   마커 없으면 GET 자체를 생략한다. 기능성 쿠키라 동의 배너 없음 — /credits 고지로 갈음
 - `GET/PUT /api/watchlist`: `force-dynamic` + `private, no-store`. 스키마는 `shared/types/watchlist.ts` Zod 단일 소스
 - GET 실패 시 쓰기 차단(`blocked`) — stale 로컬로 서버를 덮지 않는다. PUT 실패는 롤백 + toast
+- 첫 로드가 끝날 때까지(`idle`·`loading` = `isSyncPending`) 편집 진입점(관심 등록·메모 트리거, 그룹 관리 열기, 행 삭제)을 `disabled`로 막는다 — 로드 결과는 병합 없이 서버가 덮는다(메모 공용)
 - 재PUT 루프 차단은 "현재 스냅샷 == 마지막 확정 스냅샷이면 skip" 1규칙. jsonb 키 순서 미보존 → 정렬 정규화 후 비교
 - pagehide keepalive flush는 기준이 확정된 상태(`synced`·`error`)에서만 보낸다 — idle·loading·blocked 중엔 로컬로 서버 백업을 덮으므로 보내지 않는다(`shouldFlushOnPageHide`, 메모 공용)
 - TanStack useMutation 미사용 — 서버 상태 SoT가 아니므로 raw fetch
@@ -260,7 +261,7 @@ DB / 외부 API
 
 - 관심종목과 독립. 서버는 `anon_memos` JSONB 스냅샷 1행, 서버 우선 단방향 덮어쓰기. 익명 쿠키(`slatekr_uid` + `slatekr_sync=1`)는 관심종목과 공용 — `lib/anon-id`
 - 스냅샷: `Record<ticker, { body, name, market, updatedAt }>`. body ≤ 500자, 항목 ≤ 200. 빈 본문 = 키 삭제(클라 책임 — 서버는 empty body 스키마 위반으로 거부)
-- `useMemoSync`는 `useWatchlistSync` 복제 단순판. 공용 훅으로 뽑지 않는다(사용처 2번째, 3번째부터 추상화 판단). 마이그레이션·dirtyDuringLoad 분기 없음
+- `useMemoSync`는 `useWatchlistSync` 복제 단순판. 공용 훅으로 뽑지 않는다(사용처 2번째, 3번째부터 추상화 판단). 마이그레이션 분기 없음
 - 편집은 종목 상세 헤더 `MemoButton` Popover만. 관심종목 행은 "메모" 라벨 표시 전용(비링크). `/watchlist`에 "메모" 고정 탭(최근 조회와 동급, 스토어 밖 상수 키)
 - `parsePutBody`는 `lib/` 공용 — 스냅샷 스키마를 인자로 받아 워치리스트·메모 route에서 공유
 
