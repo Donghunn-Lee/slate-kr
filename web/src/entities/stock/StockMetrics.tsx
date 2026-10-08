@@ -9,6 +9,7 @@ import {
 import { getListedAt } from "@/lib/stocks";
 import { formatRatio, formatEps, formatPercent } from "@/shared/format";
 import { isNonKrwTicker } from "@/shared/constants/nonKrwTickers";
+import { StatusBadge } from "@/shared/components/StatusBadge";
 import { NonKrwNotice } from "./NonKrwNotice";
 import { StockPanel } from "./StockPanel";
 import { StockMetricsFormulaTooltip } from "./StockMetricsFormulaTooltip";
@@ -16,14 +17,25 @@ import { StockMetricsFormulaTooltip } from "./StockMetricsFormulaTooltip";
 type MetricItemProps = {
   label: string;
   value: string;
+  // 기대는 조회가 실패해 비었다 — 기준 불일치·적자 등 의도된 숨김의 "—" 와 구분한다.
+  isFailed?: boolean;
 };
 
-const MetricItem = ({ label, value }: MetricItemProps) => (
+const MetricItem = ({ label, value, isFailed = false }: MetricItemProps) => (
   <div className="space-y-1">
     <p className="text-caption font-medium text-muted-foreground">{label}</p>
-    <p className="text-value font-semibold">{value}</p>
+    <p className="text-value font-semibold">
+      {value}
+      {isFailed && <StatusBadge label="일시 지연" className="ml-1.5 align-middle" />}
+    </p>
   </div>
 );
+
+const logRejected = (ticker: string, lookup: string, result: PromiseSettledResult<unknown>) => {
+  if (result.status === "fulfilled") return;
+  const message = result.reason instanceof Error ? result.reason.message : String(result.reason);
+  console.error(`[stock-metrics] ${lookup} load failed for ${ticker}: ${message}`);
+};
 
 type StockMetricsProps = {
   ticker: string;
@@ -43,6 +55,10 @@ export const StockMetrics = async ({ ticker }: StockMetricsProps) => {
     getFinancials(ticker),
     getListedAt(ticker),
   ]);
+  // 상장일 실패는 연환산 EPS 대신 연간 EPS 로 내려갈 뿐이라 표시 없이 로그만 남긴다.
+  logRejected(ticker, "price", priceResult);
+  logRejected(ticker, "financials", financialsResult);
+  logRejected(ticker, "listedAt", listedAtResult);
 
   const price: StockPriceSnapshot | null =
     priceResult.status === "fulfilled" ? priceResult.value : null;
@@ -52,8 +68,10 @@ export const StockMetrics = async ({ ticker }: StockMetricsProps) => {
   const latestAnnual: FinancialPeriod | null = financials?.annual[0] ?? null;
   const ttm = computeTtmEps(financials?.quarterly ?? [], latestAnnual, listedAt);
 
-  const hasError =
-    priceResult.status === "rejected" && financialsResult.status === "rejected";
+  // 지표 6개가 모두 재무에 기댄다(EPS·BPS·DPS 는 직접, PER·PBR·시가배당률은 그 값을 거쳐) —
+  // 재무가 실패하면 가격이 있어도 보여 줄 지표가 없다.
+  const hasError = financialsResult.status === "rejected";
+  const isPriceFailed = priceResult.status === "rejected";
   const hasData = price !== null || latestAnnual !== null;
 
   const currentPrice = price?.close ?? null;
@@ -101,12 +119,16 @@ export const StockMetrics = async ({ ticker }: StockMetricsProps) => {
         <p className="text-body text-muted-foreground">지표 데이터 없음</p>
       ) : (
         <div className="grid grid-cols-2 gap-x-8 gap-y-5 sm:grid-cols-3 lg:grid-cols-6">
-          <MetricItem label="PER" value={formatRatio(per)} />
-          <MetricItem label="PBR" value={formatRatio(pbr)} />
+          <MetricItem label="PER" value={formatRatio(per)} isFailed={isPriceFailed} />
+          <MetricItem label="PBR" value={formatRatio(pbr)} isFailed={isPriceFailed} />
           <MetricItem label="EPS" value={formatEps(displayEps)} />
           <MetricItem label="BPS" value={formatEps(displayBps, true, 0)} />
           <MetricItem label="DPS" value={formatEps(displayDps)} />
-          <MetricItem label="시가배당률" value={formatPercent(dividendYield)} />
+          <MetricItem
+            label="시가배당률"
+            value={formatPercent(dividendYield)}
+            isFailed={isPriceFailed}
+          />
         </div>
       )}
     </StockPanel>
