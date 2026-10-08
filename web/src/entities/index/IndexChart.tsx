@@ -34,6 +34,7 @@ import {
   type OverseasIntradayCode,
 } from "@/shared/constants/indices";
 import { INTRADAY_PREV_LOOKBACK_BARS } from "@/shared/constants/chart";
+import { formatIndexPrice } from "@/shared/format";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
 import type {
@@ -607,6 +608,9 @@ export const IndexChart = ({
           maPeriods={effectiveMaPeriods}
           seriesKind={seriesKind}
           baseline={intradayBaseline}
+          priceFormatter={formatIndexPrice}
+          // 분봉은 quote 를 병합하지 않아 마지막 봉이 헤더 값과 다를 수 있다 — 일·주·월은 병합값이라 유지.
+          lastValueVisible={!renderIntraday}
           visibleBars={renderIntraday ? undefined : barCount}
           onVisibleBarsChange={renderIntraday ? undefined : setBarCount}
           prevLookbackBars={INTRADAY_PREV_LOOKBACK_BARS}

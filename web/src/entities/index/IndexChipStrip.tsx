@@ -21,6 +21,7 @@ import { isKrxOpeningWindow } from "@/shared/utils/market";
 import { useNow } from "@/shared/hooks/useNow";
 import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
 import { priceToneClass } from "@/shared/utils/priceTone";
+import { formatIndexPrice } from "@/shared/format";
 import { cn } from "@/lib/utils";
 
 type IndexChipStripProps = {
@@ -29,9 +30,6 @@ type IndexChipStripProps = {
   dailyByIndex: Record<IndexCode, IndexDailySnapshot[] | null>;
   className?: string;
 };
-
-const formatIndexPrice = (v: number): string =>
-  v.toLocaleString("ko-KR", { maximumFractionDigits: 2 });
 
 export const IndexChipStrip = ({
   selected,
@@ -122,7 +120,7 @@ export const IndexChipStrip = ({
                 priceToneClass(cell.live.sign),
               )}
             >
-              <PriceCountUp value={cell.live.price} />
+              <PriceCountUp value={cell.live.price} format={formatIndexPrice} />
             </span>
             <PriceChange
               change={cell.live.change}
@@ -130,6 +128,7 @@ export const IndexChipStrip = ({
               sign={cell.live.sign}
               symbol="arrow"
               size="xs"
+              fractionDigits={2}
             />
           </div>
         ) : cell?.fallback ? (
@@ -147,6 +146,7 @@ export const IndexChipStrip = ({
               changeRate={cell.fallback.changeRate}
               symbol="arrow"
               size="xs"
+              fractionDigits={2}
             />
             {(isDomestic || overseasAnswered) && (
               <span className="text-micro text-muted-foreground">종가 기준</span>

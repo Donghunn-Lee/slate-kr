@@ -36,6 +36,7 @@ import {
 import { useNow } from "@/shared/hooks/useNow";
 import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
 import { priceToneClass } from "@/shared/utils/priceTone";
+import { formatIndexPrice } from "@/shared/format";
 import { cn } from "@/lib/utils";
 import { IndexChartDynamic } from "./IndexChartDynamic";
 
@@ -45,9 +46,6 @@ type IndexDetailPaneProps = {
   statsByIndex: Record<IndexCode, PriceStats | null>;
   volumeByIndex: Record<IndexCode, number | null>;
 };
-
-const formatIndexPrice = (v: number): string =>
-  v.toLocaleString("ko-KR", { maximumFractionDigits: 2 });
 
 const formatIndexVolume = (v: number): string => {
   const eok = v / 100_000_000;
@@ -362,7 +360,7 @@ export const IndexDetailPane = ({
                   priceToneClass(cell.live.sign),
                 )}
               >
-                <PriceCountUp key={selected} value={cell.live.price} />
+                <PriceCountUp key={selected} value={cell.live.price} format={formatIndexPrice} />
               </span>
               <PriceChange
                 change={cell.live.change}
@@ -370,6 +368,7 @@ export const IndexDetailPane = ({
                 sign={cell.live.sign}
                 symbol="arrow"
                 size="sm"
+                fractionDigits={2}
               />
             </div>
           ) : cell?.fallback ? (
@@ -387,6 +386,7 @@ export const IndexDetailPane = ({
                 changeRate={cell.fallback.changeRate}
                 symbol="arrow"
                 size="sm"
+                fractionDigits={2}
               />
               {(isDomestic || overseasAnswered) && (
                 <span className="text-micro text-muted-foreground">종가 기준</span>

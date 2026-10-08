@@ -65,6 +65,11 @@ type PriceChartProps = {
   // 선차트 기준선 가격. seriesKind==="line" 일 때만 BaselineSeries(위=up/아래=down 2색) 로 전환.
   // 미제공 시 AreaSeries 무채색 fallback. 값 변경은 시리즈 재생성 없이 applyOptions 로 반영.
   baseline?: number;
+  // 가격축 눈금·크로스헤어 가격·legend 표기. 미지정 시 가격축은 라이브러리 기본(천단위 구분 없음),
+  // legend 는 precision 로케일 표기. 안정 참조로 주입 — 바뀌면 차트를 재생성한다.
+  priceFormatter?: (price: number) => string;
+  // 메인 시리즈 우측 마지막 값 라벨. 헤더와 다른 소스를 그리는 뷰에서 끈다.
+  lastValueVisible?: boolean;
   // 최근 N봉만 보이도록 시계축 논리 범위를 제어. null/undefined = 전체 표시.
   // 데이터를 자르지 않고 표시 창만 조정 → 툴바 조작 시 계산/네트워크 비용 없이 즉시 반영.
   // intraday 뷰에서는 무시 (applyLockedRange 가 초기 창을 잡고 이후 사용자 조작 존중).
@@ -215,7 +220,7 @@ const computeSmaLast = (bars: ChartBar[], period: number): LinePoint | null => {
   return { time: toTime(bars[bars.length - 1].time), value: sum / period };
 };
 
-// legend 값 포맷. precision 은 종목 0 / 지수 2 를 그대로 사용해 축약 없이 로케일 표기.
+// priceFormatter 미주입 시 legend 값 포맷. precision 을 그대로 사용해 축약 없이 로케일 표기.
 const formatOhlc = (v: number, precision: number): string =>
   v.toLocaleString("ko-KR", {
     minimumFractionDigits: precision,
@@ -249,7 +254,7 @@ const paintLegend = (
   bar: ChartBar | null,
   prevClose: number | null,
   palette: ChartPalette,
-  precision: number,
+  formatPrice: (v: number) => string,
   kind: "candle" | "line",
   showVolume: boolean,
 ) => {
@@ -273,14 +278,14 @@ const paintLegend = (
   const parts: string[] = [];
   if (kind === "candle") {
     parts.push(
-      `<span class="${labelCls}">시</span> ${formatOhlc(bar.open, precision)}`,
-      `<span class="${labelCls}">고</span> ${formatOhlc(bar.high, precision)}`,
-      `<span class="${labelCls}">저</span> ${formatOhlc(bar.low, precision)}`,
+      `<span class="${labelCls}">시</span> ${formatPrice(bar.open)}`,
+      `<span class="${labelCls}">고</span> ${formatPrice(bar.high)}`,
+      `<span class="${labelCls}">저</span> ${formatPrice(bar.low)}`,
     );
   }
   const closeSpan = closeColor
-    ? `<span style="color:${closeColor}">${formatOhlc(bar.close, precision)}</span>`
-    : formatOhlc(bar.close, precision);
+    ? `<span style="color:${closeColor}">${formatPrice(bar.close)}</span>`
+    : formatPrice(bar.close);
   parts.push(`<span class="${labelCls}">종</span> ${closeSpan}`);
   const pct = formatChangePct(bar.close, prevClose);
   if (pct !== null) {
@@ -418,6 +423,8 @@ export const PriceChart = ({
   showLegend = false,
   seriesKind = "candle",
   baseline,
+  priceFormatter,
+  lastValueVisible = true,
   visibleBars,
   onVisibleBarsChange,
   resetKey = 0,
@@ -582,7 +589,10 @@ export const PriceChart = ({
       },
       crosshair: { mode: 1 },
       // 크로스헤어 시간 라벨: intraday=`MM-DD HH:mm`, EOD=`YYYY-MM-DD` (shared/constants/chart).
-      localization: crosshairLocalization(timeVisible),
+      localization: {
+        ...crosshairLocalization(timeVisible),
+        ...(priceFormatter ? { priceFormatter } : {}),
+      },
       timeScale: {
         borderColor: c.border,
         timeVisible,
@@ -619,7 +629,7 @@ export const PriceChart = ({
         bottomFillColor2: c.baseline.bottomFill2,
         lineWidth: 2,
         priceLineVisible: false,
-        lastValueVisible: true,
+        lastValueVisible,
         priceFormat,
       });
     } else if (seriesKind === "line") {
@@ -629,7 +639,7 @@ export const PriceChart = ({
         bottomColor: c.neutralBottomFill,
         lineWidth: 2,
         priceLineVisible: false,
-        lastValueVisible: true,
+        lastValueVisible,
         priceFormat,
       });
     } else {
@@ -639,6 +649,7 @@ export const PriceChart = ({
         borderVisible: false,
         wickUpColor: c.up,
         wickDownColor: c.down,
+        lastValueVisible,
         priceFormat,
       });
     }
@@ -858,10 +869,11 @@ export const PriceChart = ({
     // Legend: 초기 상태는 미호버(최신 봉). crosshair 콜백에서 hover 상태에 따라 갱신.
     // ref 로 innerHTML 직접 갱신 → setState 리렌더 없음.
     let crosshairHandler: ((param: MouseEventParams) => void) | null = null;
+    const legendPrice = priceFormatter ?? ((v: number) => formatOhlc(v, precision));
     if (showLegend) {
       const latest = initial.length > 0 ? initial[initial.length - 1] : null;
       const latestPrev = latest ? changeBasis(initial, initial.length - 1) : null;
-      paintLegend(legendRef.current, latest, latestPrev, c, precision, seriesKind, showVolume);
+      paintLegend(legendRef.current, latest, latestPrev, c, legendPrice, seriesKind, showVolume);
       // MA 범례는 실제 그려진 series 목록에서 도출 → config effect 안에서 1회 렌더.
       paintMaLegend(maLegendRef.current, maSeriesList, c);
 
@@ -870,7 +882,7 @@ export const PriceChart = ({
         const cur = barsRef.current;
         const last = cur.length > 0 ? cur[cur.length - 1] : null;
         const prev = last ? changeBasis(cur, cur.length - 1) : null;
-        paintLegend(legendRef.current, last, prev, c, precision, seriesKind, showVolume);
+        paintLegend(legendRef.current, last, prev, c, legendPrice, seriesKind, showVolume);
       };
 
       crosshairHandler = (param) => {
@@ -902,7 +914,7 @@ export const PriceChart = ({
             paintLatest();
             return;
           }
-          paintLegend(legendRef.current, matched, prevClose, c, precision, "line", showVolume);
+          paintLegend(legendRef.current, matched, prevClose, c, legendPrice, "line", showVolume);
           return;
         }
         // seriesData.get(candleSeries) → BarData(OHLC). volume series 있으면 값 join.
@@ -933,7 +945,7 @@ export const PriceChart = ({
           close: candleData.close,
           volume: volData?.value,
         };
-        paintLegend(legendRef.current, bar, prevClose, c, precision, "candle", showVolume);
+        paintLegend(legendRef.current, bar, prevClose, c, legendPrice, "candle", showVolume);
       };
       chart.subscribeCrosshairMove(crosshairHandler);
     }
@@ -969,7 +981,7 @@ export const PriceChart = ({
     };
     // maPeriodsKey 로 배열 값 변화를 감지 (참조 대신 값 비교).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [precision, timeVisible, interactive, resolvedTheme, intraday, dimBefore, showVolume, maPeriodsKey, showLegend, seriesKind, hasBaseline]);
+  }, [precision, priceFormatter, lastValueVisible, timeVisible, interactive, resolvedTheme, intraday, dimBefore, showVolume, maPeriodsKey, showLegend, seriesKind, hasBaseline]);
 
   // baseline 값만 바뀌면 baseValue 만 갱신 — 시리즈 재생성 회피. Baseline 시리즈가 아니면 no-op.
   useEffect(() => {
@@ -1097,9 +1109,10 @@ export const PriceChart = ({
     if (showLegend && !isHoveringRef.current) {
       const last = bars.length > 0 ? bars[bars.length - 1] : null;
       const prev = last ? changeBasis(bars, bars.length - 1) : null;
-      paintLegend(legendRef.current, last, prev, c, precision, seriesKind, showVolume);
+      const legendPrice = priceFormatter ?? ((v: number) => formatOhlc(v, precision));
+      paintLegend(legendRef.current, last, prev, c, legendPrice, seriesKind, showVolume);
     }
-  }, [bars, intraday, dimBefore, resolvedTheme, showLegend, showVolume, precision, seriesKind, leftMarginBars]);
+  }, [bars, intraday, dimBefore, resolvedTheme, showLegend, showVolume, precision, priceFormatter, seriesKind, leftMarginBars]);
 
   // "기본 배율" 버튼 트리거. resetKey 가 0 → 양수로 최초 변경되거나 이후 증가할 때마다
   // 현재 뷰의 초기 visible range 를 재적용. mount 시엔 default(0) 라 skip → config effect

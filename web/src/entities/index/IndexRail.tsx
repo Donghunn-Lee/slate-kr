@@ -27,6 +27,7 @@ import { isKrxOpeningWindow } from "@/shared/utils/market";
 import { useNow } from "@/shared/hooks/useNow";
 import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
 import { priceToneClass } from "@/shared/utils/priceTone";
+import { formatIndexPrice } from "@/shared/format";
 import { cn } from "@/lib/utils";
 
 type IndexRailProps = {
@@ -45,9 +46,6 @@ const SECTIONS: {
   { key: "domestic", label: "국내", codes: DOMESTIC_INDEX_CODES },
   { key: "overseas", label: "해외", codes: OVERSEAS_INDEX_CODES },
 ];
-
-const formatIndexPrice = (v: number): string =>
-  v.toLocaleString("ko-KR", { maximumFractionDigits: 2 });
 
 export const IndexRail = ({
   selected,
@@ -162,7 +160,7 @@ export const IndexRail = ({
                               priceToneClass(cell.live.sign),
                             )}
                           >
-                            <PriceCountUp value={cell.live.price} />
+                            <PriceCountUp value={cell.live.price} format={formatIndexPrice} />
                           </span>
                           <PriceChange
                             change={cell.live.change}
@@ -170,6 +168,7 @@ export const IndexRail = ({
                             sign={cell.live.sign}
                             symbol="arrow"
                             size="xs"
+                            fractionDigits={2}
                           />
                         </div>
                       ) : cell?.fallback ? (
@@ -187,6 +186,7 @@ export const IndexRail = ({
                             changeRate={cell.fallback.changeRate}
                             symbol="arrow"
                             size="xs"
+                            fractionDigits={2}
                           />
                           {(isDomestic || overseasAnswered) && (
                             <span className="text-micro text-muted-foreground">
