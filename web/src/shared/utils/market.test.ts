@@ -757,8 +757,11 @@ describe("formatMonthDay", () => {
 });
 
 describe("formatClock", () => {
-  it("로컬 시각 24시간제 HH:MM (선행 0 유지)", () => {
-    expect(formatClock(new Date(2026, 6, 23, 9, 5))).toBe("09:05");
-    expect(formatClock(new Date(2026, 6, 23, 15, 30))).toBe("15:30");
+  // UTC 시각과 KST 시각이 다른 epoch 만 고른다 — 런타임 TZ 가 KST(로컬)든 UTC(CI)든
+  // 기대값이 KST 로 같아야 런타임 TZ 무관이 드러난다. 15:00 UTC 는 KST 자정.
+  it("고정 epoch → KST 24시간제 HH:MM (선행 0 유지)", () => {
+    expect(formatClock(utc(2026, 7, 23, 0, 5))).toBe("09:05");
+    expect(formatClock(utc(2026, 7, 23, 6, 30))).toBe("15:30");
+    expect(formatClock(utc(2026, 7, 23, 15, 0))).toBe("00:00");
   });
 });

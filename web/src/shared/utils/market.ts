@@ -156,17 +156,16 @@ export const getKstDateAndMinutes = (
   return { date, minutes };
 };
 
-// "YYYY-MM-DD" → "MM.DD" — 세션 라벨의 날짜 표기(전일 종가·개장전).
+// "YYYY-MM-DD" → "MM.DD" — 세션 라벨의 날짜 표기.
 export const formatMonthDay = (yyyyMmDd: string): string =>
   `${yyyyMmDd.slice(5, 7)}.${yyyyMmDd.slice(8, 10)}`;
 
-// 24시간제 "HH:MM" — 장중 라벨 시각. 런타임 로컬 타임존 기준.
-export const formatClock = (d: Date): string =>
-  d.toLocaleTimeString("ko-KR", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
+// 24시간제 "HH:MM" (KST) — 라벨 시각. 옆에 붙는 MM.DD 가 KST 날짜라 브라우저
+// 타임존을 따르면 날짜와 시각이 서로 다른 축을 가리킨다.
+export const formatClock = (d: Date): string => {
+  const { minutes } = toKstParts(d);
+  return `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`;
+};
 
 const shiftKstDate = (yyyyMmDd: string, deltaDays: number): string => {
   const [y, m, d] = yyyyMmDd.split("-").map(Number);

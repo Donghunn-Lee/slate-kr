@@ -242,7 +242,7 @@ export const IndexDetailPane = ({
     ? `개장전 · ${formatMonthDay(kstToday)}`
     : "개장전";
   const domesticSourceLabel = domesticSourceIsToday
-    ? "정규장 마감 · 15:30"
+    ? `정규장 마감 · ${formatMonthDay(domesticLastCloseDate)} 15:30`
     : domesticLastCloseDate
       ? `전일 종가 · ${formatMonthDay(domesticLastCloseDate)}`
       : "정규장 마감";
@@ -275,7 +275,6 @@ export const IndexDetailPane = ({
       ? resolveOverseasCloseLabel(
           overseasSessionDate,
           selected as OverseasIndexCode,
-          kstToday,
         )
       : null;
 
@@ -306,7 +305,7 @@ export const IndexDetailPane = ({
       ? "정규장 마감"
       : isKrxLive
         ? domesticFetchedAt !== null
-          ? `정규장 · ${formatClock(new Date(domesticFetchedAt))}`
+          ? `정규장 · ${formatMonthDay(getKstDateAndMinutes(new Date(domesticFetchedAt)).date)} ${formatClock(new Date(domesticFetchedAt))}`
           : "정규장"
         : openingWindow
           ? domesticOpeningLabel
@@ -324,7 +323,14 @@ export const IndexDetailPane = ({
             {meta.overline}
           </span>
         </div>
-        <div className="flex items-center gap-1.5 text-body-sm text-muted-foreground">
+        {/* 배지가 붙으면 좁은 폭에서 제목 옆 여유가 시각 숫자 폭 몇 px 차이로 갈려 줄이
+            오간다 — sm 미만은 둘째 줄로 고정. */}
+        <div
+          className={cn(
+            "flex items-center gap-1.5 text-body-sm text-muted-foreground",
+            showDelayBadge && "w-full sm:w-auto",
+          )}
+        >
           {/* emerald dot 은 실시간(지연 0) live 전용. 지연 지수는 pill 배지로 신호. */}
           {showDot && (
             <span
