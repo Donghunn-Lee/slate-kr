@@ -80,7 +80,7 @@ export const StockChart = ({
         <h2 className="text-body font-semibold text-muted-foreground">
           가격 차트
           {label && (
-            <span className="ml-1.5 text-caption font-normal text-muted-foreground/70">· {label}</span>
+            <span className="ml-1.5 text-caption font-normal text-muted-foreground">· {label}</span>
           )}
         </h2>
         {viewAllHref && (

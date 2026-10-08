@@ -73,7 +73,7 @@ export const RecentVisitedBar = () => {
           className="grid cursor-pointer grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3 px-3 py-1.5 select-none"
         >
           <div className="flex items-center gap-3 pt-0.5">
-            <span className="text-micro font-semibold tracking-wide text-muted-foreground/70">
+            <span className="text-micro font-semibold tracking-wide text-muted-foreground">
               최근 조회
             </span>
             <span aria-hidden className="block h-3 w-px bg-border" />

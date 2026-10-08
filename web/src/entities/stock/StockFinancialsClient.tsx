@@ -222,7 +222,7 @@ export const StockFinancialsClient = ({
         <h2 className="text-body font-semibold text-muted-foreground">
           재무 요약
           {!compact && (
-            <span className="ml-1.5 text-caption font-normal text-muted-foreground/70">
+            <span className="ml-1.5 text-caption font-normal text-muted-foreground">
               · 연간·분기 재무 추이
             </span>
           )}

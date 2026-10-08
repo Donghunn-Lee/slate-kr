@@ -441,12 +441,12 @@ export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsPro
       <div className="mb-3">
         <h2 className="text-body font-semibold text-muted-foreground">
           가격 차트
-          <span className="ml-1.5 text-caption font-normal text-muted-foreground/70">
+          <span className="ml-1.5 text-caption font-normal text-muted-foreground">
             · 기간별 가격 흐름과 거래량
           </span>
         </h2>
         {chartDateLabel && (
-          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-caption text-muted-foreground/70">
+          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-caption text-muted-foreground">
             <span>{chartDateLabel}</span>
             <MarketScopeBadge scope={marketScope} />
           </div>
