@@ -1,8 +1,8 @@
 import { cookies } from "next/headers";
+import { SYNC_MARKER_COOKIE } from "@/shared/constants/syncMarkerCookie";
 import { AnonIdSchema } from "@/shared/types/schemas";
 
 export const ANON_ID_COOKIE = "slatekr_uid";
-export const SYNC_MARKER_COOKIE = "slatekr_sync";
 
 const MAX_AGE_SEC = 60 * 60 * 24 * 365;
 

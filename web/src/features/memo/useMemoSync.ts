@@ -5,13 +5,13 @@ import { toast } from "sonner";
 import { useMemoStore } from "./store/useMemoStore";
 import { isSnapshotEqual, selectSnapshot } from "./store/memoSnapshot";
 import { shouldFlushOnPageHide } from "@/shared/utils/shouldFlushOnPageHide";
+import { SYNC_MARKER_COOKIE } from "@/shared/constants/syncMarkerCookie";
 import type {
   MemoGetResponse,
   MemoPutResponse,
   MemoSnapshot,
 } from "@/shared/types/memo";
 
-const SYNC_MARKER_COOKIE = "slatekr_sync";
 const DEBOUNCE_MS = 300;
 const GET_RETRY_DELAY_MS = 2000;
 const PUT_RETRY_DELAY_MS = 1000;

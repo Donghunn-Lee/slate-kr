@@ -8,13 +8,13 @@ import {
   selectSnapshot,
 } from "./store/watchlistSnapshot";
 import { shouldFlushOnPageHide } from "@/shared/utils/shouldFlushOnPageHide";
+import { SYNC_MARKER_COOKIE } from "@/shared/constants/syncMarkerCookie";
 import type {
   WatchlistGetResponse,
   WatchlistPutResponse,
   WatchlistSnapshot,
 } from "@/shared/types/watchlist";
 
-const SYNC_MARKER_COOKIE = "slatekr_sync";
 const DEBOUNCE_MS = 300;
 const GET_RETRY_DELAY_MS = 2000;
 const PUT_RETRY_DELAY_MS = 1000;
