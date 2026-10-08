@@ -74,6 +74,8 @@ AI 없이도 설득력 있어야 한다. AI는 투자 판단 도구가 아니라
 - **스케줄링**: GitHub Actions 수집 워크플로우 6개 전부 workflow_dispatch만 사용,
   cron-job.org가 API로 트리거 (schedule 이벤트는 지연/드롭 이슈로 제거)
 - **CI**: `web-ci.yml` — main push·PR에서 `web/**`(또는 워크플로우 파일 자체) 변경 시 typecheck·lint·test (Node 24, next build 제외)
+  / `collector-ci.yml` — main push·PR에서 `collector/**`(또는 워크플로우 파일 자체) 변경 시 unittest discover (`collector/tests`, Python 3.12).
+  둘 다 push·PR 트리거 검사용이라 위 수집 워크플로우 6개에 포함되지 않음
 - **배포**: Vercel (Next.js) + Neon (PostgreSQL)
 - **외부 API**: KIS OpenAPI (국내 종목/지수 시세, 해외 지수 일봉·분봉·quote), KRX Marketplace (국내 지수 과거 일봉 · 상장주식수 · 상장일), DART OpenAPI (공시 데이터 + 재무제표), FSS API (종목 목록)
 - **AI 요약**: Gemini API (@google/genai SDK) (`lib/disclosure-summary.ts`), `POST /api/disclosure-summary` API Route, Zod 스키마 단일 소스 (`shared/types/disclosureSummary.ts`)

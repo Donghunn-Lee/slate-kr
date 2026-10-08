@@ -191,7 +191,7 @@ localStorage가 유실되고 서버 조회도 실패한 상태에서 종목 하�
 
 ## 품질
 
-- 커밋 전 로컬 `npm run check`로 `tsc --noEmit` · ESLint · Vitest · `next build`를 실행합니다. main push와 PR에서 `web/**`나 CI 워크플로우 파일이 바뀌면 CI가 typecheck · lint · test를 다시 실행합니다.
+- 커밋 전 로컬 `npm run check`로 `tsc --noEmit` · ESLint · Vitest · `next build`를 실행합니다. main push와 PR에서 `web/**`나 CI 워크플로우 파일이 바뀌면 CI가 typecheck · lint · test를 다시 실행하고, `collector/**`가 바뀌면 collector 단위 테스트도 실행합니다.
 - 테스트는 순수 함수에 집중합니다. 공시 분류, TTM EPS, 가격 통계, 봉 리샘플링, 장 세션 판정, 분봉 슬롯 채움을 다룹니다.
   - 시간 의존 함수는 `now`를 주입받습니다.
   - 실제 공시 196건 픽스처로 분류 회귀를 검증합니다.
