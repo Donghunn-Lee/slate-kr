@@ -43,7 +43,9 @@ export default async function IndicesPage({ searchParams }: PageProps) {
     INDEX_CODES.map(async (code) => {
       try {
         return [code, await getIndexDailyPrices(code, INDEX_DAILY_SSR_LIMIT)] as const;
-      } catch {
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(`[indices] daily load failed for ${code}: ${message}`);
         return [code, null] as const;
       }
     }),

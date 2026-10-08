@@ -81,6 +81,18 @@ type IndexCellData = {
 const pick = <T>(r: PromiseSettledResult<T | null>): T | null =>
   r.status === "fulfilled" ? r.value : null;
 
+// EOD 폴백 조회 실패는 응답에서 데이터 없음(null)과 같은 모양으로 접히므로 원인을 로그로 남긴다.
+const pickFallback = (
+  code: DomesticIndexCode,
+  r: PromiseSettledResult<IndexDailySnapshot | null>,
+): IndexDailySnapshot | null => {
+  if (r.status === "rejected") {
+    const message = r.reason instanceof Error ? r.reason.message : String(r.reason);
+    console.error(`[index-quotes] fallback load failed for ${code}: ${message}`);
+  }
+  return pick(r);
+};
+
 // null 실패 신호 시 세션 tag evict — stale null 재서빙 방지.
 const resolveCell = (
   code: IndexKisCode,
@@ -121,7 +133,7 @@ export const GET = async () => {
           code,
           {
             live: cached?.live ?? null,
-            fallback: pick(fallbackResults[i]),
+            fallback: pickFallback(code, fallbackResults[i]),
             // 캐시 단위가 reject 된 경우에만 요청 시각으로 대체 — fetchIndexQuote 는
             // 내부 catch 로 null 을 반환하므로 사실상 도달하지 않는다.
             fetchedAt: cached?.fetchedAt ?? now.getTime(),

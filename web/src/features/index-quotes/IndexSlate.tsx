@@ -301,7 +301,12 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
           <h2 className="text-value font-semibold text-foreground">주요 지수</h2>
           {data ? (
             <MarketStatus
-              marketOpen={data.marketOpen}
+              // 정규장이라도 라이브 셀이 하나도 없으면(KIS 실패 → EOD 폴백) dot·정규장 라벨을 붙이지 않는다 —
+              // 셀 fetchedAt 은 실패 시각이라 전일 값에 "정규장 · 시각" 이 붙는다. /indices 헤더와 같은 규칙.
+              marketOpen={
+                data.marketOpen &&
+                DOMESTIC_INDEX_CODES.some((code) => data.quotes[code].live !== null)
+              }
               openingWindow={openingWindow}
               hasLive={data.quotes.KOSPI.live !== null}
               fallbackDate={data.quotes.KOSPI.fallback?.date}

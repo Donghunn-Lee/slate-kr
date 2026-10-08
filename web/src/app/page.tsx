@@ -20,7 +20,9 @@ const fetchOverseasSnapshots = async (): Promise<
       try {
         const daily = await getIndexDailyPrices(code, 1);
         return [code, daily.length > 0 ? daily[daily.length - 1] : null] as const;
-      } catch {
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(`[home] overseas daily load failed for ${code}: ${message}`);
         return [code, null] as const;
       }
     }),

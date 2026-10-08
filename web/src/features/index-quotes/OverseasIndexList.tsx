@@ -27,6 +27,13 @@ const signOfChange = (change: number): PriceSign =>
 // <md 스택: 560px 이상 미국 4 / 기타 4 2단, 미만 1단. md+ 우측 pane 은 폭이 좁아 1단.
 export const OverseasIndexList = ({ snapshotsByCode }: OverseasIndexListProps) => {
   const { data, isPending } = useOverseasIndexQuotes();
+  // 라이브 응답 뒤에도 8행 모두 라이브·EOD 둘 다 없으면 "—" 8행 대신 오류 문구.
+  // 첫 응답 전은 라이브가 곧 채울 수 있어 판정하지 않는다.
+  const hasNoRowValue =
+    !isPending &&
+    OVERSEAS_INDEX_CODES.every(
+      (code) => (data?.quotes[code] ?? null) === null && snapshotsByCode[code] === null,
+    );
 
   const renderRow = (code: OverseasIndexCode) => {
     const meta = getIndexMeta(code);
@@ -113,13 +120,27 @@ export const OverseasIndexList = ({ snapshotsByCode }: OverseasIndexListProps) =
           560~md: 2단 — outer divide-y 해제 + divide-x 로 컬럼 사이 세로 라인.
           max-md 로 감싸 md+ 에서 다시 1단으로 돌아가며, min-[560px] 과 md 의 CSS 순서에
           기대지 않는다. */}
-      <div className="grid grid-cols-1 divide-y divide-border/60 max-md:min-[560px]:grid-cols-2 max-md:min-[560px]:divide-x max-md:min-[560px]:divide-y-0">
-        <ul className="divide-y divide-border/60">
-          {OVERSEAS_INDEX_CODES.slice(0, 4).map(renderRow)}
-        </ul>
-        <ul className="divide-y divide-border/60">
-          {OVERSEAS_INDEX_CODES.slice(4).map(renderRow)}
-        </ul>
+      {/* 오류 때도 행은 invisible 로 자리를 남긴다 — md+ 국내 셀 높이가 이 리스트 높이에 묶여 있어
+          행을 빼면 국내 미니차트 영역이 0 으로 접힌다. */}
+      <div className="relative">
+        <div
+          className={cn(
+            "grid grid-cols-1 divide-y divide-border/60 max-md:min-[560px]:grid-cols-2 max-md:min-[560px]:divide-x max-md:min-[560px]:divide-y-0",
+            hasNoRowValue && "invisible",
+          )}
+        >
+          <ul className="divide-y divide-border/60">
+            {OVERSEAS_INDEX_CODES.slice(0, 4).map(renderRow)}
+          </ul>
+          <ul className="divide-y divide-border/60">
+            {OVERSEAS_INDEX_CODES.slice(4).map(renderRow)}
+          </ul>
+        </div>
+        {hasNoRowValue && (
+          <p className="absolute inset-x-0 top-0 px-4 py-6 text-body text-muted-foreground md:px-6">
+            지수 시세를 불러오지 못했습니다
+          </p>
+        )}
       </div>
     </div>
   );
