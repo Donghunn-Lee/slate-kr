@@ -137,7 +137,7 @@ export const WatchlistPreview = () => {
           href="/watchlist"
           className="flex shrink-0 items-center gap-1 text-caption text-muted-foreground transition-colors hover:text-foreground"
         >
-          전체 보기 <ArrowRight className="h-3 w-3" />
+          <span className="sr-only">내 관심종목 </span>전체 보기 <ArrowRight className="h-3 w-3" />
         </Link>
       </div>
       <StockPanel className="flex min-h-0 flex-1 flex-col">

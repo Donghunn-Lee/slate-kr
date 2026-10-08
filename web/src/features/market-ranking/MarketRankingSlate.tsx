@@ -202,7 +202,7 @@ export const MarketRankingSlate = () => {
             href={toRankingHref(tabId, market)}
             className="flex items-center gap-1 text-caption text-muted-foreground transition-colors hover:text-foreground"
           >
-            전체 보기 <ArrowRight className="h-3 w-3" />
+            <span className="sr-only">시장 순위 </span>전체 보기 <ArrowRight className="h-3 w-3" />
           </Link>
         </div>
       </div>
