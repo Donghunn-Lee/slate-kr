@@ -3,6 +3,7 @@
 커버 대상:
   - insert_financial 분기: known non-KRW / 미등록 non-KRW / VALUE_CAP / KRW 통과
   - run() 카운터 회계: exit 판정(cap_skip > 0) 시나리오
+  - main() exit 판정: 종목 목록 조회가 전 period 실패면 exit 1
   - check_unit_suspects Rule(1) checked 억제
 """
 from __future__ import annotations
@@ -10,10 +11,11 @@ from __future__ import annotations
 import os
 import sys
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import DEFAULT, MagicMock, patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+import fetch_financials  # noqa: E402
 from fetch_financials import (  # noqa: E402
     ABS_VALUE_CAP,
     CHECKED_UNIT_SUSPECTS,
@@ -130,6 +132,38 @@ class RunCounterAccountingTests(unittest.TestCase):
         self.assertEqual(non_krw, 0)
         self.assertEqual(cap_v, 1)
         self.assertTrue(cap > 0)
+
+
+class MainCorpsLookupExitTests(unittest.TestCase):
+    """main() 의 종목 목록 조회 실패 exit 판정."""
+
+    @staticmethod
+    def _main(periods: int, corps_side_effect) -> int | None:
+        with patch.object(sys, "argv", ["fetch_financials.py", "--periods", str(periods)]), \
+                patch.multiple(
+                    fetch_financials,
+                    setup_logging=DEFAULT,
+                    get_connection=DEFAULT,
+                    get_existing_keys=MagicMock(return_value=set()),
+                    get_all_corps=MagicMock(side_effect=corps_side_effect),
+                    restore_filers=MagicMock(return_value=0),
+                    sync_bps=MagicMock(return_value=0),
+                    check_unit_suspects=DEFAULT,
+                ):
+            try:
+                fetch_financials.main()
+            except SystemExit as e:
+                return e.code
+        return None
+
+    def test_lookup_failure_exits_1(self):
+        self.assertEqual(self._main(1, RuntimeError("db")), 1)
+
+    def test_lookup_failure_in_one_period_exits_0(self):
+        self.assertIsNone(self._main(2, [RuntimeError("db"), []]))
+
+    def test_zero_corps_exits_0(self):
+        self.assertIsNone(self._main(1, [[]]))
 
 
 class CheckUnitSuspectsTests(unittest.TestCase):

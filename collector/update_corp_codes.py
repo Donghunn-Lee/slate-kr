@@ -11,6 +11,7 @@ import argparse
 import io
 import logging
 import os
+import sys
 import xml.etree.ElementTree as ET
 import zipfile
 from typing import Optional
@@ -94,6 +95,10 @@ def main():
     logger.info("DART CORPCODE.xml 다운로드 중...")
     mapping = fetch_corp_codes()
     logger.info("DART 매핑 항목: %d개", len(mapping))
+    # 정상 응답은 상장사 수천 건 — 0건은 응답 이상이라 전 종목 미매핑 리포트로 끝내지 않는다.
+    if not mapping:
+        logger.error("DART 매핑 0건 — DB 변경 없이 종료")
+        sys.exit(1)
 
     conn = get_connection()
     cursor = conn.cursor()

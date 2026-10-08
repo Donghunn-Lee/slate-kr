@@ -330,7 +330,8 @@ def upsert_bars(conn, cursor, index_code: str, bars_by_date: dict, prior_close):
     return len(tuples), 0
 
 
-def run_backfill(years: int):
+def run_backfill(years: int) -> int:
+    """반환: 예외·upsert 실패로 끝난 코드 수."""
     end = datetime.today().date()
     start = end - timedelta(days=int(years * 365.25))
     # KIS FHKST03030100 은 장중 요청 시 당일 진행 중 봉을 반환 (probe 실측).
@@ -342,7 +343,7 @@ def run_backfill(years: int):
     conn = get_connection()
     token = get_token(conn)
     cursor = conn.cursor()
-    total_ins = total_err = 0
+    total_ins = total_err = failed = 0
     try:
         for code in OVERSEAS_CODES:
             iscd = DOMAIN_TO_ISCD[code]
@@ -358,6 +359,8 @@ def run_backfill(years: int):
                 logger.info("[%s] 백필 완료: 적재=%d 오류=%d", code, ins, err)
                 total_ins += ins
                 total_err += err
+                if err:
+                    failed += 1
             except Exception as e:
                 logger.error("[%s] 백필 예외, 다음 코드로 진행: %s", code, e)
                 try:
@@ -365,13 +368,16 @@ def run_backfill(years: int):
                 except Exception:
                     pass
                 total_err += 1
+                failed += 1
     finally:
         cursor.close()
         conn.close()
     logger.info("백필 종료: 적재=%d 오류=%d", total_ins, total_err)
+    return failed
 
 
-def run_daily():
+def run_daily() -> int:
+    """반환: 예외·upsert 실패로 끝난 코드 수. 신규 봉 없음은 실패가 아니다."""
     end = datetime.today().date()
     # KIS FHKST03030100 은 장중 요청 시 당일 진행 중 봉을 반환 (probe 실측).
     # 실행 시각(16:00 KST)에 아시아·유럽은 장중이므로 과거 날짜 봉만 확정치로
@@ -382,7 +388,7 @@ def run_daily():
     conn = get_connection()
     token = get_token(conn)
     cursor = conn.cursor()
-    total_ins = total_skp = total_err = 0
+    total_ins = total_skp = total_err = failed = 0
     try:
         for code in OVERSEAS_CODES:
             iscd = DOMAIN_TO_ISCD[code]
@@ -432,6 +438,8 @@ def run_daily():
                 logger.info("[%s] 완료: 적재=%d 오류=%d", code, ins, err)
                 total_ins += ins
                 total_err += err
+                if err:
+                    failed += 1
             except Exception as e:
                 logger.error("[%s] 일일 처리 예외, 다음 코드로 진행: %s", code, e)
                 try:
@@ -439,10 +447,12 @@ def run_daily():
                 except Exception:
                     pass
                 total_err += 1
+                failed += 1
     finally:
         cursor.close()
         conn.close()
     logger.info("일일 종료: 적재=%d 스킵=%d 오류=%d", total_ins, total_skp, total_err)
+    return failed
 
 
 def main():
@@ -471,9 +481,13 @@ def main():
     args = parser.parse_args()
 
     if args.backfill:
-        run_backfill(args.years)
+        failed = run_backfill(args.years)
     else:
-        run_daily()
+        failed = run_daily()
+    # 일부 코드 실패는 exit 0 — 누락분은 다음 run 이 저장된 최신일부터 다시 받는다.
+    if failed == len(OVERSEAS_CODES):
+        logger.error("%d종 전부 실패 — 적재 0", failed)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

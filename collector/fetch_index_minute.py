@@ -2,8 +2,9 @@
 KIS 국내지수 1분봉 → domestic_index_intraday idempotent upsert.
 
 30분 주기 workflow_dispatch(cron-job.org 트리거)로 실행되며, kis_token 테이블의 access_token
-을 read-only 로 사용한다(토큰 발급 책임은 issue_kis_token.py 의 12h cron).
-토큰이 만료된 상태면 이번 실행은 로그 남기고 exit 0 — 다음 cron 이 재시도.
+을 재사용한다(정기 발급은 issue_kis_token.py 의 12h cron).
+잔여 TTL 이 1h 미만이거나 토큰이 없으면 kis_token.get_token 이 재발급해 DB 에 write-back 하고,
+발급 실패 시 exit 1.
 
 대상 지수 (국내 4종, quote/intraday TR ISCD 매핑)
   KOSPI     0001
@@ -204,7 +205,7 @@ def run():
     try:
         token = get_token(conn)
 
-        total_recv = total_ins = total_skip = 0
+        total_recv = total_ins = total_skip = failed = 0
         for code, iscd in INDEX_CODE_TO_ISCD.items():
             try:
                 raw_bars = kis_intraday_call(token, iscd)
@@ -229,6 +230,7 @@ def run():
                 total_skip += skipped
             except Exception as e:
                 logger.error("[%s] 처리 예외, 다음 코드로 진행: %s", code, e)
+                failed += 1
                 try:
                     conn.rollback()
                 except Exception:
@@ -241,6 +243,10 @@ def run():
             total_ins,
             total_skip,
         )
+        # 호출 실패(None)·일부 예외는 exit 0 — 30분 주기라 다음 run 의 100봉 창이 덮는다.
+        if failed == len(INDEX_CODE_TO_ISCD):
+            logger.error("%d종 전부 처리 예외 — 적재 0", failed)
+            sys.exit(1)
     finally:
         cursor.close()
         conn.close()

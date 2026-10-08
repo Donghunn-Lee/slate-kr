@@ -675,10 +675,11 @@ def run(
     existing_keys: set[tuple],
     force: bool = False,
     ticker_filter: Optional[set] = None,
-) -> tuple[int, int, int, int]:
+) -> Optional[tuple[int, int, int, int]]:
     """반환값: (cap_skip, known_skip, new_non_krw_skip, value_cap_skip).
     cap_skip = new_non_krw_skip + value_cap_skip 이며, 호출측의 exit 판정에 사용.
     known_skip 은 알람 노이즈 억제 대상이라 cap_skip 에 포함하지 않는다.
+    종목 목록 조회 실패는 None — 대상 0종목과 구분해 호출측 exit 판정에 쓴다.
     """
     conn = get_connection()
     cursor = conn.cursor()
@@ -688,7 +689,7 @@ def run(
         logger.error("종목 목록 조회 실패 (%s/%s): %s", bsns_year, reprt_code, e)
         cursor.close()
         conn.close()
-        return 0, 0, 0, 0
+        return None
 
     if ticker_filter is not None:
         corps = [(t, c, n) for t, c, n in corps if t in ticker_filter]
@@ -915,14 +916,19 @@ def main():
     total_known_skip = 0
     total_new_non_krw = 0
     total_value_cap = 0
+    lookup_failed = 0
     for bsns_year, reprt_code in reports:
-        cap, known, non_krw, cap_v = run(
+        result = run(
             bsns_year=bsns_year,
             reprt_code=reprt_code,
             existing_keys=existing_keys,
             force=args.force,
             ticker_filter=ticker_filter,
         )
+        if result is None:
+            lookup_failed += 1
+            continue
+        cap, known, non_krw, cap_v = result
         total_cap_skip += cap
         total_known_skip += known
         total_new_non_krw += non_krw
@@ -946,6 +952,11 @@ def main():
     check_unit_suspects(cursor)
     cursor.close()
     conn.close()
+
+    # 일부 period 의 조회 실패는 exit 0 — 그 period 만 비고 나머지 적재는 유효하다.
+    if lookup_failed and lookup_failed == len(reports):
+        logger.error("[CORPS_LOOKUP] 전 period %d개 종목 목록 조회 실패 — 적재 0", lookup_failed)
+        sys.exit(1)
 
     # exit 판정 — cap_skip(신규 non-KRW + VALUE_CAP) 만 기여. known 은 알람 억제.
     if total_cap_skip > 0:
