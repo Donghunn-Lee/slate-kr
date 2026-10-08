@@ -12,7 +12,7 @@ export const HomeHero = () => {
           <span className="whitespace-nowrap">가격 · 재무 · 공시를</span>{" "}
           <span className="whitespace-nowrap">한 곳에서</span>
         </h2>
-        <p className="mt-2 text-body text-muted-foreground">
+        <p className="mt-1 text-body text-muted-foreground">
           <span className="block whitespace-nowrap sm:inline">흩어진 종목 정보를 구조화해</span>{" "}
           <span className="whitespace-nowrap">손쉽게 조회하는 서비스입니다</span>
         </p>
