@@ -10,14 +10,15 @@ import { usePrefersReducedMotion } from "@/shared/hooks/usePrefersReducedMotion"
 // 곧바로 reduce 로 바뀔 수 있다. 그때 진입 effect 가 건너뛰어지므로 표시는 shouldAnimate 가 꺼지면 항상 최종 상태다.
 type PreviewProps = { play: boolean };
 
+// AI 요약은 맨 앞에 둔다. sm 미만은 칩을 2줄까지만 보여서 뒤에 두면 셋째 줄로 밀려 가려진다.
 const DISCLOSURE_CHIPS = [
+  { label: "AI 요약", cls: "bg-sky-bg text-sky-text border border-sky-border" },
   { label: "주요사항", cls: "bg-disclosure-major-event-bg text-disclosure-major-event-text" },
   { label: "정기보고서", cls: "bg-disclosure-financial-bg text-disclosure-financial-text" },
   { label: "소유상황", cls: "bg-disclosure-ownership-bg text-disclosure-ownership-text" },
   { label: "감사", cls: "bg-disclosure-audit-bg text-disclosure-audit-text" },
   { label: "주주총회", cls: "bg-disclosure-shareholder-meeting-bg text-amber-text" },
   { label: "시장조치", cls: "bg-disclosure-market-action-bg text-disclosure-market-action-text" },
-  { label: "AI 요약", cls: "bg-sky-bg text-sky-text border border-sky-border" },
 ];
 
 export const DisclosurePreview = ({ play }: PreviewProps) => {
@@ -31,8 +32,10 @@ export const DisclosurePreview = ({ play }: PreviewProps) => {
     return () => cancelAnimationFrame(raf);
   }, [shouldAnimate]);
 
+  // sm 미만은 칩을 2줄까지만 보인다. 글꼴에 따라 2 ↔ 3줄로 바뀌면 카드 높이가 달라져 아래 섹션이 밀린다.
+  // 최대 높이 = 칩 2줄((글자 1.35배 + 세로 패딩 4px) × 2) + 줄 간격 6px + 첫 줄 AI 요약 칩 테두리 2px.
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-1.5 max-sm:max-h-[calc(var(--fs-micro)*2.7+16px)] max-sm:overflow-hidden">
       {DISCLOSURE_CHIPS.map((chip, i) => (
         <span
           key={chip.label}
