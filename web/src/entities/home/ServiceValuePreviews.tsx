@@ -205,3 +205,39 @@ export const MetricsPreview = ({ play }: PreviewProps) => {
     </div>
   );
 };
+
+type RankingRow = {
+  name: string;
+  change: string;
+  tone: "up" | "down";
+};
+
+// 등락은 표본 값이다. 익숙한 종목명을 쓰되 실제 시세로 읽히지 않게 날짜·가격은 두지 않는다.
+const RANKING_ROWS: RankingRow[] = [
+  { name: "삼성전자", change: "+4.12%", tone: "up" },
+  { name: "SK하이닉스", change: "+2.35%", tone: "up" },
+  { name: "현대차", change: "-1.08%", tone: "down" },
+];
+
+// 정적 표본. 실제 시세가 아닌 순위·등락은 읽어 줄 정보가 아니라 차트처럼 통째로 숨긴다.
+// 배지는 leading-none 으로 행 높이를 caption 줄 높이에 맞춘다 — 3행이 가격 차트(h-14·sm:h-16)를 넘지 않게.
+export const RankingPreview = () => (
+  <div className="flex w-full flex-col gap-1 text-caption" aria-hidden>
+    {RANKING_ROWS.map((row, i) => (
+      <div key={row.name} className="flex items-center gap-2">
+        <span className="w-3 text-center font-mono tabular-nums text-muted-foreground">
+          {i + 1}
+        </span>
+        <span className="min-w-0 truncate text-foreground">{row.name}</span>
+        <span
+          className={cn(
+            "ml-auto rounded-sm px-1.5 py-0.5 text-micro font-medium leading-none tabular-nums",
+            row.tone === "up" ? "bg-price-up/10 text-price-up" : "bg-price-down/10 text-price-down",
+          )}
+        >
+          {row.change}
+        </span>
+      </div>
+    ))}
+  </div>
+);

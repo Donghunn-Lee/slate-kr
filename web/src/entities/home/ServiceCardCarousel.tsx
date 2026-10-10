@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { ComponentType, ReactNode } from "react";
-import { TrendingUp, BarChart2, FileText } from "lucide-react";
+import { TrendingUp, BarChart2, FileText, ListOrdered } from "lucide-react";
 import { StockPanel, type StockPanelVariant } from "@/entities/stock/StockPanel";
 import { cn } from "@/lib/utils";
 import { usePrefersReducedMotion } from "@/shared/hooks/usePrefersReducedMotion";
@@ -10,6 +10,7 @@ import {
   DisclosurePreview,
   MetricsPreview,
   PricePreview,
+  RankingPreview,
 } from "./ServiceValuePreviews";
 
 type Card = {
@@ -45,6 +46,14 @@ const CARDS: Card[] = [
     variant: "peach",
     iconTint: "bg-elevated text-peach-accent",
     Preview: MetricsPreview,
+  },
+  {
+    icon: ListOrdered,
+    title: "시장 순위",
+    description: "상승·하락·거래량·시총 순위 제공",
+    variant: "sage",
+    iconTint: "bg-elevated text-sage-accent",
+    Preview: RankingPreview,
   },
 ];
 
