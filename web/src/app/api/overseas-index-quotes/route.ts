@@ -4,6 +4,7 @@ import { fetchOverseasIndexQuote } from "@/lib/kis-overseas-quote-fetch";
 import {
   INDEX_LABEL,
   OVERSEAS_INDEX_CODES,
+  OVERSEAS_INTRADAY_CODES,
   type OverseasIndexCode,
 } from "@/shared/constants/indices";
 import {
@@ -76,17 +77,22 @@ export const GET = async () => {
   const date = getKstDateAndMinutes().date;
 
   try {
+    // KIS 호출은 intraday 화이트리스트만. .DJI 는 output1 전 필드 0 으로 돌아와 null 강등 →
+    // tag evict 가 매 요청 반복되므로 호출 없이 null (소비측은 일봉 폴백).
     const results = await Promise.allSettled(
-      OVERSEAS_INDEX_CODES.map((code) =>
+      OVERSEAS_INTRADAY_CODES.map((code) =>
         getCachedQuote(code, session, date)(),
       ),
     );
-
-    const quotes = Object.fromEntries(
-      OVERSEAS_INDEX_CODES.map((code, i) => [
+    const live = Object.fromEntries(
+      OVERSEAS_INTRADAY_CODES.map((code, i) => [
         code,
         resolveLive(code, session, results[i]),
       ]),
+    ) as Partial<Record<OverseasIndexCode, IndexQuote | null>>;
+
+    const quotes = Object.fromEntries(
+      OVERSEAS_INDEX_CODES.map((code) => [code, live[code] ?? null]),
     ) as Record<OverseasIndexCode, IndexQuote | null>;
 
     return NextResponse.json({
