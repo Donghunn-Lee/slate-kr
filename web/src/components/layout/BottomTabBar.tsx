@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, LineChart, Star, TrendingUp } from "lucide-react";
+import { Home, LineChart, ListOrdered, Star } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -15,7 +15,7 @@ type TabDef = {
 
 const TABS = [
   { href: "/", label: "홈", Icon: Home, match: (p) => p === "/" },
-  { href: "/ranking", label: "순위", Icon: TrendingUp, match: (p) => p.startsWith("/ranking") },
+  { href: "/ranking", label: "순위", Icon: ListOrdered, match: (p) => p.startsWith("/ranking") },
   { href: "/watchlist", label: "관심", Icon: Star, match: (p) => p.startsWith("/watchlist") },
   {
     href: "/stocks/indices",
