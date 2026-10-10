@@ -148,8 +148,9 @@ export const ServiceCardCarousel = () => {
                     <p className="mt-2 text-caption text-muted-foreground">
                       {card.description}
                     </p>
-                    {/* 높이는 각 프리뷰가 정한다. 칸을 고정하면 차트보다 낮은 배지·지표 프리뷰 아래가 빈다. */}
-                    <div className="mt-4 flex items-center">
+                    {/* 카드는 트랙에서 가장 높은 카드를 채우고, 남는 높이는 설명과 프리뷰 사이로 보낸다.
+                        프리뷰 아래로 보내면 짧은 프리뷰 밑이 비어 보이고, 하단 여백은 네 장이 같아야 한다. */}
+                    <div className="mt-auto flex items-center pt-4">
                       <Preview
                         key={isActive ? `play-${activationSeq}` : "idle"}
                         play={isActive}
@@ -206,7 +207,7 @@ type SlideCardProps = {
 // (도트 버튼이 유일한 키보드 진입점).
 const SlideCard = ({ isActive, onClick, title, children }: SlideCardProps) => {
   const baseTransition =
-    "block w-full text-left transition-all duration-300 ease-out";
+    "block h-full w-full text-left transition-all duration-300 ease-out";
   if (isActive) {
     return (
       <div className={cn(baseTransition, "scale-100 opacity-100")}>
