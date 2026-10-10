@@ -147,7 +147,7 @@ export const ServiceCardCarousel = () => {
                       </span>
                       <p className="text-body font-semibold">{card.title}</p>
                     </div>
-                    <p className="mt-2 text-caption text-muted-foreground">
+                    <p className="mt-2 break-keep text-caption text-muted-foreground">
                       {card.description}
                     </p>
                     {/* 카드는 트랙에서 가장 높은 카드를 채우고, 남는 높이는 설명과 프리뷰 사이로 보낸다.
