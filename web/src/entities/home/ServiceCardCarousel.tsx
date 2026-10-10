@@ -106,7 +106,9 @@ export const ServiceCardCarousel = () => {
       onFocus={handleFocus}
       onBlur={handleBlur}
       aria-roledescription="carousel"
-      className="relative"
+      // 1열(md 미만)에서는 히어로 폭을 다 쓰면 카드가 500px 가까이 커진다. 폭은 w-full 로 명시해야 한다 —
+      // 내용 폭으로 줄어들면 안쪽 container-type 이 기준 폭을 잃어 cqw 슬라이드가 무너진다.
+      className="relative w-full max-w-sm justify-self-center md:max-w-none"
     >
       <div className="overflow-hidden [container-type:inline-size]">
         <div
