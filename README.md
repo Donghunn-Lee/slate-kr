@@ -12,7 +12,7 @@
 
 </div>
 
-<img src="https://github.com/user-attachments/assets/9b76fd1d-cdca-4f71-8beb-8a5b464ab5c4" width="100%" alt="홈 히어로 — 헤드라인과 지수 카드">
+<img src="docs/images/hero.png" width="100%" alt="홈 히어로 — 헤드라인과 지수 카드">
 
 ## 한눈에 보기
 
@@ -30,24 +30,24 @@
     <td width="50%" align="center">
       <b>홈</b><br>
       국내 4 · 해외 8 지수를 장중 갱신<br>
-      <img src="https://github.com/user-attachments/assets/c0a35afd-0d38-4eb3-a09e-2662a7b368ee" width="100%" alt="홈 — 지수 그리드">
+      <img src="docs/images/home.png" width="100%" alt="홈 — 지수 그리드">
     </td>
     <td width="50%" align="center">
       <b>검색</b><br>
       300ms debounce · 요청 취소 · 키보드 탐색<br>
-      <img src="https://github.com/user-attachments/assets/3d5101b9-4e21-419b-92ba-dfad367c53d0" width="100%" alt="검색 드롭다운">
+      <img src="docs/images/search.png" width="100%" alt="검색 드롭다운">
     </td>
   </tr>
   <tr>
     <td width="50%" align="center">
       <b>종목 상세</b><br>
       가격 통계 · 차트 · 핵심 지표 · 5년 재무 · 공시<br>
-      <img src="https://github.com/user-attachments/assets/9dc690a5-36f6-416d-8a1e-ca39fa2e487f" width="100%" alt="종목 상세 — 헤더와 핵심 지표">
+      <img src="docs/images/stock-detail.png" width="71%" align="top" alt="종목 상세 — 헤더와 핵심 지표"> <img src="docs/images/stock-detail-mobile.png" width="27%" align="top" alt="종목 상세 — 모바일">
     </td>
     <td width="50%" align="center">
       <b>관심종목 · 메모</b><br>
       그룹 · 메모 · 로그인 없는 서버 저장<br>
-      <img src="https://github.com/user-attachments/assets/d97e81ee-63fd-4016-9b35-fdd02a072475" width="100%" alt="관심종목과 메모">
+      <img src="docs/images/watchlist-memo.png" width="100%" alt="관심종목과 메모">
     </td>
   </tr>
 </table>
@@ -130,7 +130,8 @@ README를 코드와 대조하던 중 종목 상세 route에 선언만 남아 있
 종목 상세 한 페이지가 DB · DART · KIS 세 소스에 의존합니다. 초기 구현은 섹션별 `try-catch` 뒤 빈 배열 폴백이어서 페이지는 유지됐지만 빈 값과 조회 실패가 구분되지 않았습니다. 다건 가격 조회는 `Promise.all`이라 종목 하나의 실패가 전체 500으로 번졌습니다.
 
 - 섹션 단위 Suspense: 헤더 · 핵심 지표 · 차트 · 재무 · 공시 · 가격 통계가 각자 스트리밍되고, 조회 실패는 섹션 컴포넌트 안에서 `try-catch`나 `allSettled`로 잡아 그 섹션의 오류 메시지로 바꿉니다. 헤더 안의 시장조치 배지는 KIS 단발 조회라 한 번 더 분리해, 헤더가 KIS 응답을 기다리지 않습니다. 개발 일지 #174 기록값: 로컬 프로덕션 빌드에서 KIS 3초 지연을 주입했을 때 헤더 제목 표시 약 3.4초 → 0.3초.
-- 섹션 상태 넷을 분리합니다: loading · empty · error · 부분 실패(나머지 값 유지 + "일시 지연" 배지). 색 · 아이콘 추가 없이 메시지로만 구분합니다.
+- 섹션 상태 넷을 분리합니다: loading · empty · error · 부분 실패(나머지 값 유지 + 배지. 전일 종가 같은 폴백 값이 남는 시세 자리는 "일시 지연", 값이 비는 자리는 "로딩 실패"). 색 · 아이콘 추가 없이 메시지로만 구분합니다.
+  <img src="docs/images/partial-failure.png" width="100%" alt="핵심 지표 — 가격 조회 실패 시 PER · PBR · 시가배당률에만 로딩 실패 배지">
 - 다건 조회는 `allSettled`입니다. 지수 셀은 실패한 셀만 종가 기준 값과 "종가 기준" 캡션으로 내려가고, 나머지는 정상 렌더됩니다.
 - 종목 분봉은 실패 구간을 1초 뒤 1회 재시도합니다. 그래도 실패하면 성공분과 `failed` 플래그를 함께 보내고, 클라이언트는 직전 정상 응답을 유지합니다.
 
@@ -164,7 +165,7 @@ DART 공시 원문의 읽기 부담을 Gemini 요약으로 줄이되, 모델 응
 
 </details>
 
-<p align="center"><img src="https://github.com/user-attachments/assets/99f50875-0fe1-4bc4-9a8f-61c6f0b32b5b" width="600" alt="AI 공시 요약 — 공시 행 인라인 확장"></p>
+<p align="center"><img src="docs/images/disclosure-summary.png" width="600" alt="AI 공시 요약 — 공시 행 인라인 확장"></p>
 
 코드: [`disclosureSummary.ts`](web/src/shared/types/disclosureSummary.ts) · [`disclosure-summary.ts`](web/src/lib/disclosure-summary.ts) · 글: [#019 에러 분기 설계](https://velog.io/@dh82680/SlateKR-019-AI-공시-요약-2-Gemini-API-연동과-에러-분기-설계) · [#081 출력 구조화](https://velog.io/@dh82680/SlateKR-081-AI-공시-요약-출력-구조화) · [#168 3.8 승격과 폴백](https://velog.io/@dh82680/SlateKR-168-AI-공시-요약-gemini-3.8-flash-승격-및-기존-버전-폴백-결정)
 
