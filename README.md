@@ -12,7 +12,7 @@
 
 </div>
 
-<img src="docs/images/hero.png" width="100%" alt="홈 히어로 — 헤드라인과 지수 카드">
+<img src="docs/images/hero.png" width="100%" alt="홈 히어로 — 헤드라인과 서비스 캐러셀">
 
 ## 한눈에 보기
 
@@ -42,7 +42,7 @@
     <td width="50%" align="center">
       <b>종목 상세</b><br>
       가격 통계 · 차트 · 핵심 지표 · 5년 재무 · 공시<br>
-      <img src="docs/images/stock-detail.png" width="71%" align="top" alt="종목 상세 — 헤더와 핵심 지표"> <img src="docs/images/stock-detail-mobile.png" width="27%" align="top" alt="종목 상세 — 모바일">
+      <img src="docs/images/stock-detail.png" width="100%" alt="종목 상세 — 헤더와 핵심 지표">
     </td>
     <td width="50%" align="center">
       <b>관심종목 · 메모</b><br>
@@ -198,6 +198,7 @@ localStorage가 유실되고 서버 조회도 실패한 상태에서 종목 하�
   - 실제 공시 196건 픽스처로 분류 회귀를 검증합니다.
 - 접근성: 검색 드롭다운은 listbox/option 역할과 `aria-selected`로 키보드 탐색(방향키 · Enter · Escape)을 지원합니다. 포커스는 focus-visible 링으로 표시하고, sky · amber 글자색 토큰은 AA 4.5:1에 맞췄습니다.
 - 반응형: md 미만에서는 하단 탭 바(홈 · 순위 · 관심 · 지수)가 내비게이션을 대신하고, 차트 축 옵션은 같은 분기점의 미디어 쿼리 훅으로 맞춥니다.
+  <img src="docs/images/stock-detail-mobile.png" width="240" alt="종목 상세 — 모바일, 하단 탭 바">
 
 코드: [`classifyDisclosure.test.ts`](web/src/shared/utils/classifyDisclosure.test.ts) · [`SearchInput.tsx`](web/src/features/search/SearchInput.tsx) · [`BottomTabBar.tsx`](web/src/components/layout/BottomTabBar.tsx) · 글: [#087 Vitest 도입](https://velog.io/@dh82680/SlateKR-087-Vitest-도입과-순수함수-테스트)
 
@@ -214,6 +215,7 @@ localStorage가 유실되고 서버 조회도 실패한 상태에서 종목 하�
 **데이터**
 
 - 시세 갱신은 종목 약 1분 · 지수 1~2분 주기입니다. 실시간은 KIS WebSocket과 상시 연결 서버가 필요한 별개 작업입니다.
+- 다우존스(DJI)는 KIS OpenAPI가 장중 시세 · 분봉을 제공하지 않아 일봉 종가만 표시됩니다.
 - 일봉은 애프터마켓 체결을 포함한 20:00 마감 캔들이고, 등락률은 전일 정규장 종가 기준입니다. 네이버 차트와는 일부 종목에서 거래량 · 종가가 다를 수 있습니다.
 - PER · PBR · 시가총액은 DART EPS/BPS와 종가로 직접 계산합니다.
 
@@ -258,7 +260,7 @@ Python collector가 KIS(시세 · 지수 · 분봉) · DART(재무 · 배당 · 
 - 프로젝트 지침(CLAUDE.md)에 아키텍처 원칙 · 컨벤션 · 금지 사항을 고정하고 리뷰 기준선으로 씁니다. 리뷰를 통과한 결함도 있었고, 문서와 코드 대조로 찾았습니다([#174](https://velog.io/@dh82680/SlateKR-174-선언만-있던-revalidate와-한-달-멈춰-있던-차트-당일-봉)).
 - AI 요약 모델 교체는 원문 기준 채점표를 먼저 고정하고, 모델명을 가린 채점으로 결정했습니다.
 
-작업 세션 175회 · 커밋 794 · Vitest 케이스 1,167. 작업 세션 단위 개발 일지를 같은 번호로 [velog 시리즈](https://velog.io/@dh82680)에 정리했습니다. 각 결정의 배경과 실측 결과는 해당 편에 있습니다.
+작업 세션 175회 · 커밋 836 · Vitest 케이스 1,171. 작업 세션 단위 개발 일지를 같은 번호로 [velog 시리즈](https://velog.io/@dh82680)에 정리했습니다. 각 결정의 배경과 실측 결과는 해당 편에 있습니다.
 
 ## 로컬 실행
 
