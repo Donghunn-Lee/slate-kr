@@ -184,7 +184,7 @@ const MetricValue = ({
 }) => {
   const value = useCountUp(metric.target, shouldAnimate);
   return (
-    <div className="flex flex-col">
+    <div className="flex items-baseline gap-1.5">
       <span className="text-micro text-muted-foreground/80">{metric.label}</span>
       <span className="tabular-nums text-body font-semibold text-foreground">
         {metric.format(value)}
@@ -197,8 +197,9 @@ export const MetricsPreview = ({ play }: PreviewProps) => {
   const prefersReduced = usePrefersReducedMotion();
   const shouldAnimate = play && !prefersReduced;
 
+  // 라벨·값을 한 줄로 붙인 2×2. 라벨 위 값 1×4 는 차트 프리뷰보다 10px 남짓 낮아, 카드 높이를 맞추면 설명과 지표 사이가 그만큼 비어 보인다.
   return (
-    <div className="grid grid-cols-4 gap-2">
+    <div className="grid grid-cols-2 gap-x-2 gap-y-1">
       {METRICS.map((metric) => (
         <MetricValue key={metric.label} metric={metric} shouldAnimate={shouldAnimate} />
       ))}
