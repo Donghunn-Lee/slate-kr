@@ -249,7 +249,7 @@ export const WatchlistPageClient = () => {
               </h2>
             )}
             {countsQuery.isError && !pricesQuery.isError && (
-              <StatusBadge label="일시 지연" title="최근 공시 건수를 불러오지 못했어요" />
+              <StatusBadge label="로딩 실패" title="최근 공시 건수를 불러오지 못했어요" />
             )}
             <Button
               type="button"

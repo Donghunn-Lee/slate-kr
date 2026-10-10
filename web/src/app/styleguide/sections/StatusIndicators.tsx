@@ -16,10 +16,12 @@ export const StatusIndicators = () => (
       <div className="rounded-md border border-subtle bg-elevated p-6">
         <h3 className="mb-2 text-sm font-medium text-foreground">StatusBadge</h3>
         <p className="mb-4 text-[13px] text-muted-foreground">
-          부분 실패를 알리는 소형 무채 outline 배지.
+          부분 실패를 알리는 소형 무채 outline 배지. 폴백 값이 남으면 「일시 지연」, 값이 비면
+          「로딩 실패」.
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge label="일시 지연" />
+          <StatusBadge label="로딩 실패" />
           <StatusBadge label="서버 저장 안 됨" />
         </div>
         <p className="mt-4 text-[11px] text-muted-foreground">

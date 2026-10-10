@@ -7,7 +7,8 @@ type StatusBadgeProps = {
   className?: string;
 };
 
-// 부분 실패("일시 지연"·"서버 저장 안 됨") 표시용 소형 무채 outline 배지.
+// 부분 실패 표시용 소형 무채 outline 배지. 라벨은 폴백 값이 남는 자리(EOD 종가·이전 행)는
+// "일시 지연", 값이 비는 자리(핵심 지표·공시 건수)는 "로딩 실패", 동기화 실패는 "서버 저장 안 됨".
 // 판정은 호출처 소관 — 여기선 표시만 한다.
 export const StatusBadge = ({ label, title, className }: StatusBadgeProps) => (
   <span

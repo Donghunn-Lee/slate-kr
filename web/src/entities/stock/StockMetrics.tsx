@@ -26,7 +26,9 @@ const MetricItem = ({ label, value, isFailed = false }: MetricItemProps) => (
     <p className="text-caption font-medium text-muted-foreground">{label}</p>
     <p className="text-value font-semibold">
       {value}
-      {isFailed && <StatusBadge label="일시 지연" className="ml-1.5 align-middle" />}
+      {isFailed && (
+        <StatusBadge label="로딩 실패" title="불러오지 못했어요" className="ml-1.5 align-middle" />
+      )}
     </p>
   </div>
 );
