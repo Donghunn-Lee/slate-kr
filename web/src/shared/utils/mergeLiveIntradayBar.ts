@@ -5,7 +5,7 @@ import { isInvalidQuoteOhl, type LiveQuoteForMerge } from "./mergeLiveDayBar";
 // 로 대체, high/low 는 필요 시 확장. 새 봉 append 금지(KIS 응답 밖 분봉을 위조하지 않는다),
 // volume 불변.
 //
-// 서버 캐시 세션 정합화(#102) 위의 안전망 — 헤더 60s 폴링 quote 로 캐시 miss 사이 gap 을
+// 서버 캐시 세션 정합화 위의 안전망 — 헤더 60s 폴링 quote 로 캐시 miss 사이 gap 을
 // 마스킹해 차트 최신 봉 close 가 실시간 값을 따라 움직인다.
 //
 // 스킵 가드(원본 배열 그대로 반환 — 참조 안정성):

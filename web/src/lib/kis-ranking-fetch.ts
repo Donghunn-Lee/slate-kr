@@ -20,11 +20,11 @@ const TR_ID_TOP_INTEREST = "FHPST01800000";
 // KIS stck_avls 는 억원 단위 — tradeValue(원) 관례와 통일하기 위해 원 단위로 환산해서 저장한다.
 const EOK = 100_000_000;
 
-// E16 probe 실측 확정: 우선주(5)/ETF(7)/ETN(8)/SPAC(10) 자리를 1로 켜 제외.
+// 실측 확정: 우선주(5)/ETF(7)/ETN(8)/SPAC(10) 자리를 1로 켜 제외.
 // 관리종목·투자경고까지 강화 필요 시 앞 두 자리도 1로 (예: "1100101101").
 const TRGT_EXLS_CODE = "0000101101";
 
-// E16 probe 실측: 두 endpoint 동일 코드. 0001=KOSPI 전체, 1001=KOSDAQ 전체, 0000=혼재.
+// 실측: 두 endpoint 동일 코드. 0001=KOSPI 전체, 1001=KOSDAQ 전체, 0000=혼재.
 // 노이즈 필터(EXLS)는 KOSPI/KOSDAQ 필터와 병존 유효.
 const MARKET_TO_ISCD: Record<Market, string> = {
   all: "0000",

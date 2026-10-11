@@ -46,7 +46,7 @@ export const RankingView = ({
   );
 
   // 단방향 sync (state → URL). useSearchParams 를 소스로 삼지 않음 — 매 필터 변경이
-  // 서버 왕복이 되어 keepPreviousData 로 잡은 전환 깜빡임(#079)을 되살린다.
+  // 서버 왕복이 되어 keepPreviousData 로 잡은 전환 깜빡임을 되살린다.
   useEffect(() => {
     router.replace(toRankingHref(tabId, market), { scroll: false });
   }, [tabId, market, router]);

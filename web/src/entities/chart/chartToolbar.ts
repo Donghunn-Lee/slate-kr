@@ -2,7 +2,7 @@ import { CandlestickChart, LineChart, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // 차트 툴바 공용 타입·상수·클래스. IndexChart · StockChartTabs 공유.
-// 데스크톱(sm+) 은 StockChartTabs #105 정합 상태(h-7/w-14/px-2) 를 유지,
+// 데스크톱(sm+) 은 StockChartTabs 와 정합한 h-7/w-14/px-2 를 유지,
 // 모바일은 좁은 뷰포트 1행 성립을 위해 h-6/w-12/px-1.5 로 축소.
 
 export type ViewMode = "intraday" | "full";

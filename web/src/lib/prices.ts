@@ -27,7 +27,7 @@ type DailyPriceRow = {
 const DAILY_PRICE_COLUMNS =
   "id, ticker, to_char(date, 'YYYY-MM-DD') AS date, open, high, low, close, volume, market_cap, base_price";
 
-// pykrx 백필이 무거래일에 남긴 open=high=low=0 fill 봉(#120)을 서빙 경계에서 flat(close)로 정규화.
+// pykrx 백필이 무거래일에 남긴 open=high=low=0 fill 봉을 서빙 경계에서 flat(close)로 정규화.
 // DB 원본은 as-is 유지 — 캔들 축 붕괴·52주 저가 0원만 방지한다. 부분 0(예: open만 0)은 통과.
 export const rowToSnapshot = (row: DailyPriceRow): StockPriceSnapshot => {
   const isFlatFill = row.open === 0 && row.high === 0 && row.low === 0;

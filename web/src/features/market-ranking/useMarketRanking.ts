@@ -5,7 +5,7 @@ import type {
 } from "@/shared/types/ranking";
 import { isKrxActiveSession, type KrxSession } from "@/shared/utils/market";
 
-// route 응답 계약(#075/#077 미러): 항상 200, failed/session/marketOpen 포함.
+// route 응답 계약: 항상 200, failed/session/marketOpen 포함.
 type MarketRankingResponse = {
   items: MarketRankingItem[];
   failed: boolean;
@@ -70,7 +70,7 @@ type UseMarketRankingResult = {
 
 // 활성 카테고리 하나만 폴링. 이전 응답 session 이 활성(regular/after/pre)이면 60s 주기, 그 외 정지 —
 // isKrxActiveSession 을 useStockIntraday 와 공유해 KRX 애프터마켓·NXT 프리마켓에도 같은 리듬.
-// !res.ok throw 유지(#078) — infra 5xx / 400(파라미터 오류) 는 route collapse 와 다른 계층의 진짜 장애.
+// !res.ok 는 throw — infra 5xx / 400(파라미터 오류) 는 route collapse 와 다른 계층의 진짜 장애.
 // slice(상위 N) 는 컴포넌트 몫 — 훅은 route items 그대로 반환.
 // placeholderData: keepPreviousData — 탭/시장 전환 시 이전 카테고리 결과 유지 → skeleton 깜빡임 제거.
 // isLoading (v5: isPending && isFetching) 은 placeholder 존재 시 false 이므로 최초 mount 에만 skeleton 노출.

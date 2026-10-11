@@ -101,7 +101,7 @@ const cacheTag = (key: string, session: KrxSession): string =>
 
 // key × session × krxDate 별 unstable_cache 래퍼 memoize. 활성 세션(regular·after·pre) 60s / 그 외 3600s.
 // 세션이 key 축에 있으므로 시장코드(J/NX) 전환에 별도 무효화가 필요 없다.
-// F41(stock-intraday) 패턴 확장: session + tradingDate 를 key 축으로 넣어 세션·일 경계에서 자동 miss.
+// session + tradingDate 를 key 축으로 넣어 세션·일 경계에서 자동 miss.
 // 이전 open/closed 이분 tag 는 tradingDate 부재로 서버 인스턴스가 다음날까지 살 경우
 // 어제 랭크가 preopen 에 재사용될 여지가 있었다.
 type RankingFetcher = () => Promise<RankingPayload | null>;
@@ -158,7 +158,7 @@ export const GET = async (req: NextRequest) => {
   // 요청 시작에서 캘린더 1회 로드 (memo). 세션·거래일·marketOpen 산출에 관통.
   const calendar = await getMarketCalendar();
   const now = new Date();
-  // 세션/marketOpen 은 순수 KST 시계 — try 밖에서 계산해 catch 경로에도 그대로 얹는다 (#077).
+  // 세션/marketOpen 은 순수 KST 시계 — try 밖에서 계산해 catch 경로에도 그대로 얹는다.
   const session = getKrxSessionState(now, calendar);
   const marketOpen = isKrxMarketOpen(now, calendar);
   const tradingDate = getKrxTradingDate(now, calendar);
@@ -167,7 +167,7 @@ export const GET = async (req: NextRequest) => {
     const { fetcher, key } = getCachedFetcher(kind, session, tradingDate);
     const payload = await fetcher();
     if (payload === null) {
-      // 실패 캐시 오염 방지 (#075) — 세션별 tag 정밀 evict.
+      // 실패 캐시 오염 방지 — 세션별 tag 정밀 evict.
       revalidateTag(cacheTag(key, session), { expire: 0 });
       const body: RankingResponse = {
         items: [],

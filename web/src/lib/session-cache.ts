@@ -20,7 +20,7 @@ const withinSettleWindow = (
 // 세션·일 경계에서 자동 miss 를 보장한 다음, TTL 은 최소한만 남긴다.
 // regular 60s = 클라 폴링(60s) 과 정렬. 그 외 세션은 폴링 없음 → 3600s 로 KIS 부담 최소화.
 // 예외: closed 직후 정산 창(마감 +15분 이내) 은 60s — 확정 프린트가 캐시로 굳는 것 방지.
-// stock-intraday(F41) 는 활성 세션(after/pre) 폴링을 유지하는 별 정책이라
+// stock-intraday 는 활성 세션(after/pre) 폴링을 유지하는 별 정책이라
 // 여기 편입하지 않는다 — 각 route 소유.
 export const krxIndexRevalidate = (
   session: KrxSession,

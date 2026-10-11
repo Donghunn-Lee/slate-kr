@@ -28,7 +28,7 @@ import type {
 
 // quote(FHPUP02100000) · intraday(FHKUP03500200) TR 전용 매핑.
 // daily TR(FHKUP03500100) 은 KOSDAQ150=2203 으로 상이 —
-// collector/fetch_index_prices.py INDEX_CODE_TO_ISCD 참조 (#097).
+// collector/fetch_index_prices.py INDEX_CODE_TO_ISCD 참조.
 const ISCD_BY_INDEX: Record<DomesticIndexCode, string> = {
   KOSPI: "0001",
   KOSDAQ: "1001",
@@ -132,7 +132,7 @@ const readOverseasIntradayFromDb = async (
   try {
     // 창 축은 "이전 거래일 00:00 부터" — 캘린더 산술로 잡으면 로컬 자정~개장 사이
     // 직전 세션이 창 밖으로 밀린다. 국내 `readDomesticIntradayFromDb` 의 `$2::date`
-    // 바인딩 패턴 동형. 휴장일 캘린더 반영으로 F76 대응.
+    // 바인딩 패턴 동형.
     const prevTradingDate = getPreviousOverseasIndexTradingDate(
       indexCode,
       tradingDate,

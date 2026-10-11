@@ -73,7 +73,7 @@ export const GET = async (req: NextRequest) => {
     return NextResponse.json({ quotes, failed, marketOpen, session, tradingDate: date });
   } catch (err: unknown) {
     // 200 + quotes:{ticker:null...} + failed:{ticker:true...} 로 collapse.
-    // single stock-quote(#077) 동형 — 소비측이 세션 라벨은 유지한 채 종목별 "일시 지연"
+    // single stock-quote 동형 — 소비측이 세션 라벨은 유지한 채 종목별 "일시 지연"
     // 배지로만 분기할 수 있게 한다.
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[multi-quote] ${message}`);

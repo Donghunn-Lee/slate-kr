@@ -105,7 +105,7 @@ describe("getClosedFallbackMarketDiv", () => {
     expect(getClosedFallbackMarketDiv(true)).toBe("UN");
   });
   it("비NXT → J (정규장 KRX only)", () => {
-    // 실측: 비NXT + UN 조합은 확장세션에서 sentinel/무관 date 반환 (#099-5 Step 0)
+    // 실측: 비NXT + UN 조합은 확장세션에서 sentinel/무관 date 반환
     expect(getClosedFallbackMarketDiv(false)).toBe("J");
   });
 });
@@ -262,7 +262,7 @@ describe("parseDailyMinuteRows", () => {
   });
 
   it("target date 일치 봉만 통과 (저유동성 종목 anchor bleed 방어)", () => {
-    // #099-2 실측: 서린바이오 anchor=153000 이 20260723 봉을 함께 반환 → target 필터로 제거.
+    // 실측: 서린바이오 anchor=153000 이 20260723 봉을 함께 반환 → target 필터로 제거.
     const rows = [
       row({ stck_bsop_date: "20260724", stck_cntg_hour: "090000" }),
       row({ stck_bsop_date: "20260723", stck_cntg_hour: "153000" }), // bleed
@@ -283,7 +283,7 @@ describe("parseDailyMinuteRows", () => {
   });
 
   it("sentinel 봉 제거: OHLC 전부 0", () => {
-    // 비NXT × UN 확장세션 anchor 실측 패턴 (035720 카카오, #099-5 Step 0)
+    // 비NXT × UN 확장세션 anchor 실측 패턴 (035720 카카오)
     const rows = [
       row({ stck_oprc: 0, stck_hgpr: 0, stck_lwpr: 0, stck_prpr: 0, cntg_vol: 0 }),
       row(),

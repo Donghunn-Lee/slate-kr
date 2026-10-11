@@ -16,7 +16,7 @@ type WatchlistRowProps = {
   price?: TickerPriceSummary;
   liveQuote?: StockQuote | null;
   // route catch/부분 실패 신호. true → EOD 값 유지 + "일시 지연" 배지.
-  // stock-quote(#077) StockHeaderLivePrice 배지 문자·색 동형.
+  // stock-quote StockHeaderLivePrice 배지 문자·색 동형.
   isLiveFailed?: boolean;
   // 개장 전 창(08:00~09:00) KRX 0% 리셋 여부. 판정은 useMultiQuote 소관.
   preReset?: boolean;

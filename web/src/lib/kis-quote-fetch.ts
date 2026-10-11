@@ -221,7 +221,7 @@ type StockMinuteRow = {
 
 // closed fallback 응답 → ChartBar[] 정규화. 순수 함수 — 테스트 대상.
 // (1) 마커 hour (999999/888888) 제거
-// (2) stck_bsop_date === target 필터 (저유동성 종목 anchor bleed 방어, #099-2 실측)
+// (2) stck_bsop_date === target 필터 (저유동성 종목 anchor bleed 방어, 실측)
 // (3) 세션 갭 fill 봉 제거 (KIS 응답이 세션 갭 구간을 O=H=L=C+vol=0 으로 채움 —
 //     창은 요청 채널 J/UN 에 따라 다르다)
 // (4) row → ChartBar (KST → fake-UTC 초)
@@ -581,7 +581,7 @@ export type MultiQuoteResult = {
   quotes: Record<string, StockQuote | null>;
   // per-code 실패 신호. 응답 array에 없거나 normalizeMultiQuote 파싱 실패 → true.
   // 전체 실패(토큰/자격/HTTP/rt_cd/output 비-array) → 요청 전 티커 true.
-  // F19 index failed map(#077 index-intraday) 이식 — N종목 중 일부 KIS 실패가
+  // index-intraday 와 같은 failed 신호 — N종목 중 일부 KIS 실패가
   // 전체 blank 로 번지지 않도록 소비측이 종목별 배지로 분기할 수 있게 한다.
   failed: Record<string, boolean>;
 };
@@ -698,7 +698,7 @@ export const fetchMultiQuote = async (
 // FID_INPUT_DATE_1 로 대상 거래일 명시. FID_FAKE_TICK_INCU_YN 은 Y/N 무관하게 실체결
 // 봉만 반환한다(실측) — 무체결 분은 densifyIntradayBars 가 채운다.
 // 응답에서 stck_bsop_date === targetDate 인 행만 보존 (저유동성 종목은 응답 window 가
-// 전일로 bleed 하므로 필수, #099-2 실측).
+// 전일로 bleed 하므로(실측) 필수).
 const callStockDailyMinuteAnchor = async (
   ticker: string,
   targetDateYyyymmdd: string,

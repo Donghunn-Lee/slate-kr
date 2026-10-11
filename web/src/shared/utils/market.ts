@@ -48,7 +48,7 @@ const toKstParts = (now: Date): KstParts => {
   };
 };
 
-// KST 기준. 주말 + 2026 평일 공휴일 휴장. (after_close 자정 경계는 F14)
+// KST 기준. 주말 + 2026 평일 공휴일 휴장.
 // regular 09:00~15:30 / after 15:30~20:00 / after_close 20:00~06:00(자정 넘김) /
 // preopen 06:00~08:00 + 08:50~09:00 / pre 08:00~08:50
 // calendar 미전달 시 KRX_HOLIDAYS_2026 정적 표 폴백 (isKrxHoliday 내부).
@@ -122,7 +122,7 @@ export const isKrxAfterMarketOpen = (
 // preopen 은 스냅샷 OHL=0 + date 가 전일로 반환되어 mergeLiveDayBar 자체에서 자연 차단되지만
 // 술어에 포함시켜 "정규장 개장 전엔 당일 봉을 얹지 않는다"는 의도를 문서화한다.
 // pre(08:00~08:50) 는 NXT 프리마켓 실봉이 KRX 라벨 일봉 축에 유입되는 것을 명시 차단.
-// regular/after/after_close/closed 는 무변경 (애프터 정합은 F41 별도).
+// regular · after · after_close · closed 는 false 로 당일 봉을 그대로 얹는다. 애프터마켓 정합은 stock-intraday 가 맡는다.
 export const isKrxBeforeMarketOpen = (
   session: KrxSession | undefined,
 ): boolean => session === "pre" || session === "preopen";

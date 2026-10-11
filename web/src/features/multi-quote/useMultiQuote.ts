@@ -8,7 +8,7 @@ import type { KrxSession } from "@/shared/utils/market";
 export type MultiQuoteResponse = {
   quotes: Record<string, StockQuote | null>;
   // per-code KIS 실패 신호. route catch collapse 시엔 요청 전 티커 true.
-  // stock-quote(#077) single failed flag의 Record 확장 — 소비측이 종목별로 분기.
+  // stock-quote single failed flag의 Record 확장 — 소비측이 종목별로 분기.
   failed: Record<string, boolean>;
   marketOpen: boolean;
   session: KrxSession;
