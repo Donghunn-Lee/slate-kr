@@ -16,12 +16,37 @@
 
 ## 한눈에 보기
 
-| 주제 | 한 일 | 설계 결정 |
-|---|---|---|
-| 캐시 계층 | route 캐시로 지수 · 순위 route의 KIS(한국투자증권 OpenAPI) 호출 수를 사용자 수와 분리. 실패 응답이 캐시에 남는 문제는 감지 즉시 무효화 | [1. 갱신 전략](#1-갱신-전략) |
-| 부분 실패 UI | 종목 상세를 섹션 단위 Suspense로 스트리밍하고, 섹션마다 loading · empty · error · 부분 실패를 구분 | [2. 장애 격리와 폴백](#2-장애-격리와-폴백) |
-| 런타임 검증 | 외부 API 응답 · JSONB 스냅샷 · 요청 바디를 Zod로 검증. AI 요약은 Zod 스키마 하나로 요청 스키마 생성과 응답 검증을 공유 | [3. AI 공시 요약](#3-ai-공시-요약) |
-| 익명 동기화 | 로그인 없이 쿠키 2개로 브라우저를 식별해 관심종목을 JSONB 1행으로 서버 저장 | [4. 익명 동기화](#4-익명-동기화) |
+<table>
+  <thead>
+    <tr>
+      <th nowrap>주제</th>
+      <th>한 일</th>
+      <th nowrap>설계 결정</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td nowrap>캐시 계층</td>
+      <td>route 캐시로 지수 · 순위 route의 KIS(한국투자증권 OpenAPI) 호출 수를 사용자 수와 분리. 실패 응답이 캐시에 남는 문제는 감지 즉시 무효화</td>
+      <td nowrap><a href="#1-갱신-전략">1. 갱신 전략</a></td>
+    </tr>
+    <tr>
+      <td nowrap>부분 실패 UI</td>
+      <td>종목 상세를 섹션 단위 Suspense로 스트리밍하고, 섹션마다 loading · empty · error · 부분 실패를 구분</td>
+      <td nowrap><a href="#2-장애-격리와-폴백">2. 장애 격리와 폴백</a></td>
+    </tr>
+    <tr>
+      <td nowrap>런타임 검증</td>
+      <td>외부 API 응답 · JSONB 스냅샷 · 요청 바디를 Zod로 검증. AI 요약은 Zod 스키마 하나로 요청 스키마 생성과 응답 검증을 공유</td>
+      <td nowrap><a href="#3-ai-공시-요약">3. AI 공시 요약</a></td>
+    </tr>
+    <tr>
+      <td nowrap>익명 동기화</td>
+      <td>로그인 없이 쿠키 2개로 브라우저를 식별해 관심종목을 JSONB 1행으로 서버 저장</td>
+      <td nowrap><a href="#4-익명-동기화">4. 익명 동기화</a></td>
+    </tr>
+  </tbody>
+</table>
 
 ## 주요 화면
 
@@ -93,7 +118,7 @@ web/sql/         DDL · 데이터 보정 · 캐시 리셋 SQL (Neon 콘솔 수�
 
 ### Tech Stack
 
-| | |
+| 영역 | 구성 |
 |---|---|
 | Frontend | Next.js 16 App Router · TypeScript strict · Tailwind CSS v4 · shadcn/ui · TanStack Query v5 · Zustand · lightweight-charts v5 · Zod |
 | Infra | Neon PostgreSQL · Vercel · GitHub Actions · cron-job.org |
@@ -198,7 +223,7 @@ localStorage가 유실되고 서버 조회도 실패한 상태에서 종목 하�
   - 실제 공시 196건 픽스처로 분류 회귀를 검증합니다.
 - 접근성: 검색 드롭다운은 listbox/option 역할과 `aria-selected`로 키보드 탐색(방향키 · Enter · Escape)을 지원합니다. 포커스는 focus-visible 링으로 표시하고, sky · amber 글자색 토큰은 AA 4.5:1에 맞췄습니다.
 - 반응형: md 미만에서는 하단 탭 바(홈 · 순위 · 관심 · 지수)가 내비게이션을 대신하고, 차트 축 옵션은 같은 분기점의 미디어 쿼리 훅으로 맞춥니다.
-  <img src="docs/images/stock-detail-mobile.png" width="240" alt="종목 상세 — 모바일, 하단 탭 바">
+  <p align="center"><img src="docs/images/stock-detail-mobile.png" width="240" alt="종목 상세 — 모바일, 하단 탭 바"></p>
 
 성능은 PageSpeed Insights lab 측정값입니다(2026-10-09 ~ 10-11 · 조합당 3회 중앙값 · 실사용자 데이터 없음).
 
