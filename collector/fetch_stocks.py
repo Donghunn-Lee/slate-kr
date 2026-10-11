@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 FSS_API_KEY = os.getenv("FSS_API_KEY")
 KST = timezone(timedelta(hours=9))
 
-# 이탈 종목 비활성화 가드 (#120 F60)
+# 이탈 종목 비활성화 가드
 #   MIN_COLLECTED: FSS 응답이 이 수 미만이면 부분 실패로 간주해 동기화 skip.
 #     실측 활성 종목 ~2,681 중 명백한 이탈은 여유를 두고 2,000 을 하한으로 잡는다.
 #   MAX_DEACTIVATE: 한 회에 비활성 처리 상한. 초과 시 대량 오탐 우려로 skip + WARN.
@@ -105,7 +105,7 @@ def upsert_stocks(conn, stocks: list[dict]):
 
 
 def deactivate_missing(conn, collected: list[dict], biz_date: str) -> bool:
-    """FSS 목록에서 이탈한 종목을 is_active=false 로 동기화 (#120 F60).
+    """FSS 목록에서 이탈한 종목을 is_active=false 로 동기화.
 
     가드
       · collected < MIN_COLLECTED : FSS 미게시·부분 실패 정황 → skip

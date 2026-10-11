@@ -75,9 +75,9 @@ _GATE_COLS = ("revenue", "operating_profit", "net_income", "total_assets", "tota
 # KRW 원 단위 저장 전제. 비-KRW 항목이 하나라도 있으면 skip.
 EXPECTED_CURRENCY = "KRW"
 
-# 이미 non-KRW 로 실측 확인된 티커 집합 (#117).
+# 이미 non-KRW 로 실측 확인된 티커 집합.
 # 격리 완료 상태 전제 — 목록 추가 시 기존 적재분 격리 SQL 선행 필요.
-# X22 환율 지원 전까지 영구 skip 정책이지만, known 반복 건이 매 수집 창
+# 환율 변환이 없는 한 영구 skip 정책이지만, known 반복 건이 매 수집 창
 # exit 1 을 만들어 알람 신호 가치를 잃는 걸 방지하기 위해 "known 은 WARN·
 # exit 미기여, 신규 발견·부풀림만 fail" 로 등급 분리한다.
 # known 티커가 KRW 로 복귀하면 gate 미발동으로 정상 적재됨(의도된 동작).
@@ -106,7 +106,7 @@ KNOWN_NON_KRW_TICKERS = frozenset({
     "950260",  # 인제니아테라퓨틱스 (non-KRW, 적재 이력 없음)
 })
 
-# check_unit_suspects Rule(1) 확인 완료 (ticker, year) 쌍 (#117).
+# check_unit_suspects Rule(1) 확인 완료 (ticker, year) 쌍.
 # 각 filing 원본이 자기 자신에 충실하다고 확인된 케이스만 등록 — 재발 시
 # WARN 을 억제해 신호 노이즈를 낮춘다. Rule(2) [UNIT_SUSPECT_CAP] 은 부풀림
 # 잔존 검출이라 성격이 달라 억제 대상 아님.
@@ -121,7 +121,7 @@ CHECKED_UNIT_SUSPECTS = frozenset({
 DART_NO_DATA = "013"
 
 # is_financial_filer=false 여도 상장 후 이 기간 안이면 매 run 재시도한다. 신규 상장은 첫 정기보고서
-# 전 period 를 조회하다 마킹되는데, 그 뒤 나온 보고서까지 영구 제외되지 않게 한다(F91).
+# 전 period 를 조회하다 마킹되는데, 그 뒤 나온 보고서까지 영구 제외되지 않게 한다.
 NON_FILER_RETRY_DAYS = 365
 
 _QUARTER_MAP = {"11011": 4, "11012": 2, "11013": 1, "11014": 3}

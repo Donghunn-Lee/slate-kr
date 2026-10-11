@@ -20,7 +20,7 @@ KIS 다종목 시세(J) → daily_prices 당일 일봉 (20:10 KST 캡처).
   sdpr == 0            → base_price NULL
   prpr − prdy_vrss ≠ sdpr 는 기준가 축 감시용 카운트만 — 적재를 막지 않는다.
 
-기업행위 감시 (#162 F89 · F115)
+기업행위 감시
   base_price 가 직전 저장 봉 [L, H] 를 1틱 초과해 벗어나면 감자·분할·병합·권리락 등
   기업행위로 보고 WARN (corporate action suspected). 과거 봉이 KIS 수정주가 축에서
   벗어나므로 backfill_prices_kis.py --tickers 로 수동 재적재한다. 적재는 그대로 진행.

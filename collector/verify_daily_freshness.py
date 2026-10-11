@@ -29,7 +29,7 @@ from db import get_connection
 load_dotenv()
 
 # ── KRX_HOLIDAYS_2026 ────────────────────────────────────────────
-# 출처: web/src/shared/utils/krxHolidays.ts (#064 도입).
+# 출처: web/src/shared/utils/krxHolidays.ts.
 # 갱신 주기: 연 1회 — 양쪽 동시 갱신 필요 (Python·TypeScript 상수 동시 반영).
 # 임시공휴일(보궐선거 등) 발생 시 추가.
 # 폴백 전용: market_trading_days 조회에 실패했거나 조회 창 밖의 날짜일 때만 사용.
@@ -60,22 +60,22 @@ KRX_HOLIDAYS_2026: frozenset[str] = frozenset([
 _FORCE = os.getenv("VERIFY_FORCE_EXPECTED")
 
 # 종목 커버리지 하한 — expected 날짜 row 수가 직전 거래일의 이 비율 미만이면 FAIL.
-# #108 fetch_prices 30분 timeout 으로 1579/2647 = 59.7% 부분 적재가 MAX(date) 검사만
-# 통과해 silent PASS 된 사고 대응. 신규 DB(직전 baseline 부재) 는 WARN + skip.
+# EOD 로더가 일부 종목만 적재한 날도 MAX(date) 검사는 통과하므로 row 수로 부분 적재를
+# 잡는다. 신규 DB(직전 baseline 부재) 는 WARN + skip.
 ROW_COUNT_FLOOR_RATIO = 0.9
 
-# 국내 지수 EOD 하한 (#120 F61).
+# 국내 지수 EOD 하한.
 # fetch_index_prices.py INDEX_CODE_TO_ISCD = {KOSPI, KOSDAQ, KOSPI200, KOSDAQ150} — 4종.
 # index_daily_prices 는 해외 지수(8종) 도 공유하는 테이블이라 MAX(base_date) 만으로는
-# 국내 EOD 부분 실패를 잡지 못함(#119 F56 관측). 국내 4종 전량 적재를 명시적으로 검사.
+# 국내 EOD 부분 실패를 잡지 못한다. 국내 4종 전량 적재를 명시적으로 검사.
 DOMESTIC_INDEX_CODES = ("KOSPI", "KOSDAQ", "KOSPI200", "KOSDAQ150")
 
 # 국내 지수 1분봉 하한.
 # fetch_index_minute.py 가 채우는 domestic_index_intraday 4종 공통.
-# 정규장 393분(09:00~15:30) × 0.9 = 353 (#108류 부분 적재 silent PASS 방어).
+# 정규장 393분(09:00~15:30) × 0.9 = 353 (부분 적재 silent PASS 방어).
 DOMESTIC_INTRADAY_FLOOR = 353
 
-# 미처리 기업행위 (F115).
+# 미처리 기업행위.
 # KIS_DAILY_LAST_DATE 이후 활성 종목 전 행에서 base_price 가 직전 저장 봉 [L, H] 를 1틱 초과해
 # 벗어나면 FAIL — fetch_daily_close 의 WARN 이 exit 0 이라 로그에만 남아 방치되던 것 대응.
 # 처리 = backfill_prices_kis.py --tickers + web/sql/rescale_corporate_action.sql 뒤 재스캔 0건.

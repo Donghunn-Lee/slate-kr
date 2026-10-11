@@ -14,13 +14,13 @@ KIS 국내지수 일봉 → index_daily_prices idempotent upsert (당일 EOD 회
 호출
   GET /uapi/domestic-stock/v1/quotations/inquire-daily-indexchartprice
   tr_id=FHKUP03500100 · FID_COND_MRKT_DIV_CODE='U' · FID_PERIOD_DIV_CODE='D'
-  output2: DESC(최신→과거) 정렬 · 60일 요청 시 약 41 트레이딩봉 반환 (probe #097).
+  output2: DESC(최신→과거) 정렬 · 60일 요청 시 약 41 트레이딩봉 반환 (실측).
 
 output2 매핑
   stck_bsop_date · bstp_nmix_oprc/hgpr/lwpr/prpr · acml_vol · acml_tr_pbmn
   등락/등락률은 output2 미포함 → prev_close chain 계산.
 
-단위 환산 (probe #097 실측)
+단위 환산 (실측)
   acml_vol      × 1,000       → volume(주)
   acml_tr_pbmn  × 1,000,000   → value(원)
   KOSDAQ 는 KRX 대비 vol/val 이 ~1% 크게 나옴(원인 미상, OHLC 는 완전 일치).
@@ -55,13 +55,13 @@ DOMAIN = "https://openapi.koreainvestment.com:9443"
 API_URL = "/uapi/domestic-stock/v1/quotations/inquire-daily-indexchartprice"
 TR_ID = "FHKUP03500100"
 CALL_GAP_SEC = 0.5
-# 1콜 41 트레이딩봉 상한(probe #097). 60 캘린더일 = 약 40~43 봉 → 여유 두고 55.
+# 1콜 41 트레이딩봉 상한(실측). 60 캘린더일 = 약 40~43 봉 → 여유 두고 55.
 DAILY_GAP_LIMIT_DAYS = 55
 KST = timezone(timedelta(hours=9))
 
 # IndexCode(웹) → KIS 국내업종 ISCD.
-# daily TR 코드는 quote TR 과 상이 (KOSDAQ150: quote=3003 / daily=2203,
-# #097 probe 실측). 웹 IndexCode 상수 재사용 금지 — 이 매핑은 KIS API
+# daily TR 코드는 quote TR 과 상이 (KOSDAQ150: quote=3003 / daily=2203, 실측).
+# 웹 IndexCode 상수 재사용 금지 — 이 매핑은 KIS API
 # 전용이므로 이 파일에 하드코딩한다.
 INDEX_CODE_TO_ISCD: dict[str, str] = {
     "KOSPI":     "0001",
@@ -137,7 +137,7 @@ def parse_bar(raw: dict):
         open_ = Decimal(str(raw.get("bstp_nmix_oprc")))
         high = Decimal(str(raw.get("bstp_nmix_hgpr")))
         low = Decimal(str(raw.get("bstp_nmix_lwpr")))
-        # 단위 환산 — probe #097 실측: acml_vol=천주, acml_tr_pbmn=백만원.
+        # 단위 환산 — 실측: acml_vol=천주, acml_tr_pbmn=백만원.
         vol_k = int(Decimal(str(raw.get("acml_vol") or "0")))
         val_m = int(Decimal(str(raw.get("acml_tr_pbmn") or "0")))
         volume = vol_k * 1_000

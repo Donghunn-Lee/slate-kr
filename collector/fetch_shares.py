@@ -4,7 +4,7 @@ KRX 일별매매정보 LIST_SHRS(상장주식수) → stocks.shares 동기화 + 
 용도
   시가총액(shares × 종가)과 bps(지배주주지분 ÷ shares)의 주식 수. DART 사업보고서
   발행주식총수는 연 1회 기준이라 병합·분할·소각이 최대 1년 넘게 반영되지 않고, 신규 상장은
-  첫 사업보고서 전까지 비어 있었다(F91). KRX 는 매 거래일 활성 종목 전부를 게시한다.
+  첫 사업보고서 전까지 비어 있다. KRX 는 매 거래일 활성 종목 전부를 게시한다.
 
 호출 (실행당 2회)
   sto/stk_bydd_trd (유가) · sto/ksq_bydd_trd (코스닥). basDd = fetch_stocks 와 같은 직전 거래일.

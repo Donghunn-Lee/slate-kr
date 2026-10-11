@@ -1,9 +1,9 @@
 """
 KIS 국내주식 일봉 → daily_prices idempotent upsert (2026-09-11 이전 구간).
 
-전환 배경 (#098)
+배경
   이전 소스 pykrx 는 D+1 08:00 KST 공표 특성상 당일 16:00 적재 불가. KIS
-  FHKST03010100 은 장 마감 직후 확정 종가 반환. probe #098 실측: adj=0 옵션이
+  FHKST03010100 은 장 마감 직후 확정 종가 반환. 실측: adj=0 옵션이
   기존 pykrx 수정주가와 close 완전 정합 (900 pair, 0 diff), OHL 실질 정합,
   volume 은 정의 차이(시간외 포함 추정)로 상이 — 과거 재적재 없이 경계일부터
   KIS 정의를 그대로 수용.
@@ -54,9 +54,9 @@ DOMAIN = "https://openapi.koreainvestment.com:9443"
 API_URL = "/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice"
 TR_ID = "FHKST03010100"
 CALL_GAP_SEC = 0.15
-# 1콜 100 트레이딩봉 상한(probe #098). 캘린더 150일 ≈ 100 트레이딩봉 안전선.
+# 1콜 100 트레이딩봉 상한(실측). 캘린더 150일 ≈ 100 트레이딩봉 안전선.
 DAILY_GAP_LIMIT_DAYS = 150
-# 0행 티커 initial-load 대량 유실 방어 (F64, probe #122).
+# 0행 티커 initial-load 대량 유실 방어.
 # 10건 초과 시 정상 신규 상장이 아니라 daily_prices 유실 정황으로 간주, 전면 skip.
 INITIAL_LOAD_MAX_TICKERS = 10
 KST = timezone(timedelta(hours=9))

@@ -1,7 +1,7 @@
 """
 KIS 다종목 시세 → quote_snapshots 일일 스냅샷 (20:10 KST 캡처).
 
-배경 (#099-7 확정 근거)
+배경 (실측 확정)
   UN(KRX+NXT 통합) 응답은 20:00 NXT 애프터 종료 후 완전 불변 상태로 유지된다.
   NXT 상장 종목은 UN.stck_prpr 이 KRX 15:30 종가가 아닌 NXT 20:00 최종가로
   확정되므로 daily_prices.close(KRX 종가)와 값이 다른 게 정상. 통합 vol/거래대금
@@ -9,15 +9,15 @@ KIS 다종목 시세 → quote_snapshots 일일 스냅샷 (20:10 KST 캡처).
 
 end 시각 게이트
   거래일 & now_kst ≥ 20:05 만 실행. 그 외 시각·휴장일에 실행되면 skip 후
-  정상 종료(exit 0). --force 류 우회 레버 없음(#098 end 캡 철학).
+  정상 종료(exit 0). --force 류 우회 레버 없음(fetch_prices 의 end 캡과 같은 원칙).
 
 호출
   Pass 1: FHKST11300006 (intstock-multprice) UN div — 30종목/콜 * ~90콜.
   Pass 2: 동일 TR NX div — 배치당 UN 직후 연쇄. 총 ~180 콜.
-  응답 순서 = 요청 순서 보존이 probe 확정(#099-7)이나, 방어적으로 응답 iscd
+  응답 순서 = 요청 순서 보존이 실측으로 확인되나, 방어적으로 응답 iscd
   로 매핑(위치 의존 금지).
 
-nx_eligible 판정식 (probe #099-7 확정)
+nx_eligible 판정식 (실측 확정)
   NX 배치 응답에서 `prpr==0 ⇔ vol==0` 이 완전 동치(경계 모호 케이스 0).
   prpr>0 → nx_eligible=true, nx_close/nx_volume 채움.
   prpr==0 → nx_eligible=false, nx_close/nx_volume NULL(sentinel).
