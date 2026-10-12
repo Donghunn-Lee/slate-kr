@@ -1,10 +1,14 @@
+import { Logo } from "@/components/layout/Logo";
 import { ServiceCardCarousel } from "./ServiceCardCarousel";
 
 export const HomeHero = () => {
   return (
     <section className="grid gap-8 pt-5 md:grid-cols-2 md:items-center md:gap-10 sm:pt-8">
       <div className="md:pr-2">
-        <h1 className="text-3xl font-bold tracking-tight">SlateKR</h1>
+        <h1 className="text-3xl font-bold tracking-tight">
+          <Logo size={28} className="mr-[0.25em] inline align-[-3px]" />
+          SlateKR
+        </h1>
         {/* sm 미만은 h2 · 설명을 짧은 문장으로 바꿔 둘 다 한 줄에 들어가게 한다(360px · fallback 글꼴 포함).
             한 줄을 넘겨 자연 줄바꿈이 생기면 fallback → 웹 글꼴 교체 때 줄 수가 바뀌어 아래 섹션 전체를 밀어낸다. */}
         <h2 className="mt-4 text-lg font-semibold text-foreground sm:text-xl">

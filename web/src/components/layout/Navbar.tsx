@@ -1,13 +1,15 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { NavbarSearch } from "@/features/search/NavbarSearch";
+import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
 
 export const Navbar = () => {
   return (
     <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-sm">
       <div className="mx-auto grid h-12 max-w-5xl grid-cols-[auto_1fr_auto] items-center gap-3 px-4 md:gap-4">
-        <Link href="/" className="text-body font-semibold tracking-tight">
+        <Link href="/" className="flex items-center gap-2 text-body font-semibold tracking-tight">
+          <Logo />
           SlateKR
         </Link>
         <div className="justify-self-stretch sm:w-full sm:max-w-md sm:justify-self-center md:w-64">
