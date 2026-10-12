@@ -286,6 +286,7 @@ SlateKR의 UI는 "slate(판)" 개념을 기반으로 한다.
   --bg-elevated: oklch(0.995 0.003 85);  /* 패널이 떠있을 때 */
   ```
 - Header + 차트 섹션은 무채색(colorless) 유지 — 패널 틴트(배경·테두리) 기준
+- 브랜드 마크(`components/layout/Logo.tsx` · 파비콘)는 토큰을 참조하지 않는 고정 4색이고 라이트 · 다크에서 같다. 헤더 무채색 원칙의 유일한 예외
 - 등락색(price-up/down)은 패널 장식이 아니라 데이터 신호라 무채색 섹션 안에서도 예외로 쓴다
 
 ### 5-color semantic system
