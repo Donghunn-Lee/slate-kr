@@ -9,6 +9,7 @@ import type { StockQuote } from "@/shared/types/quote";
 import { PriceChange } from "@/shared/components/PriceChange";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { priceToneClass } from "@/shared/utils/priceTone";
+import { resolveListChange } from "@/shared/utils/resolveListChange";
 import { cn } from "@/lib/utils";
 
 type WatchlistRowProps = {
@@ -46,13 +47,15 @@ export const WatchlistRow = ({
 
   // 라이브 우선, 없으면 EOD 폴백. 가격은 리셋 대상이 아니다 — 폴백 종가가 곧 오늘 기준가라
   // 헤더와 이미 같은 값이고, 등락만 전일 축으로 남아 어긋난다.
-  // `price &&` 가드: EOD 행 자체가 없으면 리셋할 폴백 팔도 없다(값 부재는 "—" 로 남긴다).
+  // EOD 행 자체가 없으면 리셋할 폴백 팔도 없다(값 부재는 "—" 로 남긴다).
   const live = liveQuote ?? null;
   const displayPrice = live !== null ? live.price : (price?.close ?? null);
-  const displayChange =
-    live !== null ? live.change : preReset && price ? 0 : (price?.change ?? null);
-  const displayChangeRate =
-    live !== null ? live.changeRate : preReset && price ? 0 : (price?.changePct ?? null);
+  const displayChange = resolveListChange(live?.change ?? null, price?.change, preReset);
+  const displayChangeRate = resolveListChange(
+    live?.changeRate ?? null,
+    price?.changePct,
+    preReset,
+  );
   const displaySign = live !== null ? live.sign : undefined;
 
   return (

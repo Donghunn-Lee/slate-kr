@@ -9,6 +9,7 @@ import { PriceChange } from "@/shared/components/PriceChange";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { useMounted } from "@/shared/hooks/useMounted";
 import { priceToneClass } from "@/shared/utils/priceTone";
+import { resolveListChange } from "@/shared/utils/resolveListChange";
 import { cn } from "@/lib/utils";
 import { LIVE_TICKER_LIMIT, useMultiQuote } from "@/features/multi-quote/useMultiQuote";
 import { useWatchlistStore, type WatchlistItem } from "./store/useWatchlistStore";
@@ -198,16 +199,16 @@ export const WatchlistPreview = () => {
                     // 개장 전 창의 EOD 폴백 팔만 0 으로 덮는다 — 가격은 이미 오늘 기준가라
                     // 손대지 않고, EOD 행이 없으면(p undefined) 리셋할 폴백도 없다.
                     const displayPrice = live ? live.price : (p?.close ?? null);
-                    const displayChange = live
-                      ? live.change
-                      : preReset && p
-                        ? 0
-                        : (p?.change ?? null);
-                    const displayChangeRate = live
-                      ? live.changeRate
-                      : preReset && p
-                        ? 0
-                        : (p?.changePct ?? null);
+                    const displayChange = resolveListChange(
+                      live?.change ?? null,
+                      p?.change,
+                      preReset,
+                    );
+                    const displayChangeRate = resolveListChange(
+                      live?.changeRate ?? null,
+                      p?.changePct,
+                      preReset,
+                    );
                     const displaySign = live ? live.sign : undefined;
                     return (
                       <li

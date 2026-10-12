@@ -24,3 +24,16 @@ export const scheduleStaleRefetch = (refetch: () => void): (() => void) => {
   }, STALE_REFETCH_DELAY_MS);
   return () => clearTimeout(id);
 };
+
+// 응답 1건당 재조회 판정. 응답당 최대 1회 — 직전 예약이 실제로 나갔으면(retried) 그 결과 응답은
+// 재검증 미완료로 또 stale 이어도 판정하지 않고 플래그만 내린다(체이닝 차단). 국내·해외 지수
+// 훅이 같은 판정을 쓰도록 effect 본체와 분리한 순수 함수.
+export const decideStaleRefetch = (
+  retried: boolean,
+  fetchedAt: number | null,
+  ttlMs: number,
+  now: number = Date.now(),
+): { schedule: boolean; retried: boolean } => {
+  if (retried) return { schedule: false, retried: false };
+  return { schedule: isStaleIntradayResponse(fetchedAt, ttlMs, now), retried: false };
+};

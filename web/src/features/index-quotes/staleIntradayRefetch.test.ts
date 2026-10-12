@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  decideStaleRefetch,
   isStaleIntradayResponse,
   scheduleStaleRefetch,
   STALE_REFETCH_DELAY_MS,
@@ -43,57 +44,39 @@ describe("isStaleIntradayResponse — 응답 fetchedAt 나이 vs TTL + 여유", 
   });
 });
 
-// 훅 effect 의 응답 1건당 판정 조립식. 훅은 vitest node 환경에서 렌더할 수 없으므로
-// useStockIntraday.test.ts 관례대로 테스트에 복제해 고정한다.
-// retried = 직전 예약이 실제로 나갔는지. 그 결과 응답은 stale 이어도 판정하지 않는다.
-type GuardState = { retried: boolean };
-const step = (
-  state: GuardState,
-  fetchedAt: number | null,
-  now: number,
-): { scheduled: boolean; state: GuardState } => {
-  if (state.retried) return { scheduled: false, state: { retried: false } };
-  if (!isStaleIntradayResponse(fetchedAt, KRX_TTL, now)) {
-    return { scheduled: false, state };
-  }
-  return { scheduled: true, state };
-};
-const fired = (state: GuardState): GuardState => ({ ...state, retried: true });
-
-describe("stale 재조회 가드 — 응답당 최대 1회, 체이닝 금지", () => {
+describe("decideStaleRefetch — 응답당 최대 1회, 체이닝 금지", () => {
   const STALE_AT = NOW - 180_000;
 
   it("stale 응답 → 예약, 예약이 나간 뒤 받은 응답이 또 stale 이어도 재예약 없음", () => {
-    let s: GuardState = { retried: false };
-    const first = step(s, STALE_AT, NOW);
-    expect(first.scheduled).toBe(true);
-    s = fired(first.state);
-    // 재검증 미완료 — 같은 stale 엔트리를 다시 받음
-    const second = step(s, STALE_AT, NOW + STALE_REFETCH_DELAY_MS);
-    expect(second.scheduled).toBe(false);
-    expect(second.state.retried).toBe(false);
+    const first = decideStaleRefetch(false, STALE_AT, KRX_TTL, NOW);
+    expect(first.schedule).toBe(true);
+    // 예약 발화(retried=true) 뒤 재검증 미완료 — 같은 stale 엔트리를 다시 받음
+    const second = decideStaleRefetch(true, STALE_AT, KRX_TTL, NOW + STALE_REFETCH_DELAY_MS);
+    expect(second.schedule).toBe(false);
+    expect(second.retried).toBe(false);
   });
 
   it("체이닝 차단 뒤 다음 tick 응답이 stale 이면 다시 예약", () => {
-    let s: GuardState = { retried: false };
-    s = fired(step(s, STALE_AT, NOW).state);
-    s = step(s, STALE_AT, NOW + STALE_REFETCH_DELAY_MS).state;
-    const nextTick = step(s, STALE_AT, NOW + KRX_TTL);
-    expect(nextTick.scheduled).toBe(true);
+    const blocked = decideStaleRefetch(true, STALE_AT, KRX_TTL, NOW + STALE_REFETCH_DELAY_MS);
+    expect(decideStaleRefetch(blocked.retried, STALE_AT, KRX_TTL, NOW + KRX_TTL).schedule).toBe(
+      true,
+    );
   });
 
   it("예약이 취소돼 나가지 않았으면 다음 응답은 정상 판정", () => {
-    const s = step({ retried: false }, STALE_AT, NOW).state;
+    const first = decideStaleRefetch(false, STALE_AT, KRX_TTL, NOW);
     // 언마운트·hidden 으로 발화 없음 → retried 그대로 false
-    expect(step(s, STALE_AT, NOW + KRX_TTL).scheduled).toBe(true);
+    expect(decideStaleRefetch(first.retried, STALE_AT, KRX_TTL, NOW + KRX_TTL).schedule).toBe(
+      true,
+    );
   });
 
   it("재조회 결과가 fresh 면 이후 응답도 예약 없음", () => {
-    let s: GuardState = { retried: false };
-    s = fired(step(s, STALE_AT, NOW).state);
-    const fresh = step(s, NOW + 500, NOW + STALE_REFETCH_DELAY_MS);
-    expect(fresh.scheduled).toBe(false);
-    expect(step(fresh.state, NOW + 500, NOW + 10_000).scheduled).toBe(false);
+    const fresh = decideStaleRefetch(true, NOW + 500, KRX_TTL, NOW + STALE_REFETCH_DELAY_MS);
+    expect(fresh.schedule).toBe(false);
+    expect(decideStaleRefetch(fresh.retried, NOW + 500, KRX_TTL, NOW + 10_000).schedule).toBe(
+      false,
+    );
   });
 });
 

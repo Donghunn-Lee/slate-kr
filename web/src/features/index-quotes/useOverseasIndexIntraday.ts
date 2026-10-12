@@ -2,10 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { focusManager, useQuery } from "@tanstack/react-query";
 import type { OverseasIntradayCode } from "@/shared/constants/indices";
 import type { IndexIntradaySnapshot } from "@/shared/types/quote";
-import {
-  isStaleIntradayResponse,
-  scheduleStaleRefetch,
-} from "./staleIntradayRefetch";
+import { decideStaleRefetch, scheduleStaleRefetch } from "./staleIntradayRefetch";
 
 export type OverseasIndexIntradayResponse = {
   quotes: Record<OverseasIntradayCode, IndexIntradaySnapshot[]>;
@@ -76,11 +73,9 @@ export const useOverseasIndexIntraday = () => {
   // dataUpdatedAt 축 — 같은 stale 엔트리를 다시 받으면 structural sharing 으로 data 참조가
   // 유지되므로 fetchedAt 만으로는 응답 교체를 감지하지 못한다.
   useEffect(() => {
-    if (retriedRef.current) {
-      retriedRef.current = false;
-      return;
-    }
-    if (!isStaleIntradayResponse(fetchedAt, POLL_INTERVAL_MS)) return;
+    const decision = decideStaleRefetch(retriedRef.current, fetchedAt, POLL_INTERVAL_MS);
+    retriedRef.current = decision.retried;
+    if (!decision.schedule) return;
     return scheduleStaleRefetch(() => {
       retriedRef.current = true;
       // cancelRefetch:false — 관측자 여럿(레일·칩·상세·차트)이 같은 응답에 각자 예약해도

@@ -148,6 +148,15 @@ export const defaultQuoteMarket = (
     ? "nxt"
     : "krx";
 
+// 종목 헤더 탭과 차트 subscribe 의 마운트 1회 market 인자. NXT 취급 종목만 시장 축을 갖고
+// 그 외는 미지정(auto) — 호출부마다 따로 판정하면 경계 통과 시 서로 갈려 캐시 항목이 나뉜다.
+export const initialQuoteMarket = (
+  nxEligible: boolean | null,
+  now: Date,
+  calendar?: MarketCalendar,
+): QuoteMarket | undefined =>
+  nxEligible === true ? defaultQuoteMarket(now, calendar) : undefined;
+
 // KST 캘린더 일자와 분(0~1439) — 세션 무관, 순수 KST 파싱만.
 export const getKstDateAndMinutes = (
   now: Date = new Date(),

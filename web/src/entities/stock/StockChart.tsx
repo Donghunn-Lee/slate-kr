@@ -7,7 +7,7 @@ import { useStockQuote } from "@/features/stock-quote/useStockQuote";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
 import type { QuoteMarket } from "@/shared/utils/market";
-import { defaultQuoteMarket, isKrxOpeningWindow } from "@/shared/utils/market";
+import { initialQuoteMarket, isKrxOpeningWindow } from "@/shared/utils/market";
 import { mergeLiveDayBar } from "@/shared/utils/mergeLiveDayBar";
 import type { ChartBar } from "@/shared/types/quote";
 import type { StockPriceSnapshot } from "@/shared/types/stock";
@@ -52,7 +52,7 @@ export const StockChart = ({
   // 기본 market 을 명시 — 헤더 탭과 같은 마운트 1회 판정. 렌더마다 재계산하면 경계 통과 시
   // 헤더 탭과 갈려 live merge 가 끊긴다.
   const [subscribeMarket] = useState<QuoteMarket | undefined>(() =>
-    nxEligible === true ? defaultQuoteMarket(new Date(), calendar) : undefined,
+    initialQuoteMarket(nxEligible, new Date(), calendar),
   );
   const { data } = useStockQuote(ticker, { subscribeOnly: true, market: subscribeMarket });
   const isMobile = useIsMobile();

@@ -8,10 +8,10 @@ import { StatusBadge } from "@/shared/components/StatusBadge";
 import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
 import type { QuoteMarket } from "@/shared/utils/market";
 import {
-  defaultQuoteMarket,
   getKrxLastCloseDate,
   getKrxSessionState,
   getKstDateAndMinutes,
+  initialQuoteMarket,
   isKrxAfterMarketOpen,
   isKrxOpeningWindow,
 } from "@/shared/utils/market";
@@ -66,8 +66,8 @@ export const StockHeaderLivePrice = ({
   // 마운트 시 클라 세션 1회로 기본 탭 결정 — 이후 세션 전환에도 사용자 선택 유지.
   // 토글 없는 종목은 KRX 축이 사실이라 "krx" 고정 — closeDate·카운트업 key 가 market 을
   // showToggle 게이트 없이 읽는다.
-  const [market, setMarket] = useState<QuoteMarket>(() =>
-    showToggle ? defaultQuoteMarket(now, calendar) : "krx",
+  const [market, setMarket] = useState<QuoteMarket>(
+    () => initialQuoteMarket(nxEligible, now, calendar) ?? "krx",
   );
 
   const marketArg: QuoteMarket | undefined = showToggle ? market : undefined;

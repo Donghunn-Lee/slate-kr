@@ -15,7 +15,7 @@ import { dateToKstStartSec } from "@/shared/utils/dateToKstStartSec";
 import type { QuoteMarket } from "@/shared/utils/market";
 import {
   KRX_AFTER_MARKET_START_MINUTES,
-  defaultQuoteMarket,
+  initialQuoteMarket,
   isKrxOpeningWindow,
 } from "@/shared/utils/market";
 import { mergeLiveDayBar } from "@/shared/utils/mergeLiveDayBar";
@@ -224,7 +224,7 @@ export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsPro
   // 사용자가 헤더에서 비기본 탭에 머무는 동안 캐시가 갈라져 live merge 는 잠시 정지 —
   // 기본 상태 무손실 우선의 감수 갭.
   const [subscribeMarket] = useState<QuoteMarket | undefined>(() =>
-    nxEligible === true ? defaultQuoteMarket(new Date(), calendar) : undefined,
+    initialQuoteMarket(nxEligible, new Date(), calendar),
   );
   const { data: quoteData } = useStockQuote(ticker, {
     subscribeOnly: true,
