@@ -3,15 +3,13 @@ import { ExternalLink } from "lucide-react";
 import type { CompanyProfile, StockSummary, StockPriceSnapshot } from "@/shared/types/stock";
 import type { MarketActionStatus } from "@/shared/types/quote";
 import { getDailyPrices, getLatestKstDate } from "@/lib/prices";
-import { getCorpCode } from "@/lib/stocks";
+import { getCorpCode, getShares } from "@/lib/stocks";
 import { getCompanyProfile } from "@/lib/dart";
 import { fetchStockMarketAction } from "@/lib/kis-quote-fetch";
 import { fetchNxEligible } from "@/lib/quote-snapshots";
-import { formatVolume, formatMarketCap } from "@/shared/format";
 import { WatchlistButton } from "@/features/watchlist/WatchlistButton";
 import { MemoButton } from "@/features/memo/MemoButton";
 import { StockPanel } from "./StockPanel";
-import { StockHeaderBaseDate } from "./StockHeaderBaseDate";
 import { StockHeaderLivePrice } from "./StockHeaderLivePrice";
 import { MarketActionBadge } from "./MarketActionBadge";
 
@@ -36,7 +34,8 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
   const marketAction = fetchStockMarketAction(ticker).catch(() => null);
 
   // 조회별 실패를 격리한다 — 실패한 요소만 빠진다(Promise.all 이면 하나의 실패가 전체를 reject).
-  const [pricesResult, profileResult, nxResult, kstDateResult] = await Promise.allSettled([
+  const [pricesResult, profileResult, nxResult, kstDateResult, sharesResult] =
+    await Promise.allSettled([
     getDailyPrices(ticker, 2),
     (async () => {
       const corpCode = await getCorpCode(ticker);
@@ -44,6 +43,8 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
     })(),
     fetchNxEligible(ticker),
     getLatestKstDate(ticker),
+    // stocks 행은 layout 의 getStockByTicker 와 요청 캐시를 공유 — 추가 쿼리 없음.
+    getShares(ticker),
   ]);
 
   const hasError = pricesResult.status === "rejected";
@@ -56,6 +57,8 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
   // SELECT to_char 로 문자열 수신하는 최신 거래일. 환경 TZ 와 무관하게 저장 일자 그대로.
   const initialKstDate: string | null =
     kstDateResult.status === "fulfilled" ? kstDateResult.value : null;
+  // null 은 시가총액 "-" 폴백. 실패도 동일 처리.
+  const shares: number | null = sharesResult.status === "fulfilled" ? sharesResult.value : null;
 
   const latest = prices[0] ?? null;
   const prev = prices[1] ?? null;
@@ -153,14 +156,10 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
         initialChange={initialChange}
         initialChangeRate={initialChangeRate}
         initialDate={initialKstDate}
+        initialVolume={latest.volume}
+        shares={shares}
         nxEligible={nxEligible}
       />
-
-      <div className="mt-3 flex flex-wrap gap-4 text-body text-muted-foreground">
-        <span>거래량 {formatVolume(latest.volume)}</span>
-        <span>시가총액 {formatMarketCap(stock.marketCap)}</span>
-        <StockHeaderBaseDate latestDate={latest.date} />
-      </div>
     </StockPanel>
   );
 };

@@ -3,6 +3,7 @@ import { fetchStockQuote } from "@/lib/kis-quote-fetch";
 import {
   decideSingleSnapshot,
   fetchQuoteSnapshot,
+  getSnapshotLookupDate,
   isSnapshotSession,
 } from "@/lib/quote-snapshots";
 import { getMarketCalendar } from "@/lib/market-calendar";
@@ -42,7 +43,7 @@ export const GET = async (req: NextRequest) => {
     if (market === "krx") {
       const quote = await fetchStockQuote(ticker, "J");
       const failed = quote === null;
-      return NextResponse.json({ quote, marketOpen, session, date, failed });
+      return NextResponse.json({ quote, marketOpen, session, date, quoteDate: date, failed });
     }
 
     // 오프아워(after_close/closed/preopen) 는 quote_snapshots 서빙 우선.
@@ -59,6 +60,9 @@ export const GET = async (req: NextRequest) => {
           marketOpen,
           session,
           date,
+          // 스냅샷은 조회 키(마지막 마감일) 행이라 quote 가 속한 날짜는 그 키 — 늦은 preopen
+          // (08:50~09:00)엔 date(오늘 거래일)와 하루 어긋난다.
+          quoteDate: getSnapshotLookupDate(now, calendar),
           failed: false,
         });
       }
@@ -96,7 +100,7 @@ export const GET = async (req: NextRequest) => {
     // 구분 불가라 여기서 실패 판정하지 않고 isNxtMiss("장 마감") 로 흘림.
     // market=nxt regular 는 비NXT 종목이 NX 채널에서 null 인 게 정상이라 실패로 안 잡음.
     const failed = market !== "nxt" && session === "regular" && quote === null;
-    return NextResponse.json({ quote, marketOpen, session, date, failed });
+    return NextResponse.json({ quote, marketOpen, session, date, quoteDate: date, failed });
   } catch (err: unknown) {
     // 200 + quote:null 로 collapse — 첫 로드 시 session=undefined 스켈레톤 홀 해소.
     // failed=true 로 정상 quote:null(NXT 미지원 등) 과 KIS 실패를 구분해 클라이언트가
@@ -108,6 +112,7 @@ export const GET = async (req: NextRequest) => {
       marketOpen,
       session,
       date,
+      quoteDate: date,
       failed: true,
     });
   }

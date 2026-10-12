@@ -1,6 +1,5 @@
 import { cache } from "react";
 import { pool } from "./db";
-import { getLatestPrice } from "./prices";
 import type { StockSearchPage, StockSummary } from "@/shared/types/stock";
 
 type StockRow = {
@@ -30,18 +29,11 @@ export const getStockByTicker = cache(async (ticker: string): Promise<StockSumma
   const row = await getActiveStockRow(ticker);
   if (!row) return null;
 
-  const latestPrice = await getLatestPrice(row.ticker);
-  const marketCap =
-    row.shares != null && Number(row.shares) > 0 && latestPrice != null
-      ? Number(row.shares) * latestPrice.close
-      : null;
-
   return {
     ticker: row.ticker,
     name: row.name,
     market: row.market,
     sector: row.sector,
-    marketCap,
   };
 });
 

@@ -19,7 +19,6 @@ export type StockSummary = {
   name: string;
   market: "KOSPI" | "KOSDAQ";
   sector: string | null;
-  marketCap: number | null;
 };
 
 export type StockSearchResult = {

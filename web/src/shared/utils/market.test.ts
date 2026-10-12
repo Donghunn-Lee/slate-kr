@@ -621,7 +621,7 @@ describe("defaultQuoteMarket", () => {
   });
 });
 
-// 종목 헤더 기준일이 이 축을 쓴다 — 08:00 이후 거래일이면 세션과 무관하게 오늘.
+// route 응답 date(stock-quote 등)가 이 축을 쓴다 — 08:00 이후 거래일이면 세션과 무관하게 오늘.
 describe("getKrxTradingDate — 기준일 축", () => {
   it("07:59 preopen → 직전 거래일 (오늘 세션 미개시)", () => {
     expect(getKrxTradingDate(kst(2026, 7, 23, 7, 59))).toBe("2026-07-22");

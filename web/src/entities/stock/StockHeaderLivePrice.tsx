@@ -16,6 +16,7 @@ import {
   isKrxOpeningWindow,
 } from "@/shared/utils/market";
 import { priceToneClass } from "@/shared/utils/priceTone";
+import { formatMarketCap, formatVolume } from "@/shared/format";
 import { cn } from "@/lib/utils";
 import { PriceCountUp } from "./PriceCountUp";
 import {
@@ -23,6 +24,7 @@ import {
   isClosedLikeMiss,
   isPreMarketReset,
 } from "./stockHeaderLabel";
+import { computeHeaderStats, type HeaderStats } from "./stockHeaderStats";
 
 type StockHeaderLivePriceProps = {
   ticker: string;
@@ -31,6 +33,10 @@ type StockHeaderLivePriceProps = {
   initialChangeRate: number | null;
   // SSR daily_prices 최신 행 date ('YYYY-MM-DD', KST 축). KRX 탭 비-regular 라벨 산출.
   initialDate: string | null;
+  // SSR daily_prices 최신 행 volume. 통계 행의 저장 행 폴백.
+  initialVolume: number;
+  // stocks.shares(상장주식수). 시가총액 = 표시 현재가 × shares. null 이면 "-".
+  shares: number | null;
   // NXT 취급 여부. true 일 때만 KRX/NXT 토글 노출 · market 파라미터 부착.
   nxEligible: boolean | null;
 };
@@ -46,6 +52,8 @@ export const StockHeaderLivePrice = ({
   initialChange,
   initialChangeRate,
   initialDate,
+  initialVolume,
+  shares,
   nxEligible,
 }: StockHeaderLivePriceProps) => {
   const calendar = useMarketCalendar();
@@ -116,11 +124,18 @@ export const StockHeaderLivePrice = ({
   const showLiveKrxClose = isKrxDelayWindow && live !== null;
   const forceInitial = isKrxOffRegular && !showLiveKrxClose;
 
-  const displayPrice = forceInitial
-    ? initialPrice
-    : preReset || closedLike
-      ? initialPrice
-      : live?.price ?? initialPrice;
+  // 표시 현재가가 따르는 응답 — 강제 initial·개장 전 리셋·마감 폴백이면 null(저장 행 축).
+  // 통계 행(거래량·시총·기준일)도 이 한 분기를 따라 현재가와 같은 소스의 값을 그린다.
+  const shownQuote = forceInitial || preReset || closedLike ? null : live;
+  const displayPrice = shownQuote?.price ?? initialPrice;
+
+  const stats = computeHeaderStats({
+    source: shownQuote !== null ? "quote" : "stored",
+    quote: shownQuote,
+    quoteDate: data?.quoteDate ?? null,
+    stored: { volume: initialVolume, close: initialPrice, date: initialDate },
+    shares,
+  });
 
   // 창 리셋을 forceInitial 보다 앞에 둔다 — 개장 전 창의 KRX 탭은 forceInitial 도 참이라
   // 순서가 뒤면 전일 등락이 그대로 이긴다. forceInitial 은 창 밖 비-regular 구간에서만 남는다.
@@ -168,6 +183,7 @@ export const StockHeaderLivePrice = ({
           <div className="h-10 w-36 animate-pulse rounded bg-muted" />
           <div className="mb-1 h-5 w-28 animate-pulse rounded bg-muted" />
         </div>
+        <StatsRow stats={stats} />
       </div>
     );
   }
@@ -212,9 +228,20 @@ export const StockHeaderLivePrice = ({
           )}
         </span>
       </div>
+      <StatsRow stats={stats} />
     </div>
   );
 };
+
+// 통계 행 — 스켈레톤 게이트 밖에서도 그린다. SSR·첫 클라 렌더는 저장 행 값으로 같은 행이라
+// 레이아웃 이동·hydration 불일치가 없다.
+const StatsRow = ({ stats }: { stats: HeaderStats }) => (
+  <div className="mt-3 flex flex-wrap gap-4 text-body text-muted-foreground">
+    <span>거래량 {formatVolume(stats.volume)}</span>
+    <span>시가총액 {formatMarketCap(stats.marketCap)}</span>
+    <span>기준일 {stats.baseDate ?? "-"}</span>
+  </div>
+);
 
 // KRX/NXT 세그먼티드 토글 — 헤더 무채색 원칙, flat 스타일.
 // 그룹은 상·좌·우 테두리만, 하단은 각 버튼이 담당 → 활성 버튼만 border-b 를 투명으로 두어
