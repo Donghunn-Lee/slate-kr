@@ -10,7 +10,7 @@ import { InteractionDemo } from "./sections/InteractionDemo";
 import { StatusIndicators } from "./sections/StatusIndicators";
 
 export const metadata: Metadata = {
-  title: "Styleguide",
+  title: "스타일가이드",
   robots: { index: false },
 };
 
@@ -21,7 +21,7 @@ export default function StyleguidePage() {
         {/* 헤더 */}
         <div className="mb-12">
           <h1 className="mb-2 text-[28px] font-bold tracking-[-0.02em] text-foreground">
-            SlateKR 디자인 시스템
+            스타일가이드
           </h1>
           <p className="text-sm leading-[1.6] text-muted-foreground">
             SlateKR에서 사용하는 색·타이포·모션 토큰 가이드
