@@ -11,6 +11,12 @@ export const Footer = () => (
         <span className="mx-2" aria-hidden="true">
           ·
         </span>
+        <Link href="/styleguide" className="hover:underline">
+          스타일가이드
+        </Link>
+        <span className="mx-2" aria-hidden="true">
+          ·
+        </span>
         <Link
           href="https://github.com/Donghunn-Lee/slate-kr"
           target="_blank"
