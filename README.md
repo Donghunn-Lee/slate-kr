@@ -114,7 +114,7 @@ web/sql/         DDL · 데이터 보정 · 캐시 리셋 SQL (Neon 콘솔 수�
 
 종목 상세 전 페이지에 `generateMetadata`를 두고, sitemap은 활성 종목 약 2,650개를 하루 1회 재생성합니다. DB는 요청마다 조회하고, DART 응답만 fetch `revalidate`로 캐시합니다.
 
-`use client`는 이벤트 · 브라우저 API · 차트 · 입력 UI에만 씁니다. 페이지 단위 client 컴포넌트는 없습니다.
+`use client`는 이벤트 · 브라우저 API · 차트 · 입력 UI에만 씁니다. page 파일은 전부 Server Component이고, 관심종목 · 순위처럼 데이터가 브라우저 스토어나 폴링에 있는 화면은 본문이 client 컴포넌트 하나입니다.
 
 ### Tech Stack
 
@@ -220,9 +220,9 @@ localStorage가 유실되고 서버 조회도 실패한 상태에서 종목 하�
 - 커밋 전 로컬 `npm run check`로 `tsc --noEmit` · ESLint · Vitest · `next build`를 실행합니다. main push와 PR에서 `web/**`나 CI 워크플로우 파일이 바뀌면 CI가 typecheck · lint · test를 다시 실행하고, `collector/**`가 바뀌면 collector 단위 테스트도 실행합니다.
 - 테스트는 순수 함수에 집중합니다. 공시 분류, TTM EPS, 가격 통계, 봉 리샘플링, 장 세션 판정, 분봉 슬롯 채움을 다룹니다.
   - 시간 의존 함수는 `now`를 주입받습니다.
-  - 실제 공시 196건 픽스처로 분류 회귀를 검증합니다.
-- 접근성: 검색 드롭다운은 listbox/option 역할과 `aria-selected`로 키보드 탐색(방향키 · Enter · Escape)을 지원합니다. 포커스는 focus-visible 링으로 표시하고, sky · amber 글자색 토큰은 AA 4.5:1에 맞췄습니다.
-- 반응형: md 미만에서는 하단 탭 바(홈 · 순위 · 관심 · 지수)가 내비게이션을 대신하고, 차트 축 옵션은 같은 분기점의 미디어 쿼리 훅으로 맞춥니다.
+  - 공시 제목 191건 픽스처로 분류 회귀를 검증합니다.
+- 접근성: 검색 입력은 combobox 패턴(`aria-expanded` · `aria-controls` · `aria-activedescendant`)과 listbox/option 역할로 키보드 탐색(방향키 · Enter · Escape)을 지원합니다. 포커스는 focus-visible 링으로 표시하고, sky · amber 글자색 토큰은 AA 4.5:1에 맞췄습니다.
+- 반응형: md 미만에서는 하단 탭 바(홈 · 순위 · 관심 · 지수)가 내비게이션을 대신하고, 홈 지수 미니차트의 축 옵션은 탭 바와 같은 분기점(md)의 미디어 쿼리 훅으로 맞춥니다.
   <p align="center"><img src="docs/images/stock-detail-mobile.png" width="240" alt="종목 상세 — 모바일, 하단 탭 바"></p>
 
 성능은 PageSpeed Insights lab 측정값입니다(2026-10-09 ~ 10-11 · 조합당 3회 중앙값 · 실사용자 데이터 없음).

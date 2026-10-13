@@ -246,6 +246,7 @@ DB / 외부 API
 - 순위 캐시 키의 `CACHE_SHAPE_VERSION`: Data Cache는 배포를 넘어 남으므로 캐시 값(`RankingPayload`) 형태가 바뀌면 올린다
 - 지수 캐시 태그: `{도메인}-{code}-{session}` 형식.
   조회 실패(null) 시 revalidateTag로 즉시 축출 (unstable_cache는 null도 캐시하므로)
+- unstable_cache의 revalidate는 래퍼 생성 시 고정된다 — 세션 안에서 TTL이 바뀌는 route(국내 지수 quote·분봉, 해외 분봉)는 memo 키와 keyParts에 revalidate 값을 포함한다
 - lib/ 조회 유틸은 React.cache(요청 단위 memo)가 기본 — Route Handler에서는 동작하지 않는다. 시간 기반 캐시는 예외 3곳:
   `dart.ts` fetch revalidate(목록 3600·기업개황 86400), `kis-token.ts` 모듈 토큰 캐시, `market-calendar.ts` 모듈 memo(1h)
 - 목록 표면(검색·순위·관심종목)의 종목 링크는 `prefetch={false}` — 종목 layout 헤더가 렌더마다 KIS를 호출해 보이는 행 수만큼 콜이 나간다
