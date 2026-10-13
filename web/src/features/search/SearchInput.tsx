@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import { toast } from "sonner";
@@ -35,8 +35,10 @@ export const SearchInput = ({
   const { results, isLoading, error } = useStockSearch(value);
   const [closedByUser, setClosedByUser] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const listId = useId();
 
   const isOpen = !closedByUser && !error && (isLoading || results.length > 0);
+  const listboxOpen = isOpen && !isLoading && results.length > 0;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -116,6 +118,11 @@ export const SearchInput = ({
         <Input
           ref={inputRef}
           type="text"
+          role="combobox"
+          aria-expanded={listboxOpen}
+          aria-controls={listboxOpen ? listId : undefined}
+          aria-autocomplete="list"
+          aria-activedescendant={listboxOpen && activeIndex >= 0 ? `${listId}-${activeIndex}` : undefined}
           placeholder={placeholder}
           value={value}
           onChange={(e) => handleChange(e.target.value)}
@@ -150,11 +157,12 @@ export const SearchInput = ({
             {!isLoading && results.length === 0 && (
               <div className="px-4 py-3 text-body text-muted-foreground">검색 결과가 없습니다</div>
             )}
-            {!isLoading && results.length > 0 && (
-              <ul role="listbox">
+            {listboxOpen && (
+              <ul id={listId} role="listbox">
                 {results.map((stock, index) => (
                   <li
                     key={stock.ticker}
+                    id={`${listId}-${index}`}
                     role="option"
                     aria-selected={index === activeIndex}
                     className={`cursor-pointer px-4 py-2.5 transition-colors ${
