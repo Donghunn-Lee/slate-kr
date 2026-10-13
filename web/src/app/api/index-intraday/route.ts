@@ -19,6 +19,8 @@ export const dynamic = "force-dynamic";
 // 지수 코드 × session × krxDate 별 unstable_cache 래퍼 memoize.
 // session·tradingDate 를 key 축에 두어 세션·일 경계에서 자동 miss 를 보장한다
 // (미포함 시 preopen 진입 때 어제 봉이 stale 로 재사용될 수 있음).
+// revalidate 는 unstable_cache 래퍼 생성 시 고정되므로 key 에도 넣어 정산 창이 끝나면
+// 다른 래퍼를 쓰게 한다.
 // TTL: 활성 세션(regular) 60s / 그 외 3600s (마감 직후 정산 창은 60s).
 // 캐시 단위 = 봉 배열 + 조립 시각. fetchedAt 을 이 안에서 캡처해야 SWR 히트 시 원 조립
 // 시각이 그대로 실려 클라가 stale 응답을 판정할 수 있다.
@@ -30,7 +32,8 @@ const cacheKeyOf = (
   code: DomesticIndexCode,
   session: KrxSession,
   tradingDate: string,
-): string => `${code}::${session}::${tradingDate}`;
+  revalidate: number,
+): string => `${code}::${session}::${tradingDate}::${revalidate}`;
 
 const cacheTagOf = (code: DomesticIndexCode, session: KrxSession): string =>
   `index-intraday-${code.toLowerCase()}-${session}`;
@@ -41,7 +44,8 @@ const getCachedFetcher = (
   tradingDate: string,
   minutesSinceClose: number | null,
 ): IndexFetcher => {
-  const key = cacheKeyOf(code, session, tradingDate);
+  const revalidate = krxIndexRevalidate(session, minutesSinceClose);
+  const key = cacheKeyOf(code, session, tradingDate, revalidate);
   const cached = fetchers.get(key);
   if (cached) return cached;
   const fresh = unstable_cache(
@@ -49,9 +53,9 @@ const getCachedFetcher = (
       const bars = await getIndexIntradayPrices(code);
       return { bars, fetchedAt: Date.now() } satisfies CachedIndexBars;
     },
-    ["index-intraday", code, session, tradingDate],
+    ["index-intraday", code, session, tradingDate, String(revalidate)],
     {
-      revalidate: krxIndexRevalidate(session, minutesSinceClose),
+      revalidate,
       tags: [cacheTagOf(code, session)],
     },
   );

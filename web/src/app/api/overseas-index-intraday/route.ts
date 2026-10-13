@@ -20,6 +20,8 @@ export const dynamic = "force-dynamic";
 
 // 코드 × 거래소세션 × 거래일 별 캐시. session·tradingDate 를 지수별 축(거래소 TZ)
 // 으로 산출해 각 시장 경계에서 자동 miss. 정규장 120s / closed 3600s.
+// revalidate 는 unstable_cache 래퍼 생성 시 고정되므로 key 에도 넣어 정산 창이 끝나면
+// 다른 래퍼를 쓰게 한다.
 // US 3종·아시아 3종·DAX 동일 경로 — `OVERSEAS_INTRADAY_CODES` 화이트리스트에서 파생.
 // 캐시 단위 = 봉 배열 + 조립 시각. fetchedAt 을 이 안에서 캡처해야 SWR 히트 시 원 조립
 // 시각이 그대로 실려 클라가 stale 응답을 판정할 수 있다.
@@ -31,7 +33,8 @@ const cacheKeyOf = (
   code: OverseasIntradayCode,
   session: OverseasIndexSessionState,
   tradingDate: string,
-): string => `${code}::${session}::${tradingDate}`;
+  revalidate: number,
+): string => `${code}::${session}::${tradingDate}::${revalidate}`;
 
 const cacheTagOf = (
   code: OverseasIntradayCode,
@@ -44,7 +47,8 @@ const getCachedFetcher = (
   tradingDate: string,
   minutesSinceClose: number | null,
 ): OverseasFetcher => {
-  const key = cacheKeyOf(code, session, tradingDate);
+  const revalidate = overseasIntradayRevalidate(session, minutesSinceClose);
+  const key = cacheKeyOf(code, session, tradingDate, revalidate);
   const cached = fetchers.get(key);
   if (cached) return cached;
   const fresh = unstable_cache(
@@ -52,9 +56,9 @@ const getCachedFetcher = (
       const bars = await getOverseasIndexIntradayPrices(code, tradingDate);
       return { bars, fetchedAt: Date.now() } satisfies CachedOverseasBars;
     },
-    ["overseas-index-intraday", code, session, tradingDate],
+    ["overseas-index-intraday", code, session, tradingDate, String(revalidate)],
     {
-      revalidate: overseasIntradayRevalidate(session, minutesSinceClose),
+      revalidate,
       tags: [cacheTagOf(code, session)],
     },
   );

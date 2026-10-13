@@ -30,6 +30,8 @@ const KIS_BY_DOMESTIC: Record<DomesticIndexCode, IndexKisCode> = {
 
 // 지수 코드 × session × krxDate 별 unstable_cache 래퍼를 memoize.
 // session·tradingDate 를 key 축에 두어 세션·일 경계에서 자동 miss 를 보장한다.
+// revalidate 는 unstable_cache 래퍼 생성 시 고정되므로 key 에도 넣어 정산 창이 끝나면
+// 다른 래퍼를 쓰게 한다.
 // TTL: 활성 세션(regular) 60s / 그 외 3600s (마감 직후 정산 창은 60s).
 // null(호출 실패) 도 그대로 캐시 = KIS backpressure. 실패 시 tag evict 로 정리.
 // 캐시 단위 = 셀 데이터 조립 단위. fetchedAt 을 이 안에서 캡처해야 캐시 히트 시
@@ -42,7 +44,8 @@ const cacheKeyOf = (
   code: IndexKisCode,
   session: KrxSession,
   tradingDate: string,
-): string => `${code}::${session}::${tradingDate}`;
+  revalidate: number,
+): string => `${code}::${session}::${tradingDate}::${revalidate}`;
 
 const cacheTagOf = (code: IndexKisCode, session: KrxSession): string =>
   `index-quote-${code}-${session}`;
@@ -53,7 +56,8 @@ const getCachedQuote = (
   tradingDate: string,
   minutesSinceClose: number | null,
 ): IndexQuoteFetcher => {
-  const key = cacheKeyOf(code, session, tradingDate);
+  const revalidate = krxIndexRevalidate(session, minutesSinceClose);
+  const key = cacheKeyOf(code, session, tradingDate, revalidate);
   const cached = quoteFetchers.get(key);
   if (cached) return cached;
   const fresh = unstable_cache(
@@ -61,9 +65,9 @@ const getCachedQuote = (
       const live = await fetchIndexQuote(code);
       return { live, fetchedAt: Date.now() } satisfies CachedIndexCell;
     },
-    ["index-quote", code, session, tradingDate],
+    ["index-quote", code, session, tradingDate, String(revalidate)],
     {
-      revalidate: krxIndexRevalidate(session, minutesSinceClose),
+      revalidate,
       tags: [cacheTagOf(code, session)],
     },
   );
