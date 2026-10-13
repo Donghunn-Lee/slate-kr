@@ -149,8 +149,9 @@ def run(snap_date: date, captured_at: datetime) -> int:
     chunk_ok = chunk_err = row_ok = row_parse_err = nx_elig = 0
     for chunk_idx in range(0, total, CHUNK_SIZE):
         chunk = tickers[chunk_idx: chunk_idx + CHUNK_SIZE]
-        un_rows = kis_multi(token, chunk, "UN")
-        nx_rows = kis_multi(token, chunk, "NX")
+        chunk_no = chunk_idx // CHUNK_SIZE + 1
+        un_rows = kis_multi(token, chunk, "UN", chunk_no)
+        nx_rows = kis_multi(token, chunk, "NX", chunk_no)
         if un_rows is None or nx_rows is None:
             chunk_err += 1
             logger.warning(

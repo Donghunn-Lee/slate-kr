@@ -23,6 +23,7 @@ TR_MULTI = "FHKST11300006"
 
 CHUNK_SIZE = 30              # KIS 공식 상한
 CALL_GAP_SEC = 0.15
+RETRY_WAIT_SEC = 2
 GATE_HOUR = 20
 GATE_MIN = 5
 
@@ -47,9 +48,23 @@ def is_gate_open(now_kst: datetime,
 
 
 # ── KIS 다종목 콜 ────────────────────────────────────────────────────
-def kis_multi(token: str, tickers: list[str], div: str) -> dict | None:
+def _get_multi(headers: dict, params: dict) -> requests.Response:
+    try:
+        return requests.get(
+            f"{DOMAIN}{MULTI_PATH}", headers=headers, params=params, timeout=15
+        )
+    finally:
+        time.sleep(CALL_GAP_SEC)
+
+
+def kis_multi(
+    token: str, tickers: list[str], div: str, chunk_no: int
+) -> dict | None:
     """FHKST11300006 다종목 조회. output list 를 dict[iscd→row] 로 반환. 실패시 None.
-    응답 순서 무관 — inter_shrn_iscd 로 매핑(위치 의존 금지)."""
+    응답 순서 무관 — inter_shrn_iscd 로 매핑(위치 의존 금지).
+    연결 끊김(requests.ConnectionError — RemoteDisconnected 포함)만 RETRY_WAIT_SEC 뒤
+    1회 재시도 — 일시 끊김 1번이 청크 30종목 결손으로 번지지 않게 한다. 오류 응답
+    (HTTP·rt_cd)은 재시도하지 않는다."""
     headers = {
         "content-type": "application/json; charset=utf-8",
         "authorization": f"Bearer {token}",
@@ -63,14 +78,15 @@ def kis_multi(token: str, tickers: list[str], div: str) -> dict | None:
         params[f"FID_COND_MRKT_DIV_CODE_{idx}"] = div
         params[f"FID_INPUT_ISCD_{idx}"] = t
     try:
-        r = requests.get(
-            f"{DOMAIN}{MULTI_PATH}", headers=headers, params=params, timeout=15
-        )
+        try:
+            r = _get_multi(headers, params)
+        except requests.ConnectionError as e:
+            logger.warning("retry 1/1 chunk %d div=%s: %s", chunk_no, div, e)
+            time.sleep(RETRY_WAIT_SEC)
+            r = _get_multi(headers, params)
     except requests.RequestException as e:
         logger.error("KIS multi 호출 실패 div=%s size=%d: %s", div, len(tickers), e)
         return None
-    finally:
-        time.sleep(CALL_GAP_SEC)
     if r.status_code != 200:
         logger.error(
             "KIS multi HTTP %d div=%s size=%d: %s",

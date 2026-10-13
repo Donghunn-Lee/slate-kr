@@ -239,7 +239,7 @@ def run(bar_date: date) -> int:
     kis_adj_counts = {"1": 0, "0": 0, "?": 0, "unknown": 0}
     for chunk_idx in range(0, total, CHUNK_SIZE):
         chunk = tickers[chunk_idx: chunk_idx + CHUNK_SIZE]
-        j_rows = kis_multi(token, chunk, "J")
+        j_rows = kis_multi(token, chunk, "J", chunk_idx // CHUNK_SIZE + 1)
         if j_rows is None:
             chunk_err += 1
             logger.warning(
