@@ -59,10 +59,13 @@ KRX_HOLIDAYS_2026: frozenset[str] = frozenset([
 # 프로덕션 워크플로우에선 미설정. fail 경로 로컬 검증용.
 _FORCE = os.getenv("VERIFY_FORCE_EXPECTED")
 
-# 종목 커버리지 하한 — expected 날짜 row 수가 직전 거래일의 이 비율 미만이면 FAIL.
-# EOD 로더가 일부 종목만 적재한 날도 MAX(date) 검사는 통과하므로 row 수로 부분 적재를
-# 잡는다. 신규 DB(직전 baseline 부재) 는 WARN + skip.
-ROW_COUNT_FLOOR_RATIO = 0.9
+# 종목 결손 허용치 — expected 날짜에 행이 없는 활성 종목이 이 수를 넘으면 FAIL.
+# EOD 로더가 일부 종목만 적재한 날도 MAX(date) 검사는 통과하고, 직전 거래일 대비 비율
+# 하한은 청크(30종목) 1개 유실을 통과시킨다 → 결손 종목 수로 부분 적재를 잡는다.
+# 최근 10거래일 결손 최대 1(청크 유실일 제외) + 2 — 거래정지(prpr=0) 미적재 흡수용.
+MISSING_ROWS_TOLERANCE = 3
+# 로그에 싣는 결손 티커 상한.
+MISSING_TICKERS_LOG_LIMIT = 40
 
 # 국내 지수 EOD 하한.
 # fetch_index_prices.py INDEX_CODE_TO_ISCD = {KOSPI, KOSDAQ, KOSPI200, KOSDAQ150} — 4종.
@@ -193,40 +196,32 @@ def get_max(cursor, table: str, col: str) -> date | None:
     return cursor.fetchone()[0]
 
 
-def check_row_count_floor(cursor, expected: date) -> str | None:
-    """daily_prices expected 날짜 row 수가 직전 거래일의 ROW_COUNT_FLOOR_RATIO 미만이면
-    실패 사유 문자열 반환. OK/WARN 경로는 None + stdout 로그."""
-    cursor.execute("SELECT COUNT(*) FROM daily_prices WHERE date = %s", (expected,))
-    (cur_cnt,) = cursor.fetchone()
+def check_missing_rows(cursor, expected: date) -> str | None:
+    """expected 날짜 daily_prices 행이 없는 활성 종목이 MISSING_ROWS_TOLERANCE 를 넘으면
+    실패 사유 문자열 반환. OK 경로는 None. 양쪽 다 결손 수·티커를 stdout 로그."""
     cursor.execute(
-        "SELECT MAX(date) FROM daily_prices WHERE date < %s", (expected,)
+        """
+        SELECT s.ticker FROM stocks s
+         WHERE s.is_active
+           AND NOT EXISTS (
+               SELECT 1 FROM daily_prices d
+                WHERE d.ticker = s.ticker AND d.date = %s
+           )
+         ORDER BY s.ticker
+        """,
+        (expected,),
     )
-    (prev_date,) = cursor.fetchone()
-    if prev_date is None:
-        print(
-            f"  ?? daily_prices rows {cur_cnt} — 직전 baseline 없음, 하한 검사 skip"
-        )
+    missing = [r[0] for r in cursor.fetchall()]
+    msg = f"daily_prices missing {len(missing)} active (tolerance {MISSING_ROWS_TOLERANCE})"
+    if missing:
+        msg += ": " + " ".join(missing[:MISSING_TICKERS_LOG_LIMIT])
+        if len(missing) > MISSING_TICKERS_LOG_LIMIT:
+            msg += f" +{len(missing) - MISSING_TICKERS_LOG_LIMIT} more"
+    if len(missing) <= MISSING_ROWS_TOLERANCE:
+        print(f"  OK {msg}")
         return None
-    cursor.execute("SELECT COUNT(*) FROM daily_prices WHERE date = %s", (prev_date,))
-    (prev_cnt,) = cursor.fetchone()
-    if prev_cnt == 0:
-        print(
-            f"  ?? daily_prices rows {cur_cnt} — 직전({prev_date}) count=0, 하한 검사 skip"
-        )
-        return None
-    ratio = cur_cnt / prev_cnt
-    floor_pct = int(ROW_COUNT_FLOOR_RATIO * 100)
-    if ratio >= ROW_COUNT_FLOOR_RATIO:
-        print(
-            f"  OK daily_prices rows {cur_cnt}/{prev_cnt} (floor {floor_pct}%)"
-        )
-        return None
-    print(
-        f"  !! daily_prices rows {cur_cnt}/{prev_cnt} = {ratio * 100:.1f}% < {floor_pct}%"
-    )
-    return (
-        f"daily_prices rows {cur_cnt}/{prev_cnt} = {ratio * 100:.1f}% < {floor_pct}%"
-    )
+    print(f"  !! {msg}")
+    return msg
 
 
 def check_index_row_count_floor(cursor, expected: date) -> str | None:
@@ -418,9 +413,9 @@ def _run_full(cur, now_kst: datetime, calendar: dict[date, bool]) -> list[str]:
         if not ok:
             failures.append(f"{table}.MAX({col})={mx} != expected {expected}")
 
-    floor_fail = check_row_count_floor(cur, expected)
-    if floor_fail:
-        failures.append(floor_fail)
+    missing_fail = check_missing_rows(cur, expected)
+    if missing_fail:
+        failures.append(missing_fail)
     idx_floor_fail = check_index_row_count_floor(cur, expected)
     if idx_floor_fail:
         failures.append(idx_floor_fail)
