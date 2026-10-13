@@ -29,7 +29,7 @@ KIS 다종목 시세(J) → daily_prices 당일 일봉 (20:10 KST 캡처).
   미처리 건은 verify_daily_freshness(full) 가 실패로 올린다.
   WARN 종목은 KIS 일봉(FHKST03010100 · adj=0) 1콜로 직전 봉이 f 배 조정됐는지 판별해
   kis_adj 를 같이 남긴다 — 1(병합·분할·권리락 등, KIS 조정): 재적재 + 9/14 이후 행 수동 rescale
-  (web/sql/rescale_corporate_action.sql) / 0(감자, KIS 미조정): 행은 손대지 않고
+  (web/sql/rescale_corporate_action.sql) / 0(KIS 미조정 — 감자 여부로 단정 불가): 행은 손대지 않고
   verify_daily_freshness.KNOWN_BASE_ADJ 에 등록 /
   ?·unknown: 수동 확인. 판별 실패는 WARN 만, 적재·exit code 무관.
 
@@ -176,7 +176,7 @@ def classify_kis_adj(
 ) -> tuple[str, int | None, str | None]:
     """WARN 종목의 KIS 수정주가 조정 여부 → (kis_adj, kis_prev_close, reason).
     KIS 일봉(FHKST03010100 · adj=0, prev_date~bar_date) 의 prev_date 봉 close 가
-      == prev_close                  → "0" (미조정 — 감자. 과거 봉 손대지 않음)
+      == prev_close                  → "0" (미조정 — 과거 봉 손대지 않음. 감자 여부로 단정 불가)
       ≈ prev_close × f (±max(1, 0.5%)) → "1" (조정 — 병합·분할. 9/14 이후 행 rescale 대상)
       그 외                          → "?"
     0.5% 는 KRX 기준가의 호가단위 반올림 흡수용 — 조정(≈f) 과 미조정(≈1) 은 수십 % 차이.
