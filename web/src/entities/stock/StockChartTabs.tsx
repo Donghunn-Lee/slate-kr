@@ -272,7 +272,9 @@ export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsPro
   // failed 응답은 성공 anchor 봉만 실린 결손본일 수 있다 — 결손 창은 densify fill 로 메워져
   // 무체결 구간과 구분되지 않으므로 그리지 않고 failed UI 로 보낸다. 직전 정상본이 있으면
   // 훅이 그것을 유지하므로 여기 도달하는 failed 는 첫 로드·연속 실패뿐.
-  const intradayFailed = intradayQuery.data?.failed ?? false;
+  // 전송 실패(차단·5xx)는 data 가 없을 때만 failed 로 본다 — 직전 정상본이 있으면 TanStack 이
+  // data 를 남기므로 failed 응답의 직전본 유지(keepLastGoodIntraday)와 같은 결과가 된다.
+  const intradayFailed = intradayQuery.data?.failed ?? intradayQuery.isError;
   const rawIntradayBars = intradayFailed
     ? EMPTY_BARS
     : (intradayQuery.data?.bars ?? EMPTY_BARS);
@@ -339,8 +341,8 @@ export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsPro
         ? monthBars
         : dayBars;
 
-  // 실패는 표시층에서 항상 empty 로 취급되므로 failed 로 분기 우선순위 결정 —
-  // 두 분기는 상호 배타(동시 참 불가).
+  // 실패(failed 응답·응답 없는 전송 실패)는 봉을 비워 두므로 !hasIntraday 안에서 failed 로
+  // 재시도 UI 와 빈 상태를 가른다 — 두 분기는 상호 배타(동시 참 불가).
   const showFailedIntraday =
     isIntradayView && !intradayQuery.isLoading && !hasIntraday && intradayFailed;
   const showEmptyIntraday =

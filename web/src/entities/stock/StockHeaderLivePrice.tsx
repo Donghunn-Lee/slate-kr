@@ -84,7 +84,11 @@ export const StockHeaderLivePrice = ({
   // 지연 창엔 fetch 를 살려두고 폴링만 정지 (subscribeOnly).
   const queryEnabled = !isKrxOffRegular || isKrxDelayWindow;
 
-  const { data: sharedData, dataUpdatedAt: sharedUpdatedAt } = useStockQuote(ticker, {
+  const {
+    data: sharedData,
+    dataUpdatedAt: sharedUpdatedAt,
+    errorUpdatedAt: sharedErrorUpdatedAt,
+  } = useStockQuote(ticker, {
     market: marketArg,
     enabled: queryEnabled,
     // subscribeOnly 는 setInterval 만 끄고 useQuery 초기 fetch 1회는 그대로 발생.
@@ -97,14 +101,20 @@ export const StockHeaderLivePrice = ({
   // 배지로, 차트가 받아 둔 지난 세션이 개장 전 창 리셋 판정으로 새지 않는다.
   const data = queryEnabled ? sharedData : undefined;
   const dataUpdatedAt = queryEnabled ? sharedUpdatedAt : 0;
+  // 전송 실패(차단·5xx) = 마지막으로 끝난 조회가 실패. isError 를 쓰지 않는 이유: 응답 없이
+  // 실패한 쿼리는 refetch 가 시작되면 status 가 pending 으로 돌아가 isError 가 풀린다 — 폴링마다
+  // 스켈레톤이 깜빡인다. 직전 정상 응답이 있으면 TanStack 이 data 를 남기므로 배지만 얹힌다.
+  const isTransportFailed = queryEnabled && sharedErrorUpdatedAt > sharedUpdatedAt;
 
   const live = data?.quote ?? null;
-  const session = data?.session;
+  // 응답 없는 전송 실패는 200 failed 응답과 같은 입력(session 있음 · live null · failed)으로
+  // 수렴 — route 도 catch 에서 KIS 와 무관한 KST 시계 세션을 싣는다.
+  const session = data?.session ?? (isTransportFailed ? clientSession : undefined);
   const updatedAtText = dataUpdatedAt ? format(new Date(dataUpdatedAt), "HH:mm:ss") : "";
 
-  // quote:null 이 정상 empty(NXT 미지원 등) 인지 KIS 실패인지 구분하는 신호.
+  // quote:null 이 정상 empty(NXT 미지원 등) 인지 KIS·전송 실패인지 구분하는 신호.
   // 세션 라벨은 유지한 채 "일시 지연" 배지만 얹기 위한 축.
-  const isFailedQuote = data?.failed ?? false;
+  const isFailedQuote = (data?.failed ?? false) || isTransportFailed;
 
   // 토글이 없는 종목은 KRX 축이 사실이므로 "krx" 고정 — computeHeaderLabel 처럼 미지정
   // (undefined) 을 그대로 넘기면 비NXT 종목이 NXT 보존 예외로 수렴한다.
