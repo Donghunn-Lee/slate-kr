@@ -10,6 +10,7 @@ import { getMarketCalendar } from "@/lib/market-calendar";
 import { getKrxSessionState, getKrxTradingDate } from "@/shared/utils/market";
 import type { QuoteMarket } from "@/shared/utils/market";
 import type { StockQuote } from "@/shared/types/quote";
+import { TickerSchema } from "@/shared/types/schemas";
 
 export const dynamic = "force-dynamic";
 
@@ -19,10 +20,13 @@ const parseMarket = (raw: string | null): QuoteMarket | null => {
 };
 
 export const GET = async (req: NextRequest) => {
-  const ticker = req.nextUrl.searchParams.get("ticker");
-  if (!ticker) {
-    return NextResponse.json({ error: "ticker 파라미터가 필요합니다" }, { status: 400 });
+  // 형식 검증만 — 존재 여부까지 보면 폴링마다 DB 조회가 붙는다. 형식이 맞는 미존재 종목은
+  // 시세 없는 종목과 같은 경로로 흐른다.
+  const parsedTicker = TickerSchema.safeParse(req.nextUrl.searchParams.get("ticker"));
+  if (!parsedTicker.success) {
+    return NextResponse.json({ error: "ticker 파라미터가 올바르지 않습니다" }, { status: 400 });
   }
+  const ticker = parsedTicker.data;
   // market 미지정은 세션 결정 경로(regular=J, after=UN, 그 외=NX)로 흐른다 — 하위호환.
   const market = parseMarket(req.nextUrl.searchParams.get("market"));
 

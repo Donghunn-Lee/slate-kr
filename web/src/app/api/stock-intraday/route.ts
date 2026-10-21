@@ -4,6 +4,7 @@ import {
   type StockIntradayChartResult,
 } from "@/lib/kis-quote-fetch";
 import { getMarketCalendar } from "@/lib/market-calendar";
+import { TickerSchema } from "@/shared/types/schemas";
 import { getKrxSessionState, getKrxTradingDate } from "@/shared/utils/market";
 
 export const dynamic = "force-dynamic";
@@ -29,13 +30,16 @@ const dedupedFetch = (
 };
 
 export const GET = async (req: NextRequest) => {
-  const ticker = req.nextUrl.searchParams.get("ticker");
-  if (!ticker) {
+  // 형식 검증만 — 존재 여부까지 보면 폴링마다 DB 조회가 붙는다. 형식이 맞는 미존재 종목은
+  // 시세 없는 종목과 같은 경로로 흐른다.
+  const parsedTicker = TickerSchema.safeParse(req.nextUrl.searchParams.get("ticker"));
+  if (!parsedTicker.success) {
     return NextResponse.json(
-      { error: "ticker 파라미터가 필요합니다" },
+      { error: "ticker 파라미터가 올바르지 않습니다" },
       { status: 400 },
     );
   }
+  const ticker = parsedTicker.data;
 
   // 요청 시작에서 캘린더 1회 로드 (memo). 세션·거래일 산출에 관통.
   // fetchStockIntradayChart 내부의 시계 함수는 함수 스코프에서 자체 로드 (memo hit).
