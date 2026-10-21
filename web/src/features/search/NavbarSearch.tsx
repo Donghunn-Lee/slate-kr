@@ -4,12 +4,7 @@ import { useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { SearchInput } from "./SearchInput";
 
-type NavbarSearchProps = {
-  autoFocus?: boolean;
-  onNavigate?: () => void;
-};
-
-export const NavbarSearch = ({ autoFocus, onNavigate }: NavbarSearchProps = {}) => {
+export const NavbarSearch = () => {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   // /search 라우트에서만 URL q 를 SoT 로 사용. 다른 라우트로 이동 시 로컬 값 유지(강제 초기화 없음).
@@ -29,8 +24,6 @@ export const NavbarSearch = ({ autoFocus, onNavigate }: NavbarSearchProps = {}) 
       onChange={setValue}
       size="sm"
       placeholder="종목 검색"
-      autoFocus={autoFocus}
-      onNavigate={onNavigate}
     />
   );
 };

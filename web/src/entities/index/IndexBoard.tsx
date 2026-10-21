@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import type { IndexDailySnapshot } from "@/shared/types/quote";
 import type { IndexCode } from "@/shared/constants/indices";
 import type { PriceStats } from "@/shared/types/stock";
+import { useIsBelowMd } from "@/shared/hooks/useIsMobile";
 import { IndexChipStrip } from "./IndexChipStrip";
 import { IndexRail } from "./IndexRail";
 import { IndexDetailPane } from "./IndexDetailPane";
@@ -15,8 +16,6 @@ type IndexBoardProps = {
   initialSelected: IndexCode;
 };
 
-const MOBILE_QUERY = "(max-width: 767px)";
-
 export const IndexBoard = ({
   dailyByIndex,
   statsByIndex,
@@ -25,6 +24,7 @@ export const IndexBoard = ({
 }: IndexBoardProps) => {
   const [selected, setSelected] = useState<IndexCode>(initialSelected);
   const detailRef = useRef<HTMLDivElement | null>(null);
+  const belowMd = useIsBelowMd();
 
   const handleSelect = (code: IndexCode) => {
     setSelected(code);
@@ -32,7 +32,7 @@ export const IndexBoard = ({
     window.history.replaceState(null, "", `/stocks/indices?index=${code}`);
     // 모바일에선 상세 pane 이 rail 위에 있지만 스크롤이 하단에 걸려있을 수 있어
     // 선택 시 상단으로 재정렬한다. 데스크톱은 스왑만 되므로 스크롤 유지.
-    if (window.matchMedia(MOBILE_QUERY).matches) {
+    if (belowMd) {
       detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   };

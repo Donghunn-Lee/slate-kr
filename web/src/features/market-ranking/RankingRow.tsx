@@ -171,7 +171,7 @@ export const RankingRow = ({
           {item.name}
         </span>
         <span className="hidden font-mono text-micro text-muted-foreground md:block">
-          {item.market ?? ""}
+          {item.market ?? "—"}
         </span>
         <span
           className={cn(

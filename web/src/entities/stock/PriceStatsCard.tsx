@@ -29,6 +29,8 @@ export const PriceStatsCard = ({ stats }: PriceStatsCardProps) => {
               <div className="flex items-baseline gap-2">
                 <span className="text-caption font-medium text-muted-foreground">52주 레인지</span>
                 <span className="text-value font-semibold">{formatPrice(range52w.current)}</span>
+                {/* 저장 일봉의 마지막 종가 — 헤더 현재가(라이브)와 다른 축이라 값이 갈릴 수 있다. */}
+                <span className="text-caption text-muted-foreground">종가 기준</span>
               </div>
               <div className="space-y-1.5">
                 <div className="relative py-1.5">

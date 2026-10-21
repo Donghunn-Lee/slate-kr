@@ -12,6 +12,7 @@ import {
   LineSeries,
   TickMarkType,
   type BarData,
+  type BarPrice,
   type HistogramData,
   type IChartApi,
   type ISeriesApi,
@@ -619,6 +620,9 @@ export const PriceChart = ({
       localization: {
         ...crosshairLocalization(timeVisible, timeVisible ? barTimeZone : undefined),
         ...(priceFormatter ? { priceFormatter } : {}),
+        // 0 이하 눈금은 하단 여백(거래량 띠)이 가격축에 매핑된 자리라 실제 가격이 아니다 — 비운다.
+        tickmarksPriceFormatter: (prices: BarPrice[]) =>
+          prices.map((p) => (p <= 0 ? "" : (priceFormatter?.(p) ?? p.toFixed(precision)))),
       },
       timeScale: {
         borderColor: c.border,
