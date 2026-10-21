@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import type { Metadata } from "next";
+import type { Metadata, ResolvingMetadata } from "next";
 import { getStockByTicker } from "@/lib/stocks";
 import { StockHeader } from "@/entities/stock/StockHeader";
 import { StockMetrics } from "@/entities/stock/StockMetrics";
@@ -13,11 +13,10 @@ type LayoutProps = {
   params: Promise<{ ticker: string }>;
 };
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ ticker: string }>;
-}): Promise<Metadata> {
+export async function generateMetadata(
+  { params }: { params: Promise<{ ticker: string }> },
+  parent: ResolvingMetadata,
+): Promise<Metadata> {
   const { ticker } = await params;
   let stock = null;
   try {
@@ -28,12 +27,19 @@ export async function generateMetadata({
   if (!stock) return {};
   // title 은 두지 않는다 — layout 의 title 은 하위 세그먼트(chart·financials·disclosures)에서
   // 루트 title.template 을 대체해 접미사가 빠진다. 탭별 title 은 각 page 몫.
-  // openGraph·twitter 는 세그먼트 단위로 통째 교체되므로 루트의 type·card 를 다시 적는다.
+  // openGraph·twitter 는 세그먼트 단위로 통째 교체되므로 루트의 type·url·card 를 다시 적고,
+  // 루트의 파일 컨벤션 og 이미지는 부모 결과에서 이어받는다.
   const shareTitle = `${stock.name}(${ticker}) | SlateKR`;
+  const { openGraph: parentOpenGraph } = await parent;
   return {
     description: `${stock.name}(${ticker}) 주가, 재무정보, 공시를 확인하세요`,
-    openGraph: { title: shareTitle, type: "website" },
-    twitter: { card: "summary", title: shareTitle },
+    openGraph: {
+      title: shareTitle,
+      type: "website",
+      url: "./",
+      images: parentOpenGraph?.images,
+    },
+    twitter: { card: "summary_large_image", title: shareTitle },
   };
 }
 

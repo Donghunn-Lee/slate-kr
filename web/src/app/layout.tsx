@@ -25,16 +25,12 @@ export const metadata: Metadata = {
     default: "SlateKR",
   },
   description: "국내 상장 종목의 가격·재무·공시 정보를 손쉽게 조회하세요",
-  openGraph: {
-    title: "SlateKR",
-    description: "국내 상장 종목의 가격·재무·공시 정보를 손쉽게 조회하세요",
-    type: "website",
-  },
-  twitter: {
-    card: "summary",
-    title: "SlateKR",
-    description: "국내 상장 종목의 가격·재무·공시 정보를 손쉽게 조회하세요",
-  },
+  // "./" 는 요청 경로 기준으로 풀린다 — 하위 페이지마다 선언하지 않아도 각자 자기 URL 을 갖는다.
+  alternates: { canonical: "./" },
+  // title·description 을 비워 두면 Next 가 페이지의 title·description 으로 채운다.
+  // og 이미지는 opengraph-image.png 파일 컨벤션.
+  openGraph: { type: "website", url: "./" },
+  twitter: { card: "summary_large_image" },
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

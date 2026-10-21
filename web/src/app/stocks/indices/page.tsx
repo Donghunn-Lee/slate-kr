@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, ResolvingMetadata } from "next";
 import {
   INDEX_CODES,
   INDEX_DAILY_SSR_LIMIT,
@@ -21,13 +21,22 @@ const resolveIndex = (raw: string | undefined): IndexCode =>
     ? (raw as IndexCode)
     : "KOSPI";
 
-export const generateMetadata = async ({ searchParams }: PageProps): Promise<Metadata> => {
+export const generateMetadata = async (
+  { searchParams }: PageProps,
+  parent: ResolvingMetadata,
+): Promise<Metadata> => {
   const { index } = await searchParams;
   const selected = resolveIndex(index);
   const label = INDEX_LABEL[selected];
+  // ?index= 변형마다 title 이 달라 canonical·og:url 에 index 를 싣는다 — 루트의 "./" 는 쿼리를 버린다.
+  // openGraph 는 세그먼트 단위로 통째 교체되므로 루트의 type 을 다시 적고 og 이미지는 부모에서 잇는다.
+  const url = `/stocks/indices?index=${encodeURIComponent(selected)}`;
+  const { openGraph: parentOpenGraph } = await parent;
   return {
     title: `${label} 지수`,
     description: `${label} 지수의 당일/일봉/월봉 차트를 확인하세요.`,
+    alternates: { canonical: url },
+    openGraph: { type: "website", url, images: parentOpenGraph?.images },
   };
 };
 
