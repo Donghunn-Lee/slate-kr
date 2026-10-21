@@ -9,6 +9,7 @@ import { Footer } from "@/components/layout/Footer";
 import { IosInputZoomFix } from "@/shared/components/IosInputZoomFix";
 import { WatchlistSync } from "@/features/watchlist/WatchlistSync";
 import { MemoSync } from "@/features/memo/MemoSync";
+import { getBaseUrl } from "@/lib/base-url";
 import { getMarketCalendar } from "@/lib/market-calendar";
 import { notoSansKr } from "@/shared/fonts";
 
@@ -19,7 +20,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000"),
+  metadataBase: new URL(getBaseUrl()),
   title: {
     template: "%s | SlateKR",
     default: "SlateKR",
