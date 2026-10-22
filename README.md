@@ -295,7 +295,7 @@ Python collector가 KIS(시세 · 지수 · 분봉) · DART(재무 · 배당 · 
 
 - 스케줄: GitHub Actions 수집 워크플로우 6개는 전부 `workflow_dispatch`이고 cron-job.org가 트리거합니다. `schedule` 이벤트는 지연 · 드롭이 있어 쓰지 않습니다.
 - 종목 일봉은 KRX 애프터마켓 마감(20:00) 캔들이고, 거래일 20:12 KIS 시세로 적재합니다.
-- 결손 · 기업행위 보정은 백필 스크립트로 수동 실행합니다(`backfill_prices.py` 결손 채움 · `backfill_prices_kis.py` 수정주가 · `backfill_index_prices.py` 국내 지수 · `backfill_overseas_index_prices.py` 해외 지수 · `fetch_prices.py` 과거 증분).
+- 기업행위로 기준가가 직전 봉 범위를 벗어난 종목은 Daily가 검증 게이트(KIS 수정주가 반영 · 재적재 전후 비율 일치 · 사건 비율 · 구간 단일 축)를 전부 통과한 건만 자동으로 재적재 · rescale하고 원장에 기록합니다. 거절 건과 결손 보충은 백필 스크립트로 수동 실행합니다(`backfill_prices.py` 결손 채움 · `backfill_prices_kis.py` 수정주가 · `backfill_index_prices.py` 국내 지수 · `backfill_overseas_index_prices.py` 해외 지수 · `fetch_prices.py` 과거 증분).
 
 ## 개발 방식
 
@@ -315,7 +315,7 @@ Python collector가 KIS(시세 · 지수 · 분봉) · DART(재무 · 배당 · 
 - 프로젝트 지침(CLAUDE.md)에 아키텍처 원칙 · 컨벤션 · 금지 사항을 고정하고 리뷰 기준선으로 씁니다. 리뷰를 통과한 결함도 있었고, 문서와 코드 대조로 찾았습니다([#174](https://velog.io/@dh82680/SlateKR-174-선언만-있던-revalidate와-한-달-멈춰-있던-차트-당일-봉)).
 - AI 요약 모델 교체는 원문 기준 채점표를 먼저 고정하고, 모델명을 가린 채점으로 결정했습니다.
 
-작업 세션 186회 · 커밋 869 · Vitest 케이스 1,183(2026-10-22 기준). 작업 세션 단위 개발 일지를 같은 번호로 [velog 시리즈](https://velog.io/@dh82680)에 정리했습니다. 각 결정의 배경과 실측 결과는 해당 편에 있습니다.
+작업 세션 186회 · 커밋 877 · Vitest 케이스 1,183(2026-10-22 기준). 작업 세션 단위 개발 일지를 같은 번호로 [velog 시리즈](https://velog.io/@dh82680)에 정리했습니다. 각 결정의 배경과 실측 결과는 해당 편에 있습니다.
 
 ## 다시 한다면
 
