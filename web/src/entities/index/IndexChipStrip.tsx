@@ -99,6 +99,9 @@ export const IndexChipStrip = ({
         aria-pressed={isSelected}
         className={cn(
           "flex shrink-0 flex-col gap-0.5 rounded-md border px-3 py-2 text-left transition-colors",
+          // 국내 칩은 스켈레톤 → 값 교체로 폭이 늘어 옆 칩을 밀지 않게 최대 자릿수
+          // 값(8,888.88 ▲ 888.88 (+8.88%)) 폭을 미리 잡는다. 캡션이 sm 에서 커져 두 단계.
+          isDomestic && "min-w-44 sm:min-w-48",
           isSelected
             ? "border-lavender-accent bg-lavender-bg shadow-slate-hover"
             : "border-subtle bg-elevated shadow-slate",
@@ -110,8 +113,11 @@ export const IndexChipStrip = ({
             {meta.overline}
           </span>
         </div>
+        {/* 스켈레톤은 값 행과 높이(caption 1줄)·display 를 맞춘다. React 가 이 div 를 값 행으로
+            재사용하는데, display 가 바뀌면 박스가 새로 만들어지며 pulse 로 합성된 이전 위치가
+            원점으로 잡혀 큰 layout shift 로 집계된다. */}
         {showSkeleton ? (
-          <div className="mt-0.5 h-3.5 w-16 animate-pulse rounded bg-muted" />
+          <div className="flex h-lh w-16 animate-pulse rounded bg-muted text-caption" />
         ) : cell?.live ? (
           <div className="flex items-baseline gap-1.5">
             <span
