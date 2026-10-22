@@ -1,5 +1,9 @@
 -- Neon 콘솔에서 수동 실행. 저장소에는 추적용으로만 둔다 — 자동 마이그레이션 러너는 없다.
 --
+-- 수동 처리용: Daily 의 collector/rescale_corp_actions.py 가 게이트를 통과한 건은 같은 절차를 자동
+--   적용하고 원장 corp_action_rescales 에 남긴다. 이 템플릿은 그 step 이 거절한 건(artifact 의
+--   SQL · summary.json 에 사유)을 손으로 처리할 때 쓴다.
+--
 -- F89: daily_prices 의 저장 축은 KIS 수정주가다. 병합·분할 뒤 date <= 2026-09-11 행은
 --      backfill_prices_kis.py 가 KIS 수정주가로 재적재하지만, 2026-09-14 이후 행(20:00 축,
 --      fetch_daily_close.py 소관)은 재적재 대상 밖이라 구 스케일로 남는다 → 여기서 수동 rescale.

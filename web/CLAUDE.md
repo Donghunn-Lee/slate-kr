@@ -57,10 +57,11 @@ AI 없이도 설득력 있어야 한다. AI는 투자 판단 도구가 아니라
   - neon() 호환 래퍼: 기존 `[rows, null]` 패턴 유지
   - placeholder: `$1, $2` (PostgreSQL 스타일)
 - **DB 마이그레이션**: `web/sql/*.sql`에 DDL·데이터 보정 DML·운영 템플릿을 추적, Neon 콘솔 수동 적용 (자동 실행 도구 없음)
+  - 예외: 감지된 기업행위 rescale만 Daily의 `rescale_corp_actions.py`가 게이트 전부 통과 시 적용하고 원장 `corp_action_rescales`에 기록. `web/sql` rescale 파일은 원장의 `sql`에서 옮겨 커밋
 - **데이터 수집**: Python (collector/)
   - 일일(20:12 KST): fetch_market_calendar.py (KIS 휴장일) / fetch_stocks.py (FSS) / fetch_daily_close.py (KIS J 멀티시세, 국내 종목 20:00 캔들 + base_price)
     / fetch_index_prices.py (KIS, 국내 지수 4종 EOD) / fetch_overseas_indices.py (KIS, 해외 지수 8종)
-    / verify_daily_freshness.py (적재 검증) / fetch_shares.py (KRX 일별매매정보 상장주식수 + bps 재계산)
+    / rescale_corp_actions.py (기업행위 재적재 + rescale) / verify_daily_freshness.py (적재 검증) / fetch_shares.py (KRX 일별매매정보 상장주식수 + bps 재계산)
   - 인트라데이: fetch_index_minute.py (KIS, 국내 지수 4종 1분봉) / fetch_overseas_intraday.py (KIS, 해외 7종 1분봉 — .DJI 제외).
     둘 다 30분 주기, 7일 retention
   - 스냅샷: fetch_quote_snapshots.py (KIS, 20:10 KST UN/NX 통합 시세)
@@ -331,7 +332,8 @@ SlateKR의 UI는 "slate(판)" 개념을 기반으로 한다.
 - **KIS 일봉 정정**: D+1 밤(≥21:35 관측)에 C·L이 정규장 정의로 정정됨. 정정 후 `prdy_vrss`도 재계산되므로 정정 판정은 전일 조회값 diff로만 가능
 - **KIS 수정주가**: 감자는 미조정 사례가 있다(단일일 ×N 점프 잔존 — KIS 기준 수용). 단 002630 무상감자(2026-09-22)는 KIS가 조정했다 — 감자 여부로 단정하지 않고 `kis_adj`로 판별. volume도 역보정(분할 ×N / 병합 ÷N)
 - **기업행위 감지**: `base_price`가 직전 저장 봉 [L, H]를 1틱 넘게 이탈하면 20:12 job `corporate action suspected` WARN, 미처리 건은 `verify_daily_freshness`(full)가 FAIL. 예외는 `KNOWN_BASE_ADJ`에 (ticker, date)로 등록한 건뿐
-- **기업행위 후속**: `kis_adj=1`이면 `backfill_prices_kis.py --tickers` 재실행 후 9/14 이후 구 스케일 행은 `web/sql/rescale_corporate_action.sql` 로 수동 rescale — 권리락 등 실거래 구간은 가격 ×f와 함께 volume ÷f. `kis_adj=0`(KIS 미조정)은 행을 손대지 않고 원인 확인 후 `KNOWN_BASE_ADJ`에 등록
+- **기업행위 후속**: 같은 run의 `rescale_corp_actions.py`가 자동 처리 — `kis_adj=1` · factor(재적재 전후 9/11 close 비)가 사건 비율과 일치 · 구간 한 축 등 게이트를 전부 통과한 종목만 ≤9/11 재적재와 9/14 이후 rescale을 한 트랜잭션으로 적용한다. 권리락 등 실거래 구간은 가격 ×f와 함께 volume ÷f
+- **기업행위 수동**: 자동 처리가 거절한 건(step exit 1 · verify FAIL, artifact에 SQL · summary)은 `backfill_prices_kis.py --tickers` 재실행 후 `web/sql/rescale_corporate_action.sql` 로 rescale. `kis_adj=0`(KIS 미조정)은 행을 손대지 않고 원인 확인 후 `KNOWN_BASE_ADJ`에 등록
 - **shares·bps 불변식**: `financial_statements.bps` = `total_equity` ÷ 현재 `stocks.shares`. shares를 바꾸는 `fetch_shares`는 같은 트랜잭션에서 `fetch_financials.sync_bps`로 bps를 맞추고, `fetch_financials`도 적재 후 `sync_bps`를 돈다
 - **비ZIP DART 응답**: 집합투자증권 등 일부 공시가 ZIP이 아닌 status=014 XML 반환. 제목 키워드로 사전 필터링 불가 → 호출 시점에서 분기 처리.
 - **공시 분류**: 비중요 공시는 `null` 반환. `GENERAL` 같은 포괄 fallback 없음 — 배지는 주가 관련성 신호이므로.
