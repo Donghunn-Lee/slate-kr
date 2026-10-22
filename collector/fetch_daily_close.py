@@ -23,13 +23,15 @@ KIS 다종목 시세(J) → daily_prices 당일 일봉 (20:10 KST 캡처).
 기업행위 감시
   base_price 가 직전 저장 봉 [L, H] 를 1틱 초과해 벗어나면 감자·분할·병합·권리락 등
   기업행위로 보고 WARN (corporate action suspected). 과거 봉이 KIS 수정주가 축에서
-  벗어나므로 backfill_prices_kis.py --tickers 로 수동 재적재한다. 적재는 그대로 진행.
+  벗어나므로 같은 run 의 rescale_corp_actions.py 가 재적재 + rescale 하고, 게이트에 걸린 건은
+  backfill_prices_kis.py --tickers 로 수동 재적재한다. 적재는 그대로 진행.
   직전 행이 없는 종목(신규 상장)·기준가 없는 행은 판정 제외. 범위 안인데
   base_price / 직전 close 가 CORP_ACTION_RATIO 밖이면 애프터마켓 드리프트 — drift 로그만.
   미처리 건은 verify_daily_freshness(full) 가 실패로 올린다.
   WARN 종목은 KIS 일봉(FHKST03010100 · adj=0) 1콜로 직전 봉이 f 배 조정됐는지 판별해
-  kis_adj 를 같이 남긴다 — 1(병합·분할·권리락 등, KIS 조정): 재적재 + 9/14 이후 행 수동 rescale
-  (web/sql/rescale_corporate_action.sql) / 0(KIS 미조정 — 감자 여부로 단정 불가): 행은 손대지 않고
+  kis_adj 를 같이 남긴다 — 1(병합·분할·권리락 등, KIS 조정): 재적재 + 9/14 이후 행 rescale
+  (rescale_corp_actions.py 자동, 거절 시 web/sql/rescale_corporate_action.sql 수동)
+  / 0(KIS 미조정 — 감자 여부로 단정 불가): 행은 손대지 않고
   verify_daily_freshness.KNOWN_BASE_ADJ 에 등록 /
   ?·unknown: 수동 확인. 판별 실패는 WARN 만, 적재·exit code 무관.
 

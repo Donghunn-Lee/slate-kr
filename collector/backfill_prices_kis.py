@@ -23,6 +23,8 @@ KIS 일봉(수정주가) → daily_prices 전면 재적재 (date <= 2026-09-11, 
   (동일 행 재기록 없음 → 변경 행 수 = 실제 upsert 행 수). 컬럼 집합은
   fetch_prices.UPSERT_SQL 그대로 (open/high/low/close/volume — base_price·market_cap 미포함).
   volume 은 KIS 응답값 그대로 (≤ 9/11 구간 단일 소스).
+  계획(plan_one — 읽기·KIS 조회)과 upsert(run_one)를 나눠 둔다 — rescale_corp_actions 는
+  계획의 upsert 행을 9/14 이후 rescale 과 같은 트랜잭션에서 쓴다.
 
 병렬
   WORKERS 개 스레드가 큐에서 종목을 꺼내 처리 (정적 분할 없음). 워커별 DB 커넥션,
@@ -260,8 +262,13 @@ def fetch_kis_bars(
 
 
 # ── 종목 처리 ─────────────────────────────────────────────
-def run_one(conn, cursor, sh: Shared, ticker: str) -> dict:
-    """종목 1건 재적재. 반환 dict 의 status ∈ {'ok','skip','empty','err'}."""
+def plan_one(
+    conn, cursor, sh: Shared, ticker: str
+) -> tuple[dict, list[tuple], dict[str, tuple]]:
+    """종목 1건 재적재 계획 — DB 읽기 + KIS 조회만, 쓰기 없음.
+    (결과 dict, upsert 행, 기존 행 {date_iso: (o,h,l,c,v)}). 결과 dict 의 status ∈
+    {'ok','skip','empty','err'} 이고 'ok' 일 때만 upsert 행이 있다. rescale_corp_actions 는
+    upsert 행을 rescale 과 같은 트랜잭션에서 쓴다."""
     cursor.execute(
         "SELECT date, open, high, low, close, volume FROM daily_prices "
         "WHERE ticker = %s AND date <= %s ORDER BY date",
@@ -272,7 +279,7 @@ def run_one(conn, cursor, sh: Shared, ticker: str) -> dict:
     }
     conn.commit()
     if not existing:
-        return {"ticker": ticker, "status": "skip", "reason": "DB 행 없음"}
+        return {"ticker": ticker, "status": "skip", "reason": "DB 행 없음"}, [], existing
 
     start_iso = min(existing)
     end_iso = END.isoformat()
@@ -281,15 +288,17 @@ def run_one(conn, cursor, sh: Shared, ticker: str) -> dict:
     t0 = time.monotonic()
     bars, pages = fetch_kis_bars(sh, conn, ticker, date.fromisoformat(start_iso))
     if bars is None:
-        return {"ticker": ticker, "status": "err", "reason": "KIS 실패", "pages": pages}
+        err = {"ticker": ticker, "status": "err", "reason": "KIS 실패", "pages": pages}
+        return err, [], existing
     if not bars:
         logger.warning("[%s] KIS 0봉 (start=%s) — 변경 없음", ticker, start_iso)
-        return {
+        empty = {
             "ticker": ticker,
             "status": "empty",
             "pages": pages,
             "db_rows": len(existing),
         }
+        return empty, [], existing
 
     # 9/11 초과·start 미만 행은 parse_bar 가 걸러야 한다 — 이중 방어.
     assert max(bars) <= end_iso, f"{ticker}: KIS 봉 {max(bars)} > end {end_iso}"
@@ -314,22 +323,6 @@ def run_one(conn, cursor, sh: Shared, ticker: str) -> dict:
                 sample_change = {"date": d, "old": old, "new": new}
         else:
             volume_only += 1
-
-    if rows_upsert:
-        try:
-            execute_values(
-                cursor, UPSERT_VALUES_SQL, rows_upsert, page_size=UPSERT_PAGE_SIZE
-            )
-            conn.commit()
-        except Exception as e:
-            conn.rollback()
-            logger.error("[%s] DB upsert 실패: %s", ticker, e)
-            return {
-                "ticker": ticker,
-                "status": "err",
-                "reason": f"upsert 실패: {e}",
-                "pages": pages,
-            }
 
     kis_first = min(bars)
     db_rows_before_kis = sum(1 for d in existing if d < kis_first)
@@ -378,6 +371,27 @@ def run_one(conn, cursor, sh: Shared, ticker: str) -> dict:
             start_iso,
             db_rows_before_kis,
         )
+    return result, rows_upsert, existing
+
+
+def run_one(conn, cursor, sh: Shared, ticker: str) -> dict:
+    """종목 1건 재적재 (plan_one + upsert). 반환 dict 의 status ∈ {'ok','skip','empty','err'}."""
+    result, rows_upsert, _ = plan_one(conn, cursor, sh, ticker)
+    if rows_upsert:
+        try:
+            execute_values(
+                cursor, UPSERT_VALUES_SQL, rows_upsert, page_size=UPSERT_PAGE_SIZE
+            )
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            logger.error("[%s] DB upsert 실패: %s", ticker, e)
+            return {
+                "ticker": ticker,
+                "status": "err",
+                "reason": f"upsert 실패: {e}",
+                "pages": result["pages"],
+            }
     return result
 
 

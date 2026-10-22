@@ -82,7 +82,8 @@ DOMESTIC_INTRADAY_FLOOR = 353
 # 미처리 기업행위.
 # KIS_DAILY_LAST_DATE 이후 활성 종목 전 행에서 base_price 가 직전 저장 봉 [L, H] 를 1틱 초과해
 # 벗어나면 FAIL — fetch_daily_close 의 WARN 이 exit 0 이라 로그에만 남아 방치되던 것 대응.
-# 처리 = backfill_prices_kis.py --tickers + web/sql/rescale_corporate_action.sql 뒤 재스캔 0건.
+# 처리 = Daily 의 rescale_corp_actions.py(게이트 통과 건 자동) 또는 수동(backfill_prices_kis.py
+# --tickers + web/sql/rescale_corporate_action.sql) 뒤 재스캔 0건.
 # 재적재로 해소할 수 없는 건(kis_adj=0 등)만 사유 주석과 함께 (ticker, date) 로 등록 —
 # 등록하면 FAIL 이 영구 억제되므로 원인 확인 후에만.
 KNOWN_BASE_ADJ: frozenset[tuple[str, str]] = frozenset()
@@ -274,7 +275,8 @@ class CorpAction(NamedTuple):
 def scan_corp_actions(cursor) -> tuple[list[CorpAction], int]:
     """KIS_DAILY_LAST_DATE 이후 활성 종목 전 행 — is_outside_prev_range ∧ KNOWN_BASE_ADJ 밖인 행을
     최근 날짜순으로, KNOWN_BASE_ADJ 에 걸러진 건수와 함께. 기준가 NULL·직전 봉 없는 행은 제외.
-    SQL 은 [L, H] 밖만 거르는 상위 집합 — 1틱 허용은 fetch_daily_close 의 판정 함수가 한다."""
+    SQL 은 [L, H] 밖만 거르는 상위 집합 — 1틱 허용은 fetch_daily_close 의 판정 함수가 한다.
+    rescale_corp_actions 가 같은 목록을 처리 대상으로 쓴다."""
     # 지연 import — fetch_daily_close·fetch_prices 가 이 모듈을 import 한다 (순환).
     from fetch_daily_close import is_outside_prev_range
     from fetch_prices import KIS_DAILY_LAST_DATE
