@@ -21,6 +21,7 @@ import argparse
 import os
 import sys
 from datetime import date, datetime, timedelta, timezone
+from typing import NamedTuple
 
 from dotenv import load_dotenv
 
@@ -261,9 +262,18 @@ def check_domestic_intraday(cursor, expected: date) -> list[str]:
     return failures
 
 
-def check_corp_action_range(cursor) -> list[str]:
-    """KIS_DAILY_LAST_DATE 이후 활성 종목 전 행 — is_outside_prev_range ∧ KNOWN_BASE_ADJ 밖이면
-    실패 사유 (종목 · 날짜 · base · 직전 봉 [L, H]). 기준가 NULL·직전 봉 없는 행은 제외.
+class CorpAction(NamedTuple):
+    """미처리 기업행위 1건 — 사건일 행의 기준가와 직전 저장 봉 [L, H]."""
+    ticker: str
+    date: date
+    base: int
+    prev_low: int
+    prev_high: int
+
+
+def scan_corp_actions(cursor) -> tuple[list[CorpAction], int]:
+    """KIS_DAILY_LAST_DATE 이후 활성 종목 전 행 — is_outside_prev_range ∧ KNOWN_BASE_ADJ 밖인 행을
+    최근 날짜순으로, KNOWN_BASE_ADJ 에 걸러진 건수와 함께. 기준가 NULL·직전 봉 없는 행은 제외.
     SQL 은 [L, H] 밖만 거르는 상위 집합 — 1틱 허용은 fetch_daily_close 의 판정 함수가 한다."""
     # 지연 import — fetch_daily_close·fetch_prices 가 이 모듈을 import 한다 (순환).
     from fetch_daily_close import is_outside_prev_range
@@ -297,7 +307,7 @@ def check_corp_action_range(cursor) -> list[str]:
         """,
         (KIS_DAILY_LAST_DATE,),
     )
-    found: list[str] = []
+    found: list[CorpAction] = []
     known = 0
     for ticker, d, base, low, high in cursor.fetchall():
         if not is_outside_prev_range(base, low, high):
@@ -305,14 +315,22 @@ def check_corp_action_range(cursor) -> list[str]:
         if (ticker, d.isoformat()) in KNOWN_BASE_ADJ:
             known += 1
             continue
-        found.append(f"{ticker} {d} base {base} vs prev [L {low}, H {high}]")
+        found.append(CorpAction(ticker, d, base, low, high))
+    return found, known
 
+
+def check_corp_action_range(cursor) -> list[str]:
+    """scan_corp_actions 의 미처리 건 → 실패 사유 (종목 · 날짜 · base · 직전 봉 [L, H])."""
+    from fetch_prices import KIS_DAILY_LAST_DATE  # 지연 import — scan_corp_actions 와 같은 이유
+
+    found, known = scan_corp_actions(cursor)
     scope = f"date > {KIS_DAILY_LAST_DATE}, known {known}"
     if not found:
         print(f"  OK corp action range: unprocessed 0 ({scope})")
         return []
     failures: list[str] = []
-    for msg in found[:CORP_ACTION_REPORT_LIMIT]:
+    for a in found[:CORP_ACTION_REPORT_LIMIT]:
+        msg = f"{a.ticker} {a.date} base {a.base} vs prev [L {a.prev_low}, H {a.prev_high}]"
         print(f"  !! corp action unprocessed {msg}")
         failures.append(f"corp action unprocessed {msg}")
     if len(found) > CORP_ACTION_REPORT_LIMIT:

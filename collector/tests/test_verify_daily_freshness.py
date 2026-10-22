@@ -3,6 +3,7 @@
 커버 대상:
   - check_corp_action_range: 이탈 → 실패 사유, KNOWN_BASE_ADJ 등록 건 → 통과,
     SQL 상위 집합 중 1틱 이내 잔차 → 통과, 상한 초과 → 상위 N건 + 총계 (cursor 는 mock)
+  - scan_corp_actions: 미처리 건을 CorpAction 으로 순서 유지, 1틱 잔차 · 등록 건 제외 + 등록 건수
 """
 
 from __future__ import annotations
@@ -20,7 +21,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from fetch_prices import KIS_DAILY_LAST_DATE  # noqa: E402
 from verify_daily_freshness import (  # noqa: E402
     CORP_ACTION_REPORT_LIMIT,
+    CorpAction,
     check_corp_action_range,
+    scan_corp_actions,
 )
 
 ROW_042940 = ("042940", date(2026, 9, 22), 5680, 5700, 6090)  # 권리락 — 1틱 초과 이탈
@@ -59,6 +62,21 @@ class CheckCorpActionRangeTests(unittest.TestCase):
         self.assertEqual(len(out), CORP_ACTION_REPORT_LIMIT + 1)
         self.assertIn("2026-09-30", out[0])
         self.assertIn(f"total {n}", out[-1])
+
+
+class ScanCorpActionsTests(unittest.TestCase):
+    def test_returns_structured_rows_and_known_count(self):
+        row_368600 = ("368600", date(2026, 10, 22), 4780, 956, 956)  # 5:1 병합
+        residual = ("473000", date(2026, 9, 29), 2085, 2070, 2082)  # 1틱 이내
+        cur = MagicMock()
+        cur.fetchall.return_value = [row_368600, residual, ROW_042940]
+        known = frozenset({("042940", "2026-09-22")})
+        with patch("verify_daily_freshness.KNOWN_BASE_ADJ", known):
+            found, n_known = scan_corp_actions(cur)
+        self.assertEqual(found, [CorpAction(*row_368600)])
+        self.assertEqual(found[0].prev_high, 956)
+        self.assertEqual(n_known, 1)
+        self.assertEqual(cur.execute.call_args[0][1], (KIS_DAILY_LAST_DATE,))
 
 
 if __name__ == "__main__":
