@@ -44,7 +44,11 @@ export const generateMetadata = async ({
   const params = await searchParams;
   const tab = resolveRankingTab(params.tab);
   const market = parseMarket(params.market);
-  return { title: buildTitle(tab, market) };
+  return {
+    title: buildTitle(tab, market),
+    description:
+      "국내 상장 종목의 등락률·거래량·거래대금·시가총액·관심 등록 순위를 시장별로 조회합니다.",
+  };
 };
 
 export default async function RankingPage({ searchParams }: RankingPageProps) {

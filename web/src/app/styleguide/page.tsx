@@ -11,6 +11,7 @@ import { StatusIndicators } from "./sections/StatusIndicators";
 
 export const metadata: Metadata = {
   title: "스타일가이드",
+  description: "SlateKR의 색·타이포그래피·모션 토큰과 컴포넌트 등재 페이지입니다.",
   robots: { index: false },
 };
 

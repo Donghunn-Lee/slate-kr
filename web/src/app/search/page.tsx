@@ -51,15 +51,17 @@ const buildPageTokens = (current: number, total: number): PageToken[] => {
   return tokens;
 };
 
+const DESCRIPTION = "종목명·종목코드로 국내 상장 종목을 검색합니다.";
+
 export const generateMetadata = async ({ searchParams }: SearchPageProps): Promise<Metadata> => {
   const { q, page: pageRaw } = await searchParams;
   const query = q?.trim() ?? "";
   const page = parsePage(pageRaw);
   if (!query) {
-    return { title: "검색" };
+    return { title: "검색", description: DESCRIPTION };
   }
   const suffix = page > 1 ? ` (${page}페이지)` : "";
-  return { title: `"${query}" 검색 결과${suffix}` };
+  return { title: `"${query}" 검색 결과${suffix}`, description: DESCRIPTION };
 };
 
 export default async function SearchPage({ searchParams }: SearchPageProps) {

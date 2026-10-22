@@ -5,6 +5,8 @@ import { GEMINI_FALLBACK_MODEL, GEMINI_MODEL } from "@/shared/constants/gemini";
 
 export const metadata: Metadata = {
   title: "데이터 출처·라이선스",
+  description:
+    "SlateKR의 데이터 출처·갱신 주기·알려진 한계와 쿠키 사용, 오픈소스 라이선스를 안내합니다.",
 };
 
 const DATA_SOURCES: ReadonlyArray<{ category: string; value: string }> = [
