@@ -150,8 +150,11 @@ export const IndexRail = ({
                           {meta.overline}
                         </span>
                       </div>
+                      {/* 스켈레톤은 값 행과 높이(body 1줄)·display 를 맞춘다. React 가 이 div 를 값 행으로
+                          재사용하는데, display 가 바뀌면 박스가 새로 만들어지며 pulse 로 합성된 이전 위치가
+                          원점으로 잡혀 큰 layout shift 로 집계된다. */}
                       {showSkeleton ? (
-                        <div className="mt-0.5 h-4 w-24 animate-pulse rounded bg-muted" />
+                        <div className="flex h-lh w-24 animate-pulse rounded bg-muted text-body" />
                       ) : cell?.live ? (
                         <div className="flex items-baseline gap-2">
                           <span
