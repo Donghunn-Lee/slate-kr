@@ -10,7 +10,6 @@ import {
   CandlestickSeries,
   HistogramSeries,
   LineSeries,
-  TickMarkType,
   type BarData,
   type BarPrice,
   type HistogramData,
@@ -20,21 +19,30 @@ import {
   type Logical,
   type LogicalRange,
   type MouseEventParams,
-  type Time,
-  type UTCTimestamp,
-  type WhitespaceData,
 } from "lightweight-charts";
 import {
   CHART_THEME,
   INTRADAY_PREV_LOOKBACK_BARS,
   INTRADAY_RIGHT_MARGIN_BARS,
   crosshairLocalization,
-  type ChartPalette,
 } from "@/shared/constants/chart";
 import type { ChartBar } from "@/shared/types/quote";
 import { notoSansKr } from "@/shared/fonts";
-import { toKstWallClockSec } from "@/shared/utils/toKstWallClockSec";
-import { makeLeadingWhitespace } from "@/entities/chart/leadingWhitespace";
+import { changeBasis, formatOhlc, paintLegend, paintMaLegend } from "@/entities/chart/chartLegend";
+import {
+  computeSma,
+  computeSmaLast,
+  generateWhitespace,
+  mapBar,
+  mapLine,
+  mapVolume,
+  type VolumePoint,
+} from "@/entities/chart/chartSeriesData";
+import {
+  chartTickFormatter,
+  kstIntradayTickFormatter,
+  timeToKey,
+} from "@/entities/chart/chartTickFormatter";
 
 type PriceChartProps = {
   bars: ChartBar[];
@@ -104,300 +112,6 @@ const DEFAULT_HEIGHT = 300;
 // EOD 뷰 우측 여백 = 보이는 봉수 × 비율. 픽셀 여백을 봉수와 무관하게 일정 비율로 유지.
 // (rightOffset 고정 방식은 60/120/월 등 봉 폭이 크게 바뀔 때 여백 폭이 시각적으로 흔들려 폐기.)
 const RIGHT_MARGIN_RATIO = 0.04;
-
-const toTime = (t: string | number): Time =>
-  typeof t === "number"
-    ? (t as UTCTimestamp)
-    : (t as `${number}-${number}-${number}`);
-
-// dimBefore 지정 시 time<dimBefore 봉에 per-bar 흐린 색 주입. 나머지는 시리즈 기본색.
-const mapBar = (
-  b: ChartBar,
-  palette: ChartPalette,
-  dimBefore: number | undefined,
-) => {
-  const base = {
-    time: toTime(b.time),
-    open: b.open,
-    high: b.high,
-    low: b.low,
-    close: b.close,
-  };
-  if (
-    dimBefore === undefined ||
-    typeof b.time !== "number" ||
-    b.time >= dimBefore
-  ) {
-    return base;
-  }
-  const dimColor = b.close >= b.open ? palette.dim.up : palette.dim.down;
-  return {
-    ...base,
-    color: dimColor,
-    wickColor: dimColor,
-    borderColor: dimColor,
-  };
-};
-
-// close 기반 line 포인트. seriesKind === "line" 전용. dim/색 오버라이드는 사용하지 않음.
-const mapLine = (b: ChartBar): LineData => ({
-  time: toTime(b.time),
-  value: b.close,
-});
-
-// volume 히스토그램 포인트. volume 없는 봉은 null → 필터.
-type VolumePoint = { time: Time; value: number; color: string };
-const mapVolume = (b: ChartBar, palette: ChartPalette): VolumePoint | null => {
-  if (b.volume === undefined) return null;
-  return {
-    time: toTime(b.time),
-    value: b.volume,
-    color: b.close >= b.open ? palette.volume.up : palette.volume.down,
-  };
-};
-
-// "YYYY-MM-DD" ↔ epoch 일수 변환. 문자열 시간 봉의 whitespace 계산은 순수함수(숫자 기반)에
-// 위임하기 위한 어댑터. Date.UTC 로 자정 anchor → 나눗셈으로 정수 일수 획득.
-const dateToDayNum = (s: string): number => {
-  const [y, m, d] = s.split("-").map(Number);
-  return Math.floor(Date.UTC(y, m - 1, d) / 86_400_000);
-};
-
-const dayNumToDate = (n: number): string => {
-  const dt = new Date(n * 86_400_000);
-  const y = dt.getUTCFullYear();
-  const mo = String(dt.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(dt.getUTCDate()).padStart(2, "0");
-  return `${y}-${mo}-${dd}`;
-};
-
-// 첫 실봉 앞 whitespace 포인트 생성 — 시리즈 시간 형식에 맞춰 UTCTimestamp(숫자) 또는
-// "YYYY-MM-DD"(문자열) 로 반환. count<=0 또는 bars.length<2 → [] (makeLeadingWhitespace 대칭).
-// 문자열 케이스는 day-count 정수로 변환해 순수함수에 위임한 뒤 재포맷.
-const generateWhitespace = (
-  bars: ChartBar[],
-  count: number,
-): WhitespaceData<Time>[] => {
-  if (count <= 0 || bars.length < 2) return [];
-  const first = bars[0].time;
-  if (typeof first === "number") {
-    const numeric = bars
-      .filter((b): b is ChartBar & { time: number } => typeof b.time === "number")
-      .map((b) => ({ time: b.time }));
-    return makeLeadingWhitespace(numeric, count).map((w) => ({
-      time: w.time as UTCTimestamp,
-    }));
-  }
-  if (typeof first === "string") {
-    const numeric = bars
-      .filter((b): b is ChartBar & { time: string } => typeof b.time === "string")
-      .map((b) => ({ time: dateToDayNum(b.time) }));
-    return makeLeadingWhitespace(numeric, count).map((w) => ({
-      time: dayNumToDate(w.time) as Time,
-    }));
-  }
-  return [];
-};
-
-// close 기반 SMA. index i 에서 [i-p+1, i] 평균. i < p-1 자리는 점 없음.
-// bars.length < period 면 빈 배열 반환 (호출 측에서 series 자체 생성 스킵).
-type LinePoint = { time: Time; value: number };
-const computeSma = (bars: ChartBar[], period: number): LinePoint[] => {
-  if (bars.length < period) return [];
-  const out: LinePoint[] = [];
-  let sum = 0;
-  for (let i = 0; i < bars.length; i++) {
-    sum += bars[i].close;
-    if (i >= period) sum -= bars[i - period].close;
-    if (i >= period - 1) {
-      out.push({ time: toTime(bars[i].time), value: sum / period });
-    }
-  }
-  return out;
-};
-
-// 마지막 봉만 갱신된 경우, 마지막 SMA 포인트 1개만 재계산 → series.update() 대상.
-// bars.length < period 면 null (아직 유효한 SMA 점이 없음).
-const computeSmaLast = (bars: ChartBar[], period: number): LinePoint | null => {
-  if (bars.length < period) return null;
-  let sum = 0;
-  for (let i = bars.length - period; i < bars.length; i++) sum += bars[i].close;
-  return { time: toTime(bars[bars.length - 1].time), value: sum / period };
-};
-
-// priceFormatter 미주입 시 legend 값 포맷. precision 을 그대로 사용해 축약 없이 로케일 표기.
-const formatOhlc = (v: number, precision: number): string =>
-  v.toLocaleString("ko-KR", {
-    minimumFractionDigits: precision,
-    maximumFractionDigits: precision,
-  });
-
-// legend 거래량 — 단위 없이 천단위 콤마 풀 표기.
-const formatLegendVolume = (v: number): string => v.toLocaleString("ko-KR");
-
-// 등락률 %. 부호 포함 소수 2자리. prevClose 없거나 0이면 null.
-const formatChangePct = (close: number, prevClose: number | null): string | null => {
-  if (prevClose === null || prevClose === 0) return null;
-  const pct = ((close - prevClose) / prevClose) * 100;
-  const sign = pct > 0 ? "+" : pct < 0 ? "" : "";
-  return `${sign}${pct.toFixed(2)}%`;
-};
-
-// bars[i] 의 범례 등락 기준가. 봉이 basePrice(KRX 기준가) 를 실으면 그것, 없으면 직전 봉
-// close. 첫 봉이 기준가도 없으면 null → 등락률 미표시. 최신봉·hover 5곳이 공유.
-const changeBasis = (bars: readonly ChartBar[], i: number): number | null =>
-  bars[i].basePrice ?? (i > 0 ? bars[i - 1].close : null);
-
-// legend DOM 갱신. bar=null → 텍스트 비움. 등락색은 CHART_THEME up/down 재사용.
-// 숫자 값만 삽입 → XSS 위험 없음.
-// candle: 시 고 저 종 [등락률] [거]. 종가색 = 봉 방향(close ≥ open).
-// line: 종 [등락률] [거]. 종가색 = 기준가 대비(prevClose = changeBasis 결과).
-// 거 는 showVolume 일 때만. candle hover 는 volume series join 이라 pane 이 없으면 자연히
-// 비지만, 미호버·line 경로는 바 원본 volume(pane 없는 지수도 0) 을 읽으므로 명시 가드가 필요.
-const paintLegend = (
-  el: HTMLDivElement | null,
-  bar: ChartBar | null,
-  prevClose: number | null,
-  palette: ChartPalette,
-  formatPrice: (v: number) => string,
-  kind: "candle" | "line",
-  showVolume: boolean,
-) => {
-  if (!el) return;
-  if (!bar) {
-    el.innerHTML = "";
-    return;
-  }
-  const labelCls = "text-muted-foreground";
-  let closeColor: string | undefined;
-  if (kind === "candle") {
-    closeColor = bar.close >= bar.open ? palette.up : palette.down;
-  } else if (prevClose !== null) {
-    closeColor =
-      bar.close > prevClose
-        ? palette.up
-        : bar.close < prevClose
-          ? palette.down
-          : undefined;
-  }
-  const parts: string[] = [];
-  if (kind === "candle") {
-    parts.push(
-      `<span class="${labelCls}">시</span> ${formatPrice(bar.open)}`,
-      `<span class="${labelCls}">고</span> ${formatPrice(bar.high)}`,
-      `<span class="${labelCls}">저</span> ${formatPrice(bar.low)}`,
-    );
-  }
-  const closeSpan = closeColor
-    ? `<span style="color:${closeColor}">${formatPrice(bar.close)}</span>`
-    : formatPrice(bar.close);
-  parts.push(`<span class="${labelCls}">종</span> ${closeSpan}`);
-  const pct = formatChangePct(bar.close, prevClose);
-  if (pct !== null) {
-    // 등락률 색은 부호 기준 (봉 방향과 다를 수 있음: 갭업 후 종가 하락 등).
-    const pctColor = pct.startsWith("+")
-      ? palette.up
-      : pct.startsWith("-")
-        ? palette.down
-        : undefined;
-    parts.push(
-      pctColor
-        ? `<span style="color:${pctColor}">${pct}</span>`
-        : `<span class="${labelCls}">${pct}</span>`,
-    );
-  }
-  if (showVolume && bar.volume !== undefined) {
-    parts.push(
-      `<span class="${labelCls}">거</span> ${formatLegendVolume(bar.volume)}`,
-    );
-  }
-  // 실제 공백을 품은 span 으로 join — 컨테이너 폭 초과 시 브라우저가 이 지점에서 wrap.
-  // margin 은 시각적 gap 유지용. inline-block/w-* 는 wrap candidate 를 제거하므로 회피.
-  el.innerHTML = parts.join('<span class="mx-1"> </span>');
-};
-
-// MA 범례 — 좌측 "이동평균" 라벨(muted) 뒤에 period 숫자만 표시(라인색).
-// 실제로 그려진 period 만 표시(가드로 스킵된 period 는 범례에도 없음).
-const paintMaLegend = (
-  el: HTMLDivElement | null,
-  drawn: { period: number; colorIdx: number }[],
-  palette: ChartPalette,
-) => {
-  if (!el) return;
-  if (drawn.length === 0) {
-    el.innerHTML = "";
-    return;
-  }
-  const nums = drawn
-    .map(
-      ({ period, colorIdx }) =>
-        `<span style="color:${palette.ma[colorIdx % palette.ma.length]}">${period}</span>`,
-    )
-    .join('<span class="mx-1.5 opacity-30">·</span>');
-  el.innerHTML = `<span class="text-muted-foreground mr-1.5">이동평균</span>${nums}`;
-};
-
-// Time → 비교/포맷용 문자열 키.
-const timeToKey = (t: string | number | { year: number; month: number; day: number }): string => {
-  if (typeof t === "string") return t;
-  if (typeof t === "number") return String(t);
-  return `${t.year}-${String(t.month).padStart(2, "0")}-${String(t.day).padStart(2, "0")}`;
-};
-
-// TickMarkType 별 한국식 연-월-일 순 라벨. day/month 전용 (timeVisible 시 미적용).
-const chartTickFormatter = (time: Time, tickMarkType: TickMarkType): string => {
-  let y: number, m: number, d: number;
-  if (typeof time === "string") {
-    const [ys, ms, ds] = time.split("-").map(Number);
-    y = ys;
-    m = ms;
-    d = ds;
-  } else if (typeof time === "number") {
-    const dt = new Date(time * 1000);
-    y = dt.getUTCFullYear();
-    m = dt.getUTCMonth() + 1;
-    d = dt.getUTCDate();
-  } else {
-    y = time.year;
-    m = time.month;
-    d = time.day;
-  }
-  const mm = String(m).padStart(2, "0");
-  const dd = String(d).padStart(2, "0");
-  switch (tickMarkType) {
-    case TickMarkType.Year:
-      // 2자리(예: 2026 → 26). 축 밀도 절감. crosshair 툴팁은 localization.timeFormatter 가 담당.
-      return String(y % 100).padStart(2, "0");
-    case TickMarkType.Month:
-      return mm;
-    case TickMarkType.DayOfMonth:
-      return `${mm}-${dd}`;
-    default:
-      return `${y}-${mm}-${dd}`;
-  }
-};
-
-// 거래소 벽시계로 인코딩된 분봉 눈금을 KST 로 옮겨 라벨링. 눈금 위치·종류는 라이브러리가 원래
-// time 으로 정하므로 날짜 눈금은 현지 날짜가 바뀌는 자리(세션 시작)에 남는다.
-// 시각은 직접 HH:mm 으로 낸다 — 기본 포맷(ko-KR · hour12:false)은 자정을 "24:00" 으로 낸다.
-// 날짜 눈금은 기본 포맷과 같은 옵션("8일" · "10월" · "2026년")에 KST 날짜만 바꿔 넣는다.
-const kstIntradayTickFormatter =
-  (barTimeZone: string) =>
-  (time: Time, tickMarkType: TickMarkType, locale: string): string | null => {
-    if (typeof time !== "number") return null;
-    const kst = new Date(toKstWallClockSec(time, barTimeZone) * 1000);
-    const date = new Date(kst.getUTCFullYear(), kst.getUTCMonth(), kst.getUTCDate());
-    switch (tickMarkType) {
-      case TickMarkType.Year:
-        return date.toLocaleString(locale, { year: "numeric" });
-      case TickMarkType.Month:
-        return date.toLocaleString(locale, { month: "short" });
-      case TickMarkType.DayOfMonth:
-        return date.toLocaleString(locale, { day: "numeric" });
-      default:
-        return `${String(kst.getUTCHours()).padStart(2, "0")}:${String(kst.getUTCMinutes()).padStart(2, "0")}`;
-    }
-  };
 
 // locked 뷰의 가시 범위. from = 전일 마지막 dim 봉(anchor)에서 lookbackBars 만큼
 // 되짚은 봉의 logical index, to = 마지막 봉 + 우측 빈 슬롯. 시각이 아닌 봉 인덱스로
