@@ -185,13 +185,22 @@ export const StockHeaderLivePrice = ({
   });
 
   // 초기 로드 스켈레톤 — 토글 미노출 종목·NXT 탭. KRX 탭은 initial 값으로 즉시 표시.
+  // 아래 최종 마크업과 행 · 간격 · 텍스트 토큰을 같게 둬 응답이 와도 헤더 높이가 그대로다.
+  // 가격 행은 HeaderSkeleton 과 같은 기준(NXT 토글이 있는 정상 종목)으로 sm 미만에서 라벨을 둘째 줄로 끊는다.
   if (session === undefined && !forceInitial) {
     return (
       <div className="mt-4">
-        {showToggle && <MarketToggleSkeleton />}
-        <div className="mt-1 flex flex-wrap items-end gap-3">
-          <div className="h-10 w-36 animate-pulse rounded bg-muted" />
-          <div className="mb-1 h-5 w-28 animate-pulse rounded bg-muted" />
+        {showToggle && (
+          <div className="mb-1.5">
+            <MarketToggleSkeleton />
+          </div>
+        )}
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="h-lh w-36 animate-pulse rounded bg-muted text-display" />
+          <div className="mb-1 h-lh w-28 animate-pulse rounded bg-muted text-value" />
+          <div className="mb-1.5 basis-full sm:basis-auto">
+            <div className="h-lh w-24 animate-pulse rounded bg-muted text-body-sm" />
+          </div>
         </div>
         <StatsRow stats={stats} />
       </div>
@@ -302,6 +311,9 @@ const MarketToggle = ({
 );
 
 // 스켈레톤에서도 토글 자리를 미리 잡아 마운트 시 레이아웃 점프 방지.
+// 줄 높이는 상자(h-6)가 아니라 글자 기준선 정렬로 정해진다 — 글자를 넣어 같은 기준선을 만든다.
 const MarketToggleSkeleton = () => (
-  <div className="h-6 w-[92px] animate-pulse rounded-md bg-muted sm:h-7" />
+  <div className="inline-flex h-6 w-[92px] animate-pulse items-center rounded-md bg-muted text-caption sm:h-7">
+    {" "}
+  </div>
 );
