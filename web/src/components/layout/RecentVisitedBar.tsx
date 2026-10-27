@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ChevronDown, X } from "lucide-react";
 
 import { useRecentVisitedStore } from "@/features/search/useRecentVisitedStore";
@@ -19,11 +19,15 @@ const EXPANDED_CAP_MOBILE_PX = 56;
 // 칩 영역에 같은 폭의 세로 패딩(py-0.5 · -my-0.5)을 두고 max-height 에 더해 그 2px 가 클리핑되지 않게 한다.
 const CHIP_HIT_SLACK_PX = 2;
 
-// 헤더 하단에 매달린 패널. items=0 이면 미렌더.
+// 종목 상세(지수 제외). 마운트 직후 RecentVisitedRecorder 가 현재 종목을 기록해 바가 반드시 뜬다.
+const STOCK_DETAIL_PATH = /^\/stocks\/(?!indices(?:\/|$))[^/]+/;
+
+// 헤더 하단에 매달린 패널. items=0 이면 미렌더(종목 상세는 자리만).
 // 레이아웃: [라벨 | chip 영역 | chevron] 3열 grid, items-start 로 라벨·chevron 은 상단 고정.
 // chip 영역만 세로로 확장돼서 접힘/펼침 시 상단 정보(라벨) 는 자리에 그대로 남아있음.
 export const RecentVisitedBar = () => {
   const router = useRouter();
+  const pathname = usePathname();
   const items = useRecentVisitedStore((s) => s.items).slice(0, 20);
   const removeRecent = useRecentVisitedStore((s) => s.remove);
   const open = useRecentVisitedStore((s) => s.barOpen);
@@ -55,7 +59,17 @@ export const RecentVisitedBar = () => {
     }
   }, [open]);
 
-  if (items.length === 0) return null;
+  if (items.length === 0) {
+    // 서버 렌더와 첫 기록 전에는 비어 있다 — 곧 뜰 접힌 바 자리를 먼저 잡아 본문이 밀리지 않게 한다.
+    // 높이는 접힌 바와 같은 테두리(border-b) · 세로 패딩(py-1.5) · 행 높이(COLLAPSED_HEIGHT_PX).
+    return STOCK_DETAIL_PATH.test(pathname) ? (
+      <div aria-hidden className="mx-auto w-full max-w-4xl px-4">
+        <div className="border-b border-transparent py-1.5">
+          <div style={{ height: COLLAPSED_HEIGHT_PX }} />
+        </div>
+      </div>
+    ) : null;
+  }
 
   const goTo = (ticker: string) => router.push(`/stocks/${ticker}`);
 
