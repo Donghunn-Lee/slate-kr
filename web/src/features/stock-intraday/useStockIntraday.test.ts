@@ -43,8 +43,8 @@ describe("useStockIntraday 복귀 refetch 게이트 — 클라 시계 축", () =
   it("휴장일 10:00 → false", () => {
     expect(refetchOnFocus(kst(2026, 1, 1, 10, 0))).toBe(false);
   });
-  // 응답 session 축(refetchInterval 게이트)은 폴링이 멈춘 뒤 갱신되지 않는다 —
-  // preopen 응답을 쥔 탭이 정규장에 복귀하면 클라 시계 축만 재개를 열어 준다.
+  // 응답 session 축은 폴링이 멈춘 뒤 갱신되지 않는다 — 폴링 재개도 복귀 refetch 도 클라 시계 축이
+  // 연다 (폴링 재개 자체는 useStockIntraday.polling.test.tsx).
   it("정지된 preopen 응답 + 09:30 복귀 → 응답 축 false, 시계 축 true", () => {
     expect(isKrxActiveSession("preopen")).toBe(false);
     expect(refetchOnFocus(t(9, 30))).toBe(true);
@@ -75,7 +75,7 @@ describe("keepLastGoodIntraday", () => {
     expect(out.failed).toBe(false);
   });
 
-  // 직전본이 after_close 였으면 게이트가 닫힌 채 갇히므로 session 축만 새 응답을 따른다.
+  // session 은 개장 전 창 라벨의 서버 축이라 가장 최근 판정(새 응답)을 따른다.
   it("failed + 직전 정상본 → session 은 새 응답 것", () => {
     const prev = res({ session: "after_close" });
     const out = keepLastGoodIntraday(prev, res({ failed: true }));

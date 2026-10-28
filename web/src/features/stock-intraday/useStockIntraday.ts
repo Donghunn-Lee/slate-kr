@@ -1,5 +1,7 @@
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { ChartBar } from "@/shared/types/quote";
+import type { MarketCalendar } from "@/shared/types/marketCalendar";
 import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
 import {
   getKrxSessionState,
@@ -21,9 +23,9 @@ export type StockIntradayResponse = {
 };
 
 // failed 응답이 캐시의 직전 정상본을 덮지 않게 한다 — 응답은 통째 교체라 결손본이 다음 폴까지
-// 차트를 점유한다. session 만 새 응답 것을 쓴다: refetchInterval 게이트 축이라 직전본이
-// after_close 였으면 활성 세션에 들어와도 폴링이 닫힌 채 갇힌다. 직전 정상본이 없으면
-// (첫 로드·연속 실패) 결손본이 그대로 들어가 failed UI 로 흐른다.
+// 차트를 점유한다. session 만 새 응답 것을 쓴다: 개장 전 창 라벨(isKrxOpeningWindow)의 서버
+// 축이라 가장 최근 판정을 따르게 한다. 폴링 재개는 아래 클라 시계 축이라 session 과 무관하다.
+// 직전 정상본이 없으면(첫 로드·연속 실패) 결손본이 그대로 들어가 failed UI 로 흐른다.
 export const keepLastGoodIntraday = (
   prev: StockIntradayResponse | undefined,
   next: StockIntradayResponse,
@@ -38,29 +40,33 @@ type UseStockIntradayOptions = {
 
 const POLL_INTERVAL_MS = 60_000;
 
-// 응답 session 이 활성(regular/after/pre)이면 60초 폴링. 그 외 정지.
-// isKrxActiveSession 을 useStockQuote(헤더 폴링) 와 공유해 두 훅이 동일 리듬으로 움직인다.
-// enabled=false 로 탭 미활성 상태의 백그라운드 폴링을 차단.
+// market.ts 의 isKrxActiveSession 을 클라 시계에 얹은 얇은 어댑터 — useStockQuote 와 같은 술어.
+const isActiveSession = (calendar?: MarketCalendar) =>
+  isKrxActiveSession(getKrxSessionState(new Date(), calendar));
+
+// 클라 시계 기준 60초 폴링 (useStockQuote 헤더 폴링과 같은 축·리듬). 활성(regular/after/pre)
+// 일 때만 refetch 하고 그 외엔 틱이 시계만 보고 끝나므로, 개장 전에 연 탭도 09:00 이 지나면
+// 다음 틱에서 재개된다. 응답 session 을 축으로 쓰면 폴링이 멈춘 뒤 갱신되지 않아 그 탭이
+// 정지 상태에 갇혔다. enabled=false 는 fetch·폴링 모두 차단 (분봉 뷰 밖 트래픽 0).
+//
+// hidden 탭은 틱을 건너뛴다 — route 는 서버 캐시 없이 KIS 직행이라 보이지 않는 탭의 콜을
+// 내지 않는다. 복귀 시 1회 갱신은 refetchOnWindowFocus 가 담당하고, 마감 후 복귀마다 콜이
+// 나가지 않도록 같은 시계 축으로 활성 세션에서만 허용.
 //
 // staleTime:0 + refetchOnMount:'always' — 인트라데이는 초 단위 신선도가 계약이라
 // 전역 staleTime(60s) 로컬 override. 재접속 시 캐시된 옛 봉 서빙 차단.
-//
-// refetchOnWindowFocus — hidden 탭은 interval tick 을 건너뛰므로 복귀 시 1회 즉시 refetch
-// 가 폴링 재개 경로. route 는 서버 캐시 없이 KIS 직행이라 마감 후 복귀마다 콜이 나가지
-// 않도록 활성 세션에서만 허용. 축은 클라 시계 — 응답 session 은 폴링이 멈춘 뒤 갱신되지
-// 않아 preopen 에 로드된 탭이 09:00 이후 복귀해도 정지 상태에 갇힌다.
 export const useStockIntraday = (
   ticker: string,
   options: UseStockIntradayOptions = {},
 ) => {
+  const { enabled = true } = options;
   const calendar = useMarketCalendar();
-  return useQuery<StockIntradayResponse>({
+  const query = useQuery<StockIntradayResponse>({
     queryKey: ["stock-intraday", ticker],
-    enabled: options.enabled ?? true,
+    enabled,
     staleTime: 0,
     refetchOnMount: "always",
-    refetchOnWindowFocus: () =>
-      isKrxActiveSession(getKrxSessionState(new Date(), calendar)),
+    refetchOnWindowFocus: () => isActiveSession(calendar),
     queryFn: async ({ client, queryKey }) => {
       const res = await fetch(
         `/api/stock-intraday?ticker=${encodeURIComponent(ticker)}`,
@@ -71,7 +77,17 @@ export const useStockIntraday = (
         await res.json(),
       );
     },
-    refetchInterval: (query) =>
-      isKrxActiveSession(query.state.data?.session) ? POLL_INTERVAL_MS : false,
   });
+
+  const { refetch } = query;
+  useEffect(() => {
+    if (!enabled) return;
+    const id = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      if (isActiveSession(calendar)) void refetch();
+    }, POLL_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [enabled, calendar, refetch]);
+
+  return query;
 };
