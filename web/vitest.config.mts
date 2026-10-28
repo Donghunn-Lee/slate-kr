@@ -5,9 +5,10 @@ import tsconfigPaths from "vite-tsconfig-paths";
 export default defineConfig({
   plugins: [tsconfigPaths()],
   test: {
+    // 컴포넌트 테스트는 파일 첫 줄 `// @vitest-environment jsdom` 으로만 DOM 을 켠다.
     environment: "node",
     globals: false,
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.{ts,tsx}"],
     // 차트 모듈이 shared/fonts 를 거쳐 next/font/google 을 임포트한다 — 빌드 변환 없이도 로드되게 stub 으로 대체.
     alias: {
       "next/font/google": fileURLToPath(new URL("./src/test/nextFontGoogle.ts", import.meta.url)),
