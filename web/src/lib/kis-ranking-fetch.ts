@@ -98,7 +98,7 @@ const TopInterestRowSchema = VolumeRowSchema.extend({
   inter_issu_reg_csnu: z.string(),
 });
 
-// FID_INPUT_CNT_1 는 "행 개수"가 아니라 조건 필드. probe 실측상 "30"을 넣으면 상위 리스트가
+// FID_INPUT_CNT_1 는 "행 개수"가 아니라 조건 필드. 실측상 "30"을 넣으면 상위 리스트가
 // 오염되어 부호가 뒤섞이는 결과로 나온다. "0"으로 두는 것이 정상 상승/하락률순 정렬.
 const buildFluctuationParams = (
   direction: "up" | "down",

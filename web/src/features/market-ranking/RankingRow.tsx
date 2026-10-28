@@ -90,7 +90,7 @@ const metricLabels = (kind: MarketRankingKind): MetricLabel => {
 };
 
 // < sm(<640): 5컬럼 (순위/종목명/현재가/등락률/거래량) 최대 압축, text-body-sm.
-// sm~md(640~767): 6컬럼 (+ 등락 풀·최근 공시). sm 구간 공백이 남던 문제 해소.
+// sm~md(640~767): 6컬럼 (+ 등락 풀·최근 공시).
 // md+(768+): 7컬럼 (+ 시장). 프로젝트 관례상 md가 데스크톱 갈림 지점.
 // 헤더/행/스켈레톤이 반드시 같은 템플릿을 공유한다.
 const GRID_CLASS = cn(

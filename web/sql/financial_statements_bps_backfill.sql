@@ -2,7 +2,7 @@
 -- 절차: ① 검증 SELECT 의 rows_to_fix 가 3328 (191 종목) 인지 확인 — 다르면 실행하지 않고 차이를 보고
 --       ② 일치하면 BEGIN~COMMIT 블록 실행. UPDATE 카운트도 3328 이어야 하며 아니면 ROLLBACK
 --
--- F90: financial_statements 적재 시점에 stocks.shares 가 NULL 이던 종목(09-05 fetch_shares
+-- 배경: financial_statements 적재 시점에 stocks.shares 가 NULL 이던 종목(09-05 fetch_shares
 --      "의결권 있는 주식" 라벨 수정 전 no_row)은 bps 가 NULL 로 들어갔고, fetch_financials 는
 --      기존 키를 skip 하므로 shares 가 채워진 뒤에도 재계산되지 않는다.
 -- 계산식: fetch_financials.insert_financial 과 동일 — round(total_equity / shares, 4).

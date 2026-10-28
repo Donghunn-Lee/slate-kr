@@ -98,7 +98,7 @@ export const fetchOverseasIndexIntradayChart = async (
   url.searchParams.set("FID_INPUT_ISCD", iscd);
   url.searchParams.set("FID_HOUR_CLS_CODE", "0");
   url.searchParams.set("FID_PW_DATA_INCU_YN", "Y");
-  // FID_INPUT_HOUR_1 은 이 TR 에서 무시됨 — probe 확정. 전달 금지.
+  // FID_INPUT_HOUR_1 은 이 TR 에서 무시됨 (실측). 전달 금지.
 
   try {
     const res = await fetch(url.toString(), {
@@ -155,7 +155,7 @@ export const fetchOverseasIndexIntradayChart = async (
 };
 
 // FHKST03030200 output1 = 요약(현재가/전일대비/등락률/OHLC). 8종 quote 폴링용.
-// 접두: 가격류 중 open/high/low 는 ovrs_prod_*, 나머지는 ovrs_nmix_* (probe 실측).
+// 접두: 가격류 중 open/high/low 는 ovrs_prod_*, 나머지는 ovrs_nmix_* (실측).
 // prdy_vrss_sign 코드는 국내와 동일 (1=상한, 2=상승, 3=보합, 4=하한, 5=하락).
 // advCount/declCount 는 해외 지수에 자연 없으므로 0 고정 — 소비측(buildIndexCell 해외
 // 분기와 동형) 이 이미 무시하도록 정합.
@@ -170,7 +170,7 @@ const KisOverseasIndexQuoteSummarySchema = z.object({
 });
 
 // output2 head 1건에서 체결시각·일자만 추출. 나머지 봉 필드(optn_*)는 소비 안 함.
-// 시각은 거래소 현지 로컬 (probe 실측) — 문자열 그대로 전달, 타임존 변환 금지.
+// 시각은 거래소 현지 로컬 (실측) — 문자열 그대로 전달, 타임존 변환 금지.
 // 마커 hour(999999/888888) 는 head 로 나올 가능성 낮으나 방어적으로 걸러 IndexQuote.time=null.
 const KisOverseasIndexQuoteHeadSchema = z.object({
   stck_bsop_date: z.string(),

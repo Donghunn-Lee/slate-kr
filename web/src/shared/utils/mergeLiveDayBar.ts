@@ -27,11 +27,11 @@ export const isInvalidQuoteOhl = (q: {
 //
 // 무효 quote(OHL=0) 게이트:
 //   - EOD 마지막 봉의 date 가 병합 date 와 같으면 → EOD 유지(무효 quote 로 덮지 않음).
-//     preopen 세션에 index-quote route 가 어제 tradingDate 로 호출되며 EOD 마지막 봉을
-//     O=H=L=0 으로 파괴하던 정확한 케이스를 여기서 차단.
+//     preopen 세션에 index-quote route 가 어제 tradingDate 로 호출되면 무효 quote 가
+//     EOD 마지막 봉을 O=H=L=0 으로 덮어쓴다.
 //   - 새 날짜(오늘 봉이 아직 EOD 에 없음) → 전일 종가로 O=H=L=C 인 도지 봉 forming.
-//     비거래일이 아니라 "무효 quote" 로 게이트 — 과거 비거래일 대응으로 intraday gate
-//     를 제거한 결정과 충돌하지 않도록 반드시 분리.
+//     게이트 조건은 비거래일 여부가 아니라 "무효 quote" 다 — 비거래일에도 직전 세션
+//     intraday 를 보여 주므로 날짜 기준으로 막으면 그 경로와 충돌한다.
 export const mergeLiveDayBar = (
   eod: ChartBar[],
   quote: LiveQuoteForMerge | null,

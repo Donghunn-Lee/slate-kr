@@ -102,10 +102,8 @@ export const stockPricesToBars = (prices: StockPriceSnapshot[]): ChartBar[] =>
       ...(p.basePrice !== null ? { basePrice: p.basePrice } : {}),
     }));
 
-// EOD + 라이브 quote 병합은 shared/utils/mergeLiveDayBar 로 이관 (무효-OHL 도지 게이트 포함).
-
 // dayBars → 월별 volume 합. resampleToMonthly 결과 date("YYYY-MM-01") 와 "YYYY-MM" 로 조인.
-// resampleToMonthly 시그니처가 IndexDailySnapshot(volume 없음) 이라 shim 을 안 뜯고 여기서 얹는다.
+// resampleToMonthly 입력이 IndexDailySnapshot(volume 없음) 이라 volume 은 여기서 따로 합산한다.
 const sumVolumeByMonth = (bars: ChartBar[]): Map<string, number> => {
   const acc = new Map<string, number>();
   for (const b of bars) {
@@ -130,8 +128,8 @@ const sumVolumeByWeek = (bars: ChartBar[]): Map<string, number> => {
   return acc;
 };
 
-// resampleToMonthly 는 현재 IndexDailySnapshot 시그니처 → ChartBar 로 shim (change/changeRate 는
-// 결과에서 소비되지 않음). resampleToMonthly refactor 는 이번 스코프 밖.
+// resampleToMonthly 는 IndexDailySnapshot 을 받으므로 ChartBar 를 그 형태로 맞춘다
+// (change/changeRate 는 결과에서 소비되지 않음).
 const barsToSnapshots = (bars: ChartBar[]): IndexDailySnapshot[] =>
   bars.map((b) => ({
     indexCode: "",

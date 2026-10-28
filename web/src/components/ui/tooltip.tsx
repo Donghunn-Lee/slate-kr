@@ -49,7 +49,7 @@ function Tooltip({
   const getTriggerNode = React.useCallback(() => triggerRef.current, [])
 
   if (!isTouch) {
-    // 데스크톱: props 그대로 pass-through. hover/focus 기존 동작 유지.
+    // 데스크톱: props 그대로 pass-through 해 Radix 의 hover/focus 동작을 쓴다.
     return (
       <TooltipProvider>
         <TooltipPrimitive.Root
@@ -112,7 +112,7 @@ function TooltipTrigger({
     onClick?.(event)
     if (!ctx || event.defaultPrevented) return
     // preventDefault → Radix 내부 onClick(context.onClose) 를 composeEventHandlers 가 스킵.
-    // 우리 tap 토글만 상태를 바꾼다.
+    // 아래 tap 토글만 상태를 바꾼다.
     event.preventDefault()
     ctx.setOpen(!ctx.open)
   }

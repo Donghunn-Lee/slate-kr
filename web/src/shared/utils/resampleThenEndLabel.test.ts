@@ -247,7 +247,7 @@ describe("resample → toEndLabel 파이프라인 (StockChartTabs 조립)", () =
       return hhmm >= fromHhmm && hhmm <= toHhmm;
     }).reduce((s, b) => s + (b.volume ?? 0), 0);
 
-  it("probe 실측 15분: END 15:30 v=1,591,297 · END 15:45 v=52,851 · END 16:00 = Σraw 15:45~59", () => {
+  it("실측 15분: END 15:30 v=1,591,297 · END 15:45 v=52,851 · END 16:00 = Σraw 15:45~59", () => {
     const out = pipeline(RAW_005930_1510_1559, 15);
     const byTime = new Map(
       out
@@ -267,7 +267,7 @@ describe("resample → toEndLabel 파이프라인 (StockChartTabs 조립)", () =
     expect(end1600?.volume).toBe(sumRange("15:45", "15:59"));
   });
 
-  it("probe 실측 30분: END 15:30 = Σraw ≤15:30 · END 16:00 = Σraw 15:40~59", () => {
+  it("실측 30분: END 15:30 = Σraw ≤15:30 · END 16:00 = Σraw 15:40~59", () => {
     const out = pipeline(RAW_005930_1510_1559, 30);
     const byTime = new Map(
       out
@@ -282,7 +282,7 @@ describe("resample → toEndLabel 파이프라인 (StockChartTabs 조립)", () =
     expect(end1600?.volume).toBe(sumRange("15:40", "15:59"));
   });
 
-  it("probe 실측 60분: END 15:30 = Σraw ≤15:30 · END 16:00 = Σraw 15:40~59", () => {
+  it("실측 60분: END 15:30 = Σraw ≤15:30 · END 16:00 = Σraw 15:40~59", () => {
     const out = pipeline(RAW_005930_1510_1559, 60);
     const byTime = new Map(
       out
