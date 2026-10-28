@@ -21,6 +21,12 @@ GitHub Actions 수집 워크플로우 6개는 전부 `workflow_dispatch`이고 c
 - 분할 · 병합 같은 기업행위로 기준가가 직전 봉 범위를 벗어난 종목은, Daily가 네 가지 검증(KIS 수정주가 반영 · 재적재 전후 비율 일치 · 사건 비율 · 구간 안 비율 단일)을 전부 통과한 건만 과거 일봉을 재적재 · rescale하고 처리 이력 테이블(원장)에 기록합니다.
 - 거절 건과 결손 보충은 백필 스크립트로 수동 실행합니다: `backfill_prices.py` 결손 채움 · `backfill_prices_kis.py` 수정주가 · `backfill_index_prices.py` 국내 지수 · `backfill_overseas_index_prices.py` 해외 지수 · `fetch_prices.py` 과거 증분.
 
+`backfill_prices.py`는 수집 워크플로우에 없는 pykrx를 쓰므로, 이 스크립트로 백필할 때만 아래 명령으로 설치합니다.
+
+```bash
+pip install -r requirements-backfill.txt
+```
+
 ## 테스트
 
 ```bash
