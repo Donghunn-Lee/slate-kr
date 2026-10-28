@@ -12,7 +12,7 @@ idle-drop 보험 (fetch_financials SSL closed 방어)
   keepalives_idle=30          30s 무접촉 시 첫 keepalive 프로브 발송
   keepalives_interval=10      실패 시 10s 간격 재시도
   keepalives_count=3          3회 실패 후 소켓 절단으로 확정
-  → 5분 idle 로 절단되던 skip-heavy 구간에서 서버·NAT 측 절단 이전에
+  → skip-heavy 구간의 5분 idle 은 서버·NAT 측에서 절단되므로, 그 전에
     keepalive 로 활성 신호 유지. 재연결 재시도는 fetch_financials 본체 소관.
 
 주의: Neon pooler 는 startup options 로 statement_timeout 지정을 거부

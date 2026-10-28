@@ -334,7 +334,7 @@ def run_backfill(years: int) -> int:
     """반환: 예외·upsert 실패로 끝난 코드 수."""
     end = datetime.today().date()
     start = end - timedelta(days=int(years * 365.25))
-    # KIS FHKST03030100 은 장중 요청 시 당일 진행 중 봉을 반환 (probe 실측).
+    # KIS FHKST03030100 은 장중 요청 시 당일 진행 중 봉을 반환 (실측).
     # 실행 시각(16:00 KST)에 아시아·유럽은 장중이므로 과거 날짜 봉만 확정치로
     # 수용. 당일 확정 봉은 다음 run(주말 포함)에 적재.
     today_kst = datetime.now(KST).date()
@@ -379,7 +379,7 @@ def run_backfill(years: int) -> int:
 def run_daily() -> int:
     """반환: 예외·upsert 실패로 끝난 코드 수. 신규 봉 없음은 실패가 아니다."""
     end = datetime.today().date()
-    # KIS FHKST03030100 은 장중 요청 시 당일 진행 중 봉을 반환 (probe 실측).
+    # KIS FHKST03030100 은 장중 요청 시 당일 진행 중 봉을 반환 (실측).
     # 실행 시각(16:00 KST)에 아시아·유럽은 장중이므로 과거 날짜 봉만 확정치로
     # 수용. 당일 확정 봉은 다음 run(주말 포함)에 적재. today_kst 는 엄격 상한.
     today_kst = datetime.now(KST).date()

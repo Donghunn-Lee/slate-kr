@@ -10,7 +10,7 @@ KIS 해외지수 일봉 대량 백필 → index_daily_prices upsert (walk-back p
   GET /uapi/overseas-price/v1/quotations/inquire-daily-chartprice
   tr_id=FHKST03030100 · FID_COND_MRKT_DIV_CODE='N' · FID_PERIOD_DIV_CODE='D'
   1콜 = FID_INPUT_DATE_2 직전 100봉만 반환(하드캡, tr_cont 미동작) →
-  DATE_2 를 이전 창의 가장 과거봉으로 이동해 반복 (probe 실측: 경계 1봉
+  DATE_2 를 이전 창의 가장 과거봉으로 이동해 반복 (실측: 경계 1봉
   중복만 발생, dedup 로 흡수).
 
 도메인 코드 vs KIS iscd
@@ -77,7 +77,7 @@ DOMAIN_TO_ISCD: dict[str, str] = {
     "DAX":    "GR#DAX",
 }
 
-# 지수별 백필 하한 (probe 실측 근거).
+# 지수별 백필 하한 (실측 근거).
 # 실측 상한보다 여유있게 잡아 walk-back 이 empty 응답으로 자연 종료하도록.
 #   SPX/.DJI/NI225/HSI/SHCOMP: KIS 최고봉 ~2005-08 (20050101 anchor empty)
 #   COMP/DAX:                  KIS 최고봉 ~2000-08 (20000101 anchor empty)

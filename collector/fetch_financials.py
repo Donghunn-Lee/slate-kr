@@ -71,7 +71,7 @@ _GATE_COLS = ("revenue", "operating_profit", "net_income", "total_assets", "tota
 
 # 표시통화 게이트 — DART fnlttSinglAcntAll 은 회사가 신고한 표시통화 그대로
 # thstrm_amount 를 반환한다. IFRS 상 표시통화 변경(예: 241560 두산밥캣이
-# 2023 사업보고서부터 KRW → USD 로 전환) 은 정당하나, 우리 파이프라인은
+# 2023 사업보고서부터 KRW → USD 로 전환) 은 정당하나, 이 파이프라인은
 # KRW 원 단위 저장 전제. 비-KRW 항목이 하나라도 있으면 skip.
 EXPECTED_CURRENCY = "KRW"
 

@@ -19,7 +19,7 @@ KIS 해외지수 1분봉 → overseas_index_intraday idempotent upsert.
 호출
   GET /uapi/overseas-price/v1/quotations/inquire-time-indexchartprice
   tr_id=FHKST03030200 · FID_HOUR_CLS_CODE=0 · FID_PW_DATA_INCU_YN=Y
-  FID_INPUT_HOUR_1 · 날짜 파라미터는 이 TR 이 무시함 (probe 실측 — US·아시아·DAX
+  FID_INPUT_HOUR_1 · 날짜 파라미터는 이 TR 이 무시함 (실측 — US·아시아·DAX
   전 대상 정합). 콜당 output2 = 102 행 고정.
 
 output2 매핑

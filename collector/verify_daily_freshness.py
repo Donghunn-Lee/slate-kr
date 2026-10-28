@@ -81,7 +81,7 @@ DOMESTIC_INTRADAY_FLOOR = 353
 
 # 미처리 기업행위.
 # KIS_DAILY_LAST_DATE 이후 활성 종목 전 행에서 base_price 가 직전 저장 봉 [L, H] 를 1틱 초과해
-# 벗어나면 FAIL — fetch_daily_close 의 WARN 이 exit 0 이라 로그에만 남아 방치되던 것 대응.
+# 벗어나면 FAIL — fetch_daily_close 의 WARN 이 exit 0 이라 로그에만 남고 놓치기 쉽다.
 # 처리 = Daily 의 rescale_corp_actions.py(게이트 통과 건 자동) 또는 수동(backfill_prices_kis.py
 # --tickers + web/sql/rescale_corporate_action.sql) 뒤 재스캔 0건.
 # 재적재로 해소할 수 없는 건(kis_adj=0 등)만 사유 주석과 함께 (ticker, date) 로 등록 —
