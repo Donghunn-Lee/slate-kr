@@ -142,7 +142,7 @@ page 파일은 전부 Server Component이고, `use client`는 이벤트 · 브�
   <img src="docs/images/partial-failure.png" width="100%" alt="핵심 지표 — 가격 조회 실패 시 PER · PBR · 시가배당률에만 로딩 실패 배지">
 - 여러 건을 한 번에 조회할 때는 `Promise.allSettled`를 사용합니다. 그래서 지수 그리드는 실패한 셀만 종가 기준 값으로 바뀌고 나머지는 정상으로 표시됩니다.
 
-<sub>코드 · [`stocks/[ticker]/layout.tsx`](web/src/app/stocks/%5Bticker%5D/layout.tsx) · [`StockHeader.tsx`](web/src/entities/stock/StockHeader.tsx)</sub><br>
+<sub>코드 · [`stocks/[ticker]/layout.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.0-portfolio/web/src/app/stocks/%5Bticker%5D/layout.tsx) · [`StockHeader.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.0-portfolio/web/src/entities/stock/StockHeader.tsx)</sub><br>
 <sub>글 · [#037 empty와 error 분리](https://velog.io/@dh82680/SlateKR-037-fallback-점검-empty와-error를-구분하기) · [#155 분봉 실패 처리](https://velog.io/@dh82680/SlateKR-155-코드로만-종결한-두-판정과-120봉-TR-전환) · [#174 헤더 스트리밍 실측](https://velog.io/@dh82680/SlateKR-174-선언만-있던-revalidate와-한-달-멈춰-있던-차트-당일-봉)</sub>
 
 ### 2. 클라이언트 데이터 흐름
@@ -160,7 +160,7 @@ page 파일은 전부 Server Component이고, `use client`는 이벤트 · 브�
 
 </details>
 
-<sub>코드 · [`useStockIntraday.ts`](web/src/features/stock-intraday/useStockIntraday.ts) · [`useStockQuote.ts`](web/src/features/stock-quote/useStockQuote.ts) · [`PriceChart.tsx`](web/src/entities/chart/PriceChart.tsx)</sub><br>
+<sub>코드 · [`useStockIntraday.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.0-portfolio/web/src/features/stock-intraday/useStockIntraday.ts) · [`useStockQuote.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.0-portfolio/web/src/features/stock-quote/useStockQuote.ts) · [`PriceChart.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.0-portfolio/web/src/entities/chart/PriceChart.tsx)</sub><br>
 <sub>글 · [#140 "실시간" 표기 제거](https://velog.io/@dh82680/SlateKR-140-지수-라벨-규칙-통일과-실시간을-내린-이유)</sub>
 
 ### 3. 서버 캐시
@@ -171,7 +171,7 @@ KIS API는 초당 호출 한도가 있는데, 홈 화면 하나가 장중에 지
 - 실패 응답은 감지 즉시 캐시에서 지웁니다. KIS 장애 때 빈 차트가 캐시 유지 시간 내내 그대로 나가는 경우가 있어 이렇게 바꿨습니다.
 - 종목 상세의 DB 조회에는 시간 기반 캐시를 적용하지 않았습니다. 장 마감 후 이전 종가가 최신처럼 보일 수 있어서, 적재 후 재검증 장치가 먼저 필요하다고 판단했습니다.
 
-<sub>코드 · [`session-cache.ts`](web/src/lib/session-cache.ts) · [`index-quotes/route.ts`](web/src/app/api/index-quotes/route.ts)</sub><br>
+<sub>코드 · [`session-cache.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.0-portfolio/web/src/lib/session-cache.ts) · [`index-quotes/route.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.0-portfolio/web/src/app/api/index-quotes/route.ts)</sub><br>
 <sub>글 · [#075 실패 응답 캐시 결함](https://velog.io/@dh82680/SlateKR-075-intraday-실패-캐시-결함-해결) · [#174 선언만 있던 revalidate](https://velog.io/@dh82680/SlateKR-174-선언만-있던-revalidate와-한-달-멈춰-있던-차트-당일-봉)</sub>
 
 ### 4. 런타임 검증: AI 공시 요약
@@ -193,7 +193,7 @@ type DisclosureSummaryContent = {
 
 <p align="center"><img src="docs/images/disclosure-summary.png" width="600" alt="AI 공시 요약 — 공시 행 인라인 확장"></p>
 
-<sub>코드 · [`disclosureSummary.ts`](web/src/shared/types/disclosureSummary.ts) · [`disclosure-summary.ts`](web/src/lib/disclosure-summary.ts)</sub><br>
+<sub>코드 · [`disclosureSummary.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.0-portfolio/web/src/shared/types/disclosureSummary.ts) · [`disclosure-summary.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.0-portfolio/web/src/lib/disclosure-summary.ts)</sub><br>
 <sub>글 · [#019 에러 분기 설계](https://velog.io/@dh82680/SlateKR-019-AI-공시-요약-2-Gemini-API-연동과-에러-분기-설계) · [#081 출력 구조화](https://velog.io/@dh82680/SlateKR-081-AI-공시-요약-출력-구조화) · [#168 3.8 승격과 폴백](https://velog.io/@dh82680/SlateKR-168-AI-공시-요약-gemini-3.8-flash-승격-및-기존-버전-폴백-결정)</sub>
 
 ### 5. 익명 동기화
@@ -204,7 +204,7 @@ type DisclosureSummaryContent = {
 - 관심종목과 메모는 브라우저마다 각각 JSONB 스냅샷 한 행으로 저장합니다. 로그인 없이 쓰기가 열려 있어서 요청 본문은 스키마 검증과 64KB 상한을 거칩니다.
 - 서버 조회에 실패한 상태에서 쓰면 비어 있는 로컬 목록이 서버 목록을 덮어쓸 수 있습니다. 그래서 조회에 성공하기 전에는 쓰지 않고 "서버 저장 안 됨" 배지를 띄웁니다. 편집 저장이 실패하면 마지막으로 서버에 저장된 상태로 되돌립니다.
 
-<sub>코드 · [`useWatchlistSync.ts`](web/src/features/watchlist/useWatchlistSync.ts) · [`anon-id.ts`](web/src/lib/anon-id.ts)</sub><br>
+<sub>코드 · [`useWatchlistSync.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.0-portfolio/web/src/features/watchlist/useWatchlistSync.ts) · [`anon-id.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.0-portfolio/web/src/lib/anon-id.ts)</sub><br>
 <sub>글 · [#141 로그인 없는 식별과 스냅샷 동기화](https://velog.io/@dh82680/SlateKR-141-관심종목-서버-저장-로그인-없는-식별과-스냅샷-동기화)</sub>
 
 ## 품질
@@ -228,7 +228,7 @@ type DisclosureSummaryContent = {
 
 홈 모바일은 회차마다 편차가 큽니다(성능 66 ~ 77, LCP 4.1 ~ 5.6초). LCP는 Lighthouse 시뮬레이션에서만 길게 나왔고, CPU · 네트워크를 실제로 늦춘 로컬 측정에서는 약 1.5초였습니다. 접근성 96은 캐러셀의 비활성 슬라이드를 일부러 흐리게 한 결과입니다.
 
-<sub>코드 · [`classifyDisclosure.test.ts`](web/src/shared/utils/classifyDisclosure.test.ts) · [`SearchInput.tsx`](web/src/features/search/SearchInput.tsx) · [`BottomTabBar.tsx`](web/src/components/layout/BottomTabBar.tsx)</sub><br>
+<sub>코드 · [`classifyDisclosure.test.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.0-portfolio/web/src/shared/utils/classifyDisclosure.test.ts) · [`StockMetrics.test.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.0-portfolio/web/src/entities/stock/StockMetrics.test.tsx) · [`SearchInput.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.0-portfolio/web/src/features/search/SearchInput.tsx) · [`BottomTabBar.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.0-portfolio/web/src/components/layout/BottomTabBar.tsx)</sub><br>
 <sub>글 · [#087 Vitest 도입](https://velog.io/@dh82680/SlateKR-087-Vitest-도입과-순수함수-테스트)</sub>
 
 ## 알려진 한계
@@ -242,7 +242,7 @@ type DisclosureSummaryContent = {
 
 - PageSpeed Insights 기준 모바일 LCP가 4.7 ~ 5.6초이고, 홈과 종목 상세에 렌더링 차단 CSS가 2개 있습니다. CSS를 HTML에 인라인하는 Next.js 옵션(`inlineCss`)은 로컬 측정에서 홈 HTML이 압축 기준 12KB에서 155KB로 커지고 점수가 4 ~ 6점 내려가 적용하지 않았습니다.
 - 종목명이 길어 헤더가 여러 줄로 감기는 종목은 모바일 CLS가 0.17 ~ 0.23 남습니다. 대체 글꼴로 먼저 그려질 때 줄이 더 많이 감겼다가, 웹 글꼴이 적용되면서 헤더가 줄어드는 이동입니다(412px 폭 로컬 측정).
-- 차트 컴포넌트([`PriceChart.tsx`](web/src/entities/chart/PriceChart.tsx))는 순수 로직을 분리한 뒤에도 935줄 단일 클라이언트 컴포넌트입니다. effect · ref 구조 분해는 차트 동작의 회귀를 장중에 검증해야 해서 미뤘습니다.
+- 차트 컴포넌트([`PriceChart.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.0-portfolio/web/src/entities/chart/PriceChart.tsx))는 순수 로직을 분리한 뒤에도 935줄 단일 클라이언트 컴포넌트입니다. effect · ref 구조 분해는 차트 동작의 회귀를 장중에 검증해야 해서 미뤘습니다.
 - 장중 지수 분봉은 증분 응답 없이 매번 하루치 전체를 받습니다. KIS 호출 한도는 횟수로 차감되어 응답 분량과는 관계가 없고, 증분으로 받으면 빠지거나 바뀐 봉을 검사하는 비용이 더 크다고 판단했습니다.
 
 **데이터**
@@ -268,7 +268,7 @@ type DisclosureSummaryContent = {
 
 프로젝트 지침(CLAUDE.md)에 아키텍처 원칙 · 컨벤션 · 금지 사항을 고정하고, Claude Code가 만든 코드를 리뷰하는 기준으로 사용했습니다.
 
-작업 세션 186회 · 커밋 882 · Vitest 케이스 1,194(2026-10-25 기준). 작업 세션 단위 개발 일지는 같은 번호로 [velog 시리즈](https://velog.io/@dh82680)에 있고, 각 결정의 배경과 실측 결과는 해당 편에 정리했습니다.
+작업 세션 187회 · 커밋 891 · Vitest 케이스 1,206(2026-10-28 기준). 작업 세션 단위 개발 일지는 같은 번호로 [velog 시리즈](https://velog.io/@dh82680)에 있고, 각 결정의 배경과 실측 결과는 해당 편에 정리했습니다.
 
 ## 회고
 
