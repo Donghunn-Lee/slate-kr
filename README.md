@@ -202,7 +202,7 @@ type DisclosureSummaryContent = {
 
 - 식별용 UUID 쿠키(httpOnly)는 최초 저장 성공 시 서버가 발급합니다. 조회만 하는 방문자에게는 쿠키도 동기화 요청도 없습니다.
 - 관심종목과 메모는 브라우저마다 각각 JSONB 스냅샷 한 행으로 저장합니다. 로그인 없이 쓰기가 열려 있어서 요청 본문은 스키마 검증과 64KB 상한을 거칩니다.
-- 서버 조회에 실패한 상태에서 쓰면 비어 있는 로컬 목록이 서버 목록을 덮어쓸 수 있습니다. 그래서 조회에 성공하기 전에는 쓰지 않고 "서버 저장 안 됨" 배지를 띄웁니다. 편집 저장이 실패하면 마지막으로 서버에 저장된 상태로 되돌립니다.
+- 서버 조회에 실패한 상태에서 쓰면 비어 있는 로컬 목록이 서버 목록을 덮어쓸 수 있습니다. 그래서 첫 조회가 끝나기 전에는 편집을 비활성화하고, 조회에 실패하면 쓰지 않은 채 "서버 저장 안 됨" 배지를 띄웁니다. 편집 저장이 실패하면 마지막으로 서버에 저장된 상태로 되돌립니다.
 
 <sub>코드 · [`useWatchlistSync.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.0-portfolio/web/src/features/watchlist/useWatchlistSync.ts) · [`anon-id.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.0-portfolio/web/src/lib/anon-id.ts)</sub><br>
 <sub>글 · [#141 로그인 없는 식별과 스냅샷 동기화](https://velog.io/@dh82680/SlateKR-141-관심종목-서버-저장-로그인-없는-식별과-스냅샷-동기화)</sub>
@@ -268,7 +268,7 @@ type DisclosureSummaryContent = {
 
 프로젝트 지침(CLAUDE.md)에 아키텍처 원칙 · 컨벤션 · 금지 사항을 고정하고, Claude Code가 만든 코드를 리뷰하는 기준으로 사용했습니다.
 
-작업 세션 187회 · 커밋 891 · Vitest 케이스 1,206(2026-10-28 기준). 작업 세션 단위 개발 일지는 같은 번호로 [velog 시리즈](https://velog.io/@dh82680)에 있고, 각 결정의 배경과 실측 결과는 해당 편에 정리했습니다.
+작업 세션 187회 · 커밋 894 · Vitest 케이스 1,208(2026-10-29 기준). 작업 세션 단위 개발 일지는 같은 번호로 [velog 시리즈](https://velog.io/@dh82680)에 있고, 각 결정의 배경과 실측 결과는 해당 편에 정리했습니다.
 
 ## 회고
 
