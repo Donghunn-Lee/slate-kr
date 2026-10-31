@@ -53,6 +53,16 @@ jobs:
         run: python fetch_dividends.py --years 1
         continue-on-error: true
 
+      # fetch_financials 의 non-KRW 격리 산출물(격리 SQL · before 스냅샷 · summary).
+      # 격리 시도 0건이면 디렉토리가 없어 업로드하지 않는다.
+      - name: Upload non-KRW isolation artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: non-krw-${{ github.run_id }}
+          path: collector/logs/non_krw/
+          if-no-files-found: ignore
+
       # Gate: silent green 방지. success 가 아닌 모든 outcome(failure·cancelled·
       # skipped·기타)을 실패로 판정한다. weekly 는 daily 와 달리 mode/skip 조건이
       # 없으므로 skipped 는 무조건 비정상(상류 취소 징후) — daily 식 조건부 skipped

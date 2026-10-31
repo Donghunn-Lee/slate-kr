@@ -1,4 +1,5 @@
 import argparse
+import json
 import logging
 import os
 import re
@@ -75,36 +76,26 @@ _GATE_COLS = ("revenue", "operating_profit", "net_income", "total_assets", "tota
 # KRW 원 단위 저장 전제. 비-KRW 항목이 하나라도 있으면 skip.
 EXPECTED_CURRENCY = "KRW"
 
-# 이미 non-KRW 로 실측 확인된 티커 집합.
-# 격리 완료 상태 전제 — 목록 추가 시 기존 적재분 격리 SQL 선행 필요.
-# 환율 변환이 없는 한 영구 skip 정책이지만, known 반복 건이 매 수집 창
-# exit 1 을 만들어 알람 신호 가치를 잃는 걸 방지하기 위해 "known 은 WARN·
-# exit 미기여, 신규 발견·부풀림만 fail" 로 등급 분리한다.
-# known 티커가 KRW 로 복귀하면 gate 미발동으로 정상 적재됨(의도된 동작).
-# 목록·티커별 통화 주석 변경 시 web/src/shared/constants/nonKrwTickers.ts 의
-# NON_KRW_TICKER_CURRENCIES 매핑값도 함께 동기화할 것.
-KNOWN_NON_KRW_TICKERS = frozenset({
-    "241560",  # 두산밥캣 (USD, 2023 annual~)
-    "008700",  # 아남전자 (USD 전 기간)
-    "900070",  # 글로벌에스엠 (CNY→USD 전환)
-    "900100",  # 파이온엑스 (USD)
-    "900110",  # 딥커머스 (CNY)
-    "900120",  # 씨엑스아이 (CNY)
-    "900250",  # 크리스탈신소재 (CNY)
-    "900260",  # 로스웰 (CNY)
-    "900270",  # 헝셩그룹 (CNY)
-    "900300",  # 오가닉티코스메틱 (CNY)
-    "900310",  # 컬러레이 (CNY)
-    "900340",  # 윙입푸드 (CNY)
-    "950130",  # 엑세스바이오 (USD)
-    "950140",  # 잉글우드랩 (USD)
-    "950160",  # 코오롱티슈진 (USD)
-    "950190",  # 고스트스튜디오 (HKD→USD 전환)
-    "950200",  # 소마젠 (USD)
-    "950210",  # 프레스티지바이오파마 (USD)
-    "950220",  # 네오이뮨텍 (USD)
-    "950260",  # 인제니아테라퓨틱스 (non-KRW, 적재 이력 없음)
-})
+# non-KRW 종목의 단일 소스는 stocks.reporting_currency (기본 'KRW'). web 도 같은 컬럼을 읽어
+# 재무 슬레이트·핵심 지표 대신 안내를 보인다. non-KRW 로 등록된 종목은 financial_statements
+# 수치 7컬럼이 NULL 로 격리된 상태를 전제한다.
+#   known(등록된 종목)의 non-KRW 공시 → WARN·exit 미기여 (매 수집 창 exit 1 을 만들어 알람
+#     신호 가치를 잃는 걸 막는다). 통화가 바뀌면(CNY→USD 등) 컬럼만 따라 바꾼다.
+#   신규 발견 → isolate_non_krw 가 게이트를 전부 통과한 건만 run 안에서 격리·등록하고
+#     (WARN·exit 미기여), 거절된 건은 exit 1 로 남겨 web/sql/isolate_non_krw_ticker.sql 로 수동.
+#   known 종목이 KRW 로 명시 복귀하면 적재한다. 컬럼은 되돌리지 않는다 — 사람이 판단.
+# 게이트 (전부 DB 쓰기 전. 하나라도 어긋나면 그 종목은 손대지 않는다)
+#   이번 공시의 대상 항목 통화가 전부 같은 비-KRW 통화 · 직전 period 공시도 같은 통화
+#   (직전이 KRW 면 진짜 전환이거나 DART 라벨 오류 — 수동) · run 당 신규 격리 상한.
+#   직전 period 가 DART 미공시(013 확정)이고 적재 이력이 0행이면 첫 보고서로 보고 통과한다.
+MAX_NON_KRW_ISOLATIONS_PER_RUN = 3
+# 격리 트랜잭션에서 NULL 로 만드는 컬럼. 행은 지우지 않는다 — 지우면 매 수집마다 DART 재조회·
+# known WARN 이 반복되고, total_equity 를 남기면 sync_bps 가 bps 를 다시 채운다.
+_ISOLATE_COLS = (
+    "revenue", "operating_profit", "net_income", "total_assets", "total_equity", "eps", "bps",
+)
+# 격리 산출물(격리 SQL · before 스냅샷 · summary.json). Weekly 가 artifact 로 올린다.
+NON_KRW_OUT_ROOT = os.path.join(os.path.dirname(__file__), "logs", "non_krw")
 
 # check_unit_suspects Rule(1) 확인 완료 (ticker, year) 쌍.
 # 각 filing 원본이 자기 자신에 충실하다고 확인된 케이스만 등록 — 재발 시
@@ -333,14 +324,19 @@ def fetch_financial(
     items = data.get("list") or []
     result["_rcept_no"] = items[0].get("rcept_no") if items else None
     # 표시통화 검사 — TARGET_ACCOUNTS 매칭 item 중 KRW 가 아닌 것이 있으면 마킹.
-    # insert_financial 에서 게이트로 사용 (자동 정정 없음, skip 만).
+    # insert_financial 에서 게이트로 사용. _currencies 는 매칭 item 의 통화 전체 집합 —
+    # 격리 게이트(단일 통화 확인)와 known 종목의 통화 미표기 판정에 쓴다.
+    currencies: set[str] = set()
     for it in items:
         if it.get("account_id") not in TARGET_ACCOUNTS:
             continue
         cur = (it.get("currency") or "").strip().upper()
-        if cur and cur != EXPECTED_CURRENCY:
+        if not cur:
+            continue
+        currencies.add(cur)
+        if cur != EXPECTED_CURRENCY and "_non_krw_currency" not in result:
             result["_non_krw_currency"] = cur
-            break
+    result["_currencies"] = currencies
     return result, False
 
 
@@ -422,18 +418,26 @@ def insert_financial(
     bsns_year: str,
     reprt_code: str,
     data: dict,
+    known_non_krw: Optional[dict[str, str]] = None,
 ) -> str:
     """
     반환값 규약:
       "ok"         : 적재 성공
-      "gate_skip"  : sanity 게이트(신규 non-KRW·부풀림) skip — exit code 기여
-      "known_skip" : 이미 확인된 non-KRW 티커 skip — 로그만, exit code 미기여
+      "gate_skip"  : sanity 게이트(신규 non-KRW·부풀림) skip — 신규 non-KRW 는 호출측이
+                     격리를 시도하고, 격리까지 거절되면 exit code 기여
+      "known_skip" : 등록된 non-KRW 티커 skip — 로그만, exit code 미기여
       "error"      : DB 오류
+    known_non_krw 는 stocks.reporting_currency 가 KRW 가 아닌 종목 → 통화 (get_non_krw_tickers).
     """
+    known_non_krw = known_non_krw or {}
     # 표시통화 게이트 — 비-KRW filing 은 skip. KRW 원 단위 저장 전제 위반 방지.
     non_krw = data.get("_non_krw_currency")
+    # 등록된 non-KRW 종목인데 통화가 아예 표기되지 않은 공시는 KRW 복귀 근거가 못 된다 —
+    # 외화 금액을 원 단위로 적재하는 사고를 막기 위해 known skip 으로 둔다.
+    if not non_krw and ticker in known_non_krw and not data.get("_currencies"):
+        non_krw = "?"
     if non_krw:
-        if ticker in KNOWN_NON_KRW_TICKERS:
+        if ticker in known_non_krw:
             logger.warning(
                 "[NON_KRW_KNOWN] ticker=%s period=%s/%s currency=%s rcept_no=%s",
                 ticker,
@@ -540,6 +544,246 @@ def get_all_corps(cursor, today=None) -> list[tuple[str, str, str]]:
         for ticker, corp_code, name, filer, listed_at in cursor.fetchall()
         if is_collect_target(filer, listed_at, today)
     ]
+
+
+def get_non_krw_tickers(cursor) -> dict[str, str]:
+    """stocks.reporting_currency 가 KRW 가 아닌 종목 → 통화. known skip 과 격리 게이트의 기준."""
+    cursor.execute(
+        "SELECT ticker, reporting_currency FROM stocks WHERE reporting_currency <> %s",
+        (EXPECTED_CURRENCY,),
+    )
+    return {row[0]: row[1] for row in cursor.fetchall()}
+
+
+_PERIOD_ORDER = ("11013", "11012", "11014", "11011")  # Q1 → Q2 → Q3 → 사업보고서
+
+
+def prev_period(bsns_year: str, reprt_code: str) -> tuple[str, str]:
+    """직전 정기보고서 period. Q1 의 직전은 전년 사업보고서."""
+    idx = _PERIOD_ORDER.index(reprt_code)
+    if idx == 0:
+        return str(int(bsns_year) - 1), _PERIOD_ORDER[-1]
+    return bsns_year, _PERIOD_ORDER[idx - 1]
+
+
+def _dump_json(path: str, obj) -> None:
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(obj, f, ensure_ascii=False, indent=2, default=str)
+
+
+def _reopen(conn, cursor):
+    """connection 절단 뒤 재연결. get_connection 이 다시 실패하면 raise 로 스크립트 중단."""
+    for obj in (cursor, conn):
+        try:
+            obj.close()
+        except Exception:
+            pass
+    conn = get_connection()
+    return conn, conn.cursor()
+
+
+class NonKrwRun:
+    """run 전체가 공유하는 격리 상태 — 남은 상한 · 산출물 디렉토리 · summary 항목."""
+
+    def __init__(self, stamp: str, run_id: Optional[str]):
+        self.stamp = stamp
+        self.run_id = run_id
+        self.remaining = MAX_NON_KRW_ISOLATIONS_PER_RUN
+        self.out_dir = os.path.join(NON_KRW_OUT_ROOT, stamp)
+        self.entries: list[dict] = []
+
+    def dump_summary(self) -> None:
+        """격리 시도가 1건이라도 있을 때만 summary.json 을 남긴다 (없으면 디렉토리도 없음)."""
+        if not self.entries:
+            return
+        os.makedirs(self.out_dir, exist_ok=True)
+        _dump_json(
+            os.path.join(self.out_dir, "summary.json"),
+            {"run_id": self.run_id, "stamp": self.stamp, "events": self.entries},
+        )
+
+
+def decide_non_krw_isolation(
+    cursor,
+    ticker: str,
+    corp_code: str,
+    bsns_year: str,
+    reprt_code: str,
+    data: dict,
+    state: NonKrwRun,
+) -> tuple[Optional[str], str]:
+    """격리 게이트 — 통과면 (통화, ""), 거절이면 (None, 사유). DB 쓰기 없음."""
+    currencies = set(data.get("_currencies") or ())
+    if len(currencies) != 1:
+        return None, f"통화 혼재 {sorted(currencies)}"
+    currency = next(iter(currencies))
+    if state.remaining <= 0:
+        return None, f"run 상한 {MAX_NON_KRW_ISOLATIONS_PER_RUN}건 초과"
+    py, pr = prev_period(bsns_year, reprt_code)
+    prev_data, prev_no_data = fetch_financial(corp_code, py, pr, ticker=ticker)
+    cursor.execute("SELECT count(*) FROM financial_statements WHERE ticker = %s", (ticker,))
+    n_rows = cursor.fetchone()[0]
+    if prev_data is None:
+        if prev_no_data and n_rows == 0:
+            return currency, ""  # 첫 정기보고서 · 적재 이력 없음 — NULL 대상이 없다
+        return None, f"직전 period {py}/{pr} 조회 실패 또는 미공시 (적재 이력 {n_rows}행)"
+    prev_currencies = set(prev_data.get("_currencies") or ())
+    if prev_currencies != {currency}:
+        return None, f"직전 period {py}/{pr} 통화 {sorted(prev_currencies)} ≠ {currency}"
+    return currency, ""
+
+
+def render_isolation_sql(ticker: str, currency: str, n_rows: int) -> str:
+    """web/sql 격리 선례(financial_statements_non_krw_isolation.sql)와 같은 블록 — 검증 SELECT ·
+    BEGIN/UPDATE/COMMIT. 추적용 산출물에 그대로 쓴다."""
+    null_cols = ",\n    ".join(f"{c:<16} = NULL" for c in _ISOLATE_COLS)
+    all_null = " AND ".join(f"{c} IS NULL" for c in _ISOLATE_COLS)
+    return (
+        f"-- ── 검증 SELECT (기대: rows = {n_rows}) ──\n"
+        f"SELECT count(*) AS rows,\n"
+        f"       count(*) FILTER (WHERE {all_null}) AS all_null\n"
+        f"FROM financial_statements WHERE ticker = '{ticker}';\n"
+        f"\n"
+        f"BEGIN;\n"
+        f"\n"
+        f"UPDATE financial_statements\n"
+        f"SET {null_cols}\n"
+        f"WHERE ticker = '{ticker}';\n"
+        f"-- 예상 UPDATE 카운트: {n_rows}\n"
+        f"\n"
+        f"UPDATE stocks\n"
+        f"SET reporting_currency = '{currency}', reporting_currency_at = now()\n"
+        f"WHERE ticker = '{ticker}' AND reporting_currency = '{EXPECTED_CURRENCY}';\n"
+        f"-- 예상 UPDATE 카운트: 1\n"
+        f"\n"
+        f"COMMIT;\n"
+    )
+
+
+def isolate_non_krw(
+    conn, cursor, ticker: str, currency: str, state: NonKrwRun, header: str
+) -> tuple[bool, str]:
+    """트랜잭션 1개로 격리 → (적용 여부, 요약 또는 사유). SELECT … FOR UPDATE 스냅샷을 before.json 으로
+    남긴 뒤 수치 NULL · stocks.reporting_currency 갱신. rowcount 가 어긋나면 ROLLBACK.
+    connection 절단류는 그대로 올린다(호출측 재연결)."""
+    cols = ["id", "year", "quarter", "report_type", *_ISOLATE_COLS]
+    try:
+        cursor.execute(
+            f"SELECT {', '.join(cols)} FROM financial_statements "
+            "WHERE ticker = %s ORDER BY year, quarter FOR UPDATE",
+            (ticker,),
+        )
+        rows = cursor.fetchall()
+        os.makedirs(state.out_dir, exist_ok=True)
+        _dump_json(
+            os.path.join(state.out_dir, f"{ticker}_before.json"),
+            [dict(zip(cols, r)) for r in rows],
+        )
+        cursor.execute(
+            "UPDATE financial_statements SET "
+            + ", ".join(f"{c} = NULL" for c in _ISOLATE_COLS)
+            + " WHERE ticker = %s",
+            (ticker,),
+        )
+        if cursor.rowcount != len(rows):
+            conn.rollback()
+            return False, f"UPDATE {cursor.rowcount} ≠ {len(rows)}"
+        cursor.execute(
+            "UPDATE stocks SET reporting_currency = %s, reporting_currency_at = now() "
+            "WHERE ticker = %s AND reporting_currency = %s",
+            (currency, ticker, EXPECTED_CURRENCY),
+        )
+        if cursor.rowcount != 1:
+            conn.rollback()
+            return False, f"stocks 갱신 {cursor.rowcount}행 (reporting_currency 가 KRW 가 아님)"
+        conn.commit()
+    except _DB_RETRY_EXC:
+        raise
+    except Exception as e:
+        conn.rollback()
+        return False, f"예외 {e!r}"
+    with open(os.path.join(state.out_dir, f"isolate_{ticker}.sql"), "w", encoding="utf-8") as f:
+        f.write(header + render_isolation_sql(ticker, currency, len(rows)))
+    return True, f"rows={len(rows)}"
+
+
+def try_isolate_non_krw(
+    conn,
+    cursor,
+    ticker: str,
+    corp_code: str,
+    bsns_year: str,
+    reprt_code: str,
+    data: dict,
+    known_non_krw: dict[str, str],
+    state: NonKrwRun,
+) -> bool:
+    """신규 non-KRW 발견 처리 — 게이트를 전부 통과한 건만 격리·등록. 로그·summary 에 남기고 적용 여부 반환."""
+    period = f"{bsns_year}/{reprt_code}"
+    rcept_no = data.get("_rcept_no")
+    currency, note = decide_non_krw_isolation(
+        cursor, ticker, corp_code, bsns_year, reprt_code, data, state
+    )
+    applied = False
+    if currency is None:
+        conn.rollback()  # 게이트의 SELECT 로 열린 트랜잭션 정리
+    else:
+        header = (
+            f"-- fetch_financials.py 생성 · {state.stamp} · run {state.run_id or 'local'}\n"
+            f"-- {ticker} 표시통화 {currency} — {period} 공시(rcept_no {rcept_no})에서 발견.\n"
+            f"-- 같은 블록을 run 안에서 한 트랜잭션으로 적용했다. 추적용 기록 — 다시 돌리지 말 것.\n"
+            f"-- 원복은 stocks.reporting_currency 를 KRW 로 되돌린 뒤 {ticker}_before.json 의 값으로 UPDATE.\n\n"
+        )
+        applied, note = isolate_non_krw(conn, cursor, ticker, currency, state, header)
+    if applied:
+        known_non_krw[ticker] = currency
+        state.remaining -= 1
+        logger.warning(
+            "[NON_KRW_ISOLATED] ticker=%s period=%s currency=%s %s rcept_no=%s",
+            ticker, period, currency, note, rcept_no,
+        )
+    else:
+        logger.error(
+            "[NON_KRW_DECLINED] ticker=%s period=%s currency=%s rcept_no=%s — %s",
+            ticker, period, data.get("_non_krw_currency"), rcept_no, note,
+        )
+    state.entries.append(
+        {
+            "ticker": ticker,
+            "period": period,
+            "rcept_no": rcept_no,
+            "currency": currency or data.get("_non_krw_currency"),
+            "status": "isolated" if applied else "declined",
+            "note": note,
+        }
+    )
+    return applied
+
+
+def update_known_currency(conn, cursor, ticker: str, known_non_krw: dict[str, str], data: dict) -> None:
+    """등록 종목의 공시 통화가 등록값과 다르면(CNY→USD 전환 등) 컬럼만 따라 바꾼다 — 격리는 이미 돼 있다."""
+    currencies = set(data.get("_currencies") or ())
+    if len(currencies) != 1:
+        return
+    new = next(iter(currencies))
+    if new == EXPECTED_CURRENCY or new == known_non_krw.get(ticker):
+        return
+    try:
+        cursor.execute(
+            "UPDATE stocks SET reporting_currency = %s, reporting_currency_at = now() WHERE ticker = %s",
+            (new, ticker),
+        )
+        conn.commit()
+    except _DB_RETRY_EXC:
+        raise
+    except Exception as e:
+        conn.rollback()
+        logger.error("reporting_currency 갱신 실패 %s: %s", ticker, e)
+        return
+    logger.warning(
+        "[NON_KRW_CURRENCY_CHANGE] ticker=%s %s → %s", ticker, known_non_krw.get(ticker), new
+    )
+    known_non_krw[ticker] = new
 
 
 def mark_non_filer(conn, cursor, ticker: str, name: str) -> None:
@@ -675,12 +919,16 @@ def run(
     existing_keys: set[tuple],
     force: bool = False,
     ticker_filter: Optional[set] = None,
-) -> Optional[tuple[int, int, int, int]]:
-    """반환값: (cap_skip, known_skip, new_non_krw_skip, value_cap_skip).
+    known_non_krw: Optional[dict[str, str]] = None,
+    non_krw_state: Optional[NonKrwRun] = None,
+) -> Optional[tuple[int, int, int, int, int]]:
+    """반환값: (cap_skip, known_skip, new_non_krw_skip, value_cap_skip, isolated).
     cap_skip = new_non_krw_skip + value_cap_skip 이며, 호출측의 exit 판정에 사용.
-    known_skip 은 알람 노이즈 억제 대상이라 cap_skip 에 포함하지 않는다.
+    known_skip·isolated 는 알람 노이즈 억제 대상이라 cap_skip 에 포함하지 않는다.
+    new_non_krw_skip 은 격리까지 거절된 건만 센다 (non_krw_state 가 None 이면 전부).
     종목 목록 조회 실패는 None — 대상 0종목과 구분해 호출측 exit 판정에 쓴다.
     """
+    known_non_krw = {} if known_non_krw is None else known_non_krw
     conn = get_connection()
     cursor = conn.cursor()
     try:
@@ -707,8 +955,8 @@ def run(
     )
 
     success, skip, error = 0, 0, 0
-    # cap_skip = new_non_krw_skip + value_cap_skip (exit 기여). known_skip 은 별도.
-    new_non_krw_skip, value_cap_skip, known_skip = 0, 0, 0
+    # cap_skip = new_non_krw_skip + value_cap_skip (exit 기여). known_skip·isolated 는 별도.
+    new_non_krw_skip, value_cap_skip, known_skip, isolated = 0, 0, 0, 0
 
     for i, (ticker, corp_code, name) in enumerate(corps, 1):
         # period 내부 루프에서 일정 간격마다 커넥션 재생성 (연속 스킵 시 Neon SSL 타임아웃 방지)
@@ -761,7 +1009,8 @@ def run(
         else:
             try:
                 result = insert_financial(
-                    conn, cursor, ticker, corp_code, bsns_year, reprt_code, data
+                    conn, cursor, ticker, corp_code, bsns_year, reprt_code, data,
+                    known_non_krw=known_non_krw,
                 )
             except _DB_RETRY_EXC:
                 logger.warning("[WARN] DB 재연결 후 재시도: %s", ticker)
@@ -777,7 +1026,8 @@ def run(
                 cursor = conn.cursor()
                 try:
                     result = insert_financial(
-                        conn, cursor, ticker, corp_code, bsns_year, reprt_code, data
+                        conn, cursor, ticker, corp_code, bsns_year, reprt_code, data,
+                        known_non_krw=known_non_krw,
                     )
                 except _DB_RETRY_EXC as e2:
                     logger.error("[%s] DB 재시도 실패, 스킵: %s", ticker, e2)
@@ -789,11 +1039,29 @@ def run(
                 success += 1
             elif result == "known_skip":
                 known_skip += 1
+                try:
+                    update_known_currency(conn, cursor, ticker, known_non_krw, data)
+                except _DB_RETRY_EXC as e:
+                    logger.warning("[WARN] 통화 갱신 중 연결 절단, 다음 run 에 맡김: %s (%s)", ticker, e)
+                    conn, cursor = _reopen(conn, cursor)
             elif result == "gate_skip":
                 # sub-bucket 판정 — insert_financial 는 두 케이스 모두 "gate_skip"
                 # 반환(관측 연속성 유지)이므로 data 플래그로 구분한다.
                 if data.get("_non_krw_currency"):
-                    new_non_krw_skip += 1
+                    applied = False
+                    if non_krw_state is not None:
+                        try:
+                            applied = try_isolate_non_krw(
+                                conn, cursor, ticker, corp_code, bsns_year, reprt_code,
+                                data, known_non_krw, non_krw_state,
+                            )
+                        except _DB_RETRY_EXC as e:
+                            logger.error("[NON_KRW_DECLINED] ticker=%s — 격리 중 연결 절단 %s", ticker, e)
+                            conn, cursor = _reopen(conn, cursor)
+                    if applied:
+                        isolated += 1
+                    else:
+                        new_non_krw_skip += 1
                 else:
                     value_cap_skip += 1
             else:  # "error"
@@ -802,19 +1070,20 @@ def run(
 
         if i % 100 == 0:
             logger.info(
-                "진행: %d/%d (성공=%d, 스킵=%d, 게이트skip=%d, known=%d, 오류=%d)",
+                "진행: %d/%d (성공=%d, 스킵=%d, 게이트skip=%d, known=%d, 격리=%d, 오류=%d)",
                 i,
                 total,
                 success,
                 skip,
                 new_non_krw_skip + value_cap_skip,
                 known_skip,
+                isolated,
                 error,
             )
 
     cap_skip = new_non_krw_skip + value_cap_skip
     logger.info(
-        "완료 %s Q%s: 성공=%d, 스킵=%d, 게이트skip=%d(신규 non-KRW=%d, VALUE_CAP=%d), known=%d, 오류=%d",
+        "완료 %s Q%s: 성공=%d, 스킵=%d, 게이트skip=%d(신규 non-KRW=%d, VALUE_CAP=%d), known=%d, 격리=%d, 오류=%d",
         bsns_year,
         quarter,
         success,
@@ -823,11 +1092,12 @@ def run(
         new_non_krw_skip,
         value_cap_skip,
         known_skip,
+        isolated,
         error,
     )
     cursor.close()
     conn.close()
-    return cap_skip, known_skip, new_non_krw_skip, value_cap_skip
+    return cap_skip, known_skip, new_non_krw_skip, value_cap_skip, isolated
 
 
 def get_available_reports(years_back: int = 5) -> list[tuple[str, str]]:
@@ -903,19 +1173,26 @@ def main():
         )
         if answer.strip() not in ("y", "Y"):
             sys.exit(0)
+    conn = get_connection()
+    cursor = conn.cursor()
+    if args.force:
         existing_keys = set()
         logger.info("--force 모드: existing_keys 무시, 전체 재적재")
     else:
-        conn = get_connection()
-        cursor = conn.cursor()
         existing_keys = get_existing_keys(cursor)
-        cursor.close()
-        conn.close()
         logger.info("기존 적재 키 수: %d", len(existing_keys))
+    known_non_krw = get_non_krw_tickers(cursor)
+    cursor.close()
+    conn.close()
+    logger.info("non-KRW 등록 종목 수: %d", len(known_non_krw))
+    non_krw_state = NonKrwRun(
+        datetime.now().strftime("%Y%m%d_%H%M%S"), os.getenv("GITHUB_RUN_ID")
+    )
     total_cap_skip = 0
     total_known_skip = 0
     total_new_non_krw = 0
     total_value_cap = 0
+    total_isolated = 0
     lookup_failed = 0
     for bsns_year, reprt_code in reports:
         result = run(
@@ -924,15 +1201,23 @@ def main():
             existing_keys=existing_keys,
             force=args.force,
             ticker_filter=ticker_filter,
+            known_non_krw=known_non_krw,
+            non_krw_state=non_krw_state,
         )
         if result is None:
             lookup_failed += 1
             continue
-        cap, known, non_krw, cap_v = result
+        cap, known, non_krw, cap_v, isolated = result
         total_cap_skip += cap
         total_known_skip += known
         total_new_non_krw += non_krw
         total_value_cap += cap_v
+        total_isolated += isolated
+    non_krw_state.dump_summary()
+    if total_isolated:
+        logger.warning(
+            "[NON_KRW_ISOLATED] %d종목 격리·등록 — %s", total_isolated, non_krw_state.out_dir
+        )
 
     conn = get_connection()
     cursor = conn.cursor()
@@ -958,10 +1243,11 @@ def main():
         logger.error("[CORPS_LOOKUP] 전 period %d개 종목 목록 조회 실패 — 적재 0", lookup_failed)
         sys.exit(1)
 
-    # exit 판정 — cap_skip(신규 non-KRW + VALUE_CAP) 만 기여. known 은 알람 억제.
+    # exit 판정 — cap_skip(격리 거절 non-KRW + VALUE_CAP) 만 기여. known·격리 완료는 알람 억제.
     if total_cap_skip > 0:
         logger.error(
-            "[GATE_SKIP] 신규 non-KRW=%d · VALUE_CAP=%d · known=%d — 신규 건 원인 검토·격리 SQL 검토 필요",
+            "[GATE_SKIP] 격리 거절 non-KRW=%d · VALUE_CAP=%d · known=%d — [NON_KRW_DECLINED] 사유 검토, "
+            "web/sql/isolate_non_krw_ticker.sql 로 수동 격리",
             total_new_non_krw,
             total_value_cap,
             total_known_skip,
