@@ -10,20 +10,32 @@ type StockRow = {
   sector: string | null;
   shares: number | null;
   listed_at: Date | null;
+  reporting_currency: string;
   is_active: number;
   updated_at: Date;
 };
 
-type ActiveStockRow = Pick<StockRow, "ticker" | "name" | "market" | "sector" | "shares">;
+type ActiveStockRow = Pick<
+  StockRow,
+  "ticker" | "name" | "market" | "sector" | "shares" | "reporting_currency"
+>;
 
-// getStockByTicker·getShares 가 공유하는 요청 단위 조회 — 한 요청에서 stocks 행을 한 번만 읽는다.
+// getStockByTicker·getShares·getNonKrwCurrency 가 공유하는 요청 단위 조회 — 한 요청에서 stocks 행을 한 번만 읽는다.
 const getActiveStockRow = cache(async (ticker: string): Promise<ActiveStockRow | null> => {
   const [rows] = await pool.query<ActiveStockRow[]>(
-    "SELECT ticker, name, market, sector, shares FROM stocks WHERE ticker = $1 AND is_active = true",
+    "SELECT ticker, name, market, sector, shares, reporting_currency FROM stocks WHERE ticker = $1 AND is_active = true",
     [ticker]
   );
   return rows[0] ?? null;
 });
+
+// 재무제표를 원화가 아닌 통화로 공시하는 종목의 표시통화, KRW 종목은 null. collector 가 이 종목의 재무 수치를
+// NULL 로 격리하므로 재무 슬레이트·핵심 지표는 지표 대신 안내를 보인다.
+export const getNonKrwCurrency = async (ticker: string): Promise<string | null> => {
+  const row = await getActiveStockRow(ticker);
+  if (!row || row.reporting_currency === "KRW") return null;
+  return row.reporting_currency;
+};
 
 export const getStockByTicker = cache(async (ticker: string): Promise<StockSummary | null> => {
   const row = await getActiveStockRow(ticker);

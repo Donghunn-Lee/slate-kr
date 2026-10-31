@@ -6,9 +6,8 @@ import {
   getFinancials,
   computeTtmEps,
 } from "@/lib/financials";
-import { getListedAt } from "@/lib/stocks";
+import { getListedAt, getNonKrwCurrency } from "@/lib/stocks";
 import { formatRatio, formatEps, formatPercent } from "@/shared/format";
-import { isNonKrwTicker } from "@/shared/constants/nonKrwTickers";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { NonKrwNotice } from "./NonKrwNotice";
 import { StockPanel } from "./StockPanel";
@@ -44,23 +43,27 @@ type StockMetricsProps = {
 };
 
 export const StockMetrics = async ({ ticker }: StockMetricsProps) => {
-  if (isNonKrwTicker(ticker)) {
-    return (
-      <StockPanel variant="peach">
-        <NonKrwNotice ticker={ticker} />
-      </StockPanel>
-    );
-  }
-
-  const [priceResult, financialsResult, listedAtResult] = await Promise.allSettled([
-    getLatestPrice(ticker),
-    getFinancials(ticker),
-    getListedAt(ticker),
-  ]);
+  const [currencyResult, priceResult, financialsResult, listedAtResult] =
+    await Promise.allSettled([
+      getNonKrwCurrency(ticker),
+      getLatestPrice(ticker),
+      getFinancials(ticker),
+      getListedAt(ticker),
+    ]);
   // 상장일 실패는 연환산 EPS 대신 연간 EPS 로 내려갈 뿐이라 표시 없이 로그만 남긴다.
+  // 표시통화 실패는 KRW 로 보고 지표 경로를 탄다 — 그 종목의 재무는 격리돼 비어 있어 "—" 로 드러난다.
+  logRejected(ticker, "reportingCurrency", currencyResult);
   logRejected(ticker, "price", priceResult);
   logRejected(ticker, "financials", financialsResult);
   logRejected(ticker, "listedAt", listedAtResult);
+
+  if (currencyResult.status === "fulfilled" && currencyResult.value) {
+    return (
+      <StockPanel variant="peach">
+        <NonKrwNotice currency={currencyResult.value} />
+      </StockPanel>
+    );
+  }
 
   const price: StockPriceSnapshot | null =
     priceResult.status === "fulfilled" ? priceResult.value : null;

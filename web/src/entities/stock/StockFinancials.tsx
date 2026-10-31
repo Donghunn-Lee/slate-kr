@@ -1,6 +1,6 @@
 import type { FinancialPeriod } from "@/shared/types/stock";
 import { getFinancials } from "@/lib/financials";
-import { isNonKrwTicker } from "@/shared/constants/nonKrwTickers";
+import { getNonKrwCurrency } from "@/lib/stocks";
 import { NonKrwNotice } from "./NonKrwNotice";
 import { StockPanel } from "./StockPanel";
 import { StockFinancialsClient } from "./StockFinancialsClient";
@@ -12,8 +12,24 @@ type StockFinancialsProps = {
 };
 
 export const StockFinancials = async ({ ticker, viewAllHref, compact }: StockFinancialsProps) => {
-  if (isNonKrwTicker(ticker)) {
-    const notice = <NonKrwNotice ticker={ticker} />;
+  let nonKrwCurrency: string | null = null;
+  let annual: FinancialPeriod[] = [];
+  let quarterly: FinancialPeriod[] = [];
+  let hasError = false;
+
+  try {
+    nonKrwCurrency = await getNonKrwCurrency(ticker);
+    if (!nonKrwCurrency) {
+      const result = await getFinancials(ticker);
+      annual = result.annual.slice(0, 5);
+      quarterly = result.quarterly.slice(0, 4);
+    }
+  } catch {
+    hasError = true;
+  }
+
+  if (nonKrwCurrency) {
+    const notice = <NonKrwNotice currency={nonKrwCurrency} />;
     return compact ? (
       // grid stretch 로 늘어난 패널 높이에 맞춰 노티스를 세로 중앙 정렬.
       <StockPanel variant="amber" className="flex items-center">
@@ -22,18 +38,6 @@ export const StockFinancials = async ({ ticker, viewAllHref, compact }: StockFin
     ) : (
       notice
     );
-  }
-
-  let annual: FinancialPeriod[] = [];
-  let quarterly: FinancialPeriod[] = [];
-  let hasError = false;
-
-  try {
-    const result = await getFinancials(ticker);
-    annual = result.annual.slice(0, 5);
-    quarterly = result.quarterly.slice(0, 4);
-  } catch {
-    hasError = true;
   }
 
   const isEmpty = annual.length === 0 && quarterly.length === 0;
