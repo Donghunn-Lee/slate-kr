@@ -58,6 +58,7 @@ AI 없이도 설득력 있어야 한다. AI는 투자 판단 도구가 아니라
   - placeholder: `$1, $2` (PostgreSQL 스타일)
 - **DB 마이그레이션**: `web/sql/*.sql`에 DDL·데이터 보정 DML·운영 템플릿을 추적, Neon 콘솔 수동 적용 (자동 실행 도구 없음)
   - 예외: 감지된 기업행위 rescale만 Daily의 `rescale_corp_actions.py`가 게이트 전부 통과 시 적용하고 원장 `corp_action_rescales`에 기록. `web/sql` rescale 파일은 원장의 `sql`에서 옮겨 커밋
+  - 예외: 신규 non-KRW 재무 격리는 Weekly의 `fetch_financials.py`가 게이트 전부 통과 시 적용(수치 NULL + `stocks.reporting_currency`)하고 artifact `non-krw-<run id>`에 SQL·스냅샷을 남긴다. 거절 건은 `web/sql/isolate_non_krw_ticker.sql`로 수동
 - **데이터 수집**: Python (collector/)
   - 일일(20:12 KST): fetch_market_calendar.py (KIS 휴장일) / fetch_stocks.py (FSS) / fetch_daily_close.py (KIS J 멀티시세, 국내 종목 20:00 캔들 + base_price)
     / fetch_index_prices.py (KIS, 국내 지수 4종 EOD) / fetch_overseas_indices.py (KIS, 해외 지수 8종)
@@ -335,6 +336,7 @@ SlateKR의 UI는 "slate(판)" 개념을 기반으로 한다.
 - **기업행위 후속**: 같은 run의 `rescale_corp_actions.py`가 자동 처리 — `kis_adj=1` · factor(재적재 전후 9/11 close 비)가 사건 비율과 일치 · 구간 한 축 등 게이트를 전부 통과한 종목만 ≤9/11 재적재와 9/14 이후 rescale을 한 트랜잭션으로 적용한다. 권리락 등 실거래 구간은 가격 ×f와 함께 volume ÷f
 - **기업행위 수동**: 자동 처리가 거절한 건(step exit 1 · verify FAIL, artifact에 SQL · summary)은 `backfill_prices_kis.py --tickers` 재실행 후 `web/sql/rescale_corporate_action.sql` 로 rescale. `kis_adj=0`(KIS 미조정)은 행을 손대지 않고 원인 확인 후 `KNOWN_BASE_ADJ`에 등록
 - **shares·bps 불변식**: `financial_statements.bps` = `total_equity` ÷ 현재 `stocks.shares`. shares를 바꾸는 `fetch_shares`는 같은 트랜잭션에서 `fetch_financials.sync_bps`로 bps를 맞추고, `fetch_financials`도 적재 후 `sync_bps`를 돈다
+- **non-KRW 재무**: 원화가 아닌 표시통화로 공시하는 종목은 `stocks.reporting_currency`가 단일 소스. `fetch_financials`는 등록 종목의 외화 공시를 WARN·exit 미기여로 건너뛰고(통화 미표기도 KRW 복귀로 보지 않음), 신규 발견은 같은 공시 단일 통화 · 직전 period 같은 통화 · run당 상한 게이트를 전부 통과하면 수치 7컬럼 NULL과 컬럼 갱신을 한 트랜잭션으로 적용한다. 직전 period가 KRW면 전환 시점 판단이 필요해 거절(exit 1). web은 이 컬럼으로 재무 슬레이트·핵심 지표 대신 안내를 보인다
 - **비ZIP DART 응답**: 집합투자증권 등 일부 공시가 ZIP이 아닌 status=014 XML 반환. 제목 키워드로 사전 필터링 불가 → 호출 시점에서 분기 처리.
 - **공시 분류**: 비중요 공시는 `null` 반환. `GENERAL` 같은 포괄 fallback 없음 — 배지는 주가 관련성 신호이므로.
 - **Neon serverless HTTP**: bigint를 string으로 반환 → OID 20 후처리 필요
