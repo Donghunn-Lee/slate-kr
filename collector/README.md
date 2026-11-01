@@ -16,10 +16,11 @@ GitHub Actions 수집 워크플로우 6개는 전부 `workflow_dispatch`이고 c
 
 종목 일봉은 애프터마켓 체결을 포함한 KRX 20:00 마감 캔들이고, 거래일 20:12 KIS 시세로 적재합니다. 등락률은 전일 정규장 종가 기준입니다. 네이버 차트와는 일부 종목에서 거래량 · 종가가 다를 수 있습니다.
 
-## 기업행위와 백필
+## 기업행위 · 외화 재무 · 백필
 
 - 분할 · 병합 같은 기업행위로 기준가가 직전 봉 범위를 벗어난 종목은, Daily가 네 가지 검증(KIS 수정주가 반영 · 재적재 전후 비율 일치 · 사건 비율 · 구간 안 비율 단일)을 전부 통과한 건만 과거 일봉을 재적재 · rescale하고 처리 이력 테이블(원장)에 기록합니다.
 - 거절 건과 결손 보충은 백필 스크립트로 수동 실행합니다: `backfill_prices.py` 결손 채움 · `backfill_prices_kis.py` 수정주가 · `backfill_index_prices.py` 국내 지수 · `backfill_overseas_index_prices.py` 해외 지수 · `fetch_prices.py` 과거 증분.
+- 재무제표를 원화가 아닌 통화로 공시하는 종목은 `stocks.reporting_currency`에 등록하고 재무 수치를 NULL로 격리합니다. Weekly가 새로 발견한 종목은 세 조건(같은 공시 안 단일 통화 · 직전 보고서도 같은 통화 · run당 3건 이하)을 전부 통과한 건만 한 트랜잭션으로 격리 · 등록하고, 적용한 SQL과 변경 전 스냅샷을 run artifact에 남깁니다. 거절된 건은 `web/sql/isolate_non_krw_ticker.sql`로 수동 처리합니다.
 
 `backfill_prices.py`는 수집 워크플로우에 없는 pykrx를 쓰므로, 이 스크립트로 백필할 때만 아래 명령으로 설치합니다.
 
