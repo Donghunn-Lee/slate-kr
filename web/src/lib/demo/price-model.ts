@@ -737,14 +737,15 @@ export const quoteAt = (
   const bars = buildIntradayBars(ticker, profile, tradingDate, today, channel, untilMin);
   const cutoffSec = kstFakeUtcSec(tradingDate, untilMin);
   const basePrice = prev.regularClose;
-  let price = prev.close;
+  let price = basePrice;
   let open = 0;
   let high = 0;
   let low = 0;
   let volume = 0;
   let seen = false;
-  // 오늘 봉이 하나도 없는 개장 전 창은 전일 종가 + OHL 0 — 소비측(mergeLiveDayBar 등)이 OHL 0 을
-  // "당일 체결 없음" 으로 읽는다.
+  // 오늘 봉이 하나도 없는 개장 전 창(J, NXT 미취급 UN 의 08:00~09:00)은 실제 J quote 처럼 전일 정규장
+  // 종가 · 등락 0 + OHL 0 — 08:00 에 기준가가 오늘로 리셋되고 KRX 체결은 09:00 부터다.
+  // 소비측(mergeLiveDayBar 등)이 OHL 0 을 "당일 체결 없음" 으로 읽는다.
   for (const bar of bars) {
     if (bar.timestamp > cutoffSec) break;
     if (!seen) {

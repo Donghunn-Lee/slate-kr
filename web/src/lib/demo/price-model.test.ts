@@ -241,14 +241,38 @@ describe("7. quoteAt", () => {
     expect(afterClose).toEqual(sat);
   });
 
-  it("비NXT 개장 전(08:30) — 전일 20:00 종가 + OHL 0", () => {
-    const { ticker, profile } = KRX_ONLY;
+  // NXT 종목도 J 채널은 KRX 축이라 프리마켓을 보지 않는다
+  it.each([
+    { ...KRX_ONLY, channel: "UN" as const },
+    { ...KRX_ONLY, channel: "J" as const },
+    { ...NXT, channel: "J" as const },
+  ])("$ticker $channel 개장 전(08:30) — 전일 정규장 종가 · 등락 0 + OHL 0", ({ ticker, profile, channel }) => {
     const [prev] = dayBars(ticker, profile);
+    const q = quoteAt(ticker, profile, kst(TODAY, "0830"), channel);
+    expect(q).toEqual({
+      ticker,
+      price: prev.regularClose,
+      change: 0,
+      changeRate: 0,
+      sign: "flat",
+      open: 0,
+      high: 0,
+      low: 0,
+      volume: 0,
+    });
+  });
+
+  it("NXT UN 개장 전(08:30) — 프리마켓 분봉의 지금까지", () => {
+    const { ticker, profile } = NXT;
+    const [prev, today] = dayBars(ticker, profile);
+    const bars = generateIntradayBars(ticker, profile, TODAY, prev, today, "UN") as DemoMinuteBar[];
+    const upTo = bars.filter((b) => minuteOf(b) <= hhmm(8, 30));
     const q = quoteAt(ticker, profile, kst(TODAY, "0830"), "UN") as NonNullable<ReturnType<typeof quoteAt>>;
-    expect(q.price).toBe(prev.close);
-    expect(q.change).toBe(prev.close - prev.regularClose);
-    expect(q.open).toBe(0);
-    expect(q.volume).toBe(0);
+    expect(q.price).toBe(upTo[upTo.length - 1].close);
+    expect(q.change).toBe(q.price - prev.regularClose);
+    expect(q.open).toBe(today.open);
+    expect(q.volume).toBe(upTo.reduce((s, b) => s + b.volume, 0));
+    expect(q.volume).toBeGreaterThan(0);
   });
 });
 
