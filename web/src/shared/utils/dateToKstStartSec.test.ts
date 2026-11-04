@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { dateToKstStartSec } from "./dateToKstStartSec";
 
-// KST 시각을 fake-utc epoch sec 로 인코딩 (kis-quote-fetch 의 kstToFakeUtcSec 와 동형).
+// KST 시각을 fake-utc epoch sec 로 인코딩 (분봉 timestamp 규칙과 동형).
 // 테스트에서는 서버 모듈 의존 피해 로컬 helper 로 재구현.
 const fakeUtcSec = (yyyyMmDd: string, hhmm: string): number => {
   const [y, m, d] = yyyyMmDd.split("-").map(Number);

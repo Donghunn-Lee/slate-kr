@@ -123,9 +123,16 @@ const MINUTE_SEC = 60;
 
 // ── 달력 ─────────────────
 const pad2 = (n: number): string => String(n).padStart(2, "0");
+// 날짜 문자열 파싱은 워크 한 스텝의 가장 비싼 연산이라 날짜별로 한 번만 한다(구별 날짜 수천 개).
+const dateToMsMemo = new Map<string, number>();
 const dateToMs = (date: string): number => {
-  const [y, m, d] = date.split("-").map(Number);
-  return Date.UTC(y, m - 1, d);
+  let ms = dateToMsMemo.get(date);
+  if (ms === undefined) {
+    const [y, m, d] = date.split("-").map(Number);
+    ms = Date.UTC(y, m - 1, d);
+    dateToMsMemo.set(date, ms);
+  }
+  return ms;
 };
 const msToDate = (ms: number): string => {
   const d = new Date(ms);
@@ -136,13 +143,39 @@ const isTradingDate = (date: string): boolean => {
   return dow !== 0 && dow !== 6 && !isKrxHoliday(date);
 };
 
-export const listTradingDates = (from: string, to: string): string[] => {
+const scanTradingDates = (from: string, to: string): string[] => {
   const out: string[] = [];
   for (let t = dateToMs(from); t <= dateToMs(to); t += DAY_MS) {
     const date = msToDate(t);
     if (isTradingDate(date)) out.push(date);
   }
   return out;
+};
+
+// 거래일 표 — 이력 범위를 덮는 고정 구간을 한 번 세워 두고 창은 이진 탐색으로 자른다.
+// 종목마다 날짜를 다시 세면 수천 종목 프로필 조립의 절반이 달력 산술이 된다.
+const CALENDAR_START = "2015-01-01";
+const CALENDAR_END = "2027-12-31";
+let tradingDateTable: string[] | null = null;
+
+const lowerBound = (table: readonly string[], date: string): number => {
+  let lo = 0;
+  let hi = table.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (table[mid] < date) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+};
+
+export const listTradingDates = (from: string, to: string): string[] => {
+  if (from < CALENDAR_START || to > CALENDAR_END) return scanTradingDates(from, to);
+  tradingDateTable ??= scanTradingDates(CALENDAR_START, CALENDAR_END);
+  const start = lowerBound(tradingDateTable, from);
+  const end = lowerBound(tradingDateTable, to);
+  const inclusive = tradingDateTable[end] === to ? end + 1 : end;
+  return tradingDateTable.slice(start, inclusive);
 };
 
 const snapToTradingDate = (date: string): string =>
@@ -171,9 +204,29 @@ const limitBand = (base: number): Band => ({
 });
 const clampTo = (p: number, band: Band): number => Math.min(band.hi, Math.max(band.lo, p));
 
+// 기준가 대비 상한가 · 하한가. 순위의 상 · 하한 판정이 같은 틱 규칙을 본다.
+export const limitPrices = (basePrice: number): { lower: number; upper: number } => {
+  const band = limitBand(basePrice);
+  return { lower: band.lo, upper: band.hi };
+};
+
 // ── 시장 팩터 ─────────────────
-export const marketReturnDaily = (market: DemoMarket, date: string): number =>
-  MARKET_SIGMA[market] * gaussian(createRng(hashSeed("market", market, date)));
+// 같은 날 값을 모든 종목이 보므로 시장 · 날짜별로 한 번만 뽑는다.
+const marketReturnMemo = new Map<DemoMarket, Map<string, number>>();
+
+export const marketReturnDaily = (market: DemoMarket, date: string): number => {
+  let byDate = marketReturnMemo.get(market);
+  if (!byDate) {
+    byDate = new Map();
+    marketReturnMemo.set(market, byDate);
+  }
+  let r = byDate.get(date);
+  if (r === undefined) {
+    r = MARKET_SIGMA[market] * gaussian(createRng(hashSeed("market", market, date)));
+    byDate.set(date, r);
+  }
+  return r;
+};
 
 // ── 프로필 ─────────────────
 const pickTier = (u: number): DemoTier =>
@@ -251,12 +304,22 @@ type DayNoise = {
   zVolume: number;
 };
 
-const dayNoise = (ticker: string, profile: PathProfile, date: string): DayNoise => {
-  const rng = createRng(hashSeed(ticker, date));
+const sigmaDayOf = (profile: PathProfile, date: string): number => {
   const dayIndex = dateToMs(date) / DAY_MS;
   const cluster =
     (Math.sin((2 * Math.PI * dayIndex) / CLUSTER_PERIOD_DAYS + profile.clusterPhase) + 1) / 2;
-  const sigmaDay = profile.sigma * (CLUSTER_FLOOR + CLUSTER_RANGE * cluster);
+  return profile.sigma * (CLUSTER_FLOOR + CLUSTER_RANGE * cluster);
+};
+
+// 종가 경로는 r 만 쓴다 — dayNoise 와 같은 rng 의 첫 추첨이라 값이 같고 나머지 다섯 추첨을 건너뛴다.
+const dayReturn = (ticker: string, profile: PathProfile, date: string): number => {
+  const rng = createRng(hashSeed(ticker, date));
+  return profile.beta * marketReturnDaily("KRX", date) + sigmaDayOf(profile, date) * gaussian(rng);
+};
+
+const dayNoise = (ticker: string, profile: PathProfile, date: string): DayNoise => {
+  const rng = createRng(hashSeed(ticker, date));
+  const sigmaDay = sigmaDayOf(profile, date);
   const r = profile.beta * marketReturnDaily("KRX", date) + sigmaDay * gaussian(rng);
   return {
     r,
@@ -284,7 +347,7 @@ const walkForward = (
   const out: number[] = [];
   let prev = start;
   for (const date of dates) {
-    const { r } = dayNoise(ticker, profile, date);
+    const r = dayReturn(ticker, profile, date);
     prev = clampPrice(
       clampTo(roundTick(prev * Math.exp(r + meanReversion(prev, level))), limitBand(prev)),
     );
@@ -307,7 +370,7 @@ const walkBackward = (
   let next = end;
   let nextDate = dates.length > 0 ? nextTradingDate(dates[dates.length - 1]) : "";
   for (let i = dates.length - 1; i >= 0; i--) {
-    const { r } = dayNoise(ticker, profile, nextDate);
+    const r = dayReturn(ticker, profile, nextDate);
     const lo = Math.max(PRICE_MIN, ceilTick(next / (1 + LIMIT_RATE)));
     const hi = Math.min(PRICE_MAX, floorTick(next / (1 - LIMIT_RATE)));
     next = Math.min(hi, Math.max(lo, roundTick(next / Math.exp(r - meanReversion(next, level)))));
@@ -337,7 +400,7 @@ const bridgeForward = (
   const logs: number[] = new Array(n);
   let acc = Math.log(start);
   for (let i = 0; i < n; i++) {
-    acc += dayNoise(ticker, profile, dates[i]).r;
+    acc += dayReturn(ticker, profile, dates[i]);
     logs[i] = acc;
   }
   const correction = (Math.log(end) - logs[n - 1]) / n;
@@ -587,7 +650,7 @@ const buildSegmentBars = (
 };
 
 // 하루 전체(UN) 경로를 만든 뒤 채널로 자른다 — J 는 08:00~09:00 제외, NX 는 비적격이면 null
-// (KIS 가 비NXT 종목에 NX 로 null 을 주던 동작을 route 가 기대한다).
+// (route 가 NX 채널의 null 을 "NXT 미취급 종목" 신호로 쓴다).
 // 프리마켓은 시가에서 출발해 시가로 돌아오는 브리지 — 전일 20:00 종가에서 출발하면 UN 첫 봉의
 // 시가가 일봉 시가와 어긋나고 전일 종가가 당일 고저 밖에 놓일 수 있다. 갭은 08:00 에 한 번에 생긴다.
 // untilMin 이후에 시작하는 구간은 만들지 않는다 — 현재가는 지나간 봉만 필요하고 구간은 서로 독립이다.
@@ -680,7 +743,8 @@ export const quoteAt = (
   let low = 0;
   let volume = 0;
   let seen = false;
-  // 오늘 봉이 하나도 없는 개장 전 창은 KIS 처럼 전일 종가 + OHL 0.
+  // 오늘 봉이 하나도 없는 개장 전 창은 전일 종가 + OHL 0 — 소비측(mergeLiveDayBar 등)이 OHL 0 을
+  // "당일 체결 없음" 으로 읽는다.
   for (const bar of bars) {
     if (bar.timestamp > cutoffSec) break;
     if (!seen) {

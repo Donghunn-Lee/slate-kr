@@ -1,6 +1,6 @@
 import { revalidateTag, unstable_cache } from "next/cache";
 import { NextResponse } from "next/server";
-import { fetchOverseasIndexQuote } from "@/lib/kis-overseas-quote-fetch";
+import { fetchOverseasIndexQuote } from "@/lib/overseas-index-source";
 import {
   INDEX_LABEL,
   OVERSEAS_INDEX_CODES,

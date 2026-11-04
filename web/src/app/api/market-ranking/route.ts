@@ -1,7 +1,7 @@
 import { revalidateTag, unstable_cache } from "next/cache";
 import { type NextRequest, NextResponse } from "next/server";
 
-import { fetchRanking } from "@/lib/kis-ranking-fetch";
+import { fetchRanking } from "@/lib/ranking-source";
 import { getMarketCalendar } from "@/lib/market-calendar";
 import { getMarketsByTickers } from "@/lib/stocks";
 import {

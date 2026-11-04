@@ -33,8 +33,8 @@ import {
 } from "./demo-price-model";
 
 // 가상 지수 시세. 종목과 같은 날짜 시장 팩터를 보므로 지수가 오른 날 종목 과반이 오른다.
-// KIS 의 특이 케이스(.DJI 분봉 없음 · SPX/NDX 거래량 0 · 해외 지연 분)는 UI · README 가
-// 그 근거로 쓰여 있어 그대로 흉내 낸다.
+// 소비측 UI · README 가 전제하는 특이 케이스(.DJI 분봉 없음 · SPX/NDX 거래량 0 · 해외 지연 분)는
+// 그대로 흉내 낸다.
 
 // 자릿수만 실제와 맞춘 앵커 레벨.
 export const DEMO_INDEX_ANCHOR: Record<IndexCode, number> = {
@@ -419,7 +419,12 @@ const overseasLocalParts = (
   return { date: `${bag.year}-${bag.month}-${bag.day}`, minutes: hour * 60 + Number(bag.minute) };
 };
 
-export const indexQuoteAt = (code: IndexCode, name: string, now: Date): IndexQuote | null => {
+// now 에 보이는 세션 — 봉이 속한 거래일과 마지막으로 보이는 분. 개장 전(거래일은 오늘로 넘어왔지만
+// 봉이 없음)은 직전 거래일의 완결 상태(untilMin 무한). 현재가와 분봉 차트가 같은 커서를 보므로
+// "헤더 = 차트 마지막 봉" 이 구성상 성립한다. isToday = 로컬 오늘의 세션(개장 뒤 · 마감 뒤 포함).
+export type IndexSessionCursor = { date: string; untilMin: number; isToday: boolean };
+
+export const indexSessionCursor = (code: IndexCode, now: Date): IndexSessionCursor => {
   const domestic = isDomestic(code);
   const local = domestic
     ? getKstDateAndMinutes(now)
@@ -427,16 +432,43 @@ export const indexQuoteAt = (code: IndexCode, name: string, now: Date): IndexQuo
   const tradingDate = domestic
     ? getKrxTradingDate(now)
     : getOverseasIndexTradingDate(code as OverseasIndexCode, now);
-  const { startMin, endMin } = sessionWindow(code);
-  // 개장 전(거래일은 오늘로 넘어왔지만 봉이 없음)은 직전 거래일의 완결 상태를 보인다.
-  let effectiveDate = tradingDate;
-  let cutoffMin = Number.POSITIVE_INFINITY;
-  if (local.date === tradingDate) {
-    const delay = domestic ? 0 : (OVERSEAS_INDEX_DELAY_MIN[code as OverseasIndexCode] ?? 0);
-    const m = local.minutes - delay;
-    if (m < startMin) effectiveDate = previousIndexTradingDate(code, tradingDate);
-    else cutoffMin = Math.min(m, endMin);
+  if (local.date !== tradingDate) {
+    return { date: tradingDate, untilMin: Number.POSITIVE_INFINITY, isToday: false };
   }
+  const { startMin, endMin } = sessionWindow(code);
+  const delay = domestic ? 0 : (OVERSEAS_INDEX_DELAY_MIN[code as OverseasIndexCode] ?? 0);
+  const m = local.minutes - delay;
+  if (m < startMin) {
+    return {
+      date: previousIndexTradingDate(code, tradingDate),
+      untilMin: Number.POSITIVE_INFINITY,
+      isToday: false,
+    };
+  }
+  return { date: tradingDate, untilMin: Math.min(m, endMin), isToday: true };
+};
+
+// now 까지의 분봉 — 오늘 세션이면 직전 거래일 전체를 앞에 붙인다(차트가 전일 꼬리를 흐리게 그린다).
+// 각 봉의 change 는 그 봉 거래일의 전일 종가 대비. .DJI 는 분봉을 공개하지 않는다.
+export const indexIntradayBarsAt = (
+  code: IndexCode,
+  now: Date,
+): IndexIntradaySnapshot[] | null => {
+  if (code === ".DJI") return null;
+  const cursor = indexSessionCursor(code, now);
+  const cutoffSec = fakeUtcSec(cursor.date, cursor.untilMin);
+  const today = (generateIndexIntradayBars(code, cursor.date) ?? []).filter(
+    (bar) => bar.timestamp <= cutoffSec,
+  );
+  if (!cursor.isToday) return today;
+  const prevDate = previousIndexTradingDate(code, cursor.date);
+  return [...(generateIndexIntradayBars(code, prevDate) ?? []), ...today];
+};
+
+export const indexQuoteAt = (code: IndexCode, name: string, now: Date): IndexQuote | null => {
+  const domestic = isDomestic(code);
+  const { startMin } = sessionWindow(code);
+  const { date: effectiveDate, untilMin: cutoffMin } = indexSessionCursor(code, now);
   const [prev, today] = dailyPair(code, effectiveDate);
   const bars = intradayPath(code, effectiveDate, prev, today);
   const cutoffSec = fakeUtcSec(effectiveDate, cutoffMin);

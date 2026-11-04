@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import {
   fetchStockIntradayChart,
   type StockIntradayChartResult,
-} from "@/lib/kis-quote-fetch";
+} from "@/lib/quote-source";
 import { getMarketCalendar } from "@/lib/market-calendar";
 import { TickerSchema } from "@/shared/types/schemas";
 import { getKrxSessionState, getKrxTradingDate } from "@/shared/utils/market";

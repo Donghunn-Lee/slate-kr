@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { fetchStockQuote } from "@/lib/kis-quote-fetch";
+import { fetchStockQuote } from "@/lib/quote-source";
 import {
   decideSingleSnapshot,
   fetchQuoteSnapshot,

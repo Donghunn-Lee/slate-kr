@@ -3,7 +3,7 @@ import { isKrxHoliday } from "@/shared/utils/krxHolidays";
 import { getDailyBar, quoteAt } from "./demo-price-model";
 import { getDemoEntry } from "./demo-universe";
 import { fetchClosePricesByQuarter, priceKey } from "./financials";
-import { getIndexDailyPrices, getLatestIndexPrice } from "./indices";
+import { getIndexDailyPrices, getIndexIntradayPrices, getLatestIndexPrice } from "./indices";
 import { getMarketCalendar } from "./market-calendar";
 import {
   getDailyPrices,
@@ -12,6 +12,13 @@ import {
   getPriceSummariesByTickers,
 } from "./prices";
 import { fetchQuoteSnapshot } from "./quote-snapshots";
+import {
+  fetchIndexQuote,
+  fetchMultiQuote,
+  fetchStockIntradayChart,
+  fetchStockQuote,
+} from "./quote-source";
+import { fetchRanking } from "./ranking-source";
 
 // 생성기 경로 정합만 본다 — DB 는 universe 입력(종목 · 재무) 두 쿼리뿐이라 고정 행으로 대체.
 vi.mock("./db", () => ({
@@ -100,5 +107,34 @@ describe("생성기 교체 정합", () => {
   it("6. getMarketCalendar → {} · 2025-10-06 추석은 정적 표 휴장", async () => {
     expect(await getMarketCalendar()).toEqual({});
     expect(isKrxHoliday("2025-10-06")).toBe(true);
+  });
+
+  it("7. 14:00: 헤더 quote = 분봉 마지막 봉 = 멀티 시세 = 순위 안 가격", async () => {
+    vi.setSystemTime(kst(TODAY, "1400"));
+    const quote = await fetchStockQuote(T, "UN");
+    const chart = await fetchStockIntradayChart(T);
+    const bars = chart?.bars ?? [];
+    expect(quote?.price).toBeGreaterThan(0);
+    expect(bars[bars.length - 1].close).toBe(quote?.price);
+    expect((await fetchMultiQuote([T])).quotes[T]?.price).toBe(quote?.price);
+    const ranking = await fetchRanking({ kind: "volume", by: "volume", market: "all" }, "regular");
+    expect(ranking.ok && ranking.items.find((i) => i.ticker === T)?.price).toBe(quote?.price);
+  });
+
+  it("8. 21:00: 헤더 quote = 스냅샷 un_close = 최신 일봉 close", async () => {
+    const quote = await fetchStockQuote(T, "UN");
+    const { row } = await fetchQuoteSnapshot(T, kst(TODAY, "2100"));
+    expect(row?.un_close).toBe(quote?.price);
+    expect((await getLatestPrice(T))?.close).toBe(quote?.price);
+  });
+
+  it("9. 코스피 quote = 장중 분봉 마지막 close, 마감 후엔 최신 일봉 close", async () => {
+    vi.setSystemTime(kst(TODAY, "1400"));
+    const midday = await fetchIndexQuote("0001");
+    const bars = (await getIndexIntradayPrices("KOSPI")) ?? [];
+    expect(bars[bars.length - 1].close).toBe(midday?.price);
+    vi.setSystemTime(kst(TODAY, "2100"));
+    const evening = await fetchIndexQuote("0001");
+    expect((await getLatestIndexPrice("KOSPI"))?.close).toBe(evening?.price);
   });
 });

@@ -1,13 +1,19 @@
 import { describe, it, expect } from "vitest";
 import { buildMinuteSlots, densifyIntradayBars } from "./densify-intraday-bars";
-import { kstToFakeUtcSec } from "./kis-quote-fetch";
 import { isDomesticSessionGapFill } from "@/shared/utils/intradaySentinel";
 import type { ChartBar } from "@/shared/types/quote";
 
 const DAY = "20260911";
 const PREV = "20260910";
+// KST 벽시계를 UTC 로 위장한 fake-UTC 초 — 분봉 time 인코딩과 같은 규칙.
 const sec = (hhmm: string, date: string = DAY): number =>
-  kstToFakeUtcSec(date, `${hhmm}00`);
+  Date.UTC(
+    Number(date.slice(0, 4)),
+    Number(date.slice(4, 6)) - 1,
+    Number(date.slice(6, 8)),
+    Number(hhmm.slice(0, 2)),
+    Number(hhmm.slice(2, 4)),
+  ) / 1000;
 const bar = (
   hhmm: string,
   close: number,

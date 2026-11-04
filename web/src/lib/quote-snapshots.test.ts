@@ -164,7 +164,7 @@ describe("decideSingleSnapshot", () => {
     expect(decideSingleSnapshot("after", row, true, "nxt")).toEqual({ kind: "fallback" });
   });
 
-  it("대상 세션 + date 캡처 실패(0 rows) → fallback (기존 KIS 경로)", () => {
+  it("대상 세션 + date 캡처 실패(0 rows) → fallback (현재가 경로)", () => {
     expect(decideSingleSnapshot("after_close", undefined, false, null)).toEqual({
       kind: "fallback",
     });

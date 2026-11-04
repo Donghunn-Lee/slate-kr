@@ -15,7 +15,7 @@ import type { MarketCalendar } from "@/shared/types/marketCalendar";
 import type { PriceSign, StockQuote } from "@/shared/types/quote";
 
 // 20:10 마감 스냅샷(UN/NX 통합 시세) 행 조립 + StockQuote 변환.
-// 오프아워 세션(after_close/closed/preopen) quote 서빙에서 KIS 콜을 대체한다.
+// 오프아워 세션(after_close/closed/preopen) quote 는 마감 스냅샷 행으로 서빙한다.
 //
 // (A) un_* 는 NXT 여부와 무관하게 서빙한다. KRX 애프터마켓(16:00~20:00) 은 전 종목이
 //     대상이라 비NXT 종목의 un_close 도 20:00 애프터 종가다. nx_eligible 은 여기서 값을
@@ -77,7 +77,7 @@ export const snapshotToNxQuote = (row: QuoteSnapshotRow): StockQuote | null => {
   };
 };
 
-// 대상 세션 판정 — 라이브 세션(regular/after/pre)은 기존 KIS 경로 유지.
+// 대상 세션 판정 — 라이브 세션(regular/after/pre)은 현재가 경로(quote-source).
 export const isSnapshotSession = (session: KrxSession | undefined): boolean =>
   session === "after_close" || session === "closed" || session === "preopen";
 

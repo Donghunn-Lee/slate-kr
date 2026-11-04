@@ -18,7 +18,7 @@ const withinSettleWindow = (
 
 // 지수 route TTL. session·tradingDate 를 cache key 축으로 넣어
 // 세션·일 경계에서 자동 miss 를 보장한 다음, TTL 은 최소한만 남긴다.
-// regular 60s = 클라 폴링(60s) 과 정렬. 그 외 세션은 폴링 없음 → 3600s 로 KIS 부담 최소화.
+// regular 60s = 클라 폴링(60s) 과 정렬. 그 외 세션은 폴링 없음 → 3600s.
 // 예외: closed 직후 정산 창(마감 +15분 이내) 은 60s — 확정 프린트가 캐시로 굳는 것 방지.
 // stock-intraday 는 활성 세션(after/pre) 폴링을 유지하는 별 정책이라
 // 여기 편입하지 않는다 — 각 route 소유.
@@ -49,7 +49,7 @@ export const overseasIntradayRevalidate = (
 };
 
 // 해외 지수 quote (8종 폴링) TTL. 클라 폴링 60s 와 정렬. idle(KST 05:45~09:00)
-// 은 폴링 중단 창이라 3600s 로 KIS 부담 최소화. EDT 기간 US 마감 직후 정산 창
+// 은 폴링 중단 창이라 3600s. EDT 기간 US 마감 직후 정산 창
 // (05:00~05:45) 은 idle 시작 전이라 active 60s 로 커버된다.
 export const globalOverseasQuoteRevalidate = (
   session: GlobalOverseasSession,

@@ -5,7 +5,7 @@ import type { MarketActionStatus } from "@/shared/types/quote";
 import { getDailyPrices, getLatestKstDate } from "@/lib/prices";
 import { getCorpCode, getShares } from "@/lib/stocks";
 import { getCompanyProfile } from "@/lib/dart";
-import { fetchStockMarketAction } from "@/lib/kis-quote-fetch";
+import { fetchStockMarketAction } from "@/lib/quote-source";
 import { fetchNxEligible } from "@/lib/quote-snapshots";
 import { WatchlistButton } from "@/features/watchlist/WatchlistButton";
 import { MemoButton } from "@/features/memo/MemoButton";

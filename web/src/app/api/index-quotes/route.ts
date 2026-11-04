@@ -1,6 +1,6 @@
 import { revalidateTag, unstable_cache } from "next/cache";
 import { NextResponse } from "next/server";
-import { fetchIndexQuote } from "@/lib/kis-quote-fetch";
+import { fetchIndexQuote } from "@/lib/quote-source";
 import { getLatestIndexPrice } from "@/lib/indices";
 import { getMarketCalendar } from "@/lib/market-calendar";
 import {
