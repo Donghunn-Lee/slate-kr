@@ -1,12 +1,12 @@
 import { cache } from "react";
-import { pool } from "./db";
+import { pool } from "@/lib/db";
 import {
   getTickerProfile,
   listTradingDates,
   type DemoPin,
   type TickerProfile,
-} from "./demo-price-model";
-import { isRowBasisMismatch } from "./financials";
+} from "./price-model";
+import { isRowBasisMismatch } from "@/lib/financials";
 import { getKstDateAndMinutes, getPreviousKrxTradingDate } from "@/shared/utils/market";
 
 // 가상 시세 생성기의 종목 입력(앵커 재무 · 배당 핀 · shares · 상장일)을 DB 에서 한 번에 읽어

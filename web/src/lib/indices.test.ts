@@ -1,5 +1,5 @@
 import { afterEach, describe, it, expect, vi } from "vitest";
-import { generateIndexDailyBars, generateIndexIntradayBars } from "./demo-index-model";
+import { generateIndexDailyBars, generateIndexIntradayBars } from "@/lib/demo/index-model";
 import {
   getIndexIntradayPrices,
   getOverseasIndexIntradayPrices,

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getTickSize } from "./get-tick-size";
+import { getTickSize } from "@/lib/get-tick-size";
 import {
   DEMO_ANCHOR_DATE,
   generateDailyBars,
@@ -12,7 +12,7 @@ import {
   type DemoDailyBar,
   type DemoMinuteBar,
   type TickerProfile,
-} from "./demo-price-model";
+} from "./price-model";
 
 const kst = (date: string, hhmm: string): Date => {
   const [y, m, d] = date.split("-").map(Number);

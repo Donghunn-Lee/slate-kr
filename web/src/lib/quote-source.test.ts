@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
-import { indexQuoteAt } from "./demo-index-model";
-import { getTickerProfile } from "./demo-price-model";
+import { indexQuoteAt } from "@/lib/demo/index-model";
+import { getTickerProfile } from "@/lib/demo/price-model";
 import {
   fetchIndexQuote,
   fetchMultiQuote,
@@ -10,9 +10,9 @@ import {
 } from "./quote-source";
 
 // universe 는 NXT 취급 1 · 비취급 1 두 종목 고정 — DB 없이 채널별 창을 본다.
-vi.mock("./demo-universe", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./demo-universe")>();
-  const { getTickerProfile } = await import("./demo-price-model");
+vi.mock("@/lib/demo/universe", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/demo/universe")>();
+  const { getTickerProfile } = await import("@/lib/demo/price-model");
   const anchor = { eps: 5_000, bps: 40_000 };
   const pick = (nx: boolean): string => {
     for (let i = 1; i < 200; i++) {

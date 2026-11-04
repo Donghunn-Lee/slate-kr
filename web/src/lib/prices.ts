@@ -6,13 +6,13 @@ import type {
   TickerPriceSummary,
 } from "@/shared/types/stock";
 import { format, parseISO, subMonths, subYears } from "date-fns";
-import { generateDailyBars, listTradingDates, type DemoDailyBar } from "./demo-price-model";
+import { generateDailyBars, listTradingDates, type DemoDailyBar } from "@/lib/demo/price-model";
 import {
   getDemoEntry,
   getDemoEodDate,
   getDemoHistoryStart,
   type DemoUniverseEntry,
-} from "./demo-universe";
+} from "@/lib/demo/universe";
 
 type DailyPriceRow = {
   id: number;

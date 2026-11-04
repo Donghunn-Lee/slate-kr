@@ -1,27 +1,27 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { isKrxHoliday } from "@/shared/utils/krxHolidays";
-import { getDailyBar, quoteAt } from "./demo-price-model";
-import { getDemoEntry } from "./demo-universe";
-import { fetchClosePricesByQuarter, priceKey } from "./financials";
-import { getIndexDailyPrices, getIndexIntradayPrices, getLatestIndexPrice } from "./indices";
-import { getMarketCalendar } from "./market-calendar";
+import { getDailyBar, quoteAt } from "./price-model";
+import { getDemoEntry } from "./universe";
+import { fetchClosePricesByQuarter, priceKey } from "@/lib/financials";
+import { getIndexDailyPrices, getIndexIntradayPrices, getLatestIndexPrice } from "@/lib/indices";
+import { getMarketCalendar } from "@/lib/market-calendar";
 import {
   getDailyPrices,
   getLatestKstDate,
   getLatestPrice,
   getPriceSummariesByTickers,
-} from "./prices";
-import { fetchQuoteSnapshot } from "./quote-snapshots";
+} from "@/lib/prices";
+import { fetchQuoteSnapshot } from "@/lib/quote-snapshots";
 import {
   fetchIndexQuote,
   fetchMultiQuote,
   fetchStockIntradayChart,
   fetchStockQuote,
-} from "./quote-source";
-import { fetchRanking } from "./ranking-source";
+} from "@/lib/quote-source";
+import { fetchRanking } from "@/lib/ranking-source";
 
 // 생성기 경로 정합만 본다 — DB 는 universe 입력(종목 · 재무) 두 쿼리뿐이라 고정 행으로 대체.
-vi.mock("./db", () => ({
+vi.mock("@/lib/db", () => ({
   pool: {
     query: async (sql: string) =>
       sql.includes("FROM stocks")

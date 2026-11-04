@@ -1,6 +1,6 @@
 import { cache } from "react";
-import { generateIndexDailyBars, indexIntradayBarsAt } from "./demo-index-model";
-import { DEMO_HISTORY_START, getDemoEodDate } from "./demo-universe";
+import { generateIndexDailyBars, indexIntradayBarsAt } from "@/lib/demo/index-model";
+import { DEMO_HISTORY_START, getDemoEodDate } from "@/lib/demo/universe";
 import { fetchOverseasIndexIntradayChart } from "./overseas-index-source";
 import {
   getIndexMeta,

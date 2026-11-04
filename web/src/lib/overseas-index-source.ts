@@ -1,6 +1,6 @@
 import type { ChartBar, IndexQuote } from "@/shared/types/quote";
 import type { OverseasIndexCode } from "@/shared/constants/indices";
-import { indexIntradayBarsAt, indexQuoteAt } from "./demo-index-model";
+import { indexIntradayBarsAt, indexQuoteAt } from "@/lib/demo/index-model";
 
 // 해외 지수 현재가 · 1분봉 — 전부 생성기 산출. 봉 시각은 거래소 로컬 벽시계를 UTC 로 위장한
 // fake-UTC 초(START 라벨)라 lightweight-charts 가로축이 그 값을 그대로 라벨링한다.

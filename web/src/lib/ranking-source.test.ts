@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
-import { getDailyBar, getTickerProfile } from "./demo-price-model";
+import { getDailyBar, getTickerProfile } from "@/lib/demo/price-model";
 import { fetchRanking, rankingMarketDiv } from "./ranking-source";
 import type { MarketRankingKind } from "@/shared/types/ranking";
 
@@ -7,9 +7,9 @@ import type { MarketRankingKind } from "@/shared/types/ranking";
 // 연속 거래일 핀(12-29 → 12-30)은 하루 ±30% 를 넘겨 그날 종가를 상 · 하한에 붙이고,
 // 같은 값 핀은 보합을 만든다. 20:00 종가는 정규장 종가에서 더 흔들리므로 후보를 여럿 둔다.
 const universeCalls = vi.fn();
-vi.mock("./demo-universe", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./demo-universe")>();
-  const { getTickerProfile } = await import("./demo-price-model");
+vi.mock("@/lib/demo/universe", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/demo/universe")>();
+  const { getTickerProfile } = await import("@/lib/demo/price-model");
   const entries: Awaited<ReturnType<typeof actual.getDemoUniverse>> = [];
   const push = (ticker: string, i: number, pins?: { date: string; price: number }[]) =>
     entries.push({

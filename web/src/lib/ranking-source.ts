@@ -9,14 +9,14 @@ import {
   isKrxBeforeMarketOpen,
   type KrxSession,
 } from "@/shared/utils/market";
-import { createRng, hashSeed, logUniform } from "./demo-prng";
+import { createRng, hashSeed, logUniform } from "@/lib/demo/prng";
 import {
   limitPrices,
   quoteAt,
   type DemoChannel,
   type DemoTier,
-} from "./demo-price-model";
-import { getDemoEodDate, getDemoUniverse, type DemoUniverseEntry } from "./demo-universe";
+} from "@/lib/demo/price-model";
+import { getDemoEodDate, getDemoUniverse, type DemoUniverseEntry } from "@/lib/demo/universe";
 
 // 시장 순위 — universe 전 종목의 현재가를 한 표로 만들고 kind 별로 정렬한다.
 // 실패는 universe 조회(DB) 실패뿐.

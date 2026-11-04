@@ -14,7 +14,7 @@ import {
   isKrxEarlyPreopen,
   isKrxLatePreopen,
 } from "@/shared/utils/market";
-import { indexQuoteAt } from "./demo-index-model";
+import { indexQuoteAt } from "@/lib/demo/index-model";
 import {
   generateDailyBars,
   generateIntradayBars,
@@ -22,8 +22,8 @@ import {
   type DemoChannel,
   type DemoMinuteBar,
   type TickerProfile,
-} from "./demo-price-model";
-import { getDemoEntry } from "./demo-universe";
+} from "@/lib/demo/price-model";
+import { getDemoEntry } from "@/lib/demo/universe";
 import { ISCD_BY_INDEX } from "./indices";
 
 // 종목 · 국내 지수의 현재가와 종목 분봉 — 전부 생성기 산출. route 가 넘기는 시장 채널

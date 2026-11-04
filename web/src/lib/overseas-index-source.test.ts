@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { generateIndexIntradayBars } from "./demo-index-model";
+import { generateIndexIntradayBars } from "@/lib/demo/index-model";
 import {
   fetchOverseasIndexIntradayChart,
   fetchOverseasIndexQuote,

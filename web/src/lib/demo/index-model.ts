@@ -23,14 +23,14 @@ import type {
   IndexQuote,
   PriceSign,
 } from "@/shared/types/quote";
-import { createRng, gaussian, hashSeed } from "./demo-prng";
+import { createRng, gaussian, hashSeed } from "./prng";
 import {
   DEMO_ANCHOR_DATE,
   MEAN_REVERSION_THETA,
   listTradingDates,
   marketReturnDaily,
   type DemoMarket,
-} from "./demo-price-model";
+} from "./price-model";
 
 // 가상 지수 시세. 종목과 같은 날짜 시장 팩터를 보므로 지수가 오른 날 종목 과반이 오른다.
 // 소비측 UI · README 가 전제하는 특이 케이스(.DJI 분봉 없음 · SPX/NDX 거래량 0 · 해외 지연 분)는

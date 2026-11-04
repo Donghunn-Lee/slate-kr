@@ -2,8 +2,8 @@ import { cache } from "react";
 import { pool } from "./db";
 import { attachDividends, getDividendsByYear, type DividendMetrics } from "./dividends";
 import { getShares } from "./stocks";
-import { generateDailyBars } from "./demo-price-model";
-import { getDemoEntry, getDemoEodDate, getDemoHistoryStart } from "./demo-universe";
+import { generateDailyBars } from "@/lib/demo/price-model";
+import { getDemoEntry, getDemoEodDate, getDemoHistoryStart } from "@/lib/demo/universe";
 import { getBonusIssueExDate } from "@/shared/constants/bonusIssueExDates";
 import type { FinancialPeriod, StockFinancials, TtmEpsSource } from "@/shared/types/stock";
 
@@ -90,7 +90,7 @@ const PERIOD_END_MMDD: Readonly<Record<number, string>> = {
   4: "12-31",
 };
 
-// 기준 주식수 판정에 필요한 열만 — 연간 배당 핀(demo-universe)도 같은 판정을 쓴다.
+// 기준 주식수 판정에 필요한 열만 — 연간 배당 핀(demo/universe)도 같은 판정을 쓴다.
 export type BasisRow = Pick<
   FinancialRow,
   "ticker" | "year" | "quarter" | "report_type" | "net_income" | "eps"

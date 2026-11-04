@@ -1,5 +1,5 @@
-import { getTickSize } from "./get-tick-size";
-import { createGaussian, createRng, gaussian, hashSeed, logUniform } from "./demo-prng";
+import { getTickSize } from "@/lib/get-tick-size";
+import { createGaussian, createRng, gaussian, hashSeed, logUniform } from "./prng";
 import { isKrxHoliday } from "@/shared/utils/krxHolidays";
 import {
   getKrxTradingDate,

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createRng, gaussian, hashSeed, logUniform } from "./demo-prng";
+import { createRng, gaussian, hashSeed, logUniform } from "./prng";
 
 describe("hashSeed", () => {
   it("같은 입력 → 같은 시드, 부분 경계가 다르면 다른 시드", () => {

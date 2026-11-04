@@ -1,11 +1,11 @@
 import { cache } from "react";
-import { getDailyBar } from "./demo-price-model";
+import { getDailyBar } from "@/lib/demo/price-model";
 import {
   getDemoEntry,
   getDemoEodDate,
   getDemoHistoryStart,
   type DemoUniverseEntry,
-} from "./demo-universe";
+} from "@/lib/demo/universe";
 import {
   getKrxLastCloseDate,
   type KrxSession,

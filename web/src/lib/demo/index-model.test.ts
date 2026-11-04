@@ -5,8 +5,8 @@ import {
   generateIndexDailyBars,
   generateIndexIntradayBars,
   indexQuoteAt,
-} from "./demo-index-model";
-import { DEMO_ANCHOR_DATE, listTradingDates, marketReturnDaily } from "./demo-price-model";
+} from "./index-model";
+import { DEMO_ANCHOR_DATE, listTradingDates, marketReturnDaily } from "./price-model";
 import type { IndexIntradaySnapshot } from "@/shared/types/quote";
 
 const kst = (date: string, hhmm: string): Date => {

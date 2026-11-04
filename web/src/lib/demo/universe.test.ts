@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
-import { getTickerProfile } from "./demo-price-model";
+import { getTickerProfile } from "./price-model";
 
 const query = vi.fn();
-vi.mock("./db", () => ({ pool: { query: (...args: unknown[]) => query(...args) } }));
+vi.mock("@/lib/db", () => ({ pool: { query: (...args: unknown[]) => query(...args) } }));
 
 type StockFixture = {
   ticker: string;
@@ -34,7 +34,7 @@ const YEARLY: YearlyFixture[] = [
   { ticker: "999990", year: 2025, has_financial: false, eps: null, bps: null, net_income: null, dps: 100, dart_yield: 1 },
 ];
 
-describe("demo-universe", () => {
+describe("demo/universe", () => {
   beforeEach(() => {
     vi.resetModules();
     query.mockReset();
@@ -48,7 +48,7 @@ describe("demo-universe", () => {
   });
 
   it("핀 = DPS ÷ 시가배당률, 최신 연간 행의 EPS·BPS 가 앵커 재무", async () => {
-    const { getDemoEntry } = await import("./demo-universe");
+    const { getDemoEntry } = await import("./universe");
     const entry = await getDemoEntry("005930");
     expect(entry).not.toBeNull();
     expect(entry?.shares).toBe(5_969_782_550);
@@ -63,7 +63,7 @@ describe("demo-universe", () => {
   });
 
   it("기준 주식수 불일치 해의 배당은 핀에서 빠지고, 재무 없는 종목은 핀만으로 프로필을 만든다", async () => {
-    const { getDemoEntry } = await import("./demo-universe");
+    const { getDemoEntry } = await import("./universe");
     const samsung = await getDemoEntry("005930");
     expect(samsung?.profile.pins.map((p) => p.date)).toEqual(["2024-12-30"]);
     const fresh = await getDemoEntry("999990");
@@ -79,7 +79,7 @@ describe("demo-universe", () => {
   });
 
   it("1시간 안에는 SQL 을 다시 읽지 않고, 지나면 다시 읽는다", async () => {
-    const { getDemoUniverse, getDemoEntry } = await import("./demo-universe");
+    const { getDemoUniverse, getDemoEntry } = await import("./universe");
     expect(await getDemoUniverse()).toHaveLength(2);
     await getDemoEntry("005930");
     expect(query).toHaveBeenCalledTimes(2);
