@@ -1,5 +1,11 @@
 import { cache } from "react";
-import { pool } from "./db";
+import { getDailyBar } from "./demo-price-model";
+import {
+  getDemoEntry,
+  getDemoEodDate,
+  getDemoHistoryStart,
+  type DemoUniverseEntry,
+} from "./demo-universe";
 import {
   getKrxLastCloseDate,
   type KrxSession,
@@ -8,7 +14,7 @@ import {
 import type { MarketCalendar } from "@/shared/types/marketCalendar";
 import type { PriceSign, StockQuote } from "@/shared/types/quote";
 
-// quote_snapshots (수집기 fetch_quote_snapshots.py 산출) 조회 + StockQuote 변환.
+// 20:10 마감 스냅샷(UN/NX 통합 시세) 행 조립 + StockQuote 변환.
 // 오프아워 세션(after_close/closed/preopen) quote 서빙에서 KIS 콜을 대체한다.
 //
 // (A) un_* 는 NXT 여부와 무관하게 서빙한다. KRX 애프터마켓(16:00~20:00) 은 전 종목이
@@ -19,7 +25,7 @@ import type { PriceSign, StockQuote } from "@/shared/types/quote";
 // (B) StockQuote.open/high/low 는 스냅샷에 없어 0 로 채움. mergeLiveDayBar 의
 //     isInvalidQuoteOhl 게이트(OHL 삼중 0)가 이미 존재하여 EOD 봉을 그대로 유지.
 
-// DB row (pool.query bigint/numeric → Number 자동 캐스팅). date 는 Date 객체.
+// 스냅샷 행. date 는 Date 객체.
 type QuoteSnapshotRow = {
   ticker: string;
   date: Date;
@@ -102,24 +108,46 @@ export const decideSingleSnapshot = (
   return { kind: "serve", quote: nx ?? snapshotToQuote(row) };
 };
 
+const round2 = (x: number): number => Math.round(x * 100) / 100;
+
+// 조회 키 날짜의 20:00 마감 일봉에서 스냅샷 행을 조립. 상장 전 날짜는 행 부재(부분 miss).
+// NX 축은 단일 경로라 UN 과 같은 값 — 비NXT 종목만 null.
+const buildSnapshotRow = (
+  entry: DemoUniverseEntry,
+  date: string,
+): QuoteSnapshotRow | undefined => {
+  if (date < getDemoHistoryStart(entry)) return undefined;
+  const bar = getDailyBar(entry.ticker, entry.profile, date);
+  const basePrice = bar.basePrice ?? bar.regularClose;
+  const change = bar.close - basePrice;
+  const nx = entry.profile.nxEligible;
+  return {
+    ticker: entry.ticker,
+    date: new Date(`${date}T00:00:00Z`),
+    un_close: bar.close,
+    un_change: change,
+    un_change_rate: round2((change / basePrice) * 100),
+    un_volume: bar.volume,
+    un_value: bar.close * bar.volume,
+    nx_eligible: nx,
+    nx_close: nx ? bar.close : null,
+    nx_volume: nx ? bar.volume : null,
+  };
+};
+
+// 캡처본은 20:10 산출물 — 조회 키 날짜의 EOD 가 아직 없으면(거래일 20:10 전) 캡처 전.
+const snapshotDateExists = (date: string, now: Date): boolean => date <= getDemoEodDate(now);
+
 export const fetchQuoteSnapshot = async (
   ticker: string,
   now: Date,
   calendar?: MarketCalendar,
 ): Promise<{ row: QuoteSnapshotRow | undefined; dateExists: boolean }> => {
   const date = getSnapshotLookupDate(now, calendar);
-  const [rows] = await pool.query<QuoteSnapshotRow[]>(
-    "SELECT * FROM quote_snapshots WHERE ticker = $1 AND date = $2 LIMIT 1",
-    [ticker, date],
-  );
-  if (rows.length > 0) {
-    return { row: rows[0], dateExists: true };
-  }
-  const [check] = await pool.query<{ present: number }[]>(
-    "SELECT 1 AS present FROM quote_snapshots WHERE date = $1 LIMIT 1",
-    [date],
-  );
-  return { row: undefined, dateExists: check.length > 0 };
+  const dateExists = snapshotDateExists(date, now);
+  if (!dateExists) return { row: undefined, dateExists };
+  const entry = await getDemoEntry(ticker);
+  return { row: entry ? buildSnapshotRow(entry, date) : undefined, dateExists };
 };
 
 // ── 복수 fetch + 결정 ────────────────────────────────────────
@@ -143,18 +171,13 @@ export const decideMultiSnapshot = (
   return { kind: "serve", byTicker: out };
 };
 
-// 최신 캡처 1건 기반. 행 부재·쿼리 실패 → null (안전 기본 = "판정 불가").
-// nx_eligible 값은 종목별로 일 단위 뒤집힐 수 있어 항상 최신 date 로 조회.
-// React.cache 로 요청 단위 memo — 같은 요청 내 다중 소비자가 DB 히트 1회로 공유.
+// 미등록 종목·조회 실패 → null (안전 기본 = "판정 불가").
+// React.cache 로 요청 단위 memo — 같은 요청 내 다중 소비자가 공유.
 export const fetchNxEligible = cache(
   async (ticker: string): Promise<boolean | null> => {
     try {
-      const [rows] = await pool.query<{ nx_eligible: boolean }[]>(
-        "SELECT nx_eligible FROM quote_snapshots WHERE ticker = $1 ORDER BY date DESC LIMIT 1",
-        [ticker],
-      );
-      if (rows.length === 0) return null;
-      return rows[0].nx_eligible;
+      const entry = await getDemoEntry(ticker);
+      return entry ? entry.profile.nxEligible : null;
     } catch {
       return null;
     }
@@ -174,22 +197,13 @@ export const fetchQuoteSnapshots = async (
     return { byTicker: {}, dateExists: false };
   }
   const date = getSnapshotLookupDate(now, calendar);
-  const placeholders = tickers.map((_, i) => `$${i + 1}`).join(",");
-  const [rows] = await pool.query<QuoteSnapshotRow[]>(
-    `SELECT * FROM quote_snapshots
-       WHERE ticker IN (${placeholders}) AND date = $${tickers.length + 1}`,
-    [...tickers, date],
-  );
+  const dateExists = snapshotDateExists(date, now);
   const byTicker: Record<string, QuoteSnapshotRow> = {};
-  for (const row of rows) {
-    byTicker[row.ticker] = row;
+  if (!dateExists) return { byTicker, dateExists };
+  for (const ticker of tickers) {
+    const entry = await getDemoEntry(ticker);
+    const row = entry ? buildSnapshotRow(entry, date) : undefined;
+    if (row) byTicker[ticker] = row;
   }
-  if (rows.length > 0) {
-    return { byTicker, dateExists: true };
-  }
-  const [check] = await pool.query<{ present: number }[]>(
-    "SELECT 1 AS present FROM quote_snapshots WHERE date = $1 LIMIT 1",
-    [date],
-  );
-  return { byTicker, dateExists: check.length > 0 };
+  return { byTicker, dateExists };
 };

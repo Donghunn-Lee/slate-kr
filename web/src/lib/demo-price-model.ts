@@ -60,6 +60,9 @@ export type DemoChannel = "UN" | "J" | "NX";
 const PRICE_MIN = 100;
 const PRICE_MAX = 2_000_000;
 const LIMIT_RATE = 0.3; // 상하한가
+// 자유 워크 구간의 OU 항 r += −θ·ln(R(d-1)/L). 반감기 ≈ 90거래일 — 없으면 핀으로 잡은 수준이
+// 1년 뒤 2배·절반까지 흩어진다. 핀 사이 브리지는 끝점이 고정이라 쓰지 않는다.
+export const MEAN_REVERSION_THETA = 0.008;
 const TIER_CUMULATIVE = { large: 0.1, mid: 0.4 } as const; // small = 나머지 60%
 const TIER_SIGMA: Record<DemoTier, number> = { large: 0.012, mid: 0.02, small: 0.032 };
 const TIER_BETA: Record<DemoTier, number> = { large: 0.9, mid: 1.0, small: 1.2 };
@@ -226,7 +229,13 @@ export const getTickerProfile = (ticker: string, anchor: DemoAnchor | null): Tic
   const pathProfile: PathProfile = { sigma, beta, clusterPhase };
   const lastPin = pins[pins.length - 1];
   const anchorPrice = lastPin
-    ? walkForward(ticker, pathProfile, lastPin.price, listTradingDates(lastPin.date, DEMO_ANCHOR_DATE).slice(1)).at(-1) ?? lastPin.price
+    ? walkForward(
+        ticker,
+        pathProfile,
+        lastPin.price,
+        listTradingDates(lastPin.date, DEMO_ANCHOR_DATE).slice(1),
+        lastPin.price,
+      ).at(-1) ?? lastPin.price
     : clampPrice(ladderPrice(anchor, uMultiple, uFallback));
   return { tier, sigma, beta, volumeScale, nxEligible, anchorPrice, pins, clusterPhase };
 };
@@ -261,30 +270,38 @@ const dayNoise = (ticker: string, profile: PathProfile, date: string): DayNoise 
 };
 
 // ── 정규장 종가 경로 ─────────────────
-// dates 의 각 날 R. start 는 dates[0] 직전 거래일의 R.
+const meanReversion = (price: number, level: number): number =>
+  -MEAN_REVERSION_THETA * Math.log(price / level);
+
+// dates 의 각 날 R. start 는 dates[0] 직전 거래일의 R. level 은 OU 항의 기준 수준.
 const walkForward = (
   ticker: string,
   profile: PathProfile,
   start: number,
   dates: readonly string[],
+  level: number,
 ): number[] => {
   const out: number[] = [];
   let prev = start;
   for (const date of dates) {
     const { r } = dayNoise(ticker, profile, date);
-    prev = clampPrice(clampTo(roundTick(prev * Math.exp(r)), limitBand(prev)));
+    prev = clampPrice(
+      clampTo(roundTick(prev * Math.exp(r + meanReversion(prev, level))), limitBand(prev)),
+    );
     out.push(prev);
   }
   return out;
 };
 
 // dates(오름차순) 의 각 날 R. end 는 dates 마지막 날 직후 거래일의 R. 역방향이라도 상하한은
-// 순방향 관계(R(d) ∈ R(d-1) 의 ±30%)가 성립하도록 역으로 조인다.
+// 순방향 관계(R(d) ∈ R(d-1) 의 ±30%)가 성립하도록 역으로 조이고, OU 항은 과거로 갈수록
+// level 에서 멀어지지 않게(순방향과 같은 의미로) 건다.
 const walkBackward = (
   ticker: string,
   profile: PathProfile,
   end: number,
   dates: readonly string[],
+  level: number,
 ): number[] => {
   const out: number[] = new Array(dates.length);
   let next = end;
@@ -293,7 +310,7 @@ const walkBackward = (
     const { r } = dayNoise(ticker, profile, nextDate);
     const lo = Math.max(PRICE_MIN, ceilTick(next / (1 + LIMIT_RATE)));
     const hi = Math.min(PRICE_MAX, floorTick(next / (1 - LIMIT_RATE)));
-    next = Math.min(hi, Math.max(lo, roundTick(next / Math.exp(r))));
+    next = Math.min(hi, Math.max(lo, roundTick(next / Math.exp(r - meanReversion(next, level)))));
     out[i] = next;
     nextDate = dates[i];
   }
@@ -335,6 +352,7 @@ const bridgeForward = (
 
 // [from, to] 거래일 각각의 R. 고정점(핀 · 앵커) 사이는 브리지, 마지막 핀 → 앵커 → 이후는
 // 자유 워크, 첫 고정점 이전은 역방향 워크. 요청 창과 겹치는 구간만 계산한다.
+// 자유 워크의 OU 기준 수준은 그 방향의 마지막 핀(없으면 앵커) — 핀이 "실제 주가 수준" 이다.
 const regularClosePath = (
   ticker: string,
   profile: TickerProfile,
@@ -345,10 +363,14 @@ const regularClosePath = (
   const anchorDate = snapToTradingDate(DEMO_ANCHOR_DATE);
   const fixed: DemoPin[] = [...profile.pins, { date: anchorDate, price: profile.anchorPrice }];
   const first = fixed[0];
+  const lastPin = profile.pins[profile.pins.length - 1];
+  const forwardLevel = lastPin ? lastPin.price : profile.anchorPrice;
 
   if (from < first.date) {
     const dates = listTradingDates(from, first.date).filter((d) => d < first.date);
-    walkBackward(ticker, profile, first.price, dates).forEach((p, i) => out.set(dates[i], p));
+    walkBackward(ticker, profile, first.price, dates, first.price).forEach((p, i) =>
+      out.set(dates[i], p),
+    );
   }
   for (const f of fixed) if (f.date >= from && f.date <= to) out.set(f.date, f.price);
 
@@ -359,7 +381,7 @@ const regularClosePath = (
     const dates = listTradingDates(a.date, b.date).slice(1);
     const isLastPinToAnchor = i === fixed.length - 2;
     const path = isLastPinToAnchor
-      ? walkForward(ticker, profile, a.price, dates)
+      ? walkForward(ticker, profile, a.price, dates, forwardLevel)
       : bridgeForward(ticker, profile, a.price, b.price, dates);
     path.forEach((p, k) => {
       if (dates[k] >= from && dates[k] <= to) out.set(dates[k], p);
@@ -368,7 +390,7 @@ const regularClosePath = (
 
   if (to > anchorDate) {
     const dates = listTradingDates(anchorDate, to).slice(1);
-    walkForward(ticker, profile, profile.anchorPrice, dates).forEach((p, i) => {
+    walkForward(ticker, profile, profile.anchorPrice, dates, forwardLevel).forEach((p, i) => {
       if (dates[i] >= from) out.set(dates[i], p);
     });
   }

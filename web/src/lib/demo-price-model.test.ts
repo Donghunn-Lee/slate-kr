@@ -101,10 +101,29 @@ describe("3. 앵커", () => {
 
   it("핀 종목의 핀 날 regularClose 는 핀 가격", () => {
     const { ticker, profile } = SAMPLE[1];
-    expect(profile.pins.map((p) => p.date)).toEqual(["2023-12-29", "2024-12-31", "2025-12-31"]);
+    expect(profile.pins.map((p) => p.date)).toEqual(["2023-12-29", "2024-12-30", "2025-12-30"]);
     for (const pin of profile.pins) {
       expect(getDailyBar(ticker, profile, pin.date).regularClose).toBe(pin.price);
     }
+  });
+});
+
+describe("11. 평균회귀", () => {
+  // OU 없이는 small tier 의 200일 뒤 ln(R/핀) 표준편차가 ≈ 0.45 — 핀으로 잡은 수준이 2배·절반까지 흩어진다
+  it("small tier 핀 종목 200개: 마지막 핀 200거래일 뒤 ln(R/핀) 표본 표준편차 < 0.30", () => {
+    const pin = { date: "2025-12-31", price: 20_000 };
+    const samples: number[] = [];
+    for (let i = 0; samples.length < 200; i++) {
+      const ticker = String(300_000 + i);
+      const profile = getTickerProfile(ticker, { ...EPS_ANCHOR, pins: [pin] });
+      if (profile.tier !== "small") continue;
+      const pinDate = profile.pins[0].date;
+      const target = listTradingDates(pinDate, "2026-12-31").slice(1)[199];
+      samples.push(Math.log(getDailyBar(ticker, profile, target).regularClose / profile.pins[0].price));
+    }
+    const mean = samples.reduce((a, b) => a + b, 0) / samples.length;
+    const sd = Math.sqrt(samples.reduce((a, x) => a + (x - mean) ** 2, 0) / (samples.length - 1));
+    expect(sd).toBeLessThan(0.3);
   });
 });
 

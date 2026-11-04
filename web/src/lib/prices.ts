@@ -1,5 +1,4 @@
 import { cache } from "react";
-import { pool } from "./db";
 import type {
   LatestPriceSummary,
   PriceStats,
@@ -7,6 +6,13 @@ import type {
   TickerPriceSummary,
 } from "@/shared/types/stock";
 import { format, parseISO, subMonths, subYears } from "date-fns";
+import { generateDailyBars, listTradingDates, type DemoDailyBar } from "./demo-price-model";
+import {
+  getDemoEntry,
+  getDemoEodDate,
+  getDemoHistoryStart,
+  type DemoUniverseEntry,
+} from "./demo-universe";
 
 type DailyPriceRow = {
   id: number;
@@ -21,14 +27,8 @@ type DailyPriceRow = {
   base_price: number | null;
 };
 
-// 아래 SELECT 들이 공유하는 컬럼 리스트. DATE 는 to_char 로 문자열 수신 —
-// Neon HTTP 가 DATE 를 로컬 midnight Date 로 파싱하는 경로를 원천 차단해
-// 환경 TZ 와 무관하게 저장된 캘린더 일자를 그대로 얻는다.
-const DAILY_PRICE_COLUMNS =
-  "id, ticker, to_char(date, 'YYYY-MM-DD') AS date, open, high, low, close, volume, market_cap, base_price";
-
-// pykrx 백필이 무거래일에 남긴 open=high=low=0 fill 봉을 서빙 경계에서 flat(close)로 정규화.
-// DB 원본은 as-is 유지 — 캔들 축 붕괴·52주 저가 0원만 방지한다. 부분 0(예: open만 0)은 통과.
+// 무거래일의 open=high=low=0 fill 봉을 서빙 경계에서 flat(close)로 정규화 — 캔들 축 붕괴·52주
+// 저가 0원만 방지한다. 부분 0(예: open만 0)은 통과.
 export const rowToSnapshot = (row: DailyPriceRow): StockPriceSnapshot => {
   const isFlatFill = row.open === 0 && row.high === 0 && row.low === 0;
   return {
@@ -44,176 +44,114 @@ export const rowToSnapshot = (row: DailyPriceRow): StockPriceSnapshot => {
   };
 };
 
-// raw fetch 캐시 레이어 — React.cache 로 동일 (ticker, limit) 호출을 요청 단위 dedupe.
-// 정규화 결과가 필요한 소비자와 원본 Date 필드가 필요한 소비자가 SQL 을 공유한다.
-const fetchDailyPricesRaw = cache(
-  async (ticker: string, limit: number): Promise<DailyPriceRow[]> => {
-    const [rows] = await pool.query<DailyPriceRow[]>(
-      `SELECT ${DAILY_PRICE_COLUMNS} FROM daily_prices WHERE ticker = $1 ORDER BY date DESC LIMIT $2`,
-      [ticker, limit]
-    );
-    return rows;
+const barToSnapshot = (entry: DemoUniverseEntry, bar: DemoDailyBar): StockPriceSnapshot => ({
+  ticker: entry.ticker,
+  date: bar.date,
+  open: bar.open,
+  high: bar.high,
+  low: bar.low,
+  close: bar.close,
+  volume: bar.volume,
+  marketCap: entry.shares === null ? null : bar.close * entry.shares,
+  basePrice: bar.basePrice,
+});
+
+// 최신 limit 건, DESC. React.cache 로 동일 (ticker, limit) 호출을 요청 단위 dedupe —
+// 같은 요청 내 다른 소비자가 다른 limit 을 넘기면 별도 생성이 일어난다.
+const fetchDailyBarsDesc = cache(
+  async (ticker: string, limit: number): Promise<StockPriceSnapshot[]> => {
+    const entry = await getDemoEntry(ticker);
+    if (!entry) return [];
+    const end = getDemoEodDate();
+    const dates = listTradingDates(getDemoHistoryStart(entry), end);
+    if (dates.length === 0) return [];
+    const from = dates[Math.max(0, dates.length - limit)];
+    return generateDailyBars(ticker, entry.profile, from, end)
+      .map((bar) => barToSnapshot(entry, bar))
+      .reverse();
   }
 );
 
 export const getDailyPrices = async (
   ticker: string,
   limit = 365
-): Promise<StockPriceSnapshot[]> => {
-  // limit 은 fetchDailyPricesRaw 캐시 키의 일부 — 같은 요청 내 다른 소비자가 다른 limit 을
-  // 넘기면 별도 SQL 이 발생한다.
-  const rows = await fetchDailyPricesRaw(ticker, limit);
-  return rows.map(rowToSnapshot);
-};
+): Promise<StockPriceSnapshot[]> => fetchDailyBarsDesc(ticker, limit);
 
-// 최신 거래일 문자열. SELECT to_char 로 DATE 를 문자열 수신하므로 원 저장 일자를
-// 환경 TZ 와 무관하게 그대로 돌려준다.
+// EOD 가 존재하는 최신 거래일. 상장 전·미등록 종목은 null.
 export const getLatestKstDate = async (ticker: string): Promise<string | null> => {
   // limit=2 로 고정 — 헤더가 getDailyPrices(ticker, 2) 를 호출하는 경로와 캐시 키가 일치해야
-  // 요청 단위 dedupe 가 성립하고 추가 SQL 이 발생하지 않는다.
-  const rows = await fetchDailyPricesRaw(ticker, 2);
-  if (rows.length === 0) return null;
-  return rows[0].date;
+  // 요청 단위 dedupe 가 성립한다.
+  const rows = await fetchDailyBarsDesc(ticker, 2);
+  return rows[0]?.date ?? null;
 };
 
 export const getLatestPrice = cache(async (ticker: string): Promise<StockPriceSnapshot | null> => {
-  const [rows] = await pool.query<DailyPriceRow[]>(
-    `SELECT ${DAILY_PRICE_COLUMNS} FROM daily_prices WHERE ticker = $1 ORDER BY date DESC LIMIT 1`,
-    [ticker]
-  );
-
-  if (rows.length === 0) return null;
-
-  return rowToSnapshot(rows[0]);
+  const rows = await fetchDailyBarsDesc(ticker, 2);
+  return rows[0] ?? null;
 });
 
-// tickers 각각의 최신 종가·등락·거래량. 등락 기준은 base_price(기준가) — NULL 인 행은
-// LAG 로 직전 거래일 종가를 붙여 폴백한다. 10일 lookback 은 연휴/휴장 갭 대비.
-// 결과에서 누락된 ticker(시세 없음)는 caller 가 부재로 처리한다.
-type LatestPriceRow = {
-  ticker: string;
-  close: number;
-  date: string;
-  volume: number;
-  base_close: number | null;
+const changeFrom = (
+  close: number,
+  basis: number | null
+): { change: number | null; changeRate: number | null } => {
+  if (basis === null) return { change: null, changeRate: null };
+  const change = close - basis;
+  return { change, changeRate: basis === 0 ? null : (change / basis) * 100 };
 };
 
+// tickers 각각의 최신 종가·등락·거래량. 등락 기준은 basePrice(기준가).
+// 결과에서 누락된 ticker(미등록·상장 전)는 caller 가 부재로 처리한다.
 export const getLatestPricesByTickers = async (
   tickers: string[]
 ): Promise<Record<string, LatestPriceSummary>> => {
-  if (tickers.length === 0) return {};
-
-  const placeholders = tickers.map((_, i) => `$${i + 1}`).join(",");
-
-  const [rows] = await pool.query<LatestPriceRow[]>(
-    `WITH ranked AS (
-       SELECT ticker, close, volume, to_char(date, 'YYYY-MM-DD') AS date,
-              COALESCE(base_price, LAG(close) OVER (PARTITION BY ticker ORDER BY date)) AS base_close,
-              ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY date DESC) AS rn
-       FROM daily_prices
-       WHERE ticker IN (${placeholders})
-         AND date >= CURRENT_DATE - INTERVAL '10 days'
-     )
-     SELECT ticker, close, volume, base_close, date
-     FROM ranked
-     WHERE rn = 1`,
-    tickers
-  );
-
   const result: Record<string, LatestPriceSummary> = {};
-  for (const row of rows) {
-    const base = row.base_close;
-    const change = base === null ? null : row.close - base;
-    const changeRate = base === null || base === 0 ? null : ((row.close - base) / base) * 100;
-    result[row.ticker] = {
-      close: row.close,
-      date: row.date,
-      change,
-      changeRate,
-      volume: row.volume,
+  for (const ticker of tickers) {
+    const [latest] = await fetchDailyBarsDesc(ticker, 1);
+    if (!latest) continue;
+    result[ticker] = {
+      close: latest.close,
+      date: latest.date,
+      ...changeFrom(latest.close, latest.basePrice),
+      volume: latest.volume,
     };
   }
   return result;
 };
 
-type TickerLatestPriceRow = {
-  ticker: string;
-  close: number;
-  date: string;
-  base_price: number | null;
-};
-
-// tickers 각각의 최신 행(활성 종목만) + 등락. 기준가는 base_price 우선, NULL 인 행만
-// 직전 거래일 종가 lookback. lookback 개별 실패는 null 처리 — 메인 조회 실패만 throw.
+// tickers 각각의 최신 행(활성 종목만) + 등락. 미등록·상장 전 종목은 결과에서 빠진다.
 export const getPriceSummariesByTickers = async (
   tickers: string[]
 ): Promise<TickerPriceSummary[]> => {
-  const placeholders = tickers.map((_, i) => `$${i + 1}`).join(",");
-
-  const [rows] = await pool.query<TickerLatestPriceRow[]>(
-    // date 는 to_char 로 문자열 수신 — Neon HTTP 가 DATE 를 로컬 midnight Date 로
-    // 파싱해 환경 TZ 만큼 어긋나는 경로를 차단한다.
-    `SELECT p1.ticker, p1.close, to_char(p1.date, 'YYYY-MM-DD') AS date, p1.base_price
-     FROM daily_prices p1
-     INNER JOIN (
-       SELECT ticker, MAX(date) AS max_date
-       FROM daily_prices
-       WHERE ticker IN (${placeholders})
-       GROUP BY ticker
-     ) latest ON p1.ticker = latest.ticker AND p1.date = latest.max_date
-     INNER JOIN stocks s ON s.ticker = p1.ticker AND s.is_active = true
-     ORDER BY p1.ticker`,
-    tickers
-  );
-
-  const basisResults = await Promise.allSettled(
-    rows.map(async (row): Promise<number | null> => {
-      if (row.base_price !== null) return row.base_price;
-      const [prev] = await pool.query<{ close: number }[]>(
-        "SELECT close FROM daily_prices WHERE ticker = $1 AND date < $2 ORDER BY date DESC LIMIT 1",
-        [row.ticker, row.date]
-      );
-      return prev[0]?.close ?? null;
-    })
-  );
-
-  const basisMap = Object.fromEntries(
-    basisResults.map((result, i) => [
-      rows[i].ticker,
-      result.status === "fulfilled" ? result.value : null,
-    ])
-  );
-
-  const computeChange = (
-    current: number,
-    basis: number | null
-  ): { change: number | null; changePct: number | null } => {
-    if (basis === null) return { change: null, changePct: null };
-    const change = current - basis;
-    const changePct = basis === 0 ? null : (change / basis) * 100;
-    return { change, changePct };
-  };
-
-  return rows.map((row) => {
-    const basePrice = basisMap[row.ticker];
-    const { change, changePct } = computeChange(row.close, basePrice);
-    return {
-      ticker: row.ticker,
-      close: row.close,
-      basePrice,
+  const rows: TickerPriceSummary[] = [];
+  for (const ticker of [...tickers].sort()) {
+    const [latest] = await fetchDailyBarsDesc(ticker, 1);
+    if (!latest) continue;
+    const { change, changeRate } = changeFrom(latest.close, latest.basePrice);
+    rows.push({
+      ticker,
+      close: latest.close,
+      basePrice: latest.basePrice,
       change,
-      changePct,
-      date: row.date,
-    };
-  });
+      changePct: changeRate,
+      date: latest.date,
+    });
+  }
+  return rows;
 };
 
+// 최근 13개월 일봉, ASC — 52주 창(12개월) + 1Y 수익률 기준일 여유.
+const STATS_WINDOW_MONTHS = 13;
+
 export const getPricesForStats = async (ticker: string): Promise<StockPriceSnapshot[]> => {
-  const [rows] = await pool.query<DailyPriceRow[]>(
-    `SELECT ${DAILY_PRICE_COLUMNS} FROM daily_prices WHERE ticker = $1 AND date >= CURRENT_DATE - INTERVAL '13 months' ORDER BY date ASC`,
-    [ticker]
+  const entry = await getDemoEntry(ticker);
+  if (!entry) return [];
+  const end = getDemoEodDate();
+  const windowStart = format(subMonths(parseISO(end), STATS_WINDOW_MONTHS), "yyyy-MM-dd");
+  const start = getDemoHistoryStart(entry);
+  const from = windowStart > start ? windowStart : start;
+  return generateDailyBars(ticker, entry.profile, from, end).map((bar) =>
+    barToSnapshot(entry, bar)
   );
-  return rows.map(rowToSnapshot);
 };
 
 // 계산에 필요한 최소 필드만 요구 — 지수(IndexDailySnapshot) 등 다른 도메인 시계열도

@@ -26,6 +26,7 @@ import type {
 import { createRng, gaussian, hashSeed } from "./demo-prng";
 import {
   DEMO_ANCHOR_DATE,
+  MEAN_REVERSION_THETA,
   listTradingDates,
   marketReturnDaily,
   type DemoMarket,
@@ -182,6 +183,10 @@ const dayNoise = (code: IndexCode, date: string): DayNoise => {
   return { r, zGap: gaussian(rng), zHigh: gaussian(rng), zLow: gaussian(rng), zVolume: gaussian(rng) };
 };
 
+// 앵커 수준으로 되돌리는 OU 항 — 종목 모델과 같은 θ. 역방향도 같은 의미로 건다.
+const meanReversion = (level: number, anchor: number): number =>
+  -MEAN_REVERSION_THETA * Math.log(level / anchor);
+
 // [from, to] 거래일 각각의 종가. 앵커에서 양방향 자유 워크.
 const closePath = (code: IndexCode, from: string, to: string): Map<string, number> => {
   const out = new Map<string, number>();
@@ -193,7 +198,7 @@ const closePath = (code: IndexCode, from: string, to: string): Map<string, numbe
     let next = anchor;
     let nextDate = dates.length > 0 ? nextIndexTradingDate(code, dates[dates.length - 1]) : "";
     for (let i = dates.length - 1; i >= 0; i--) {
-      next = round2(next / Math.exp(dayNoise(code, nextDate).r));
+      next = round2(next / Math.exp(dayNoise(code, nextDate).r - meanReversion(next, anchor)));
       out.set(dates[i], next);
       nextDate = dates[i];
     }
@@ -201,7 +206,7 @@ const closePath = (code: IndexCode, from: string, to: string): Map<string, numbe
   if (to > anchorDate) {
     let prev = anchor;
     for (const date of listIndexTradingDates(code, anchorDate, to).slice(1)) {
-      prev = round2(prev * Math.exp(dayNoise(code, date).r));
+      prev = round2(prev * Math.exp(dayNoise(code, date).r + meanReversion(prev, anchor)));
       if (date >= from) out.set(date, prev);
     }
   }

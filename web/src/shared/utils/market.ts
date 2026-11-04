@@ -48,10 +48,10 @@ const toKstParts = (now: Date): KstParts => {
   };
 };
 
-// KST 기준. 주말 + 2026 평일 공휴일 휴장.
+// KST 기준. 주말 + 평일 공휴일 휴장.
 // regular 09:00~15:30 / after 15:30~20:00 / after_close 20:00~06:00(자정 넘김) /
 // preopen 06:00~08:00 + 08:50~09:00 / pre 08:00~08:50
-// calendar 미전달 시 KRX_HOLIDAYS_2026 정적 표 폴백 (isKrxHoliday 내부).
+// calendar 미전달 시 KRX_HOLIDAYS 정적 표 폴백 (isKrxHoliday 내부).
 export const getKrxSessionState = (
   now: Date = new Date(),
   calendar?: MarketCalendar,

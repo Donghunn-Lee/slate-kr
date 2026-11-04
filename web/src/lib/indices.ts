@@ -1,6 +1,7 @@
 import { cache } from "react";
-import { format } from "date-fns";
 import { pool } from "./db";
+import { generateIndexDailyBars } from "./demo-index-model";
+import { DEMO_HISTORY_START, getDemoEodDate } from "./demo-universe";
 import {
   fetchIndexMinuteBarsRaw,
   kstToFakeUtcSec,
@@ -9,14 +10,20 @@ import {
 import { fetchOverseasIndexIntradayChart } from "./kis-overseas-quote-fetch";
 import { getMarketCalendar } from "./market-calendar";
 import {
+  getIndexMeta,
+  INDEX_CODES,
   OVERSEAS_INDEX_CLOSE_LOCAL,
   type DomesticIndexCode,
+  type IndexCode,
+  type OverseasIndexCode,
   type OverseasIntradayCode,
 } from "@/shared/constants/indices";
 import type { MarketCalendar } from "@/shared/types/marketCalendar";
 import { mergeChartBars } from "@/shared/utils/toEndLabelBars";
 import {
   getKrxTradingDate,
+  getOverseasIndexSessionState,
+  getOverseasIndexTradingDate,
   getPreviousKrxTradingDate,
   getPreviousOverseasIndexTradingDate,
 } from "@/shared/utils/market";
@@ -36,37 +43,24 @@ const ISCD_BY_INDEX: Record<DomesticIndexCode, string> = {
   KOSDAQ150: "3003",
 };
 
-type DailyIndexRow = {
-  base_date: Date;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  change: number;
-  change_rate: number;
-  volume: number;
-};
+const isIndexCode = (raw: string): raw is IndexCode =>
+  (INDEX_CODES as readonly string[]).includes(raw);
 
-const toSnapshot = (indexCode: string, row: DailyIndexRow): IndexDailySnapshot => ({
-  indexCode,
-  date: format(new Date(row.base_date), "yyyy-MM-dd"),
-  open: row.open,
-  high: row.high,
-  low: row.low,
-  close: row.close,
-  change: row.change,
-  changeRate: row.change_rate,
-  volume: row.volume,
-});
+// 지수 EOD 가 존재하는 마지막 거래일. 국내는 종목과 같은 20:10 EOD 축, 해외는 거래소 로컬
+// 세션이 마감된 날(장중이면 직전 거래일).
+const lastIndexEodDate = (code: IndexCode, now: Date): string => {
+  if (getIndexMeta(code).region === "domestic") return getDemoEodDate(now);
+  const overseas = code as OverseasIndexCode;
+  const tradingDate = getOverseasIndexTradingDate(overseas, now);
+  return getOverseasIndexSessionState(overseas, now) === "regular"
+    ? getPreviousOverseasIndexTradingDate(overseas, tradingDate)
+    : tradingDate;
+};
 
 export const getLatestIndexPrice = cache(
   async (indexCode: string): Promise<IndexDailySnapshot | null> => {
-    const [rows] = await pool.query<DailyIndexRow[]>(
-      "SELECT base_date, open, high, low, close, change, change_rate, volume FROM index_daily_prices WHERE index_code = $1 ORDER BY base_date DESC LIMIT 1",
-      [indexCode]
-    );
-    if (rows.length === 0) return null;
-    return toSnapshot(indexCode, rows[0]);
+    const bars = await getIndexDailyPrices(indexCode, 1);
+    return bars[0] ?? null;
   }
 );
 
@@ -388,14 +382,12 @@ export const getIndexDailyPrices = async (
   indexCode: string,
   limit?: number,
 ): Promise<IndexDailySnapshot[]> => {
-  // limit 생략 = LIMIT 절 없이 전량. 기본값을 두면 잊고 잘라올 위험이 있어 옵셔널로.
-  // 최신 N건 → 차트 소비용 ASC 로 뒤집는다.
-  const sql =
-    limit === undefined
-      ? "SELECT base_date, open, high, low, close, change, change_rate, volume FROM index_daily_prices WHERE index_code = $1 ORDER BY base_date DESC"
-      : "SELECT base_date, open, high, low, close, change, change_rate, volume FROM index_daily_prices WHERE index_code = $1 ORDER BY base_date DESC LIMIT $2";
-  const params: (string | number)[] =
-    limit === undefined ? [indexCode] : [indexCode, limit];
-  const [rows] = await pool.query<DailyIndexRow[]>(sql, params);
-  return rows.reverse().map((row) => toSnapshot(indexCode, row));
+  if (!isIndexCode(indexCode)) return [];
+  // limit 생략 = 전량. 기본값을 두면 잊고 잘라올 위험이 있어 옵셔널로. 최신 N건, ASC.
+  const bars = generateIndexDailyBars(
+    indexCode,
+    DEMO_HISTORY_START,
+    lastIndexEodDate(indexCode, new Date()),
+  );
+  return limit === undefined ? bars : bars.slice(Math.max(0, bars.length - limit));
 };
