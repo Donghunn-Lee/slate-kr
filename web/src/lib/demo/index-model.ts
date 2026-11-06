@@ -25,8 +25,11 @@ import type {
 } from "@/shared/types/quote";
 import { createRng, gaussian, hashSeed } from "./prng";
 import {
+  CLOSE_AUCTION_SIGMA,
+  CLOSE_AUCTION_WEIGHT,
   DEMO_ANCHOR_DATE,
   MEAN_REVERSION_THETA,
+  OPEN_SPIKE_WEIGHTS,
   listTradingDates,
   marketReturnDaily,
   type DemoMarket,
@@ -121,6 +124,7 @@ const MINUTE_VOLUME_LOGNORMAL_SIGMA = 0.5;
 const UNCHANGED_SHARE = 0.05;
 const ADV_DECL_SLOPE = 4;
 const KRX_OPEN_MIN = 9 * 60;
+const KRX_CLOSE_CALL_MIN = 15 * 60 + 20; // 15:20~15:29 는 종가 단일가 접수 — 지수가 직전 값에 멈춘다
 const KRX_CLOSE_MIN = 15 * 60 + 30; // 15:30 마감 봉 포함
 
 const DAY_MS = 86_400_000;
@@ -298,17 +302,26 @@ const minuteBridge = (
   return logs.map((l, i) => Math.exp(l + correction * (i + 1)));
 };
 
-const fitHighLow = (closes: number[], start: number, end: number, high: number, low: number): void => {
+// fitted = 스케일 대상인 앞쪽 노드 수. 종가 단일가로 끝나는 날은 끝 노드를 뺀다 — 브리지가 end 에 고정한
+// 현 위의 점인데, 부동소수 오차로 남은 초과를 잡으면 한쪽에만 머문 경로에서 끝 노드가 고저로 튄다.
+const fitHighLow = (
+  closes: number[],
+  start: number,
+  end: number,
+  high: number,
+  low: number,
+  fitted: number,
+): void => {
   const n = closes.length;
   const chord = (i: number): number => start + ((end - start) * (i + 1)) / n;
   let scaleUp = Infinity;
   let scaleDown = Infinity;
-  for (let i = 0; i < n; i++) {
+  for (let i = 0; i < fitted; i++) {
     const excess = closes[i] - chord(i);
     if (excess > 0) scaleUp = Math.min(scaleUp, (high - chord(i)) / excess);
     else if (excess < 0) scaleDown = Math.min(scaleDown, (chord(i) - low) / -excess);
   }
-  for (let i = 0; i < n; i++) {
+  for (let i = 0; i < fitted; i++) {
     const excess = closes[i] - chord(i);
     if (excess > 0 && Number.isFinite(scaleUp)) closes[i] = chord(i) + excess * scaleUp;
     else if (excess < 0 && Number.isFinite(scaleDown)) closes[i] = chord(i) + excess * scaleDown;
@@ -317,14 +330,30 @@ const fitHighLow = (closes: number[], start: number, end: number, high: number, 
   if (!Number.isFinite(scaleDown)) closes[Math.floor((2 * n) / 3)] = low;
 };
 
-const allocateVolume = (rng: () => number, n: number, total: number): number[] => {
+// auction 이면 개장 직후 봉들과 마지막(종가 단일가) 봉의 결정 가중치를 나머지 봉 평균의 배수로 바꾼다.
+const allocateVolume = (
+  rng: () => number,
+  n: number,
+  total: number,
+  auction: boolean,
+): number[] => {
   const weights: number[] = new Array(n);
   const half = Math.max(1, (n - 1) / 2);
-  let sum = 0;
   for (let i = 0; i < n; i++) {
     const x = (i - half) / half;
-    weights[i] =
-      (1 + U_PROFILE_DEPTH * x * x) * Math.exp(MINUTE_VOLUME_LOGNORMAL_SIGMA * gaussian(rng));
+    weights[i] = 1 + U_PROFILE_DEPTH * x * x;
+  }
+  if (auction) {
+    const openBars = OPEN_SPIKE_WEIGHTS.length;
+    let plain = 0;
+    for (let i = openBars; i < n - 1; i++) plain += weights[i];
+    const mean = plain / (n - 1 - openBars);
+    for (let i = 0; i < openBars; i++) weights[i] = OPEN_SPIKE_WEIGHTS[i] * mean;
+    weights[n - 1] = CLOSE_AUCTION_WEIGHT * mean;
+  }
+  let sum = 0;
+  for (let i = 0; i < n; i++) {
+    weights[i] *= Math.exp(MINUTE_VOLUME_LOGNORMAL_SIGMA * gaussian(rng));
     sum += weights[i];
   }
   const out: number[] = new Array(n);
@@ -349,16 +378,34 @@ const intradayPath = (
   const { startMin, endMin } = sessionWindow(code);
   const n = endMin - startMin + 1;
   const rng = createRng(hashSeed("index", code, date, "intraday"));
-  const sigmaMinute = INDEX_SIGMA[code] / Math.sqrt(n);
-  const closes = minuteBridge(rng, today.open, today.close, n, sigmaMinute);
-  fitHighLow(closes, today.open, today.close, today.high, today.low);
-  const volumes = allocateVolume(rng, n, today.volume ?? 0);
   const clamp = (p: number): number => Math.min(today.high, Math.max(today.low, p));
+  // 국내는 종가 단일가 접수 창 직전(15:19)까지만 걷는다. 접수 창 봉은 그대로 내되(실제 지수 분봉에도
+  // 이 창의 행이 있다) 직전 값에 멈춘 거래량 0 봉이고, 마지막 봉이 단일가(C)다. 경로를 C 가 아니라
+  // 그 근처(C')에 묶어야 15:19 값과 종가의 차이가 고저 맞춤으로 커지지 않는다.
+  const auction = isDomestic(code);
+  const callBars = auction ? endMin - KRX_CLOSE_CALL_MIN : 0;
+  const callStart = n - 1 - callBars;
+  const auctionIndex = auction ? n - 1 : -1;
+  const steps = auction ? callStart : n;
+  const traded = n - callBars;
+  const sigmaMinute = INDEX_SIGMA[code] / Math.sqrt(traded);
+  const delta = auction
+    ? CLOSE_AUCTION_SIGMA * gaussian(createRng(hashSeed("index", code, date, "close-auction")))
+    : 0;
+  const pathEnd = auction ? clamp(round2(today.close * Math.exp(delta))) : today.close;
+  const closes = minuteBridge(rng, today.open, pathEnd, steps, sigmaMinute);
+  fitHighLow(closes, today.open, pathEnd, today.high, today.low, auction ? steps - 1 : steps);
+  const volumes = allocateVolume(rng, traded, today.volume ?? 0, auction);
   const bars: IndexIntradaySnapshot[] = new Array(n);
   let open = today.open;
   for (let i = 0; i < n; i++) {
-    const close = clamp(round2(closes[i]));
-    const wick = MINUTE_WICK_RATIO * sigmaMinute * rng();
+    const inCall = i >= callStart && i < auctionIndex;
+    // volumes 는 접수 창이 빠진 배열이다
+    const k = i < callStart ? i : i - callBars;
+    const close = inCall ? open : i === auctionIndex ? today.close : clamp(round2(closes[i]));
+    // 단일가 체결은 값이 하나다 — 직전 봉에서 이어지지 않고 wick 도 없다.
+    if (i === auctionIndex) open = close;
+    const wick = inCall || i === auctionIndex ? 0 : MINUTE_WICK_RATIO * sigmaMinute * rng();
     const change = round2(close - prev.close);
     bars[i] = {
       indexCode: code,
@@ -369,7 +416,7 @@ const intradayPath = (
       close,
       change,
       changeRate: round2((change / prev.close) * 100),
-      volume: volumes[i],
+      volume: inCall ? 0 : volumes[k],
     };
     open = close;
   }

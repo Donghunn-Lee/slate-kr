@@ -71,6 +71,25 @@ describe("8. 지수", () => {
     expect(bars[10].change).toBeCloseTo(bars[10].close - prev.close, 2);
   });
 
+  it("국내 분봉 15:20~15:29 는 15:19 종가로 평탄 · 거래량 0, 15:30 봉은 일봉 종가 하나", () => {
+    const [, today] = generateIndexDailyBars("KOSPI", "2026-11-09", TODAY);
+    const bars = generateIndexIntradayBars("KOSPI", TODAY) as IndexIntradaySnapshot[];
+    const before = bars.find((b) => minuteOf(b) === 15 * 60 + 19) as IndexIntradaySnapshot;
+    expect(before.close).toBeGreaterThanOrEqual(today.low);
+    expect(before.close).toBeLessThanOrEqual(today.high);
+    expect(Math.abs(Math.log(before.close / today.close))).toBeLessThanOrEqual(0.01);
+    const call = bars.filter((b) => minuteOf(b) >= 15 * 60 + 20 && minuteOf(b) <= 15 * 60 + 29);
+    expect(call).toHaveLength(10);
+    for (const b of call) {
+      expect([b.open, b.high, b.low, b.close]).toEqual(Array(4).fill(before.close));
+      expect(b.volume).toBe(0);
+    }
+    const auction = bars[bars.length - 1];
+    expect([auction.open, auction.high, auction.low, auction.close]).toEqual(
+      Array(4).fill(today.close),
+    );
+  });
+
   it("국내 quote: 장중은 분봉 지금까지, 개장 전은 전일 완결, 마감 후는 당일 일봉", () => {
     const [prev, today] = generateIndexDailyBars("KOSPI", "2026-11-09", TODAY);
     const bars = generateIndexIntradayBars("KOSPI", TODAY) as IndexIntradaySnapshot[];

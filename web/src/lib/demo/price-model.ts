@@ -105,11 +105,15 @@ const CLUSTER_RANGE = 0.6;
 const CLUSTER_PERIOD_DAYS = 20;
 // 분봉 — 세션 창(KST 분) · 브리지 σ 비율 · 거래량 배분
 const PRE_START_MIN = 8 * 60;
+const PRE_END_MIN = 8 * 60 + 49; // 프리마켓 마지막 봉 — 08:50~08:59 는 체결이 없다
 const REGULAR_START_MIN = 9 * 60;
-const REGULAR_END_MIN = 15 * 60 + 30; // 15:30 마감 단일가 봉 포함
-const NXT_AFTER_START_MIN = 15 * 60 + 31;
+const CLOSE_CALL_START_MIN = 15 * 60 + 20; // 15:20~15:29 는 종가 단일가 접수 — 체결이 없다
+const REGULAR_END_MIN = 15 * 60 + 30; // 15:30 종가 단일가 봉
+const NXT_AFTER_START_MIN = 15 * 60 + 40;
 const KRX_AFTER_START_MIN = 16 * 60;
 const AFTER_END_MIN = 20 * 60; // 20:00 봉 포함
+const OPEN_AUCTION_SIGMA = 0.003; // 프리마켓 마지막 체결가와 09:00 시가 단일가의 로그 차
+export const CLOSE_AUCTION_SIGMA = 0.002; // 15:19 종가와 15:30 종가 단일가의 로그 차. 지수도 같은 값을 쓴다.
 const PRE_SIGMA_RATIO = 0.3;
 const AFTER_SIGMA_RATIO = 0.4;
 const MINUTE_WICK_RATIO = 0.5;
@@ -117,6 +121,9 @@ const PRE_VOLUME_SHARE = 0.03;
 const AFTER_VOLUME_SHARE = 0.05;
 const U_PROFILE_DEPTH = 2;
 const MINUTE_VOLUME_LOGNORMAL_SIGMA = 0.5;
+// 단일가 체결이 몰리는 봉의 결정 가중치 — 정규장 나머지 봉 평균의 배수. 지수도 같은 값을 쓴다.
+export const OPEN_SPIKE_WEIGHTS = [10, 5, 4] as const; // 09:00 · 09:01 · 09:02
+export const CLOSE_AUCTION_WEIGHT = 20; // 15:30
 
 const DAY_MS = 86_400_000;
 const MINUTE_SEC = 60;
@@ -557,18 +564,20 @@ const minuteBridge = (
 
 // 시가–종가 현(chord) 위쪽 초과분의 최대가 정확히 high, 아래쪽이 low 가 되게 선형 스케일.
 // 최소 비율을 고르므로 어떤 봉도 [low, high] 를 넘지 않는다.
+// 끝 노드는 브리지가 end 에 고정한 현 위의 점이라 대상이 아니다 — 부동소수 오차로 남은 초과를 잡으면
+// 한쪽에만 머문 경로에서 끝 노드가 고저로 튄다.
 const fitHighLow = (closes: number[], start: number, end: number, high: number, low: number): void => {
   const n = closes.length;
   const step = (end - start) / n;
   let scaleUp = Infinity;
   let scaleDown = Infinity;
-  for (let i = 0; i < n; i++) {
+  for (let i = 0; i < n - 1; i++) {
     const chord = start + step * (i + 1);
     const excess = closes[i] - chord;
     if (excess > 0) scaleUp = Math.min(scaleUp, (high - chord) / excess);
     else if (excess < 0) scaleDown = Math.min(scaleDown, (chord - low) / -excess);
   }
-  for (let i = 0; i < n; i++) {
+  for (let i = 0; i < n - 1; i++) {
     const chord = start + step * (i + 1);
     const excess = closes[i] - chord;
     if (excess > 0 && Number.isFinite(scaleUp)) closes[i] = chord + excess * scaleUp;
@@ -579,15 +588,31 @@ const fitHighLow = (closes: number[], start: number, end: number, high: number, 
   if (!Number.isFinite(scaleDown)) closes[Math.floor((2 * n) / 3)] = low;
 };
 
-// U자 프로파일 × lognormal, 합이 total 이 되게 정수 배분.
-const allocateVolume = (gauss: () => number, n: number, total: number): number[] => {
+// U자 프로파일 × lognormal, 합이 total 이 되게 정수 배분. auction 이면 개장 직후 봉들과 마지막(종가 단일가)
+// 봉의 결정 가중치를 나머지 봉 평균의 배수로 바꾼다.
+const allocateVolume = (
+  gauss: () => number,
+  n: number,
+  total: number,
+  auction: boolean,
+): number[] => {
   const weights: number[] = new Array(n);
   const half = Math.max(1, (n - 1) / 2);
-  let sum = 0;
   for (let i = 0; i < n; i++) {
     const x = (i - half) / half;
-    weights[i] =
-      (1 + U_PROFILE_DEPTH * x * x) * Math.exp(MINUTE_VOLUME_LOGNORMAL_SIGMA * gauss());
+    weights[i] = 1 + U_PROFILE_DEPTH * x * x;
+  }
+  if (auction) {
+    const openBars = OPEN_SPIKE_WEIGHTS.length;
+    let plain = 0;
+    for (let i = openBars; i < n - 1; i++) plain += weights[i];
+    const mean = plain / (n - 1 - openBars);
+    for (let i = 0; i < openBars; i++) weights[i] = OPEN_SPIKE_WEIGHTS[i] * mean;
+    weights[n - 1] = CLOSE_AUCTION_WEIGHT * mean;
+  }
+  let sum = 0;
+  for (let i = 0; i < n; i++) {
+    weights[i] *= Math.exp(MINUTE_VOLUME_LOGNORMAL_SIGMA * gauss());
     sum += weights[i];
   }
   const out: number[] = new Array(n);
@@ -602,6 +627,19 @@ const allocateVolume = (gauss: () => number, n: number, total: number): number[]
   return out;
 };
 
+// 단일가 체결 직전의 마지막 체결가 — 단일가에서 로그로 sigma × 정규 추첨만큼 벌어진 값. 일봉 고저를 넘지 않는다.
+const lastTradeBeforeAuction = (
+  ticker: string,
+  date: string,
+  auction: "open-auction" | "close-auction",
+  auctionPrice: number,
+  sigma: number,
+  band: Band,
+): number => {
+  const z = gaussian(createRng(hashSeed(ticker, date, auction)));
+  return clampTo(roundTick(auctionPrice * Math.exp(sigma * z)), band);
+};
+
 type Segment = {
   name: "pre" | "regular" | "after";
   startMin: number;
@@ -611,6 +649,8 @@ type Segment = {
   sigmaRatio: number;
   volume: number;
   fit: boolean;
+  // 종가 단일가로 끝나는 구간 — 접수 창에는 봉이 없고 endMin 봉은 체결가(end) 하나다
+  closeAuction: boolean;
 };
 
 const buildSegmentBars = (
@@ -623,15 +663,32 @@ const buildSegmentBars = (
 ): DemoMinuteBar[] => {
   const rng = createRng(hashSeed(ticker, date, seg.name));
   const gauss = createGaussian(rng);
-  const n = seg.endMin - seg.startMin + 1;
+  // 연속 체결 봉 수. 종가 단일가 구간은 접수 창 직전(15:19)까지만 걷고 단일가 봉 하나를 따로 붙인다 —
+  // 경로를 단일가(R)가 아니라 그 근처(R')에 묶어야 15:19 종가와 단일가의 차이가 고저 맞춤으로 커지지 않는다.
+  const steps = (seg.closeAuction ? CLOSE_CALL_START_MIN - 1 : seg.endMin) - seg.startMin + 1;
+  const n = seg.closeAuction ? steps + 1 : steps;
   const sigmaMinute = (sigmaDay * seg.sigmaRatio) / Math.sqrt(n);
-  const closes = minuteBridge(gauss, seg.start, seg.end, n, sigmaMinute);
-  if (seg.fit) fitHighLow(closes, seg.start, seg.end, band.hi, band.lo);
-  const volumes = allocateVolume(gauss, n, seg.volume);
+  const pathEnd = seg.closeAuction
+    ? lastTradeBeforeAuction(ticker, date, "close-auction", seg.end, CLOSE_AUCTION_SIGMA, band)
+    : seg.end;
+  const closes = minuteBridge(gauss, seg.start, pathEnd, steps, sigmaMinute);
+  if (seg.fit) fitHighLow(closes, seg.start, pathEnd, band.hi, band.lo);
+  const volumes = allocateVolume(gauss, n, seg.volume, seg.closeAuction);
   const bars: DemoMinuteBar[] = new Array(n);
   const firstSec = dayStartSec + seg.startMin * MINUTE_SEC;
+  // 단일가 체결은 가격이 하나다 — 직전 봉 종가에서 이어지지 않고 wick 도 없다.
+  if (seg.closeAuction) {
+    bars[steps] = {
+      timestamp: dayStartSec + seg.endMin * MINUTE_SEC,
+      open: seg.end,
+      high: seg.end,
+      low: seg.end,
+      close: seg.end,
+      volume: volumes[steps],
+    };
+  }
   let open = seg.start;
-  for (let i = 0; i < n; i++) {
+  for (let i = 0; i < steps; i++) {
     const close = clampTo(roundTick(closes[i]), band);
     const wick = MINUTE_WICK_RATIO * sigmaMinute * rng();
     const hi = open > close ? open : close;
@@ -651,8 +708,9 @@ const buildSegmentBars = (
 
 // 하루 전체(UN) 경로를 만든 뒤 채널로 자른다 — J 는 08:00~09:00 제외, NX 는 비적격이면 null
 // (route 가 NX 채널의 null 을 "NXT 미취급 종목" 신호로 쓴다).
-// 프리마켓은 시가에서 출발해 시가로 돌아오는 브리지 — 전일 20:00 종가에서 출발하면 UN 첫 봉의
+// 프리마켓은 시가에서 출발해 시가 근처에서 끝나는 브리지 — 전일 20:00 종가에서 출발하면 UN 첫 봉의
 // 시가가 일봉 시가와 어긋나고 전일 종가가 당일 고저 밖에 놓일 수 있다. 갭은 08:00 에 한 번에 생긴다.
+// 봉 사이가 끊기는 곳은 단일가 두 번뿐이다 — 08:49 종가 → 09:00 시가(O), 15:19 종가 → 15:30 체결(R).
 // untilMin 이후에 시작하는 구간은 만들지 않는다 — 현재가는 지나간 봉만 필요하고 구간은 서로 독립이다.
 const buildIntradayBars = (
   ticker: string,
@@ -667,17 +725,31 @@ const buildIntradayBars = (
   const band: Band = { lo: today.low, hi: today.high };
   const afterVolume = Math.round(today.volume * AFTER_VOLUME_SHARE);
   const preVolume = nxt ? Math.round(today.volume * PRE_VOLUME_SHARE) : 0;
+  const hasPre = nxt && channel !== "J";
+  const pre: Segment[] = hasPre
+    ? [
+        {
+          name: "pre",
+          startMin: PRE_START_MIN,
+          endMin: PRE_END_MIN,
+          start: today.open,
+          end: lastTradeBeforeAuction(
+            ticker,
+            date,
+            "open-auction",
+            today.open,
+            OPEN_AUCTION_SIGMA,
+            band,
+          ),
+          sigmaRatio: PRE_SIGMA_RATIO,
+          volume: preVolume,
+          fit: false,
+          closeAuction: false,
+        },
+      ]
+    : [];
   const segments: Segment[] = [
-    {
-      name: "pre",
-      startMin: PRE_START_MIN,
-      endMin: REGULAR_START_MIN - 1,
-      start: today.open,
-      end: today.open,
-      sigmaRatio: PRE_SIGMA_RATIO,
-      volume: preVolume,
-      fit: false,
-    },
+    ...pre,
     {
       name: "regular",
       startMin: REGULAR_START_MIN,
@@ -687,6 +759,7 @@ const buildIntradayBars = (
       sigmaRatio: 1,
       volume: today.volume - afterVolume - preVolume,
       fit: true,
+      closeAuction: true,
     },
     {
       name: "after",
@@ -697,12 +770,12 @@ const buildIntradayBars = (
       sigmaRatio: AFTER_SIGMA_RATIO,
       volume: afterVolume,
       fit: false,
+      closeAuction: false,
     },
   ];
   const dayStartSec = kstFakeUtcSec(date, 0);
-  const hasPre = nxt && channel !== "J";
   return segments
-    .filter((seg) => (seg.name !== "pre" || hasPre) && seg.startMin <= untilMin)
+    .filter((seg) => seg.startMin <= untilMin)
     .flatMap((seg) => buildSegmentBars(ticker, date, dayStartSec, seg, band, sigmaDay));
 };
 

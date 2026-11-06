@@ -165,15 +165,58 @@ describe("5. 정합 — 분봉 집계 = 일봉", () => {
     expect(minuteOf(bars[bars.length - 1])).toBe(hhmm(20, 0));
     expect(bars.reduce((s, b) => s + b.volume, 0)).toBe(today.volume);
     const atClose = bars.find((b) => minuteOf(b) === hhmm(15, 30)) as DemoMinuteBar;
-    expect(atClose.close).toBe(today.regularClose);
+    expect([atClose.open, atClose.high, atClose.low, atClose.close]).toEqual(
+      Array(4).fill(today.regularClose),
+    );
+    expect((bars.find((b) => minuteOf(b) === hhmm(9, 0)) as DemoMinuteBar).open).toBe(today.open);
+    expect(bars.some((b) => minuteOf(b) >= hhmm(15, 20) && minuteOf(b) <= hhmm(15, 29))).toBe(false);
+    const beforeCall = bars.find((b) => minuteOf(b) === hhmm(15, 19)) as DemoMinuteBar;
+    expect(beforeCall.close).toBeGreaterThanOrEqual(today.low);
+    expect(beforeCall.close).toBeLessThanOrEqual(today.high);
+    expect(Math.abs(Math.log(beforeCall.close / today.regularClose))).toBeLessThanOrEqual(0.01);
     for (const b of bars) {
       expect(b.low).toBeLessThanOrEqual(Math.min(b.open, b.close));
       expect(b.high).toBeGreaterThanOrEqual(Math.max(b.open, b.close));
       for (const p of [b.open, b.high, b.low, b.close]) expect(isTickMultiple(p)).toBe(true);
     }
-    // 봉 사이 연속 — 다음 봉 시가 = 직전 종가
-    for (let i = 1; i < bars.length; i++) expect(bars[i].open).toBe(bars[i - 1].close);
+    // 단일가 두 번(09:00 시가 · 15:30 종가)만 직전 봉에서 이어지지 않는다
+    for (let i = 1; i < bars.length; i++) {
+      const m = minuteOf(bars[i]);
+      if (m === hhmm(9, 0) || m === hhmm(15, 30)) continue;
+      expect(bars[i].open).toBe(bars[i - 1].close);
+    }
   });
+
+  it("NXT 프리마켓 마지막 봉(08:49) 종가는 일봉 고저 안", () => {
+    const [prev, today] = dayBars(NXT.ticker, NXT.profile);
+    const bars = generateIntradayBars(NXT.ticker, NXT.profile, TODAY, prev, today, "UN") as DemoMinuteBar[];
+    const preBars = bars.filter((b) => minuteOf(b) < hhmm(9, 0));
+    const last = preBars[preBars.length - 1];
+    expect(minuteOf(last)).toBe(hhmm(8, 49));
+    expect(last.close).toBeGreaterThanOrEqual(today.low);
+    expect(last.close).toBeLessThanOrEqual(today.high);
+  });
+
+  // lognormal 노이즈(σ 0.5)로 하루치 배수는 결정 배수(10× · 20×)의 1/3 까지도 내려간다 — 한 주 평균으로
+  // 보고 하한도 결정 배수의 40% 에 둔다
+  it.each([NXT, KRX_ONLY])(
+    "$ticker (nx=$profile.nxEligible): 한 주 평균 09:00 봉 ≥ 4× · 15:30 봉 ≥ 8× 정규장 평균 거래량",
+    ({ ticker, profile }) => {
+      const days = generateDailyBars(ticker, profile, "2026-11-06", "2026-11-13");
+      let openMultiple = 0;
+      let closeMultiple = 0;
+      for (let d = 1; d < days.length; d++) {
+        const bars = generateIntradayBars(ticker, profile, days[d].date, days[d - 1], days[d], "UN") as DemoMinuteBar[];
+        const regular = bars.filter((b) => minuteOf(b) >= hhmm(9, 0) && minuteOf(b) <= hhmm(15, 30));
+        const mean = regular.reduce((s, b) => s + b.volume, 0) / regular.length;
+        openMultiple += regular[0].volume / mean;
+        closeMultiple += regular[regular.length - 1].volume / mean;
+      }
+      expect(days).toHaveLength(6);
+      expect(openMultiple / 5).toBeGreaterThanOrEqual(4);
+      expect(closeMultiple / 5).toBeGreaterThanOrEqual(8);
+    },
+  );
 });
 
 describe("6. 세션 창", () => {
@@ -185,16 +228,17 @@ describe("6. 세션 창", () => {
     expect(minutes.some((m) => m < hhmm(9, 0))).toBe(false);
     expect(minutes.some((m) => m > hhmm(15, 30) && m < hhmm(16, 0))).toBe(false);
     expect(minutes).toContain(hhmm(16, 0));
-    expect(bars).toHaveLength(391 + 241);
+    expect(bars).toHaveLength(381 + 241);
   });
 
-  it("NXT: 08:00 시작, 15:31 부터 애프터 연속", () => {
+  it("NXT: 08:00 시작, 15:40 부터 애프터 연속", () => {
     const [prev, today] = dayBars(NXT.ticker, NXT.profile);
     const bars = generateIntradayBars(NXT.ticker, NXT.profile, TODAY, prev, today, "UN") as DemoMinuteBar[];
     const minutes = bars.map(minuteOf);
     expect(minutes[0]).toBe(hhmm(8, 0));
     expect(minutes).toContain(hhmm(15, 45));
-    expect(bars).toHaveLength(60 + 391 + 270);
+    expect(minutes.some((m) => m > hhmm(15, 30) && m < hhmm(15, 40))).toBe(false);
+    expect(bars).toHaveLength(50 + 381 + 261);
     const j = generateIntradayBars(NXT.ticker, NXT.profile, TODAY, prev, today, "J") as DemoMinuteBar[];
     expect(minuteOf(j[0])).toBe(hhmm(9, 0));
     expect(j[0].open).toBe(today.open);
