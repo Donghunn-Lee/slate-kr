@@ -17,7 +17,7 @@ vi.mock("@/lib/demo/universe", async (importOriginal) => {
       name: `종목${ticker}`,
       market: i % 2 === 0 ? ("KOSPI" as const) : ("KOSDAQ" as const),
       shares: ticker.startsWith("5") ? null : 1_000_000 * (i + 1),
-      listedAt: "2000-01-01",
+      historyStart: "2016-01-01",
       profile: getTickerProfile(ticker, { eps: 5_000, bps: 40_000, pins }),
     });
   for (let i = 0; i < 12; i++) push(String(100_001 + i), i);

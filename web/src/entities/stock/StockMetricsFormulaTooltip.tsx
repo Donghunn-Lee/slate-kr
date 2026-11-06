@@ -12,7 +12,7 @@ type PerCase = {
 const PER_CASES: PerCase[] = [
   { source: "ttm", label: "최근 4분기 합" },
   { source: "ttm_negative", label: "최근 4분기 합이 음수 → 표시 안 함" },
-  { source: "annualized", label: "상장 1년 미만 → 연환산" },
+  { source: "annualized", label: "실적 1년 미만 → 연환산" },
   { source: "annual_fallback", label: "분기 결측 → 연간 EPS" },
   {
     source: "basis_mismatch",

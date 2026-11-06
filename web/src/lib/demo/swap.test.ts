@@ -20,13 +20,15 @@ import {
 } from "@/lib/quote-source";
 import { fetchRanking } from "@/lib/ranking-source";
 
-// 생성기 경로 정합만 본다 — DB 는 universe 입력(종목 · 재무) 두 쿼리뿐이라 고정 행으로 대체.
+// 생성기 경로 정합만 본다 — DB 는 universe 입력(종목 · 재무 · 첫 연도) 세 쿼리뿐이라 고정 행으로 대체.
 vi.mock("@/lib/db", () => ({
   pool: {
     query: async (sql: string) =>
       sql.includes("FROM stocks")
-        ? [[{ ticker: "005930", name: "삼성전자", market: "KOSPI", shares: 5_969_782_550, listed_at: "1975-06-11" }], null]
-        : [[{ ticker: "005930", year: 2024, has_financial: true, eps: 4_950, bps: 57_930, net_income: 33_685_000_000_000, dps: 1_446, dart_yield: 2.7 }], null],
+        ? [[{ ticker: "005930", name: "삼성전자", market: "KOSPI", shares: 5_969_782_550 }], null]
+        : sql.includes("MIN(year)")
+          ? [[{ ticker: "005930", first_year: 2021 }], null]
+          : [[{ ticker: "005930", year: 2024, has_financial: true, eps: 4_950, bps: 57_930, net_income: 33_685_000_000_000, dps: 1_446, dart_yield: 2.7 }], null],
   },
 }));
 

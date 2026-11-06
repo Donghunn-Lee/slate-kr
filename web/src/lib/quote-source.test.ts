@@ -26,7 +26,7 @@ vi.mock("@/lib/demo/universe", async (importOriginal) => {
     name: `종목${i}`,
     market: "KOSPI" as const,
     shares: 1_000_000,
-    listedAt: "2000-01-01",
+    historyStart: "2016-01-01",
     profile: getTickerProfile(ticker, anchor),
   }));
   return {

@@ -95,41 +95,34 @@ describe("computeTtmEps", () => {
     });
   });
 
-  describe("#3 연환산 (2~3분기 & 상장 <14개월)", () => {
-    // MS_PER_MONTH가 30.44일 기준이라 365일은 약 11.99개월로 계산된다.
-    const listedAt = new Date("2025-01-01T00:00:00Z");
-    const now12mo = new Date("2026-01-01T00:00:00Z");
-
+  describe("#3 연환산 (2~3분기 연속 & EPS 분기 4개 미만)", () => {
     it("3분기 연속 양수 → { source: 'annualized', value: sum*4/3 }", () => {
       const quarterly = [mkQ(2026, 3, 100), mkQ(2026, 2, 200), mkQ(2026, 1, 300)];
-      const result = computeTtmEps(quarterly, mkA(2025, 999), listedAt, now12mo);
+      const result = computeTtmEps(quarterly, mkA(2025, 999));
       expect(result.source).toBe("annualized");
       expect(result.value).toBeCloseTo(800);
     });
 
     it("2분기 연속 음수 합 → { source: 'annualized', value: null }", () => {
       const quarterly = [mkQ(2026, 2, -100), mkQ(2026, 1, -200)];
-      const result = computeTtmEps(quarterly, mkA(2025, 999), listedAt, now12mo);
+      const result = computeTtmEps(quarterly, mkA(2025, 999));
       expect(result).toEqual({ value: null, source: "annualized" });
     });
   });
 
-  describe("#3 경계: 14개월 임계 (< 14 strict)", () => {
-    const listedAt = new Date("2025-01-01T00:00:00Z");
-    const nowUnder14 = new Date("2026-01-01T00:00:00Z"); // 약 11.99개월
-    const nowOver14 = new Date("2026-04-01T00:00:00Z"); // 약 14.88개월
-
-    const quarterly = [mkQ(2026, 3, 100), mkQ(2026, 2, 100), mkQ(2026, 1, 100)];
+  describe("#3 경계: EPS 분기 4개 (< 4 strict)", () => {
+    // 신규 상장 종목의 모양 — 직전 연도는 연간 행만 있어 파생 Q4 의 EPS 가 null 이다.
+    const quarterly = [mkQ(2026, 3, 100), mkQ(2026, 2, 100), mkQ(2026, 1, 100), mkQ(2025, 4, null)];
     const latestAnnual = mkA(2025, 500);
 
-    it("14개월 미만 → annualized 진입", () => {
-      const result = computeTtmEps(quarterly, latestAnnual, listedAt, nowUnder14);
+    it("EPS 분기 3개 (EPS null 분기는 세지 않음) → annualized 진입", () => {
+      const result = computeTtmEps(quarterly, latestAnnual);
       expect(result.source).toBe("annualized");
       expect(result.value).toBeCloseTo(400);
     });
 
-    it("14개월 이상 → annual_fallback 폴스루", () => {
-      const result = computeTtmEps(quarterly, latestAnnual, listedAt, nowOver14);
+    it("EPS 분기 4개 → annual_fallback 폴스루", () => {
+      const result = computeTtmEps([...quarterly, mkQ(2025, 3, 100)], latestAnnual);
       expect(result).toEqual({ value: 500, source: "annual_fallback" });
     });
   });
@@ -141,9 +134,9 @@ describe("computeTtmEps", () => {
       expect(result).toEqual({ value: 500, source: "annual_fallback" });
     });
 
-    it("consecutive=3인데 listedAt=null → 연환산 조건 불충족 → annual_fallback (폴스루)", () => {
-      const quarterly = [mkQ(2026, 3, 100), mkQ(2026, 2, 100), mkQ(2026, 1, 100)];
-      const result = computeTtmEps(quarterly, mkA(2025, 700), null);
+    it("consecutive=2인데 결측 앞 분기가 남음 → 연환산 조건 불충족 → annual_fallback (폴스루)", () => {
+      const quarterly = [mkQ(2026, 2, 100), mkQ(2026, 1, 100), mkQ(2025, 3, 100), mkQ(2025, 2, 100)];
+      const result = computeTtmEps(quarterly, mkA(2025, 700));
       expect(result).toEqual({ value: 700, source: "annual_fallback" });
     });
   });
@@ -181,18 +174,6 @@ describe("computeTtmEps", () => {
       ];
       const result = computeTtmEps(quarterly, mkA(2025, 500));
       expect(result).toEqual({ value: 500, source: "annual_fallback" });
-    });
-  });
-
-  describe("결정성: now 주입 이점", () => {
-    it("동일 입력·동일 now → 항상 동일 결과 (실행 시점 무관)", () => {
-      const listedAt = new Date("2025-01-01T00:00:00Z");
-      const now = new Date("2026-01-01T00:00:00Z");
-      const quarterly = [mkQ(2026, 3, 100), mkQ(2026, 2, 100), mkQ(2026, 1, 100)];
-      const r1 = computeTtmEps(quarterly, mkA(2025, 500), listedAt, now);
-      const r2 = computeTtmEps(quarterly, mkA(2025, 500), listedAt, now);
-      expect(r1).toEqual(r2);
-      expect(r1.source).toBe("annualized");
     });
   });
 });
@@ -389,10 +370,8 @@ describe("computeTtmEps — 기준 주식수 불일치", () => {
   });
 
   it("연환산 경로의 분기 1개 불일치 → basis_mismatch", () => {
-    const listedAt = new Date("2025-01-01T00:00:00Z");
-    const now = new Date("2026-01-01T00:00:00Z");
     const quarterly = [mkQm(2026, 3, 100, false), mkQm(2026, 2, 200, true), mkQm(2026, 1, 300, false)];
-    const result = computeTtmEps(quarterly, mkA(2025, 999), listedAt, now);
+    const result = computeTtmEps(quarterly, mkA(2025, 999));
     expect(result).toEqual({ value: null, source: "basis_mismatch" });
   });
 

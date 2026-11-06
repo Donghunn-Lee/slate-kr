@@ -6,7 +6,7 @@ import {
   getFinancials,
   computeTtmEps,
 } from "@/lib/financials";
-import { getListedAt, getNonKrwCurrency } from "@/lib/stocks";
+import { getNonKrwCurrency } from "@/lib/stocks";
 import { formatRatio, formatEps, formatPercent } from "@/shared/format";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { NonKrwNotice } from "./NonKrwNotice";
@@ -43,19 +43,15 @@ type StockMetricsProps = {
 };
 
 export const StockMetrics = async ({ ticker }: StockMetricsProps) => {
-  const [currencyResult, priceResult, financialsResult, listedAtResult] =
-    await Promise.allSettled([
-      getNonKrwCurrency(ticker),
-      getLatestPrice(ticker),
-      getFinancials(ticker),
-      getListedAt(ticker),
-    ]);
-  // 상장일 실패는 연환산 EPS 대신 연간 EPS 로 내려갈 뿐이라 표시 없이 로그만 남긴다.
+  const [currencyResult, priceResult, financialsResult] = await Promise.allSettled([
+    getNonKrwCurrency(ticker),
+    getLatestPrice(ticker),
+    getFinancials(ticker),
+  ]);
   // 표시통화 실패는 KRW 로 보고 지표 경로를 탄다 — 그 종목의 재무는 격리돼 비어 있어 "—" 로 드러난다.
   logRejected(ticker, "reportingCurrency", currencyResult);
   logRejected(ticker, "price", priceResult);
   logRejected(ticker, "financials", financialsResult);
-  logRejected(ticker, "listedAt", listedAtResult);
 
   if (currencyResult.status === "fulfilled" && currencyResult.value) {
     return (
@@ -68,10 +64,8 @@ export const StockMetrics = async ({ ticker }: StockMetricsProps) => {
   const price: StockPriceSnapshot | null =
     priceResult.status === "fulfilled" ? priceResult.value : null;
   const financials = financialsResult.status === "fulfilled" ? financialsResult.value : null;
-  const listedAt: Date | null =
-    listedAtResult.status === "fulfilled" ? listedAtResult.value : null;
   const latestAnnual: FinancialPeriod | null = financials?.annual[0] ?? null;
-  const ttm = computeTtmEps(financials?.quarterly ?? [], latestAnnual, listedAt);
+  const ttm = computeTtmEps(financials?.quarterly ?? [], latestAnnual);
 
   // 지표 6개가 모두 재무에 기댄다(EPS·BPS·DPS 는 직접, PER·PBR·시가배당률은 그 값을 거쳐) —
   // 재무가 실패하면 가격이 있어도 보여 줄 지표가 없다.

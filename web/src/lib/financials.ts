@@ -429,10 +429,6 @@ export type TtmEps = {
   source: TtmEpsSource;
 };
 
-// 상장일 기준 4분기 도래 여부 판정 임계 (12개월 + 공시 시차 여유)
-const RECENTLY_LISTED_MAX_MONTHS = 14;
-const MS_PER_MONTH = 1000 * 60 * 60 * 24 * 30.44;
-
 // 최근순 quarterly 배열에서 최상단 몇 개가 (year, quarter) 기준
 // 연속·EPS non-null 인지 세어 반환한다.
 const countTopConsecutive = (quarterly: FinancialPeriod[]): number => {
@@ -461,9 +457,7 @@ const anyMismatch = (periods: readonly FinancialPeriod[]): boolean =>
 
 export const computeTtmEps = (
   quarterly: FinancialPeriod[],
-  latestAnnual: FinancialPeriod | null,
-  listedAt: Date | null = null,
-  now: Date = new Date()
+  latestAnnual: FinancialPeriod | null
 ): TtmEps => {
   const annualEps = latestAnnual?.eps ?? null;
   const annualFallback: TtmEps =
@@ -486,12 +480,10 @@ export const computeTtmEps = (
       : { value: null, source: "ttm_negative" };
   }
 
-  // #3: 상장 1년 미만 & 최근부터 2~3분기 연속 → 연환산
+  // #3: EPS 있는 분기 4개 미만 & 최근부터 2~3분기 연속 → 연환산
   if (consecutive === 2 || consecutive === 3) {
-    const monthsSinceListing =
-      listedAt !== null ? (now.getTime() - listedAt.getTime()) / MS_PER_MONTH : null;
-    const notYetFourQuarters =
-      monthsSinceListing !== null && monthsSinceListing < RECENTLY_LISTED_MAX_MONTHS;
+    // EPS 없는 분기는 세지 않는다 — 신규 상장 종목은 Q1~Q3 가 없어 EPS 빈 파생 Q4 가 붙는다.
+    const notYetFourQuarters = quarterly.filter((q) => q.eps !== null).length < 4;
     if (notYetFourQuarters) {
       const used = quarterly.slice(0, consecutive);
       if (anyMismatch(used)) return BASIS_MISMATCH;

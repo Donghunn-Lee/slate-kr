@@ -9,7 +9,7 @@ import {
 import { isRowBasisMismatch } from "@/lib/financials";
 import { getKstDateAndMinutes, getPreviousKrxTradingDate } from "@/shared/utils/market";
 
-// 가상 시세 생성기의 종목 입력(앵커 재무 · 배당 핀 · shares · 상장일)을 DB 에서 한 번에 읽어
+// 가상 시세 생성기의 종목 입력(앵커 재무 · 배당 핀 · shares · 이력 시작)을 DB 에서 한 번에 읽어
 // 종목당 프로필 하나로 메모한다. 핀 종목의 프로필은 마지막 핀부터 앵커까지 ~200일 워크를
 // 포함하므로 요청마다 다시 만들지 않는다. 가격 테이블은 읽지 않는다 — 가격은 전부 생성기 산출.
 
@@ -18,19 +18,30 @@ export type DemoUniverseEntry = {
   name: string;
   market: "KOSPI" | "KOSDAQ";
   shares: number | null;
-  listedAt: string | null; // 'YYYY-MM-DD'
+  historyStart: string; // 'YYYY-MM-DD'
   profile: TickerProfile;
 };
 
-// 일봉 시작. 상장일이 더 늦으면 상장일.
+// 일봉 시작. 종목은 재무 · 배당 첫 연도로 늦춘다(toHistoryStart).
 export const DEMO_HISTORY_START = "2016-01-01";
+
+// 생성기가 읽는 DART 연도 상한(앵커 재무 · 배당 핀). 다음 사업보고서가 적재돼도 이력이 바뀌지 않는다.
+export const DEMO_ANCHOR_YEAR = 2025;
+
+// 재무 · 배당 수집 창(years_back=5)의 첫 해. 첫 연도가 이 해면 그 전에 상장했는지 알 수 없다.
+const FINANCIALS_WINDOW_START_YEAR = 2021;
 
 type StockRow = {
   ticker: string;
   name: string;
   market: "KOSPI" | "KOSDAQ";
   shares: number | null;
-  listed_at: string | null;
+};
+
+// 종목별 재무제표(연간 · 분기) · 배당(종류 무관) 행의 첫 연도. 둘 다 없는 종목은 결과에 없다.
+type FirstYearRow = {
+  ticker: string;
+  first_year: number;
 };
 
 // 연간 재무 행과 보통주 배당 행을 (ticker, year) 로 맞춘 행. 한쪽만 있는 해는 다른 쪽이 null.
@@ -45,8 +56,7 @@ type YearlyRow = {
   dart_yield: number | null;
 };
 
-const STOCKS_SQL =
-  "SELECT ticker, name, market, shares, to_char(listed_at, 'YYYY-MM-DD') AS listed_at FROM stocks WHERE is_active = true";
+const STOCKS_SQL = "SELECT ticker, name, market, shares FROM stocks WHERE is_active = true";
 
 const YEARLY_SQL = `SELECT COALESCE(f.ticker, d.ticker) AS ticker,
        COALESCE(f.year, d.year) AS year,
@@ -56,10 +66,24 @@ const YEARLY_SQL = `SELECT COALESCE(f.ticker, d.ticker) AS ticker,
   FULL OUTER JOIN (SELECT ticker, year, dps, dart_yield FROM dividends WHERE stock_kind = 'common') d
     ON d.ticker = f.ticker AND d.year = f.year`;
 
+// 재무제표 행이 빠진 해(금융업 등)에도 같은 사업보고서의 배당 행은 남아 있어 두 테이블 중 이른 해를 쓴다.
+const FIRST_YEAR_SQL = `SELECT ticker, MIN(year) AS first_year
+  FROM (SELECT ticker, year FROM financial_statements
+        UNION ALL
+        SELECT ticker, year FROM dividends) t
+ GROUP BY ticker`;
+
 const UNIVERSE_TTL_MS = 3600 * 1000;
 
 const toShares = (raw: number | null): number | null =>
   raw !== null && Number(raw) > 0 ? Number(raw) : null;
+
+// 정기보고서 제출은 대개 상장과 함께 시작해 첫 연도 ≈ 상장 연도 — 상장 전 구간에 가짜 이력을
+// 그리지 않는다. 재무 · 배당 행이 없는 종목은 대부분 최근 상장(스팩 · 신규)이라 앵커 연도부터.
+const toHistoryStart = (firstYear: number | undefined): string => {
+  if (firstYear === undefined) return `${DEMO_ANCHOR_YEAR}-01-01`;
+  return firstYear > FINANCIALS_WINDOW_START_YEAR ? `${firstYear}-01-01` : DEMO_HISTORY_START;
+};
 
 // 결산일 실제 주가 수준 = DPS ÷ 시가배당률. 그 해의 EPS 기준 주식수가 현재와 다르면(병합·분할)
 // DPS 도 같은 주식수 기준이라 핀으로 쓰지 않는다 — 재무 슬레이트의 판정과 같은 기준.
@@ -89,13 +113,16 @@ const toPins = (ticker: string, rows: readonly YearlyRow[], shares: number | nul
 export const buildDemoUniverse = (
   stocks: readonly StockRow[],
   yearly: readonly YearlyRow[],
+  firstYears: readonly FirstYearRow[],
 ): DemoUniverseEntry[] => {
   const yearlyByTicker = new Map<string, YearlyRow[]>();
   for (const row of yearly) {
+    if (row.year > DEMO_ANCHOR_YEAR) continue;
     const bucket = yearlyByTicker.get(row.ticker) ?? [];
     bucket.push(row);
     yearlyByTicker.set(row.ticker, bucket);
   }
+  const firstYearByTicker = new Map(firstYears.map((row) => [row.ticker, row.first_year]));
   return stocks.map((stock) => {
     const rows = (yearlyByTicker.get(stock.ticker) ?? []).sort((a, b) => a.year - b.year);
     const shares = toShares(stock.shares);
@@ -110,7 +137,7 @@ export const buildDemoUniverse = (
       name: stock.name,
       market: stock.market,
       shares,
-      listedAt: stock.listed_at,
+      historyStart: toHistoryStart(firstYearByTicker.get(stock.ticker)),
       profile,
     };
   });
@@ -128,11 +155,12 @@ let memo: UniverseMemo | null = null;
 let pending: Promise<UniverseMemo> | null = null;
 
 const loadUniverse = async (): Promise<UniverseMemo> => {
-  const [[stocks], [yearly]] = await Promise.all([
+  const [[stocks], [yearly], [firstYears]] = await Promise.all([
     pool.query<StockRow[]>(STOCKS_SQL),
     pool.query<YearlyRow[]>(YEARLY_SQL),
+    pool.query<FirstYearRow[]>(FIRST_YEAR_SQL),
   ]);
-  const entries = buildDemoUniverse(stocks, yearly);
+  const entries = buildDemoUniverse(stocks, yearly, firstYears);
   return {
     entries,
     byTicker: new Map(entries.map((entry) => [entry.ticker, entry])),
@@ -161,10 +189,7 @@ export const getDemoUniverse = async (): Promise<DemoUniverseEntry[]> =>
 export const getDemoEntry = async (ticker: string): Promise<DemoUniverseEntry | null> =>
   (await getUniverseMemo()).byTicker.get(ticker) ?? null;
 
-export const getDemoHistoryStart = (entry: DemoUniverseEntry): string =>
-  entry.listedAt !== null && entry.listedAt > DEMO_HISTORY_START
-    ? entry.listedAt
-    : DEMO_HISTORY_START;
+export const getDemoHistoryStart = (entry: DemoUniverseEntry): string => entry.historyStart;
 
 // EOD 일봉이 존재하는 마지막 거래일. "오늘" 봉은 20:00 애프터마켓 마감 뒤 EOD 적재 시각(20:10)
 // 부터 존재한다 — 그 전엔 전 거래일까지만. 장중 당일 봉은 클라가 live quote 로 얹는다.
