@@ -34,8 +34,8 @@ from dotenv import load_dotenv
 from db import get_connection
 # get_all_corps: 배당 미공시 종목도 is_financial_filer 규약(비공시 재시도 창 포함) 그대로 준용.
 from fetch_financials import get_all_corps, get_available_reports
+from fetch_stocks import fetch_corp_codes
 from log_setup import setup_logging
-from update_corp_codes import fetch_corp_codes
 
 # 재시도 대상 DB 예외 — fetch_financials.py 와 동일 (connection 절단류만).
 _DB_RETRY_EXC = (psycopg2.OperationalError, psycopg2.InterfaceError)

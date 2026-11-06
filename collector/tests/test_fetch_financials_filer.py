@@ -1,7 +1,7 @@
-"""fetch_financials.py 비공시(is_financial_filer) 마킹·재시도 유닛 테스트.
+"""fetch_financials.py 비공시(is_financial_filer) 마킹·복귀 유닛 테스트.
 
 커버 대상:
-  - is_collect_target / get_all_corps: 비공시 마킹 종목의 재시도 창 (1년 이내 / 초과 / 상장일 NULL)
+  - get_all_corps: 비공시 마킹 종목도 매 run 대상 (상장일 · filer 로 거르지 않음)
   - fetch_financial no_data: CFS·OFS 모두 013 일 때만 True (예외·다른 status·빈 파싱은 False)
   - run(): no_data 확정일 때만 mark_non_filer 호출
   - restore_filers: 적재 이력이 생긴 false 종목을 true 로
@@ -12,7 +12,6 @@ from __future__ import annotations
 import os
 import sys
 import unittest
-from datetime import date, timedelta
 from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -20,48 +19,22 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import fetch_dividends  # noqa: E402
 import fetch_financials  # noqa: E402
 from fetch_financials import (  # noqa: E402
-    NON_FILER_RETRY_DAYS,
     fetch_financial,
     get_all_corps,
-    is_collect_target,
     restore_filers,
     run,
 )
 
-TODAY = date(2026, 9, 30)
-
 
 class CollectTargetTests(unittest.TestCase):
-    def test_filer_true_or_unknown_always_collected(self):
-        self.assertTrue(is_collect_target(True, date(2000, 1, 1), TODAY))
-        self.assertTrue(is_collect_target(None, date(2000, 1, 1), TODAY))
-
-    def test_non_filer_within_retry_window(self):
-        self.assertTrue(is_collect_target(False, TODAY - timedelta(days=30), TODAY))
-        self.assertTrue(
-            is_collect_target(False, TODAY - timedelta(days=NON_FILER_RETRY_DAYS), TODAY)
-        )
-
-    def test_non_filer_past_retry_window_excluded(self):
-        self.assertFalse(
-            is_collect_target(False, TODAY - timedelta(days=NON_FILER_RETRY_DAYS + 1), TODAY)
-        )
-
-    def test_non_filer_with_unknown_listing_date_retried(self):
-        self.assertTrue(is_collect_target(False, None, TODAY))
-
-    def test_get_all_corps_filters_rows(self):
+    def test_get_all_corps_keeps_non_filers(self):
         cursor = MagicMock()
-        cursor.fetchall.return_value = [
-            ("A", "c1", "filer", True, date(2000, 1, 1)),
-            ("B", "c2", "new-non-filer", False, date(2026, 7, 1)),
-            ("C", "c3", "old-non-filer", False, date(2006, 3, 15)),
-            ("D", "c4", "unknown-listing", False, None),
-        ]
-        self.assertEqual(
-            get_all_corps(cursor, today=TODAY),
-            [("A", "c1", "filer"), ("B", "c2", "new-non-filer"), ("D", "c4", "unknown-listing")],
-        )
+        rows = [("A", "c1", "filer"), ("B", "c2", "non-filer")]
+        cursor.fetchall.return_value = rows
+        self.assertEqual(get_all_corps(cursor), rows)
+        sql = cursor.execute.call_args.args[0]
+        self.assertNotIn("listed_at", sql)
+        self.assertNotIn("is_financial_filer", sql)
 
     def test_dividends_uses_same_selection(self):
         self.assertIs(fetch_dividends.get_all_corps, fetch_financials.get_all_corps)
