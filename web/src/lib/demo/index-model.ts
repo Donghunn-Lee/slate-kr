@@ -39,20 +39,21 @@ import {
 // 소비측 UI · README 가 전제하는 특이 케이스(.DJI 분봉 없음 · SPX/NDX 거래량 0 · 해외 지연 분)는
 // 그대로 흉내 낸다.
 
-// 자릿수만 실제와 맞춘 앵커 레벨.
+// 배포 시점(2026-11) 실제 수준의 라운드 값. 앵커 날짜의 실제 값이 아니며, 재배포 때 갱신해도
+// 지수 이력만 바뀐다(종목 무관).
 export const DEMO_INDEX_ANCHOR: Record<IndexCode, number> = {
-  KOSPI: 2600,
-  KOSDAQ: 780,
-  KOSPI200: 350,
-  KOSDAQ150: 1100,
-  SPX: 5800,
-  ".DJI": 42000,
-  COMP: 18500,
-  NDX: 20500,
-  NI225: 39000,
-  HSI: 20000,
-  SHCOMP: 3300,
-  DAX: 19500,
+  KOSPI: 5000,
+  KOSDAQ: 650,
+  KOSPI200: 800,
+  KOSDAQ150: 1000,
+  SPX: 7400,
+  ".DJI": 51000,
+  COMP: 24500,
+  NDX: 27000,
+  NI225: 57000,
+  HSI: 24500,
+  SHCOMP: 3650,
+  DAX: 26000,
 };
 
 // ── 모델 상수 ─────────────────

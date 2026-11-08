@@ -4,6 +4,7 @@ import {
   type StockIntradayChartResult,
 } from "@/lib/quote-source";
 import { getMarketCalendar } from "@/lib/market-calendar";
+import { applyDemoFault } from "@/lib/demo-fault";
 import { TickerSchema } from "@/shared/types/schemas";
 import { getKrxSessionState, getKrxTradingDate } from "@/shared/utils/market";
 
@@ -50,6 +51,7 @@ export const GET = async (req: NextRequest) => {
   const fallbackDate = getKrxTradingDate(now, calendar);
 
   try {
+    await applyDemoFault(req);
     const result = await dedupedFetch(ticker);
     // null = fetch 실패 (자격/토큰). bars 는 [] 로 정규화해 클라 계약 (bars: ChartBar[])
     // 유지. anchor 실패는 result.failed 로 — 성공 anchor 봉은 그대로 싣는다.

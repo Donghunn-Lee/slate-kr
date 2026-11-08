@@ -1,8 +1,9 @@
 import { revalidateTag, unstable_cache } from "next/cache";
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 
 import { getIndexIntradayPrices } from "@/lib/indices";
 import { getMarketCalendar } from "@/lib/market-calendar";
+import { applyDemoFault } from "@/lib/demo-fault";
 import {
   getKrxSessionState,
   getKrxTradingDate,
@@ -96,7 +97,7 @@ const allFailed = (): Record<DomesticIndexCode, boolean> =>
     boolean
   >;
 
-export const GET = async () => {
+export const GET = async (req: NextRequest) => {
   // 요청 시작에서 캘린더 1회 로드 (memo). 세션·거래일·마감 경과 산출에 관통.
   const calendar = await getMarketCalendar();
   const now = new Date();
@@ -106,6 +107,7 @@ export const GET = async () => {
   const sinceClose = minutesSinceKrxClose(now, calendar);
 
   try {
+    await applyDemoFault(req);
     const results = await Promise.allSettled(
       DOMESTIC_INDEX_CODES.map((code) =>
         getCachedFetcher(code, session, tradingDate, sinceClose)(),

@@ -2,6 +2,7 @@ import { unstable_cache } from "next/cache";
 import { type NextRequest, NextResponse } from "next/server";
 
 import { getIndexDailyPrices } from "@/lib/indices";
+import { applyDemoFault } from "@/lib/demo-fault";
 import { INDEX_CODES, type IndexCode } from "@/shared/constants/indices";
 import type { IndexDailySnapshot } from "@/shared/types/quote";
 
@@ -37,6 +38,7 @@ export const GET = async (req: NextRequest) => {
   }
 
   try {
+    await applyDemoFault(req);
     const snapshots = await getCachedFetcher(raw)();
     return NextResponse.json(snapshots);
   } catch (err: unknown) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPriceSummariesByTickers } from "@/lib/prices";
+import { applyDemoFault } from "@/lib/demo-fault";
 
 // GET /api/prices?tickers=005930,000660,035420
 export const GET = async (req: NextRequest) => {
@@ -15,6 +16,7 @@ export const GET = async (req: NextRequest) => {
   }
 
   try {
+    await applyDemoFault(req);
     const response = await getPriceSummariesByTickers(tickers);
     return NextResponse.json(response);
   } catch {

@@ -7,6 +7,7 @@ import {
   isSnapshotSession,
 } from "@/lib/quote-snapshots";
 import { getMarketCalendar } from "@/lib/market-calendar";
+import { applyDemoFault } from "@/lib/demo-fault";
 import { getKrxSessionState, getKrxTradingDate } from "@/shared/utils/market";
 import type { QuoteMarket } from "@/shared/utils/market";
 import type { StockQuote } from "@/shared/types/quote";
@@ -42,6 +43,7 @@ export const GET = async (req: NextRequest) => {
   const date = getKrxTradingDate(now, calendar);
 
   try {
+    await applyDemoFault(req);
     // KRX 탭은 세션 게이트 없이 J 채널을 호출한다. stale 판정(SSR initialDate 대비)은
     // 클라이언트 소관 — route 는 krx→J 매핑만 담당.
     if (market === "krx") {
