@@ -6,7 +6,7 @@ import { BottomTabBar } from "@/components/layout/BottomTabBar";
 import { ScrollToTopButton } from "@/components/layout/ScrollToTopButton";
 import { RecentVisitedBar } from "@/components/layout/RecentVisitedBar";
 import { Footer } from "@/components/layout/Footer";
-import { DemoNoticeDialog } from "@/components/layout/DemoNoticeDialog";
+import { DemoNotice } from "@/components/layout/DemoNotice";
 import { IosInputZoomFix } from "@/shared/components/IosInputZoomFix";
 import { WatchlistSync } from "@/features/watchlist/WatchlistSync";
 import { MemoSync } from "@/features/memo/MemoSync";
@@ -50,7 +50,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <Footer />
           <ScrollToTopButton />
           <BottomTabBar />
-          <DemoNoticeDialog />
+          <DemoNotice />
         </Providers>
       </body>
     </html>
