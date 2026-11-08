@@ -25,9 +25,10 @@ import { getDemoEodDate, getDemoUniverse, type DemoUniverseEntry } from "@/lib/d
 const RANKING_LIMIT = 30;
 
 // 시세 채널 축. 개장 전(pre · preopen) 은 NXT 프리마켓만 체결이 흐르므로 NX — 비NXT 종목은
-// 집계에서 빠진다(캡션 "프리마켓 · NXT" 와 같은 축). 그 외 세션은 KRX+NXT 통합 UN.
+// 집계에서 빠진다(캡션 "프리마켓 · NXT" 와 같은 축). 그 외 세션은 KRX J — 캡션이 KRX 축이라
+// 통합 UN 을 쓰지 않는다(15:30~16:00 "정규장 마감 · KRX" 판정도 J 전제).
 export const rankingMarketDiv = (session: KrxSession): DemoChannel =>
-  isKrxBeforeMarketOpen(session) ? "NX" : "UN";
+  isKrxBeforeMarketOpen(session) ? "NX" : "J";
 
 export type RankingFetchResult =
   | { ok: true; items: MarketRankingItem[] }

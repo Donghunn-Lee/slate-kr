@@ -19,6 +19,8 @@ type WatchlistRowProps = {
   // route catch/부분 실패 신호. true → EOD 값 유지 + "일시 지연" 배지.
   // stock-quote StockHeaderLivePrice 배지 문자·색 동형.
   isLiveFailed?: boolean;
+  // EOD · 라이브 둘 다 첫 응답 전. 값 부재("—")와 구분되게 가격 칸을 스켈레톤으로 둔다.
+  isPricePending?: boolean;
   // 개장 전 창(08:00~09:00) KRX 0% 리셋 여부. 판정은 useMultiQuote 소관.
   preReset?: boolean;
   disclosure?: TickerDisclosureCount;
@@ -33,6 +35,7 @@ export const WatchlistRow = ({
   price,
   liveQuote,
   isLiveFailed = false,
+  isPricePending = false,
   preReset = false,
   disclosure,
   hasMemo = false,
@@ -118,14 +121,18 @@ export const WatchlistRow = ({
               {item.name}
             </span>
             <div className="flex shrink-0 items-end gap-2">
-              <span
-                className={cn(
-                  "text-body font-bold tabular-nums leading-none md:text-body-lg",
-                  priceToneClass(displaySign ?? displayChange),
-                )}
-              >
-                {displayPrice !== null ? `${displayPrice.toLocaleString("ko-KR")}원` : "—"}
-              </span>
+              {isPricePending ? (
+                <span className="h-lh w-24 animate-pulse rounded bg-muted text-body leading-none md:text-body-lg" />
+              ) : (
+                <span
+                  className={cn(
+                    "text-body font-bold tabular-nums leading-none md:text-body-lg",
+                    priceToneClass(displaySign ?? displayChange),
+                  )}
+                >
+                  {displayPrice !== null ? `${displayPrice.toLocaleString("ko-KR")}원` : "—"}
+                </span>
+              )}
               {displayChange !== null && displayChangeRate !== null && (
                 <PriceChange
                   change={displayChange}
@@ -144,23 +151,3 @@ export const WatchlistRow = ({
     </li>
   );
 };
-
-export const WatchlistRowSkeleton = () => (
-  <li className="group -mx-6 animate-pulse px-6">
-    <div className="border-b border-subtle pb-1.5 pt-0.5 group-last:border-b-0 md:pb-3 md:pt-1">
-      <div className="flex flex-col">
-        <div className="flex min-h-7 items-center gap-2">
-          <div className="h-3 w-24 rounded bg-muted" />
-          <div className="ml-auto h-7 w-7 shrink-0 rounded-md bg-muted" />
-        </div>
-        <div className="flex flex-row items-baseline justify-between gap-2 md:flex-col md:items-start md:justify-start md:gap-1">
-          <div className="h-4 w-32 rounded bg-muted md:h-5" />
-          <div className="flex shrink-0 items-end gap-2">
-            <div className="h-4 w-20 rounded bg-muted md:h-5" />
-            <div className="h-3 w-16 rounded bg-muted" />
-          </div>
-        </div>
-      </div>
-    </div>
-  </li>
-);

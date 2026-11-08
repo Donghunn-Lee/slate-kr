@@ -14,7 +14,7 @@ import { useRecentVisitedStore } from "@/features/search/useRecentVisitedStore";
 import { useMemoStore } from "@/features/memo/store/useMemoStore";
 import { selectMemoItems } from "@/features/memo/store/selectMemoItems";
 import { LIVE_TICKER_LIMIT, useMultiQuote } from "@/features/multi-quote/useMultiQuote";
-import { WatchlistRow, WatchlistRowSkeleton } from "@/entities/watchlist/WatchlistRow";
+import { WatchlistRow } from "@/entities/watchlist/WatchlistRow";
 import { StockPanel } from "@/entities/stock/StockPanel";
 import { EmptyState } from "@/shared/components/EmptyState";
 import { StatusBadge } from "@/shared/components/StatusBadge";
@@ -146,7 +146,15 @@ export const WatchlistPageClient = () => {
     () => displayItems.slice(0, LIVE_TICKER_LIMIT).map((i) => i.ticker),
     [displayItems]
   );
-  const { quotes: liveQuotes, failed: liveFailed, preReset } = useMultiQuote(liveTickers);
+  const {
+    quotes: liveQuotes,
+    failed: liveFailed,
+    preReset,
+    isLoading: isLiveLoading,
+  } = useMultiQuote(liveTickers);
+  // 라이브 상한 밖 종목은 라이브 응답이 오지 않으므로 EOD 만 기다린다.
+  const isPricePending = (index: number) =>
+    pricesQuery.isLoading && (isLiveLoading || index >= LIVE_TICKER_LIMIT);
 
   const fixedTabs: Array<{ key: string; label: string }> = [
     { key: RECENT_TAB, label: "최근 조회" },
@@ -280,26 +288,25 @@ export const WatchlistPageClient = () => {
               )}
               <StockPanel variant="plain" className="py-2">
                 <ul>
-                  {pricesQuery.isLoading
-                    ? displayItems.map((item) => <WatchlistRowSkeleton key={item.ticker} />)
-                    : displayItems.map((item) => (
-                        <WatchlistRow
-                          key={item.ticker}
-                          item={item}
-                          price={pricesMap[item.ticker]}
-                          liveQuote={liveQuotes[item.ticker]}
-                          isLiveFailed={liveFailed[item.ticker] ?? false}
-                          preReset={preReset}
-                          disclosure={countsMap[item.ticker]}
-                          hasMemo={item.ticker in memos}
-                          onRemove={
-                            isFixedTab || !currentGroup
-                              ? undefined
-                              : () => removeMembership(item.ticker, currentGroup.id)
-                          }
-                          isRemoveDisabled={isPending}
-                        />
-                      ))}
+                  {displayItems.map((item, index) => (
+                    <WatchlistRow
+                      key={item.ticker}
+                      item={item}
+                      price={pricesMap[item.ticker]}
+                      liveQuote={liveQuotes[item.ticker]}
+                      isLiveFailed={liveFailed[item.ticker] ?? false}
+                      isPricePending={isPricePending(index)}
+                      preReset={preReset}
+                      disclosure={countsMap[item.ticker]}
+                      hasMemo={item.ticker in memos}
+                      onRemove={
+                        isFixedTab || !currentGroup
+                          ? undefined
+                          : () => removeMembership(item.ticker, currentGroup.id)
+                      }
+                      isRemoveDisabled={isPending}
+                    />
+                  ))}
                 </ul>
               </StockPanel>
             </>

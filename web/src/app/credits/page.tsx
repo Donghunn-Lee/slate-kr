@@ -98,7 +98,7 @@ export default function CreditsPage() {
             다우존스(DJI)는 장중 시세 · 분봉 없이 일봉 종가만 표시됩니다.
           </p>
           <p className="mt-1 text-caption text-muted-foreground">
-            순위는 장중 약 1분 간격으로 갱신되며, 거래일 06:00~09:00 KST에는 NXT(NXT 거래 종목만), 그 외 시간에는 KRX+NXT 통합 기준으로 집계합니다.
+            순위는 장중 약 1분 간격으로 갱신되며, 거래일 06:00~09:00 KST에는 NXT(NXT 거래 종목만), 그 외 시간에는 KRX 기준으로 집계합니다.
           </p>
         </StockPanel>
       </section>

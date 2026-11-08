@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
-import { getDailyBar, getTickerProfile } from "@/lib/demo/price-model";
+import { getDailyBar, getTickerProfile, type DemoChannel } from "@/lib/demo/price-model";
 import { fetchRanking, rankingMarketDiv } from "./ranking-source";
 import type { MarketRankingKind } from "@/shared/types/ranking";
+import type { KrxSession } from "@/shared/utils/market";
 
 // 30 종목 고정 universe — 전부가 한 순위 안에 들어와 changeSign 5종을 한 번에 본다.
 // 연속 거래일 핀(12-29 → 12-30)은 하루 ±30% 를 넘겨 그날 종가를 상 · 하한에 붙이고,
@@ -110,11 +111,20 @@ describe("fetchRanking", () => {
     await items(MCAP, "closed");
     expect(universeCalls).toHaveBeenCalledTimes(1);
   });
+});
 
-  it("rankingMarketDiv: 개장 전은 NX, 그 외 UN", () => {
-    expect(rankingMarketDiv("pre")).toBe("NX");
-    expect(rankingMarketDiv("preopen")).toBe("NX");
-    expect(rankingMarketDiv("regular")).toBe("UN");
-    expect(rankingMarketDiv("closed")).toBe("UN");
+describe("rankingMarketDiv", () => {
+  // Record 라 세션이 늘면 케이스 누락을 타입 검사가 잡는다.
+  const CHANNEL_BY_SESSION: Record<KrxSession, DemoChannel> = {
+    pre: "NX",
+    preopen: "NX",
+    regular: "J",
+    after: "J",
+    after_close: "J",
+    closed: "J",
+  };
+
+  it.each(Object.entries(CHANNEL_BY_SESSION))("%s → %s", (session, channel) => {
+    expect(rankingMarketDiv(session as KrxSession)).toBe(channel);
   });
 });
