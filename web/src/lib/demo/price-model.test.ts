@@ -231,7 +231,7 @@ describe("6. 세션 창", () => {
     expect(bars).toHaveLength(381 + 241);
   });
 
-  it("NXT: 08:00 시작, 15:40 부터 애프터 연속", () => {
+  it("NXT: 08:00 시작, 15:40 부터 애프터 연속 · J 는 KRX 일정(16:00 재개, 봉은 UN 과 같음)", () => {
     const [prev, today] = dayBars(NXT.ticker, NXT.profile);
     const bars = generateIntradayBars(NXT.ticker, NXT.profile, TODAY, prev, today, "UN") as DemoMinuteBar[];
     const minutes = bars.map(minuteOf);
@@ -242,6 +242,11 @@ describe("6. 세션 창", () => {
     const j = generateIntradayBars(NXT.ticker, NXT.profile, TODAY, prev, today, "J") as DemoMinuteBar[];
     expect(minuteOf(j[0])).toBe(hhmm(9, 0));
     expect(j[0].open).toBe(today.open);
+    expect(j).toHaveLength(381 + 241);
+    expect(j.some((b) => minuteOf(b) > hhmm(15, 30) && minuteOf(b) < hhmm(16, 0))).toBe(false);
+    expect(j.filter((b) => minuteOf(b) >= hhmm(16, 0))).toEqual(
+      bars.filter((b) => minuteOf(b) >= hhmm(16, 0)),
+    );
   });
 
   it("NX & !nxEligible → null", () => {
@@ -304,6 +309,20 @@ describe("7. quoteAt", () => {
       low: 0,
       volume: 0,
     });
+  });
+
+  // 15:45 는 NXT 애프터 단독 구간 안, 16:05 는 KRX 애프터 재개 직후
+  it("NXT J 15:45 — 15:31 과 같은 정규장 종가 · 거래량, 16:05 — UN 과 같은 가격", () => {
+    const { ticker, profile } = NXT;
+    const [, today] = dayBars(ticker, profile);
+    const at = (time: string, channel: "UN" | "J") =>
+      quoteAt(ticker, profile, kst(TODAY, time), channel) as NonNullable<ReturnType<typeof quoteAt>>;
+    const j1531 = at("1531", "J");
+    const j1545 = at("1545", "J");
+    expect(j1545.price).toBe(j1531.price);
+    expect(j1545.volume).toBe(j1531.volume);
+    expect(j1545.price).toBe(today.regularClose);
+    expect(at("1605", "J").price).toBe(at("1605", "UN").price);
   });
 
   it("NXT UN 개장 전(08:30) — 프리마켓 분봉의 지금까지", () => {

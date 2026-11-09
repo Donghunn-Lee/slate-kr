@@ -706,7 +706,7 @@ const buildSegmentBars = (
   return bars;
 };
 
-// 하루 전체(UN) 경로를 만든 뒤 채널로 자른다 — J 는 08:00~09:00 제외, NX 는 비적격이면 null
+// 하루 전체(UN) 경로를 만든 뒤 채널로 자른다 — J 는 08:00~09:00 · 15:40~15:59 제외, NX 는 비적격이면 null
 // (route 가 NX 채널의 null 을 "NXT 미취급 종목" 신호로 쓴다).
 // 프리마켓은 시가에서 출발해 시가 근처에서 끝나는 브리지 — 전일 20:00 종가에서 출발하면 UN 첫 봉의
 // 시가가 일봉 시가와 어긋나고 전일 종가가 당일 고저 밖에 놓일 수 있다. 갭은 08:00 에 한 번에 생긴다.
@@ -774,9 +774,14 @@ const buildIntradayBars = (
     },
   ];
   const dayStartSec = kstFakeUtcSec(date, 0);
-  return segments
+  const bars = segments
     .filter((seg) => seg.startMin <= untilMin)
     .flatMap((seg) => buildSegmentBars(ticker, date, dayStartSec, seg, band, sigmaDay));
+  if (channel !== "J" || !nxt) return bars;
+  // J 는 NXT 종목도 KRX 일정 — 경로는 UN 과 같고 NXT 애프터 단독 구간(15:40~15:59)만 뺀다
+  const hideFrom = dayStartSec + NXT_AFTER_START_MIN * MINUTE_SEC;
+  const hideUntil = dayStartSec + KRX_AFTER_START_MIN * MINUTE_SEC;
+  return bars.filter((b) => b.timestamp < hideFrom || b.timestamp >= hideUntil);
 };
 
 export const generateIntradayBars = (
