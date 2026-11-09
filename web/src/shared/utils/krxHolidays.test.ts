@@ -37,3 +37,30 @@ describe("isKrxHoliday", () => {
     expect(isKrxHoliday("2026-08-15", cal)).toBe(false);
   });
 });
+
+const countTradingDays = (year: number): number => {
+  let count = 0;
+  for (let t = Date.UTC(year, 0, 1); t < Date.UTC(year + 1, 0, 1); t += 86_400_000) {
+    const d = new Date(t);
+    const dow = d.getUTCDay();
+    if (dow !== 0 && dow !== 6 && !isKrxHoliday(d.toISOString().slice(0, 10))) count++;
+  }
+  return count;
+};
+
+describe("정적 표 연도별 거래일 수 (평일 − 휴장)", () => {
+  // 기대값 = 보관 KOSPI 일봉의 연도별 봉 수 — 표가 실거래일에서 추출됐다는 근거
+  it.each([
+    [2015, 248],
+    [2016, 246],
+    [2017, 243],
+    [2018, 244],
+    [2019, 246],
+    [2020, 248],
+    [2021, 248],
+    [2022, 246],
+    [2023, 245],
+  ])("%i년 → %i일", (year, expected) => {
+    expect(countTradingDays(year)).toBe(expected);
+  });
+});

@@ -7,6 +7,7 @@ import {
   indexQuoteAt,
 } from "./index-model";
 import { DEMO_ANCHOR_DATE, listTradingDates, marketReturnDaily } from "./price-model";
+import { DEMO_HISTORY_START } from "./universe";
 import type { IndexIntradaySnapshot } from "@/shared/types/quote";
 
 const kst = (date: string, hhmm: string): Date => {
@@ -29,6 +30,12 @@ describe("결정론 · 앵커", () => {
 });
 
 describe("8. 지수", () => {
+  // 이력 시작일(2016-01-01)이 신정 휴장이라 첫 봉은 주말 다음 월요일
+  it("KOSPI 일봉 이력 첫 봉 = 2016-01-04", () => {
+    const bars = generateIndexDailyBars("KOSPI", DEMO_HISTORY_START, "2016-01-31");
+    expect(bars[0].date).toBe("2016-01-04");
+  });
+
   it("KOSPI 일봉 수익률 부호와 marketReturnDaily('KRX') 일치율 > 80% (100일)", () => {
     const dates = listTradingDates("2026-06-01", "2026-12-31");
     const bars = generateIndexDailyBars("KOSPI", dates[0], dates[dates.length - 1]);

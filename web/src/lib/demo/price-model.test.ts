@@ -101,7 +101,7 @@ describe("3. 앵커", () => {
 
   it("핀 종목의 핀 날 regularClose 는 핀 가격", () => {
     const { ticker, profile } = SAMPLE[1];
-    expect(profile.pins.map((p) => p.date)).toEqual(["2023-12-29", "2024-12-30", "2025-12-30"]);
+    expect(profile.pins.map((p) => p.date)).toEqual(["2023-12-28", "2024-12-30", "2025-12-30"]);
     for (const pin of profile.pins) {
       expect(getDailyBar(ticker, profile, pin.date).regularClose).toBe(pin.price);
     }
