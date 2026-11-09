@@ -12,6 +12,7 @@ import { toKstWallClockSec } from "@/shared/utils/toKstWallClockSec";
 // dim.{up,down} — 전일 봉 등 흐림 처리용 저채도 저대비 버전. 무채색 계열과 톤 충돌 없도록
 // 원색의 알파를 낮춰 배경에 자연스레 녹아들게 한다.
 // volume.{up,down} — 하단 histogram 오버레이용. 반투명이 관례이므로 원색 alpha 를 더 낮춘다.
+// {dim,volume}.flat — 시가=종가 봉용. 캔들은 neutralLine 을 쓰고, 파생은 그 rgb 에 같은 테마 up/down 알파.
 // baseline.{top,bottom}Fill{1,2} — intraday 선차트(BaselineSeries) 영역 그라데이션.
 // fill1(진함) → fill2(옅음) 로 baseline 에 가까워질수록 소멸. 렌더 확인 후 알파 미세조정 여지.
 // {top,bottom}FillClear — IndexMiniChart baseline 끝단(완전 투명). 미니 셀 높이에선 fill2 잔색도
@@ -31,10 +32,12 @@ export const CHART_THEME = {
     dim: {
       up: "rgba(194,23,37,0.28)",
       down: "rgba(17,86,192,0.28)",
+      flat: "rgba(82,82,82,0.28)",
     },
     volume: {
       up: "rgba(194,23,37,0.35)",
       down: "rgba(17,86,192,0.35)",
+      flat: "rgba(82,82,82,0.35)",
     },
     baseline: {
       topFill1: "rgba(194,23,37,0.28)",
@@ -59,10 +62,12 @@ export const CHART_THEME = {
     dim: {
       up: "rgba(226,73,71,0.35)",
       down: "rgba(73,131,229,0.35)",
+      flat: "rgba(163,163,163,0.35)",
     },
     volume: {
       up: "rgba(226,73,71,0.45)",
       down: "rgba(73,131,229,0.45)",
+      flat: "rgba(163,163,163,0.45)",
     },
     baseline: {
       topFill1: "rgba(226,73,71,0.28)",

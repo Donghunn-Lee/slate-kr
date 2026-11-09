@@ -1,12 +1,18 @@
 import type { LineData, Time, UTCTimestamp, WhitespaceData } from "lightweight-charts";
 import type { ChartPalette } from "@/shared/constants/chart";
-import type { ChartBar } from "@/shared/types/quote";
+import type { ChartBar, PriceSign } from "@/shared/types/quote";
 import { makeLeadingWhitespace } from "@/entities/chart/leadingWhitespace";
 
 const toTime = (t: string | number): Time =>
   typeof t === "number" ? (t as UTCTimestamp) : (t as `${number}-${number}-${number}`);
 
-// dimBefore 지정 시 time<dimBefore 봉에 per-bar 흐린 색 주입. 나머지는 시리즈 기본색.
+// 봉 방향은 시각이 아닌 모양(시가 대비 종가)으로 판정 — 단일가 봉·지수 평탄 구간·도지가 장 일정 없이
+// 같은 flat 이 된다. 캔들·dim·거래량·범례 종가색이 이 결과 하나를 본다.
+export const barDirection = (b: ChartBar): PriceSign =>
+  b.close > b.open ? "up" : b.close < b.open ? "down" : "flat";
+
+// dimBefore 지정 시 time<dimBefore 봉에 per-bar 흐린 색, 시가=종가 봉에 per-bar 무채색 주입 —
+// 라이브러리 캔들은 flat 색 옵션 없이 open<=close 를 up 으로 칠한다. 나머지는 시리즈 기본색.
 export const mapBar = (b: ChartBar, palette: ChartPalette, dimBefore: number | undefined) => {
   const base = {
     time: toTime(b.time),
@@ -15,15 +21,15 @@ export const mapBar = (b: ChartBar, palette: ChartPalette, dimBefore: number | u
     low: b.low,
     close: b.close,
   };
-  if (dimBefore === undefined || typeof b.time !== "number" || b.time >= dimBefore) {
-    return base;
-  }
-  const dimColor = b.close >= b.open ? palette.dim.up : palette.dim.down;
+  const dir = barDirection(b);
+  const isDim = dimBefore !== undefined && typeof b.time === "number" && b.time < dimBefore;
+  if (!isDim && dir !== "flat") return base;
+  const color = isDim ? palette.dim[dir] : palette.neutralLine;
   return {
     ...base,
-    color: dimColor,
-    wickColor: dimColor,
-    borderColor: dimColor,
+    color,
+    wickColor: color,
+    borderColor: color,
   };
 };
 
@@ -40,7 +46,7 @@ export const mapVolume = (b: ChartBar, palette: ChartPalette): VolumePoint | nul
   return {
     time: toTime(b.time),
     value: b.volume,
-    color: b.close >= b.open ? palette.volume.up : palette.volume.down,
+    color: palette.volume[barDirection(b)],
   };
 };
 
