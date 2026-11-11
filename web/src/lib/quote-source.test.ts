@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { indexQuoteAt } from "@/lib/demo/index-model";
-import { getTickerProfile } from "@/lib/demo/price-model";
+import { getDailyBar, getTickerProfile } from "@/lib/demo/price-model";
+import { getTickSize } from "@/lib/get-tick-size";
+import { fetchQuoteSnapshot } from "@/lib/quote-snapshots";
 import {
   fetchIndexQuote,
   fetchMultiQuote,
@@ -73,8 +75,25 @@ describe("fetchStockQuote", () => {
     expect(j?.price).toBe(un?.price);
     expect(j?.ticker).toBe(KRX_ONLY);
     expect(await fetchStockQuote(KRX_ONLY, "NX")).toBeNull();
-    expect((await fetchStockQuote(NXT, "NX"))?.price).toBe((await fetchStockQuote(NXT, "UN"))?.price);
     expect(await fetchStockQuote("000000", "J")).toBeNull();
+  });
+
+  // 14:00 은 두 시장이 함께 체결되는 창이라 NX 가 통합가에서 틱 몇 개 벌어질 수 있다
+  it("NXT 종목의 NX 는 UN 에서 3틱 이내 · 틱 배수", async () => {
+    const nx = (await fetchStockQuote(NXT, "NX"))?.price as number;
+    const un = (await fetchStockQuote(NXT, "UN"))?.price as number;
+    let steps = 0;
+    for (let p = Math.min(nx, un); p < Math.max(nx, un); p += getTickSize(p)) steps += 1;
+    expect(steps).toBeLessThanOrEqual(3);
+    expect(nx % getTickSize(nx)).toBe(0);
+  });
+
+  it("21:00 NX 현재가 = 스냅샷 nx_close, un_close 는 일봉 close", async () => {
+    vi.setSystemTime(kst(TODAY, "2100"));
+    const { row } = await fetchQuoteSnapshot(NXT, kst(TODAY, "2100"));
+    expect(row?.nx_close).toBe((await fetchStockQuote(NXT, "NX"))?.price);
+    expect(row?.un_close).toBe(getDailyBar(NXT, getTickerProfile(NXT, ANCHOR), TODAY).close);
+    expect((await fetchQuoteSnapshot(KRX_ONLY, kst(TODAY, "2100"))).row?.nx_close).toBeNull();
   });
 
   it("시장조치는 없다", async () => {

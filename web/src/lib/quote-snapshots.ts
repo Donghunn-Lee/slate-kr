@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { getDailyBar } from "@/lib/demo/price-model";
+import { getDailyBar, nxCloseOf } from "@/lib/demo/price-model";
 import {
   getDemoEntry,
   getDemoEodDate,
@@ -111,7 +111,8 @@ export const decideSingleSnapshot = (
 const round2 = (x: number): number => Math.round(x * 100) / 100;
 
 // 조회 키 날짜의 20:00 마감 일봉에서 스냅샷 행을 조립. 상장 전 날짜는 행 부재(부분 miss).
-// NX 축은 단일 경로라 UN 과 같은 값 — 비NXT 종목만 null.
+// nx_close 는 20:00 봉의 NXT 가격 — 20:00 봉의 NX 현재가와 같은 값이고 un_close 와는 틱 몇 개 다를 수 있다.
+// 거래량은 시장별로 나누지 않아 UN 과 같은 값. 비NXT 종목은 NX 축이 null.
 const buildSnapshotRow = (
   entry: DemoUniverseEntry,
   date: string,
@@ -130,7 +131,7 @@ const buildSnapshotRow = (
     un_volume: bar.volume,
     un_value: bar.close * bar.volume,
     nx_eligible: nx,
-    nx_close: nx ? bar.close : null,
+    nx_close: nx ? nxCloseOf(entry.ticker, bar) : null,
     nx_volume: nx ? bar.volume : null,
   };
 };

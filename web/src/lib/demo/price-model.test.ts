@@ -6,9 +6,12 @@ import {
   generateIntradayBars,
   getDailyBar,
   getTickerProfile,
+  limitPrices,
   listTradingDates,
   marketReturnDaily,
+  nxCloseOf,
   quoteAt,
+  stepTicks,
   type DemoDailyBar,
   type DemoMinuteBar,
   type TickerProfile,
@@ -336,6 +339,99 @@ describe("7. quoteAt", () => {
     expect(q.open).toBe(today.open);
     expect(q.volume).toBe(upTo.reduce((s, b) => s + b.volume, 0));
     expect(q.volume).toBeGreaterThan(0);
+  });
+});
+
+describe("8. NXT 가격", () => {
+  type Quote = NonNullable<ReturnType<typeof quoteAt>>;
+  const NXT_SAMPLE: { ticker: string; profile: TickerProfile }[] = [];
+  for (let i = 1; NXT_SAMPLE.length < 3; i++) {
+    const ticker = String(100_000 + i);
+    const profile = getTickerProfile(ticker, EPS_ANCHOR);
+    if (profile.nxEligible) NXT_SAMPLE.push({ ticker, profile });
+  }
+  const at = (ticker: string, profile: TickerProfile, time: string, channel: "UN" | "NX"): Quote =>
+    quoteAt(ticker, profile, kst(TODAY, time), channel) as Quote;
+  const timeOf = (minute: number): string =>
+    `${String(Math.floor(minute / 60)).padStart(2, "0")}${String(minute % 60).padStart(2, "0")}`;
+  // stepTicks 로 세면 호가 단위 계산이 틀려도 양쪽에 같이 들어가 통과한다
+  const ticksBetween = (a: number, b: number): number => {
+    let steps = 0;
+    for (let p = Math.min(a, b); p < Math.max(a, b); p += getTickSize(p)) steps += 1;
+    return steps;
+  };
+  const tradesOnBothMarkets = (m: number): boolean =>
+    (m >= hhmm(9, 0) && m <= hhmm(15, 19)) || (m >= hhmm(16, 0) && m <= hhmm(20, 0));
+
+  // 프리마켓 · 15:30 단일가 봉이 마지막인 시각 · NXT 애프터 단독 구간 — 두 시장이 함께 체결되지 않는 봉
+  it.each(["0830", "1535", "1545"])("%s — NX = UN", (time) => {
+    for (const { ticker, profile } of NXT_SAMPLE) {
+      expect(at(ticker, profile, time, "NX")).toEqual(at(ticker, profile, time, "UN"));
+    }
+  });
+
+  it("봉이 없는 15:25 의 NX = 15:19 의 NX", () => {
+    for (const { ticker, profile } of NXT_SAMPLE) {
+      expect(at(ticker, profile, "1525", "NX")).toEqual(at(ticker, profile, "1519", "NX"));
+    }
+  });
+
+  it("같은 (ticker, 시각) 2회 → deep equal", () => {
+    for (const { ticker, profile } of NXT_SAMPLE) {
+      expect(at(ticker, profile, "1400", "NX")).toEqual(at(ticker, profile, "1400", "NX"));
+      expect(at(ticker, profile, "1830", "NX")).toEqual(at(ticker, profile, "1830", "NX"));
+    }
+  });
+
+  it("동시 체결 창 전 분 × 3종목: 틱 배수 · UN 에서 3틱 이내 · 상하한 안 · 고저 포함 · 분포", () => {
+    const countBySize = [0, 0, 0, 0];
+    let above = 0;
+    let below = 0;
+    let total = 0;
+    for (const { ticker, profile } of NXT_SAMPLE) {
+      const [prev, today] = dayBars(ticker, profile);
+      const band = limitPrices(prev.regularClose);
+      const bars = generateIntradayBars(ticker, profile, TODAY, prev, today, "UN") as DemoMinuteBar[];
+      for (const bar of bars) {
+        const minute = minuteOf(bar);
+        if (!tradesOnBothMarkets(minute)) continue;
+        const nx = at(ticker, profile, timeOf(minute), "NX");
+        const size = ticksBetween(bar.close, nx.price);
+        expect(isTickMultiple(nx.price)).toBe(true);
+        expect(size).toBeLessThanOrEqual(3);
+        expect(nx.price).toBeGreaterThanOrEqual(band.lower);
+        expect(nx.price).toBeLessThanOrEqual(band.upper);
+        expect(nx.low).toBeLessThanOrEqual(nx.price);
+        expect(nx.high).toBeGreaterThanOrEqual(nx.price);
+        expect(nx.change).toBe(nx.price - prev.regularClose);
+        countBySize[size] += 1;
+        if (nx.price > bar.close) above += 1;
+        if (nx.price < bar.close) below += 1;
+        total += 1;
+      }
+    }
+    expect(total).toBeGreaterThanOrEqual(1000);
+    expect(countBySize[0] / total).toBeGreaterThanOrEqual(0.25);
+    expect(countBySize[0] / total).toBeLessThanOrEqual(0.45);
+    expect(countBySize[3] / total).toBeLessThanOrEqual(0.1);
+    expect(above).toBeGreaterThan(0);
+    expect(below).toBeGreaterThan(0);
+  });
+
+  // 호가 단위가 바뀌는 50,000 · 2,000 경계의 양쪽
+  it("stepTicks: 호가 단위 경계를 한 칸씩 넘는다", () => {
+    expect(stepTicks(49_950, 2)).toBe(50_100);
+    expect(stepTicks(50_000, -1)).toBe(49_950);
+    expect(stepTicks(2_000, -1)).toBe(1_999);
+    expect(stepTicks(49_950, 0)).toBe(49_950);
+  });
+
+  it("21:00 NX 현재가 = 20:00 봉의 NXT 종가(nxCloseOf)", () => {
+    for (const { ticker, profile } of NXT_SAMPLE) {
+      const [, today] = dayBars(ticker, profile);
+      expect(at(ticker, profile, "2100", "NX").price).toBe(nxCloseOf(ticker, today));
+      expect(at(ticker, profile, "2100", "UN").price).toBe(today.close);
+    }
   });
 });
 

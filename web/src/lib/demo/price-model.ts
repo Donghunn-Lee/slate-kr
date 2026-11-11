@@ -707,7 +707,8 @@ const buildSegmentBars = (
 };
 
 // 하루 전체(UN) 경로를 만든 뒤 채널로 자른다 — J 는 08:00~09:00 · 15:40~15:59 제외, NX 는 비적격이면 null
-// (route 가 NX 채널의 null 을 "NXT 미취급 종목" 신호로 쓴다).
+// (route 가 NX 채널의 null 을 "NXT 미취급 종목" 신호로 쓴다). NX 봉은 UN 봉 그대로다 — 차트는 UN · J 만
+// 쓰고, NXT 가 통합가와 벌어지는 것은 현재가(quoteAt)와 마감 스냅샷의 NXT 종가뿐이다.
 // 프리마켓은 시가에서 출발해 시가 근처에서 끝나는 브리지 — 전일 20:00 종가에서 출발하면 UN 첫 봉의
 // 시가가 일봉 시가와 어긋나고 전일 종가가 당일 고저 밖에 놓일 수 있다. 갭은 08:00 에 한 번에 생긴다.
 // 봉 사이가 끊기는 곳은 단일가 두 번뿐이다 — 08:49 종가 → 09:00 시가(O), 15:19 종가 → 15:30 체결(R).
@@ -796,8 +797,51 @@ export const generateIntradayBars = (
   return buildIntradayBars(ticker, profile, date, today, channel, Number.POSITIVE_INFINITY);
 };
 
+// ── NXT 가격 ─────────────────
+// 경로는 통합(UN) 하나라 NXT 가격은 통합가에서 틱 몇 개 떨어진 값으로 만든다. 두 시장이 동시에 체결되는
+// 봉에서만 벌어진다 — NXT 단독 구간(프리마켓 · 15:40~15:59)은 통합가가 곧 NXT 가이고 15:30 봉은 KRX
+// 종가 단일가 하나다.
+const NX_SPREAD_CUMULATIVE = [0.35, 0.75, 0.95] as const; // |틱 수| 0 · 1 · 2 의 누적 확률, 나머지는 3
+
+const tradesOnBothMarkets = (minuteOfDay: number): boolean =>
+  (minuteOfDay >= REGULAR_START_MIN && minuteOfDay < CLOSE_CALL_START_MIN) ||
+  (minuteOfDay >= KRX_AFTER_START_MIN && minuteOfDay <= AFTER_END_MIN);
+
+// 분마다 별도 시드 스트림에서 뽑는다 — 경로 추첨을 건드리지 않고 같은 분엔 같은 값이다.
+const nxSpreadTicks = (ticker: string, date: string, minuteOfDay: number): number => {
+  if (!tradesOnBothMarkets(minuteOfDay)) return 0;
+  const rng = createRng(hashSeed(ticker, date, "nx-spread", minuteOfDay));
+  const u = rng();
+  const size = NX_SPREAD_CUMULATIVE.findIndex((cumulative) => u < cumulative);
+  const ticks = size === -1 ? NX_SPREAD_CUMULATIVE.length : size;
+  return rng() < 0.5 ? -ticks : ticks;
+};
+
+// 호가 단위가 바뀌는 경계를 한 칸씩 넘는다 — 49,950 의 위 칸은 50,000, 그 위 칸은 50,100.
+// 아래 칸의 호가 단위는 지금 가격 바로 밑 구간의 것이다(50,000 의 아래 칸은 49,950).
+export const stepTicks = (price: number, ticks: number): number => {
+  let p = price;
+  for (let i = Math.abs(ticks); i > 0; i--) p += ticks > 0 ? getTickSize(p) : -getTickSize(p - 1);
+  return p;
+};
+
+// minuteOfDay 는 "지금" 이 아니라 마지막으로 체결된 봉의 분 — 봉이 없는 15:20~15:29 엔 15:19 값이 남는다.
+// 당일 고저로는 조이지 않는다 — NXT 는 KRX 고저 밖에서도 체결된다.
+const nxPriceAt = (
+  ticker: string,
+  date: string,
+  minuteOfDay: number,
+  unPrice: number,
+  basePrice: number,
+): number =>
+  clampTo(stepTicks(unPrice, nxSpreadTicks(ticker, date, minuteOfDay)), limitBand(basePrice));
+
+// 20:00 마감 봉의 NXT 종가 — 마감 뒤의 NX 현재가(quoteAt)와 같은 값이다.
+export const nxCloseOf = (ticker: string, bar: DemoDailyBar): number =>
+  nxPriceAt(ticker, bar.date, AFTER_END_MIN, bar.close, bar.basePrice ?? bar.regularClose);
+
 // ── 현재가 ─────────────────
-const toSign = (change: number): PriceSign => (change > 0 ? "up" : change < 0 ? "down" : "flat");
+const toSign =(change: number): PriceSign => (change > 0 ? "up" : change < 0 ? "down" : "flat");
 
 export const quoteAt = (
   ticker: string,
@@ -821,6 +865,7 @@ export const quoteAt = (
   let low = 0;
   let volume = 0;
   let seen = false;
+  let lastSec = 0;
   // 오늘 봉이 하나도 없는 개장 전 창(J, NXT 미취급 UN 의 08:00~09:00)은 실제 J quote 처럼 전일 정규장
   // 종가 · 등락 0 + OHL 0 — 08:00 에 기준가가 오늘로 리셋되고 KRX 체결은 09:00 부터다.
   // 소비측(mergeLiveDayBar 등)이 OHL 0 을 "당일 체결 없음" 으로 읽는다.
@@ -837,6 +882,14 @@ export const quoteAt = (
     }
     price = bar.close;
     volume += bar.volume;
+    lastSec = bar.timestamp;
+  }
+  if (channel === "NX" && seen) {
+    const lastMin = (lastSec - kstFakeUtcSec(tradingDate, 0)) / MINUTE_SEC;
+    price = nxPriceAt(ticker, tradingDate, lastMin, price, basePrice);
+    // 고저는 통합 봉에서 모은 값이라 NXT 가격이 그 밖일 수 있다 — price 가 [low, high] 안에 들도록 넓힌다
+    high = Math.max(high, price);
+    low = Math.min(low, price);
   }
   const change = price - basePrice;
   return {
