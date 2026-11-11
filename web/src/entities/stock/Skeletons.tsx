@@ -4,9 +4,12 @@ import { StockPanel } from "./StockPanel";
 // 줄바꿈은 내용 길이에 따라 갈리므로 가장 흔한 모양(NXT 토글이 있는 정상 종목, 005930)을 기준으로,
 // 그 종목이 좁은 모바일(360~430폭)에서 감기는 대로 sm 미만에서 종목명 · 가격 · 통계 행을 두 줄로 끊는다.
 // 토글이 없거나 이름 · 배지 길이로 줄 수가 다른 종목은 교체 때 높이가 바뀐다. 헤더 구성이 바뀌면 다시 잰다.
-// 정규장 종가 줄은 있는 쪽이 기준이다 — 정적 fallback 이라 시계를 못 보고, 줄이 보이는 시간(평일 15:30~다음 날
-// 08:00 · 주말)이 더 길다. 정규장 중에는 교체 때 한 줄 줄어든다.
-export const HeaderSkeleton = () => (
+// 정규장 종가 줄은 헤더가 그 줄을 그리는 시간대에만 자리를 잡는다 — 종목 경로는 요청마다 서버에서 그려 fallback 도
+// 요청 시각을 알고, layout 이 헤더와 같은 판정(isRegularCloseWindow)으로 정해 넘긴다. 클라이언트 라우터가 미리
+// 받아 둔 fallback 은 몇 분 묵을 수 있어 15:30 · 08:00 경계 직후에는 교체 때 한 줄 어긋날 수 있다.
+type HeaderSkeletonProps = { showRegularClose: boolean };
+
+export const HeaderSkeleton = ({ showRegularClose }: HeaderSkeletonProps) => (
   <StockPanel noBorder className="animate-pulse">
     <div className="flex items-start justify-between gap-2">
       <div className="flex flex-wrap items-center gap-2">
@@ -38,7 +41,7 @@ export const HeaderSkeleton = () => (
           <div className="h-lh w-24 rounded bg-muted text-body-sm" />
         </div>
       </div>
-      <div className="mt-1 h-lh w-48 rounded bg-muted text-body-sm" />
+      {showRegularClose && <div className="mt-1 h-lh w-48 rounded bg-muted text-body-sm" />}
       <div className="mt-3 flex flex-wrap gap-4 text-body">
         <div className="h-lh w-24 rounded bg-muted" />
         <div className="h-lh w-28 rounded bg-muted" />

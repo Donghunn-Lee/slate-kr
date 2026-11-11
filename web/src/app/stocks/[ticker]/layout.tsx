@@ -1,12 +1,15 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import type { Metadata, ResolvingMetadata } from "next";
+import { getMarketCalendar } from "@/lib/market-calendar";
 import { getStockByTicker } from "@/lib/stocks";
 import { StockHeader } from "@/entities/stock/StockHeader";
 import { StockMetrics } from "@/entities/stock/StockMetrics";
 import { HeaderSkeleton, MetricsSkeleton } from "@/entities/stock/Skeletons";
+import { isRegularCloseWindow } from "@/entities/stock/stockHeaderLabel";
 import { RecentVisitedRecorder } from "@/features/search/RecentVisitedRecorder";
 import { StockTabPanel } from "@/entities/stock/StockTabPanel";
+import { getKrxSessionState, isKrxOpeningWindow } from "@/shared/utils/market";
 
 type LayoutProps = {
   children: React.ReactNode;
@@ -49,10 +52,20 @@ export default async function StockDetailLayout({ children, params }: LayoutProp
   const stock = await getStockByTicker(ticker);
   if (!stock) notFound();
 
+  // fallback 도 요청 시각에 서버에서 그려진다 — 헤더가 정규장 종가 줄을 그리는 시간대인지를 같은 판정으로 정해
+  // 스켈레톤 높이를 맞춘다.
+  const calendar = await getMarketCalendar();
+  const now = new Date();
+  const session = getKrxSessionState(now, calendar);
+  const showRegularClose = isRegularCloseWindow(
+    session,
+    isKrxOpeningWindow(session, now, calendar),
+  );
+
   return (
     <main className="container mx-auto max-w-4xl space-y-4 px-4 py-8">
       <RecentVisitedRecorder ticker={ticker} name={stock.name} market={stock.market} />
-      <Suspense fallback={<HeaderSkeleton />}>
+      <Suspense fallback={<HeaderSkeleton showRegularClose={showRegularClose} />}>
         <StockHeader ticker={ticker} stock={stock} />
       </Suspense>
       <Suspense fallback={<MetricsSkeleton />}>
