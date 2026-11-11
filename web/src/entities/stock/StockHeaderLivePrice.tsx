@@ -16,13 +16,15 @@ import {
   isKrxOpeningWindow,
 } from "@/shared/utils/market";
 import { priceToneClass } from "@/shared/utils/priceTone";
-import { formatMarketCap, formatVolume } from "@/shared/format";
+import { formatMarketCap, formatPrice, formatVolume } from "@/shared/format";
+import type { RegularClose } from "@/shared/types/stock";
 import { cn } from "@/lib/utils";
 import { PriceCountUp } from "./PriceCountUp";
 import {
   computeHeaderLabel,
   isClosedLikeMiss,
   isPreMarketReset,
+  isRegularCloseWindow,
 } from "./stockHeaderLabel";
 import { computeHeaderStats, type HeaderStats } from "./stockHeaderStats";
 
@@ -35,6 +37,8 @@ type StockHeaderLivePriceProps = {
   initialDate: string | null;
   // SSR daily_prices 최신 행 volume. 통계 행의 저장 행 폴백.
   initialVolume: number;
+  // initialDate 의 정규장(15:30) 종가. 정규장 종가 줄의 저장 행 값. null 이면 줄이 빈다.
+  initialRegularClose: RegularClose | null;
   // stocks.shares(상장주식수). 시가총액 = 표시 현재가 × shares. null 이면 "-".
   shares: number | null;
   // NXT 취급 여부. true 일 때만 KRX/NXT 토글 노출 · market 파라미터 부착.
@@ -53,6 +57,7 @@ export const StockHeaderLivePrice = ({
   initialChangeRate,
   initialDate,
   initialVolume,
+  initialRegularClose,
   shares,
   nxEligible,
 }: StockHeaderLivePriceProps) => {
@@ -143,7 +148,13 @@ export const StockHeaderLivePrice = ({
     source: shownQuote !== null ? "quote" : "stored",
     quote: shownQuote,
     quoteDate: data?.quoteDate ?? null,
-    stored: { volume: initialVolume, close: initialPrice, date: initialDate },
+    quoteRegularClose: data?.regularClose ?? null,
+    stored: {
+      volume: initialVolume,
+      close: initialPrice,
+      date: initialDate,
+      regularClose: initialRegularClose,
+    },
     shares,
   });
 
@@ -167,6 +178,7 @@ export const StockHeaderLivePrice = ({
 
   // 비-regular KRX 강제 케이스는 서버 응답 대신 clientSession 을 라벨에 넘긴다.
   const labelSession = forceInitial ? clientSession : session;
+  const openingWindow = isKrxOpeningWindow(labelSession, now, calendar);
   // forceInitial 이면 라벨도 initial 축 — after 폴링 캐시가 20:00 을 넘겨 after_close 로
   // 이월되면 live 가 남아 있지만 값은 initialPrice 라, live 를 그대로 넘기면 EOD 미적재 창에서
   // 라벨만 오늘 마감으로 앞선다.
@@ -178,11 +190,14 @@ export const StockHeaderLivePrice = ({
     initialDate: showLiveKrxClose ? lastCloseDate : initialDate,
     kstToday: lastCloseDate,
     updatedAtText,
-    openingWindow: isKrxOpeningWindow(labelSession, now, calendar),
+    openingWindow,
     krxAfterMarketOpen: isKrxAfterMarketOpen(now, calendar),
     // NXT 탭 15:20·15:40 라벨 경계 — 위 두 창과 같은 클라 시계.
     kstMinutes: getKstDateAndMinutes(now).minutes,
   });
+  // 정규장 종가 줄은 라벨과 같은 세션 축을 본다. 응답 전(초기 스켈레톤)엔 clientSession 으로
+  // 창을 판정해 응답 뒤와 같은 높이를 미리 잡는다.
+  const showRegularClose = isRegularCloseWindow(labelSession ?? clientSession, openingWindow);
 
   // 초기 로드 스켈레톤 — 토글 미노출 종목·NXT 탭. KRX 탭은 initial 값으로 즉시 표시.
   // 아래 최종 마크업과 행 · 간격 · 텍스트 토큰을 같게 둬 응답이 와도 헤더 높이가 그대로다.
@@ -202,6 +217,9 @@ export const StockHeaderLivePrice = ({
             <div className="h-lh w-24 animate-pulse rounded bg-muted text-body-sm" />
           </div>
         </div>
+        {showRegularClose && (
+          <div className="mt-1 h-lh w-48 animate-pulse rounded bg-muted text-body-sm" />
+        )}
         <StatsRow stats={stats} />
       </div>
     );
@@ -247,7 +265,24 @@ export const StockHeaderLivePrice = ({
           )}
         </span>
       </div>
+      {showRegularClose && <RegularCloseRow value={stats.regularClose} />}
       <StatsRow stats={stats} />
+    </div>
+  );
+};
+
+// 정규장 종가 줄 — 다음 거래일 등락 기준가가 되는 값. 값이 없으면(15:30 직후 다음 폴링 전 ·
+// 조회 실패) 같은 높이의 빈 줄을 남겨 값이 도착해도 아래 행이 밀리지 않는다.
+const RegularCloseRow = ({ value }: { value: RegularClose | null }) => {
+  if (value === null) return <div className="mt-1 h-lh text-body-sm" />;
+  const { price, change, changeRate } = value;
+  return (
+    <div className="mt-1 flex items-baseline gap-1.5 whitespace-nowrap text-body-sm">
+      <span className="text-muted-foreground">정규장 종가</span>
+      <span className={cn("tabular-nums", priceToneClass(change))}>{formatPrice(price)}</span>
+      {change !== null && changeRate !== null && (
+        <PriceChange change={change} changeRate={changeRate} symbol="sign" unit="원" size="sm" />
+      )}
     </div>
   );
 };

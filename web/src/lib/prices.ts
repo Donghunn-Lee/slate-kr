@@ -2,17 +2,24 @@ import { cache } from "react";
 import type {
   LatestPriceSummary,
   PriceStats,
+  RegularClose,
   StockPriceSnapshot,
   TickerPriceSummary,
 } from "@/shared/types/stock";
 import { format, parseISO, subMonths, subYears } from "date-fns";
-import { generateDailyBars, listTradingDates, type DemoDailyBar } from "@/lib/demo/price-model";
+import {
+  generateDailyBars,
+  getDailyBar,
+  listTradingDates,
+  type DemoDailyBar,
+} from "@/lib/demo/price-model";
 import {
   getDemoEntry,
   getDemoEodDate,
   getDemoHistoryStart,
   type DemoUniverseEntry,
 } from "@/lib/demo/universe";
+import { getKrxLastCloseDate } from "@/shared/utils/market";
 
 type DailyPriceRow = {
   id: number;
@@ -97,6 +104,20 @@ const changeFrom = (
   if (basis === null) return { change: null, changeRate: null };
   const change = close - basis;
   return { change, changeRate: basis === 0 ? null : (change / basis) * 100 };
+};
+
+// date 거래일의 정규장(15:30) 종가와 등락. 생성기는 당일 15:30 종가를 미리 알고 있어, 그 날
+// 정규장이 끝나기 전에는 내보내지 않는다. 미등록 종목·이력 시작 전도 null.
+export const getRegularClose = async (
+  ticker: string,
+  date: string,
+  now: Date = new Date()
+): Promise<RegularClose | null> => {
+  if (date > getKrxLastCloseDate(now)) return null;
+  const entry = await getDemoEntry(ticker);
+  if (!entry || date < getDemoHistoryStart(entry)) return null;
+  const bar = getDailyBar(ticker, entry.profile, date);
+  return { price: bar.regularClose, ...changeFrom(bar.regularClose, bar.basePrice) };
 };
 
 // tickers 각각의 최신 종가·등락·거래량. 등락 기준은 basePrice(기준가).

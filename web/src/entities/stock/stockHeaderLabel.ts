@@ -45,6 +45,19 @@ export const isClosedLikeMiss = (
     session === "closed") &&
   live === null;
 
+// 정규장 종가 줄의 표시 창 — 정규장 마감(15:30)부터 다음 거래일 기준가 리셋(08:00) 전까지.
+// 그 사이엔 표시 현재가가 애프터마켓 축이라 다음 날 기준가가 되는 값이 따로 보여야 한다.
+// preopen 은 06:00~08:00 과 08:50~09:00 을 한 이름으로 덮어 세션만으로는 리셋 전후를 가를 수
+// 없다 — 개장 전 창(openingWindow)이면 기준가가 이미 오늘 축이라 숨긴다.
+export const isRegularCloseWindow = (
+  session: KrxSession | undefined,
+  openingWindow: boolean,
+): boolean =>
+  session === "after" ||
+  session === "after_close" ||
+  session === "closed" ||
+  (session === "preopen" && !openingWindow);
+
 export type HeaderLabelInput = {
   session: KrxSession | undefined;
   // undefined = 미지정 경로(토글 없는 종목). 세션 결정 채널이라 라이브 축은 NXT 탭과 같지만

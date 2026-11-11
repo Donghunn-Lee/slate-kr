@@ -71,6 +71,14 @@ export type LatestPriceSummary = {
   volume: number;
 };
 
+// 한 거래일의 KRX 정규장(15:30) 종가. 다음 거래일 등락 기준가가 되는 값이라 20:00 마감
+// 캔들의 close 와 다르다. 등락 기준은 그 날의 기준가(전일 정규장 종가).
+export type RegularClose = {
+  price: number;
+  change: number | null;
+  changeRate: number | null;
+};
+
 export type FinancialPeriod = {
   ticker: string;
   year: number;

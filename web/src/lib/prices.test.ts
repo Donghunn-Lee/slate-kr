@@ -1,6 +1,35 @@
-import { describe, it, expect } from "vitest";
-import { getPriceStats, rowToSnapshot } from "./prices";
+import { afterEach, describe, it, expect, vi } from "vitest";
+import { getPriceStats, getRegularClose, rowToSnapshot } from "./prices";
+import { getDailyBar } from "@/lib/demo/price-model";
+import { getDemoEntry } from "@/lib/demo/universe";
+import { fetchStockQuote } from "@/lib/quote-source";
 import type { StockPriceSnapshot } from "@/shared/types/stock";
+
+// getRegularClose 는 생성기 경로 정합만 본다 — DB 는 universe 입력(종목 · 재무 · 첫 연도) 세 쿼리뿐이라 고정 행으로 대체.
+vi.mock("@/lib/db", () => ({
+  pool: {
+    query: async (sql: string) =>
+      sql.includes("FROM stocks")
+        ? [[{ ticker: "005930", name: "삼성전자", market: "KOSPI", shares: 5_969_782_550 }], null]
+        : sql.includes("MIN(year)")
+          ? [[{ ticker: "005930", first_year: 2021 }], null]
+          : [
+              [
+                {
+                  ticker: "005930",
+                  year: 2024,
+                  has_financial: true,
+                  eps: 4_950,
+                  bps: 57_930,
+                  net_income: 33_685_000_000_000,
+                  dps: 1_446,
+                  dart_yield: 2.7,
+                },
+              ],
+              null,
+            ],
+  },
+}));
 
 type DailyPriceRow = Parameters<typeof rowToSnapshot>[0];
 
@@ -219,5 +248,70 @@ describe("getPriceStats", () => {
       const r = getPriceStats(build(100, 100)).returns.find((x) => x.period === "1M")!;
       expect(r.value).toBe(0);
     });
+  });
+});
+
+describe("getRegularClose — 생성기 일봉의 정규장(15:30) 종가", () => {
+  const T = "005930";
+  const kst = (date: string, hhmm: string): Date => {
+    const [y, m, d] = date.split("-").map(Number);
+    return new Date(Date.UTC(y, m - 1, d, Number(hhmm.slice(0, 2)) - 9, Number(hhmm.slice(2, 4))));
+  };
+  // 2026-11-10(화) 거래일, 전후 휴장 없음. 그 주 금요일은 11-13, 토요일은 11-14.
+  const TODAY = "2026-11-10";
+  const PREV = "2026-11-09";
+  const NEXT = "2026-11-11";
+  const barOf = async (date: string) => getDailyBar(T, (await getDemoEntry(T))!.profile, date);
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("지난 거래일: price = 일봉 regularClose, 등락 기준은 그 봉의 basePrice", async () => {
+    const bar = await barOf(PREV);
+    const basePrice = bar.basePrice as number;
+    const result = await getRegularClose(T, PREV, kst(TODAY, "1000"));
+    expect(result?.price).toBe(bar.regularClose);
+    expect(result?.change).toBe(bar.regularClose - basePrice);
+    expect(result?.changeRate).toBeCloseTo(((bar.regularClose - basePrice) / basePrice) * 100);
+  });
+
+  it("오늘 값은 15:30 부터 — 15:29 는 null, 15:30 은 같은 시각 J 현재가", async () => {
+    expect(await getRegularClose(T, TODAY, kst(TODAY, "0900"))).toBeNull();
+    expect(await getRegularClose(T, TODAY, kst(TODAY, "1529"))).toBeNull();
+
+    vi.useFakeTimers({ now: kst(TODAY, "1530") });
+    const result = await getRegularClose(T, TODAY);
+    const quote = await fetchStockQuote(T, "J");
+    expect(result).not.toBeNull();
+    expect(result?.price).toBe(quote?.price);
+    expect(result?.change).toBe(quote?.change);
+  });
+
+  it("20:00 마감 뒤에도 같은 값 — 일봉 close(애프터마켓 종가)가 아니다", async () => {
+    const bar = await barOf(TODAY);
+    expect((await getRegularClose(T, TODAY, kst(TODAY, "2100")))?.price).toBe(bar.regularClose);
+    expect((await getRegularClose(T, TODAY, kst(NEXT, "0759")))?.price).toBe(bar.regularClose);
+  });
+
+  it("다음 거래일 일봉의 basePrice = 오늘 값", async () => {
+    const result = await getRegularClose(T, TODAY, kst(TODAY, "1530"));
+    expect((await barOf(NEXT)).basePrice).toBe(result?.price);
+  });
+
+  it("다음 거래일 값은 그 날 15:30 전까지 null", async () => {
+    expect(await getRegularClose(T, NEXT, kst(TODAY, "2100"))).toBeNull();
+    expect(await getRegularClose(T, NEXT, kst(NEXT, "1200"))).toBeNull();
+  });
+
+  it("토요일: 금요일 값이 나온다", async () => {
+    const friday = await barOf("2026-11-13");
+    const result = await getRegularClose(T, "2026-11-13", kst("2026-11-14", "1200"));
+    expect(result?.price).toBe(friday.regularClose);
+  });
+
+  it("미등록 ticker · 이력 시작 전 → null", async () => {
+    expect(await getRegularClose("000000", PREV, kst(TODAY, "1000"))).toBeNull();
+    expect(await getRegularClose(T, "2015-12-30", kst(TODAY, "1000"))).toBeNull();
   });
 });

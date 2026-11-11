@@ -1,11 +1,12 @@
 import { describe, it, expect } from "vitest";
 import type { StockQuote } from "@/shared/types/quote";
 import type { KrxSession, QuoteMarket } from "@/shared/utils/market";
-import { getKrxSessionState } from "@/shared/utils/market";
+import { getKrxSessionState, isKrxOpeningWindow } from "@/shared/utils/market";
 import {
   computeHeaderLabel,
   isClosedLikeMiss,
   isPreMarketReset,
+  isRegularCloseWindow,
   type HeaderLabelInput,
 } from "./stockHeaderLabel";
 
@@ -601,4 +602,63 @@ describe("두 술어의 상호 배타성", () => {
       }
     }
   }
+});
+
+// openingWindow 는 preopen 에서만 결과를 가른다 — 나머지 세션은 두 값 모두 같은 결과여야 한다.
+describe("isRegularCloseWindow — 정규장 마감 뒤 ~ 다음 거래일 08:00 전", () => {
+  const cases: Array<{
+    session: KrxSession | undefined;
+    openingWindow: boolean;
+    expected: boolean;
+  }> = [
+    { session: "after", openingWindow: false, expected: true },
+    { session: "after_close", openingWindow: false, expected: true },
+    { session: "closed", openingWindow: false, expected: true },
+    { session: "preopen", openingWindow: false, expected: true },
+    { session: "preopen", openingWindow: true, expected: false },
+    { session: "pre", openingWindow: true, expected: false },
+    { session: "regular", openingWindow: false, expected: false },
+    { session: undefined, openingWindow: false, expected: false },
+    // 서버 세션이 클라 시계와 어긋난 조합(늦은 preopen 시각의 stale 응답)
+    { session: "after", openingWindow: true, expected: true },
+    { session: "after_close", openingWindow: true, expected: true },
+    { session: "closed", openingWindow: true, expected: true },
+    { session: "pre", openingWindow: false, expected: false },
+    { session: "regular", openingWindow: true, expected: false },
+    { session: undefined, openingWindow: true, expected: false },
+  ];
+
+  for (const c of cases) {
+    it(`${c.session ?? "undefined"} · openingWindow=${c.openingWindow} → ${c.expected}`, () => {
+      expect(isRegularCloseWindow(c.session, c.openingWindow)).toBe(c.expected);
+    });
+  }
+});
+
+// 컴포넌트와 같은 조립(클라 세션 + isKrxOpeningWindow)으로 하루의 경계 시각을 훑는다.
+describe("isRegularCloseWindow — 시계 축 조립", () => {
+  const at = (now: Date): boolean => {
+    const session = getKrxSessionState(now);
+    return isRegularCloseWindow(session, isKrxOpeningWindow(session, now));
+  };
+
+  it("거래일: 15:30 에 열리고 다음 날 08:00 에 닫힌다", () => {
+    expect(at(t(15, 29))).toBe(false);
+    expect(at(t(15, 30))).toBe(true);
+    expect(at(t(20, 0))).toBe(true);
+    expect(at(t(23, 59))).toBe(true);
+    // 금요일 00:00 · 06:00 · 07:59 는 목요일 마감 값이 아직 다음 기준가다.
+    expect(at(kst(2026, 7, 24, 0, 0))).toBe(true);
+    expect(at(kst(2026, 7, 24, 6, 0))).toBe(true);
+    expect(at(kst(2026, 7, 24, 7, 59))).toBe(true);
+    expect(at(kst(2026, 7, 24, 8, 0))).toBe(false);
+    expect(at(kst(2026, 7, 24, 8, 50))).toBe(false);
+    expect(at(kst(2026, 7, 24, 9, 0))).toBe(false);
+  });
+
+  it("주말 · 휴장일은 종일 보인다", () => {
+    expect(at(kst(2026, 7, 25, 8, 30))).toBe(true);
+    expect(at(kst(2026, 7, 25, 12, 0))).toBe(true);
+    expect(at(kst(2026, 1, 1, 8, 55))).toBe(true);
+  });
 });
