@@ -15,17 +15,18 @@ export const RANKING_KIND_IDS = [
   "top-interest",
 ] as const satisfies readonly MarketRankingKind["kind"][];
 
-// changeSign 은 KIS prdy_vrss_sign 원본 문자열 (1=상한, 2=상승, 3=보합, 4=하한, 5=하락).
+// changeSign 은 등락 부호 코드 문자열 (1=상한, 2=상승, 3=보합, 4=하한, 5=하락) — 실시세 API의
+// 코드 체계를 그대로 쓴다.
 // PriceChange 로 넘길 때 up/down/flat 정규화가 필요하면 소비 계층에서 처리한다.
 // market 은 route 계층이 stocks 조회로 채우는 optional 필드. 부재는 stocks 미등록 종목이거나
 // 매핑 조회 실패 — 둘은 route 응답의 marketResolved 로 구분한다. 요청 필터용 Market("all"/"kospi"/"kosdaq") 과
 // 값 도메인이 다르므로 (StockSummary["market"] 는 "KOSPI"/"KOSDAQ") 혼동 방지.
-// marketCap 은 원 단위(tradeValue 관례와 동일) — KIS stck_avls(억원)에 ×1e8 환산.
+// marketCap 은 원 단위(tradeValue 관례와 동일) — 현재가 × 상장주식수.
 export type MarketRankingItem = {
   ticker: string;
   name: string;
   price: number;
-  change: number; // 전일 대비 (원, 부호 포함) — KIS prdy_vrss 원본.
+  change: number; // 전일 대비 (원, 부호 포함).
   changePct: number;
   changeSign: string;
   rank: number;

@@ -10,7 +10,8 @@ type IndexMeta = {
   code: string;
   label: string;
   region: IndexRegion;
-  // 한글 label 옆/아래에 병기하는 표준 심볼 sub 라벨. code(KIS 키) 와 다를 수 있다.
+  // 한글 label 옆/아래에 병기하는 표준 심볼 sub 라벨. code(실시세 API의 지수 키를 그대로 쓴다) 와
+  // 다를 수 있다.
   overline: string;
 };
 
@@ -39,7 +40,7 @@ export type OverseasIndexCode = OverseasIndexEntry["code"];
 
 export const INDEX_CODES = INDEX_REGISTRY.map((m) => m.code) as readonly IndexCode[];
 
-// 지수 페이지 SSR 시 index_daily_prices 에서 지수당 최근 N행만 실는다.
+// 지수 페이지 SSR 시 생성기 일봉에서 지수당 최근 N행만 싣는다.
 // 270 = 주봉 52개 완결분(52×5=260) + 첫 주 부분봉 여유 — 1Y 기본 뷰(day 250·week 52) 를 커버.
 // 이보다 오래된 이력은 좌측 팬 트리거로 /api/index-daily 가 전량 서빙.
 export const INDEX_DAILY_SSR_LIMIT = 270;
@@ -53,8 +54,8 @@ export const OVERSEAS_INDEX_CODES = INDEX_REGISTRY
   .map((m) => m.code) as readonly OverseasIndexCode[];
 
 // intraday(1분봉·현재가) 를 지원하는 해외 지수 화이트리스트.
-// .DJI 는 KIS intraday API 가 rt_cd=0 + 빈 배열을 돌려주므로 제외 — 이 목록에
-// 없는 해외 지수는 IndexDetailPane 에서 daily-only 로 동작한다.
+// .DJI 는 분봉을 공개하지 않는 지수라 제외(생성기도 실시세 API의 공백을 그대로 따른다) — 이
+// 목록에 없는 해외 지수는 IndexDetailPane 에서 daily-only 로 동작한다.
 export const OVERSEAS_INTRADAY_CODES = [
   "SPX",
   "COMP",
@@ -72,15 +73,15 @@ export const isOverseasIntradayCode = (
   (OVERSEAS_INTRADAY_CODES as readonly string[]).includes(code);
 
 // 거래량 데이터 자체가 없는 지수 — daily/intraday 전 뷰에서 volume 축 렌더 금지.
-// 근거(DB 전수 확인 2026-08-21): NDX 는 전 기간 volume=0,
-// SPX 는 2015-01-30 이후 volume=0. KIS·백필 소스 모두 실값을 제공하지 않는다.
+// 실시세 소스가 실값을 주지 않던 두 지수를 그대로 따르고, 생성기도 이 집합의 거래량을 0 으로
+// 낸다.
 export const INDICES_WITHOUT_VOLUME: ReadonlySet<IndexCode> = new Set([
   "SPX",
   "NDX",
 ]);
 
-// 해외 지수 → 거래소 IANA 타임존. KIS FHKST03030200 output2 는 현지 로컬 시각을
-// 반환하므로 UTC 인스턴트 확정 후 KST 렌더에 이 매핑을 사용한다. DST 는 IANA DB
+// 해외 지수 → 거래소 IANA 타임존. quote.time 은 현지 로컬 시각(실시세 API의 형식을 그대로
+// 쓴다)이므로 UTC 인스턴트 확정 후 KST 렌더에 이 매핑을 사용한다. DST 는 IANA DB
 // 에 위임 (America/New_York 는 EST/EDT 자동 전환).
 export const OVERSEAS_INDEX_TIMEZONE: Record<OverseasIndexCode, string> = {
   SPX: "America/New_York",
@@ -108,9 +109,9 @@ export const OVERSEAS_INDEX_CLOSE_LOCAL: Record<OverseasIndexCode, string> = {
   DAX: "1730",
 };
 
-// 해외 지수 → market_trading_days 시장 코드 매핑. isOverseasIndexHoliday 가
-// 이 매핑으로 캘린더 조회 키를 정한다. DE 는 KIS CTOS5011R 미커버로 캘린더 부재
-// 시장 — XETRA 정적 표(shared/utils/xetraHolidays.ts) 로만 판정.
+// 해외 지수 → 거래일 캘린더 시장 코드 매핑. isOverseasIndexHoliday 가
+// 이 매핑으로 캘린더 조회 키를 정한다. DE 는 캘린더 시장 코드 밖이라
+// XETRA 정적 표(shared/utils/xetraHolidays.ts) 로만 판정.
 export const OVERSEAS_INDEX_MARKET: Record<
   OverseasIndexCode,
   Exclude<TradingMarket, "KRX"> | "DE"
@@ -127,7 +128,7 @@ export const OVERSEAS_INDEX_MARKET: Record<
 
 // market-local 정규장 개장 시각 (HHMM). `getOverseasIndexSessionState` 가 open 경계로
 // 소비. 점심 휴장(HSI 12:00~13:00 · SHCOMP 11:30~13:00)은 모델링하지 않음 —
-// [open, close) 를 regular 로 취급 (KIS 응답이 점심 구간 봉을 어차피 반환하지 않음).
+// [open, close) 를 regular 로 취급 (생성기도 점심 구간에 봉을 만든다).
 export const OVERSEAS_INDEX_OPEN_LOCAL: Record<OverseasIndexCode, string> = {
   SPX: "0930",
   ".DJI": "0930",

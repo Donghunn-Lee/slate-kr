@@ -29,7 +29,8 @@ import { useMarketRanking } from "./useMarketRanking";
 
 const TOP_N = 5;
 
-// KIS prdy_vrss_sign(1상한/2상승/3보합/4하한/5하락) → PriceChange 가 소비하는 PriceSign.
+// 등락 부호 코드(1상한/2상승/3보합/4하한/5하락 — 실시세 API의 코드 체계를 그대로 쓴다)
+// → PriceChange 가 소비하는 PriceSign.
 // 순위는 lib 계층에서 원본 문자열 보존 — 소비 경계에서 정규화(중복 로직 신설 대신 소수 매핑 유지).
 const toPriceSign = (code: string): PriceSign =>
   code === "3" ? "flat" : code === "1" || code === "2" ? "up" : "down";
@@ -120,8 +121,8 @@ const Row = ({ item, secondary, linkable }: RowProps) => (
         </div>
       </div>
     </div>
-    {/* 종목 layout 은 렌더마다 KIS 현재가를 호출한다 — prefetch 를 두면 보이는 행 수만큼
-        KIS 호출이 한꺼번에 나간다. */}
+    {/* 종목 layout 은 렌더마다 현재가를 조회한다 — prefetch 를 두면 보이는 행 수만큼
+        서버 렌더가 한꺼번에 나간다. */}
     {linkable && (
       <Link
         href={`/stocks/${item.ticker}`}

@@ -3,9 +3,9 @@ import type { RegularClose } from "@/shared/types/stock";
 
 // 헤더 통계 행(거래량·시가총액·기준일)과 정규장 종가 줄의 소스. 표시 현재가가 어느 소스인지는
 // 컴포넌트가 정하고(StockHeaderLivePrice 의 shownQuote), 여기서는 같은 소스의 값만 고른다.
-//   - "quote": /api/stock-quote 응답 — 라이브 KIS 와 quote_snapshots 행 모두 이 모양으로
+//   - "quote": /api/stock-quote 응답 — 현재가와 마감 스냅샷(quote-snapshots) 모두 이 모양으로
 //     도착한다. NXT 탭의 거래량은 NX 채널(NXT 체결분)을 그대로 쓴다.
-//   - "stored": SSR daily_prices 최신 행.
+//   - "stored": SSR 최신 일봉.
 export type HeaderStatsSource = "quote" | "stored";
 
 export type StoredHeaderRow = {
@@ -38,7 +38,7 @@ export type HeaderStats = {
 const marketCapOf = (price: number, shares: number | null): number | null =>
   shares !== null && shares > 0 ? price * shares : null;
 
-// source="quote" 인데 quote 가 없으면(KIS 실패·응답 전) 저장 행 — 표시 현재가도 같은 폴백을 탄다.
+// source="quote" 인데 quote 가 없으면(조회 실패·응답 전) 저장 행 — 표시 현재가도 같은 폴백을 탄다.
 export const computeHeaderStats = ({
   source,
   quote,

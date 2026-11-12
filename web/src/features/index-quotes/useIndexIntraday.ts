@@ -17,7 +17,7 @@ export type IndexIntradayResponse = {
 // route regular TTL(60s) 과 정렬된 값 — stale 응답 판정의 TTL 로도 겸한다.
 const POLL_INTERVAL_MS = 60_000;
 // closed 에서도 느린 cadence 유지 — 개장 전 로드된 held 탭이 09:00 을 감지해
-// marketOpen=true 수신 시 regular cadence 로 자동 승격. 서버 세션 캐시 히트라 KIS 콜 0.
+// marketOpen=true 수신 시 regular cadence 로 자동 승격. 서버 세션 캐시 히트라 생성기 재계산 없음.
 const CLOSED_POLL_MS = 120_000;
 
 // 국내 지수 인트라데이를 단일 폴링으로 가져온다.

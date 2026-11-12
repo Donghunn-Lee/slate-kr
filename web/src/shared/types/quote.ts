@@ -1,6 +1,6 @@
 export type PriceSign = "up" | "down" | "flat";
 
-// KIS FHKST01010100 output 판정 결과.
+// 시장조치 판정 결과 — 실시세 API의 코드 체계를 그대로 쓴다.
 //   - suspended: 거래정지 (iscd_stat_cls_code=58)
 //   - liquidation: 정리매매 (sltr_yn=Y)
 //   - managed: 관리종목 (mang_issu_cls_code=Y)

@@ -100,7 +100,7 @@ export const INTRADAY_RIGHT_MARGIN_BARS = 10;
 
 // 지수 END 라벨 세션 경계 (HHMMSS ASC). 국내 정규장 마감 15:30 단일.
 // 종목(StockChartTabs) 은 프리·정규·애프터 3경계라 별도.
-// 해외 지수는 KIS HTS 관례상 START 라벨 유지 → 이 경계를 소비하지 않는다.
+// 해외 지수는 HTS 관례상 START 라벨 유지 → 이 경계를 소비하지 않는다.
 export const INDEX_END_LABEL_BOUNDARIES: readonly string[] = ["153000"];
 
 // 홈 IndexSlate mini 차트가 소비하는 인터벌(분). 값 1개 상수로 유지 — 미니 렌더 결정.

@@ -12,7 +12,7 @@ export type OverseasIndexQuotesResponse = {
 
 const POLL_INTERVAL_MS = 60_000;
 // idle(KST 05:00~09:00) 에서도 느린 cadence 유지 — active 판정이 서버 응답 필드라
-// 클라가 09:00 승격을 자가 감지 못하므로 폴링 필요. 서버 세션 캐시 히트라 KIS 콜 0.
+// 클라가 09:00 승격을 자가 감지 못하므로 폴링 필요. 서버 세션 캐시 히트라 생성기 재계산 없음.
 const CLOSED_POLL_MS = 120_000;
 // 국내 2훅(index-quotes·index-intraday) 과 같은 초에 첫 fetch 가 나가지 않도록 두는 간격.
 // 4 route 가 한 초에 miss 하면 KIS 콜이 최대 23 (앱키 한도 20/s) — 국내 8 / 해외 15 로

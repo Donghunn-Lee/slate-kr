@@ -12,7 +12,7 @@ import type { StockQuote } from "@/shared/types/quote";
 
 export const dynamic = "force-dynamic";
 
-const MULTI_QUOTE_LIMIT = 30; // KIS 공식 상한 (fetcher와 동일 방어)
+const MULTI_QUOTE_LIMIT = 30; // 멀티 시세 1회 상한 (fetcher와 동일 방어)
 
 export const GET = async (req: NextRequest) => {
   const raw = req.nextUrl.searchParams.get("tickers") ?? "";
@@ -28,7 +28,7 @@ export const GET = async (req: NextRequest) => {
   // 요청 시작에서 캘린더 1회 로드 (memo). 세션·거래일 산출에 관통.
   const calendar = await getMarketCalendar();
   const now = new Date();
-  // 세션/marketOpen 은 순수 KST 시계 — KIS 응답 무관. try 밖에서 계산해
+  // 세션/marketOpen 은 순수 KST 시계 — 시세 응답 무관. try 밖에서 계산해
   // catch 경로에서도 그대로 재사용 (초기 로드 스켈레톤 게이트 해소용).
   const session = getKrxSessionState(now, calendar);
   // 폴링 게이트: 활성 세션(regular/after/pre)만 true. after_close는 1회 호출 후 정지.
@@ -41,8 +41,8 @@ export const GET = async (req: NextRequest) => {
     let quotes: Record<string, StockQuote | null> = {};
     let failed: Record<string, boolean> = {};
     if (tickers.length > 0) {
-      // 오프아워(after_close/closed/preopen) 는 quote_snapshots 서빙 우선.
-      // 캡처 실패(date 통째로 없음) 시 기존 KIS 경로로 fallback.
+      // 오프아워(after_close/closed/preopen) 는 마감 스냅샷(quote-snapshots) 서빙 우선.
+      // 캡처 전(date 통째로 없음) 이면 현재가 경로로 fallback.
       // 부분 miss (해당 티커 row 없음) 는 quote:null 로 서빙 — WatchlistRow 는 live
       // 없으면 EOD price 로 자연 폴백.
       let snapshotServed = false;
@@ -68,7 +68,7 @@ export const GET = async (req: NextRequest) => {
         ) {
           ({ quotes, failed } = await fetchMultiQuote(tickers));
         }
-        // preopen / closed: KIS 호출 스킵, quotes/failed 모두 {} 유지 (라이브 미시도 → 실패 개념 없음).
+        // preopen / closed: 현재가 조회 스킵, quotes/failed 모두 {} 유지 (라이브 미시도 → 실패 개념 없음).
       }
     }
 

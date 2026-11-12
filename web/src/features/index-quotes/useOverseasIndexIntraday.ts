@@ -17,7 +17,7 @@ export type OverseasIndexIntradayResponse = {
 // route regular TTL(120s) 과 정렬된 값 — stale 응답 판정의 TTL 로도 겸한다.
 const POLL_INTERVAL_MS = 120_000;
 // closed 에서도 느린 cadence 유지 — 개장 전 로드된 held 탭이 세션 개장을 감지해
-// marketOpen=true 수신 시 regular cadence 로 자동 승격. 서버 세션 캐시 히트라 KIS 콜 0.
+// marketOpen=true 수신 시 regular cadence 로 자동 승격. 서버 세션 캐시 히트라 생성기 재계산 없음.
 const CLOSED_POLL_MS = 240_000;
 // 국내 2훅(index-quotes·index-intraday) 과 같은 초에 첫 fetch 가 나가지 않도록 두는 간격.
 // 4 route 가 한 초에 miss 하면 KIS 콜이 최대 23 (앱키 한도 20/s) — 국내 8 / 해외 15 로

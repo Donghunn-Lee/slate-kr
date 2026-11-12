@@ -49,7 +49,7 @@ const isActiveSession = (calendar?: MarketCalendar) =>
 // 다음 틱에서 재개된다. 응답 session 을 축으로 쓰면 폴링이 멈춘 뒤 갱신되지 않아 그 탭이
 // 정지 상태에 갇혔다. enabled=false 는 fetch·폴링 모두 차단 (분봉 뷰 밖 트래픽 0).
 //
-// hidden 탭은 틱을 건너뛴다 — route 는 서버 캐시 없이 KIS 직행이라 보이지 않는 탭의 콜을
+// hidden 탭은 틱을 건너뛴다 — route 는 서버 캐시 없이 생성기 직행이라 보이지 않는 탭의 콜을
 // 내지 않는다. 복귀 시 1회 갱신은 refetchOnWindowFocus 가 담당하고, 마감 후 복귀마다 콜이
 // 나가지 않도록 같은 시계 축으로 활성 세션에서만 허용.
 //

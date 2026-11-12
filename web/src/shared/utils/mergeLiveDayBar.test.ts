@@ -87,7 +87,7 @@ describe("mergeLiveDayBar - 정상 quote", () => {
     expect(result[1].volume).toBe(5000);
   });
 
-  // 종목 호출부는 price − change(KIS 기준가 축) 를 basePrice 로 실어 보낸다 — 범례가
+  // 종목 호출부는 price − change(전일 대비 축) 를 basePrice 로 실어 보낸다 — 범례가
   // 직전 20:00 close 대신 이 값을 등락 기준으로 쓴다. 없으면 키 자체를 생략(폴백).
   it("quote.basePrice 가 있으면 합성봉에 실리고, 없으면 키가 생략된다", () => {
     const withBase = mergeLiveDayBar(eod, validQuote({ basePrice: 98 }), "2026-07-21");

@@ -10,7 +10,7 @@ import { getKrxSessionState, getKrxTradingDate } from "@/shared/utils/market";
 
 export const dynamic = "force-dynamic";
 
-// 동시 요청 dedup 만 — 순차 요청은 항상 KIS 직행. 클라 폴링(60s) 이 자연 rate limiter.
+// 동시 요청 dedup 만 — 순차 요청은 항상 생성기 직행. 클라 폴링(60s) 이 자연 rate limiter.
 // key 는 ticker 단일: fetchStockIntradayChart 가 내부 now() 로 session 을 재계산하므로
 // 동시 요청은 caller session 과 무관하게 같은 응답을 공유해도 안전.
 const inflight = new Map<

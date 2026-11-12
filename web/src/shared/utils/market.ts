@@ -260,7 +260,7 @@ const shiftUsDate = shiftKstDate; // 순수 캘린더 산술 — TZ 무관, 재�
 // ── 글로벌 해외지수 coarse 세션 ─────────────────
 // US 정규장 마감 + 45분 정산 프린트 버퍼 ~ KST 09:00 은 전 세계 주요 시장(US/EU/아시아)
 // 공통 휴지 구간 → 폴링 중단. 앵커는 US 마감 하나 — 시장별 창은 만들지 않는다.
-// 마감 시장은 KIS 가 종가를 반환하므로 값 표시는 성립.
+// 마감 시장은 생성기가 종가를 돌려주므로 값 표시는 성립.
 // 창 시작이 KST 고정 분이 아닌 이유: US 마감의 KST 환산이 DST 로 05:00 ↔ 06:00 을
 // 오가서, 고정 분은 EST 기간에 마감보다 앞선다.
 // 창 종료 09:00 KST 는 고정 — 도쿄 개장은 DST 가 없다.
@@ -308,7 +308,7 @@ export const isOverseasIndexHoliday = (
 // open/close 는 지수별 상수 테이블(`OVERSEAS_INDEX_OPEN_LOCAL`·`CLOSE_LOCAL`)
 // 을 그대로 읽는다. 휴장 판정은 `isOverseasIndexHoliday` 로 위임 — 캘린더 우선,
 // 미전달 시 시장별 정적 폴백(US NYSE / DE XETRA / JP·HK·CN 없음).
-// 점심 휴장은 regular 로 취급 (KIS 응답이 점심 봉을 반환하지 않아 자연 갭).
+// 점심 휴장은 regular 로 취급 (생성기도 점심 구간에 봉을 만든다).
 
 export type OverseasIndexSessionState = "regular" | "closed";
 

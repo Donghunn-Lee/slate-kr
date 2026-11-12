@@ -63,8 +63,8 @@ export const WatchlistRow = ({
 
   return (
     <li className="group relative -mx-6 bg-transparent px-6 transition-colors hover:bg-muted/40">
-      {/* 종목 layout 은 렌더마다 KIS 현재가를 호출한다 — prefetch 를 두면 보이는 행 수만큼
-          KIS 호출이 한꺼번에 나간다. */}
+      {/* 종목 layout 은 렌더마다 현재가를 조회한다 — prefetch 를 두면 보이는 행 수만큼
+          서버 렌더가 한꺼번에 나간다. */}
       <Link
         href={`/stocks/${item.ticker}`}
         prefetch={false}

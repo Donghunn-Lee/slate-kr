@@ -131,7 +131,7 @@ describe("toIndexDisplayBars", () => {
   });
 });
 
-// 해외 지수는 KIS HTS 관례상 START 라벨 유지 — END 시프트 없음.
+// 해외 지수는 HTS 관례상 START 라벨 유지 — END 시프트 없음.
 // fixture 는 서버 fold 결과와 동형인 START 1분 봉.
 const overseasSnap = (
   code: IndexIntradaySnapshot["indexCode"],

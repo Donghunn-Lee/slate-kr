@@ -239,7 +239,7 @@ export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsPro
     const gatedQuote = isKrxOpeningWindow(quoteData?.session, new Date(), calendar)
       ? null
       : quoteData?.quote ?? null;
-    // 합성봉 등락 기준 = price − change (KIS prdy_vrss 축) — 헤더 등락률과 같은 소스.
+    // 합성봉 등락 기준 = price − change (전일 대비 축) — 헤더 등락률과 같은 소스.
     const liveForMerge = gatedQuote
       ? { ...gatedQuote, basePrice: gatedQuote.price - gatedQuote.change }
       : null;

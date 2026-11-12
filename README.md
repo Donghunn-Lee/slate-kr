@@ -225,7 +225,7 @@ type DisclosureSummaryContent = {
 - **화면 사이의 값이 맞는지 테스트로 고정했습니다.** 일봉 → 분봉 → 현재가를 한 경로에서 파생하고, 동시호가 · 단일가 · 프리/애프터마켓 같은 장 규칙을 재현했습니다. 생성기는 오늘 종가를 미리 알 수 있어서, 아직 오지 않은 시각의 값은 서버가 응답에 싣지 않습니다.
 
 <sub>코드 · [`price-model.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/lib/demo/price-model.ts) · [`universe.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/lib/demo/universe.ts) · [`quote-source.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/lib/quote-source.ts) · [`swap.test.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/lib/demo/swap.test.ts)</sub><br>
-<sub>글 · [#188 시세 약관 조사와 배포 중단](https://donghunn-lee-blog.vercel.app/blog/slatekr/188/) · [#188-2 생성기 명세](https://donghunn-lee-blog.vercel.app/blog/slatekr/188-2/)</sub>
+<sub>글 · [#188 시세 약관 조사와 배포 중단](https://donghunn-lee-blog.vercel.app/blog/slatekr/188/) · [#188-2 생성기 명세](https://donghunn-lee-blog.vercel.app/blog/slatekr/188-2/) · [PR #1](https://github.com/Donghunn-Lee/slate-kr/pull/1)</sub>
 
 ## 품질
 

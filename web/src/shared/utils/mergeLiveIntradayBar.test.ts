@@ -144,7 +144,7 @@ describe("mergeLiveIntradayBar", () => {
     });
 
     it("스냅샷 quote (OHL 삼중 0) → 원본 (프리오픈 08:50~09:00 latePreopen 케이스)", () => {
-      // quote_snapshots.snapshotToQuote 는 open/high/low 를 명시적 0 으로 채움.
+      // quote-snapshots 의 snapshotToQuote 는 open/high/low 를 명시적 0 으로 채움.
       // price 는 어제 20:00 UN 종가 → 오늘 08:50 pre 봉 close 를 어제 값으로 덮어쓰면 안 됨.
       const bars = [
         bar(T("0850"), { open: 100, high: 103, low: 99, close: 102 }),

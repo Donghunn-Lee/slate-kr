@@ -7,7 +7,7 @@ import type { KrxSession } from "@/shared/utils/market";
 
 export type MultiQuoteResponse = {
   quotes: Record<string, StockQuote | null>;
-  // per-code KIS 실패 신호. route catch collapse 시엔 요청 전 티커 true.
+  // per-code 조회 실패 신호. route catch collapse 시엔 요청 전 티커 true.
   // stock-quote single failed flag의 Record 확장 — 소비측이 종목별로 분기.
   failed: Record<string, boolean>;
   marketOpen: boolean;
@@ -18,8 +18,8 @@ export type MultiQuoteResponse = {
 
 const POLL_INTERVAL_MS = 60_000;
 
-// KIS 멀티 견적 상한(FHKST11300006, 30). route/fetcher 는 초과분을 silent truncate 하므로
-// 라이브 소비측이 명시적으로 slice 해서 EOD 폴백으로 흐르게 한다.
+// 멀티 시세 1회 상한(30 — 실시세 API의 상한을 그대로 쓴다). route/fetcher 는 초과분을
+// silent truncate 하므로 라이브 소비측이 명시적으로 slice 해서 EOD 폴백으로 흐르게 한다.
 export const LIVE_TICKER_LIMIT = 30;
 
 // 정렬+중복제거된 join 키. 순서·중복 무관하게 동일 queryKey가 되도록.
@@ -65,7 +65,7 @@ export const useMultiQuote = (tickers: string[]): UseMultiQuoteResult => {
     session: query.data?.session,
     tradingDate: query.data?.tradingDate,
     // market 은 "krx" 고정 — 리스트 표면엔 KRX/NXT 탭 축이 없고, 리셋이 걸리는 EOD 폴백
-    // 값 자체가 daily_prices(=KRX) 축이다. 응답 전 session=undefined 는 술어가 false 로
+    // 값 자체가 일봉(=KRX) 축이다. 응답 전 session=undefined 는 술어가 false 로
     // 받아 헤더의 pre-mount 동작과 동형.
     preReset: isPreMarketReset(query.data?.session, "krx", now, calendar),
     isLoading: query.isLoading,

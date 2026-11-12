@@ -1,6 +1,6 @@
 import type { ChartBar } from "@/shared/types/quote";
 
-// KIS 국내 분봉 stck_cntg_hour = START 라벨 (봉 시작 시각). HTS 관행은 END 라벨.
+// 국내 분봉 time = START 라벨 (봉 시작 시각 — 실시세 API의 관례를 그대로 쓴다). HTS 관행은 END 라벨.
 // 국내 서빙 표면에서 END 로 통일.
 //
 // 세션 경계 목록(closeHmsList ASC) 각각을 마감 크로스 클램프 앵커로 사용 —

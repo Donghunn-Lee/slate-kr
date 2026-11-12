@@ -103,7 +103,7 @@ describe("computeHeaderLabel · NXT 탭", () => {
   }
 });
 
-// live 가 없는 마감 계열은 closedLike 든 KIS 실패든 표시 값이 initialPrice — 라벨은 행 날짜만 본다.
+// live 가 없는 마감 계열은 closedLike 든 조회 실패든 표시 값이 initialPrice — 라벨은 행 날짜만 본다.
 // EOD 미적재 창(15:30~20:12) 은 행이 전일이라 "전일 종가", 적재 뒤엔 20:00 마감 캔들.
 describe("computeHeaderLabel · NXT 탭 · 미지정 경로 · live=null 은 SSR 행 축", () => {
   const sessions: Array<{ session: KrxSession | undefined; openingWindow: boolean }> = [
@@ -272,7 +272,7 @@ describe("computeHeaderLabel · KRX 탭", () => {
     ).toEqual({ labelText: "정규장", timeText: UPDATED_AT });
   });
 
-  // 쿼리가 꺼진 KRX 탭의 표시 값은 daily_prices 행 = 20:00 마감 캔들 — 라벨도 그 축.
+  // 쿼리가 꺼진 KRX 탭의 표시 값은 SSR 일봉 행 = 20:00 마감 캔들 — 라벨도 그 축.
   it("비-regular · initialDate == today → '애프터마켓 마감' · '20:00'", () => {
     for (const s of ["after", "after_close", "pre", "preopen", "closed"] as const) {
       expect(

@@ -20,7 +20,7 @@ import type { IndexDailySnapshot, IndexQuote } from "@/shared/types/quote";
 
 export const dynamic = "force-dynamic";
 
-// KIS 지수 시세 코드 (KOSPI/KOSDAQ/KOSPI200/KOSDAQ150).
+// 지수 시세 코드 (KOSPI/KOSDAQ/KOSPI200/KOSDAQ150) — 실시세 API의 코드 체계를 그대로 쓴다.
 type IndexKisCode = "0001" | "1001" | "2001" | "3003";
 const KIS_BY_DOMESTIC: Record<DomesticIndexCode, IndexKisCode> = {
   KOSPI: "0001",
@@ -34,7 +34,7 @@ const KIS_BY_DOMESTIC: Record<DomesticIndexCode, IndexKisCode> = {
 // revalidate 는 unstable_cache 래퍼 생성 시 고정되므로 key 에도 넣어 정산 창이 끝나면
 // 다른 래퍼를 쓰게 한다.
 // TTL: 활성 세션(regular) 60s / 그 외 3600s (마감 직후 정산 창은 60s).
-// null(호출 실패) 도 그대로 캐시 = KIS backpressure. 실패 시 tag evict 로 정리.
+// null(조회 실패) 도 그대로 캐시된다 — 실패 시 tag evict 로 정리.
 // 캐시 단위 = 셀 데이터 조립 단위. fetchedAt 을 이 안에서 캡처해야 캐시 히트 시
 // 원 조립 시각이 그대로 유지된다.
 type CachedIndexCell = { live: IndexQuote | null; fetchedAt: number };

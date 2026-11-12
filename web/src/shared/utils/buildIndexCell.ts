@@ -82,7 +82,7 @@ export const buildIndexCell = ({
   }
   if (overseasQuote) {
     return {
-      // quote.name 은 KIS 응답 hts_kor_isnm — 호출측 name(INDEX_LABEL[code]) 을 우선.
+      // quote.name 은 응답에 실린 이름 — 호출측 name(INDEX_LABEL[code]) 을 우선.
       live: { ...overseasQuote, name },
       fallback: null,
       fetchedAt: null,

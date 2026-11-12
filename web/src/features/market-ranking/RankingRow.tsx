@@ -12,7 +12,8 @@ import type {
 import { priceToneClass } from "@/shared/utils/priceTone";
 import { cn } from "@/lib/utils";
 
-// KIS prdy_vrss_sign(1상한/2상승/3보합/4하한/5하락) → PriceSign 정규화.
+// 등락 부호 코드(1상한/2상승/3보합/4하한/5하락 — 실시세 API의 코드 체계를 그대로 쓴다)
+// → PriceSign 정규화.
 const toPriceSign = (code: string): PriceSign =>
   code === "3" ? "flat" : code === "1" || code === "2" ? "up" : "down";
 
@@ -153,8 +154,8 @@ export const RankingRow = ({
         linkable && "hover:bg-muted/40",
       )}
     >
-      {/* 종목 layout 은 렌더마다 KIS 현재가를 호출한다 — prefetch 를 두면 보이는 행 수만큼
-          KIS 호출이 한꺼번에 나간다. */}
+      {/* 종목 layout 은 렌더마다 현재가를 조회한다 — prefetch 를 두면 보이는 행 수만큼
+          서버 렌더가 한꺼번에 나간다. */}
       {linkable && (
         <Link
           href={`/stocks/${item.ticker}`}

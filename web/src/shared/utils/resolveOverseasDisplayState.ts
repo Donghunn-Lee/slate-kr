@@ -14,7 +14,7 @@ export type OverseasDisplayState =
   | { kind: "closed" }
   | { kind: "eod_only" };
 
-// KIS 체결시각 hour 는 거래소 현지 로컬 문자열 그대로 → close 상수(HHMM)와 앞 4자리를
+// 체결시각 hour 는 거래소 현지 로컬 문자열 그대로 → close 상수(HHMM)와 앞 4자리를
 // lexicographic 비교하면 시각 비교와 동치. 타임존 변환 없이 판정 가능.
 export const resolveOverseasDisplayState = (
   time: IndexQuote["time"],

@@ -2,8 +2,8 @@ import type { MarketCalendar } from "@/shared/types/marketCalendar";
 
 // KRX 휴장일 정적 표 (평일만 — 주말 겹침 공휴일은 주말 판정이 처리).
 // 출처: 2015~2023 은 실거래 일봉에서 1회 추출(명칭 대조), 2024~ 는 KRX 증시일정 휴장일.
-// 캘린더 행이 없을 때(창 밖·조회 실패) 폴백으로 사용되며, market_trading_days 에
-// 해당 일자 행이 있으면 그 is_open 값이 이 표를 이긴다.
+// 캘린더에 해당 일자 행이 없으면 이 표로 판정한다 — getMarketCalendar 가 빈 캘린더를
+// 돌려주므로 KRX 거래일 판정은 전부 이 표다.
 // 갱신 주기: 연 1회 (우주항공청 월력요항 발표 후). 임시공휴일(예: 보궐선거) 발생 시 추가.
 export const KRX_HOLIDAYS_2015: ReadonlySet<string> = new Set([
   "2015-01-01", // 신정

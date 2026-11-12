@@ -79,8 +79,8 @@ export const GET = async (req: NextRequest) => {
 
   try {
     await applyDemoFault(req);
-    // KIS 호출은 intraday 화이트리스트만. .DJI 는 output1 전 필드 0 으로 돌아와 null 강등 →
-    // tag evict 가 매 요청 반복되므로 호출 없이 null (소비측은 일봉 폴백).
+    // 현재가 조회는 intraday 화이트리스트만. .DJI 는 daily-only 지수라 호출 없이 null
+    // (소비측은 일봉 폴백).
     const results = await Promise.allSettled(
       OVERSEAS_INTRADAY_CODES.map((code) =>
         getCachedQuote(code, session, date)(),

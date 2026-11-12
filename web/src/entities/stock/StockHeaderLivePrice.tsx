@@ -33,9 +33,9 @@ type StockHeaderLivePriceProps = {
   initialPrice: number;
   initialChange: number | null;
   initialChangeRate: number | null;
-  // SSR daily_prices 최신 행 date ('YYYY-MM-DD', KST 축). KRX 탭 비-regular 라벨 산출.
+  // SSR 최신 일봉 date ('YYYY-MM-DD', KST 축). KRX 탭 비-regular 라벨 산출.
   initialDate: string | null;
-  // SSR daily_prices 최신 행 volume. 통계 행의 저장 행 폴백.
+  // SSR 최신 일봉 volume. 통계 행의 저장 행 폴백.
   initialVolume: number;
   // initialDate 의 정규장(15:30) 종가. 정규장 종가 줄의 저장 행 값. null 이면 줄이 빈다.
   initialRegularClose: RegularClose | null;
@@ -82,7 +82,7 @@ export const StockHeaderLivePrice = ({
     market === "krx" &&
     clientSession !== "regular" &&
     clientSession !== "after";
-  // EOD 미적재 창(15:30 통과 후 daily_prices 갱신 전): initialDate 가 lastCloseDate 보다
+  // EOD 미적재 창(15:30 통과 후 20:10 EOD 반영 전): initialDate 가 lastCloseDate 보다
   // 뒤처지면 KRX 확정 종가 1회 조회로 라벨/값을 격상.
   const isKrxDelayWindow =
     isKrxOffRegular && initialDate !== null && initialDate < lastCloseDate;
@@ -113,11 +113,11 @@ export const StockHeaderLivePrice = ({
 
   const live = data?.quote ?? null;
   // 응답 없는 전송 실패는 200 failed 응답과 같은 입력(session 있음 · live null · failed)으로
-  // 수렴 — route 도 catch 에서 KIS 와 무관한 KST 시계 세션을 싣는다.
+  // 수렴 — route 도 catch 에서 시세 조회와 무관한 KST 시계 세션을 싣는다.
   const session = data?.session ?? (isTransportFailed ? clientSession : undefined);
   const updatedAtText = dataUpdatedAt ? format(new Date(dataUpdatedAt), "HH:mm:ss") : "";
 
-  // quote:null 이 정상 empty(NXT 미지원 등) 인지 KIS·전송 실패인지 구분하는 신호.
+  // quote:null 이 정상 empty(NXT 미지원 등) 인지 조회·전송 실패인지 구분하는 신호.
   // 세션 라벨은 유지한 채 "일시 지연" 배지만 얹기 위한 축.
   const isFailedQuote = (data?.failed ?? false) || isTransportFailed;
 

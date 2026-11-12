@@ -599,7 +599,7 @@ export const IndexChart = ({
           interactive={interactive}
           intraday={renderIntraday}
           dimBefore={renderIntraday ? todayStartSec : undefined}
-          // 해외 지수 분봉은 KIS cntg_vol 이 항상 0 (collector/fetch_overseas_intraday.py 실측).
+          // 해외 지수 분봉은 거래량이 없다 (어댑터가 volume 을 싣지 않는다).
           // INDICES_WITHOUT_VOLUME 등재 지수(SPX·NDX)는 daily 도 volume=0 이라 전 뷰 숨김.
           showVolume={
             !(isOverseasIndex && isIntradayView) &&

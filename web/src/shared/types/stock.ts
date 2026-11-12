@@ -47,7 +47,7 @@ export type StockPriceSnapshot = {
   volume: number;
   marketCap: number | null;
   // 등락 기준가(전일 15:30 정규장 종가). close 는 20:00 마감 캔들이라 인접 행 close 차이는
-  // KIS 등락률 축과 어긋난다. null 인 행은 직전 거래일 close 로 폴백.
+  // 헤더 등락률 축과 어긋난다. null 인 행은 직전 거래일 close 로 폴백.
   basePrice: number | null;
 };
 

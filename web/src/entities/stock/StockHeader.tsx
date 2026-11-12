@@ -27,7 +27,7 @@ type MarketActionSlotProps = {
   status: Promise<MarketActionStatus | null>;
 };
 
-// 시장조치 배지는 KIS 단발 조회라 헤더와 따로 스트리밍한다 — 헤더 표시가 KIS 응답을 기다리지 않는다.
+// 시장조치 배지는 별도 조회라 헤더와 따로 스트리밍한다 — 헤더 표시가 그 조회를 기다리지 않는다.
 const MarketActionSlot = async ({ status }: MarketActionSlotProps) => {
   const resolved = await status;
   return resolved ? <MarketActionBadge status={resolved} /> : null;

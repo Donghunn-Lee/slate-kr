@@ -80,7 +80,7 @@ export const WatchlistPreview = () => {
     [pricesQuery.data]
   );
 
-  // /watchlist 페이지와 동일 정책 — 그룹당 최대 100개까지 저장 가능하므로 KIS 멀티 견적
+  // /watchlist 페이지와 동일 정책 — 그룹당 최대 100개까지 저장 가능하므로 멀티 시세
   // 30개 상한을 초과할 수 있다. 초과분은 EOD 폴백으로만 노출.
   const {
     quotes: liveQuotes,
@@ -264,8 +264,8 @@ export const WatchlistPreview = () => {
                             </div>
                           </div>
                         </div>
-                        {/* 종목 layout 은 렌더마다 KIS 현재가를 호출한다 — prefetch 를 두면 보이는
-                            행 수만큼 KIS 호출이 한꺼번에 나간다. */}
+                        {/* 종목 layout 은 렌더마다 현재가를 조회한다 — prefetch 를 두면 보이는
+                            행 수만큼 서버 렌더가 한꺼번에 나간다. */}
                         <Link
                           href={`/stocks/${item.ticker}`}
                           prefetch={false}

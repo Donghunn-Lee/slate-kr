@@ -46,8 +46,7 @@ export default async function IndicesPage({ searchParams }: PageProps) {
 
   // 국내·해외 전 코드의 일봉을 병렬 fetch — per-code try/catch 로 한 코드
   // 실패가 나머지 렌더를 막지 않게 한다.
-  // 국내는 기존 KRX collector, 해외는 KIS overseas collector 가 같은
-  // index_daily_prices 테이블에 적재하므로 동일 lib 함수로 조회 가능.
+  // 국내·해외 모두 생성기 일봉이라 동일 lib 함수로 조회한다.
   const dailyEntries = await Promise.all(
     INDEX_CODES.map(async (code) => {
       try {

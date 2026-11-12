@@ -35,7 +35,7 @@ export const GET = async (req: NextRequest) => {
   // 요청 시작에서 캘린더 1회 로드 (memo). 세션·거래일 산출에 관통.
   const calendar = await getMarketCalendar();
   const now = new Date();
-  // 세션/거래일은 순수 KST 시계 함수 — KIS 응답 무관. try 밖에서 계산해
+  // 세션/거래일은 순수 KST 시계 함수 — 시세 응답 무관. try 밖에서 계산해
   // catch 경로에서도 그대로 재사용 (초기 로드 스켈레톤 게이트 해소용).
   const session = getKrxSessionState(now, calendar);
   // 폴링 게이트: 활성 세션(regular/after/pre)만 true. after_close는 1회 호출 후 정지.
@@ -61,8 +61,8 @@ export const GET = async (req: NextRequest) => {
       });
     }
 
-    // 오프아워(after_close/closed/preopen) 는 quote_snapshots 서빙 우선.
-    // 캡처 실패(date 통째로 없음) 시 KIS 경로로 fallback.
+    // 오프아워(after_close/closed/preopen) 는 마감 스냅샷(quote-snapshots) 서빙 우선.
+    // 캡처 전(date 통째로 없음) 이면 현재가 경로로 fallback.
     // 부분 miss (해당 티커만 없음) 는 quote:null 로 서빙 — 클라의 isNxtMiss 판정이
     // live===null 경로에 의존하므로 UI 무변경. market=nxt 도 이 경로 공유하되 nx_* 축으로
     // 서빙 — UN 최종 체결이 KRX 애프터마켓 쪽일 수 있어 NXT 탭은 nx 축.
@@ -83,17 +83,17 @@ export const GET = async (req: NextRequest) => {
           failed: false,
         });
       }
-      // fallback: KIS 경로로 흘림
+      // fallback: 현재가 경로로 흘림
     }
 
     // NXT 탭(market=nxt) — 활성 세션(regular/pre/after) 모두 NX 채널.
     // market 미지정(기본 경로) — 세션별 채널 토글 (regular=J, after=UN, pre·오프아워=NX).
     // after 가 UN 인 이유: KRX 애프터마켓(16:00~20:00) 은 전 종목 대상이라 비NXT 종목도
     // 체결이 흐른다. UN 은 J+NX 합산(현재가 = 양 시장 최근 체결)이라 한 채널로 둘 다 덮는다.
-    // pre·after_close·closed 를 NX 로 두는 이유: isNxtMiss 판정이 NX 응답 null(비NXT 종목
-    // iscd=null → normalizeStockQuote=null) 경로에 의존한다 — pre 는 NXT 만 열려 있고,
-    // 오프아워는 스냅샷 miss 시 "장 마감" 폴백이 맞다. closed(주말·공휴일) NX 요청은 KIS 가
-    // 직전 NXT 세션 종가(20:00)를 반환하는 특성에 의존.
+    // pre·after_close·closed 를 NX 로 두는 이유: isNxtMiss 판정이 NX 응답 null(비NXT 종목은
+    // NX 채널이 null) 경로에 의존한다 — pre 는 NXT 만 열려 있고,
+    // 오프아워는 스냅샷 miss 시 "장 마감" 폴백이 맞다. closed(주말·공휴일) NX 요청은 직전
+    // 거래일 NXT 종가(20:00)가 돌아오는 것에 의존.
     let quote: StockQuote | null = null;
     if (market === "nxt") {
       if (session === "regular" || session === "after" || session === "pre") {
@@ -112,7 +112,7 @@ export const GET = async (req: NextRequest) => {
       quote = await fetchStockQuote(ticker, "NX");
     }
 
-    // 정규장 중 KIS 가 throw 없이 null 만 돌려준 경우만 실패로 취급 — 09:00~15:30 에는
+    // 정규장 중 현재가 조회가 throw 없이 null 만 돌려준 경우만 실패로 취급 — 09:00~15:30 에는
     // KRX 상장 종목이면 응답이 있어야 정상. 그 외 세션은 실패/정상-빈응답(NXT 미지원)
     // 구분 불가라 여기서 실패 판정하지 않고 isNxtMiss("장 마감") 로 흘림.
     // market=nxt regular 는 비NXT 종목이 NX 채널에서 null 인 게 정상이라 실패로 안 잡음.
@@ -128,7 +128,7 @@ export const GET = async (req: NextRequest) => {
     });
   } catch (err: unknown) {
     // 200 + quote:null 로 collapse — 첫 로드 시 session=undefined 스켈레톤 홀 해소.
-    // failed=true 로 정상 quote:null(NXT 미지원 등) 과 KIS 실패를 구분해 클라이언트가
+    // failed=true 로 정상 quote:null(NXT 미지원 등) 과 조회 실패를 구분해 클라이언트가
     // 세션 라벨(애프터마켓 등) 을 유지한 채 "일시 지연" 배지만 얹을 수 있게 한다.
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[stock-quote] ${message}`);

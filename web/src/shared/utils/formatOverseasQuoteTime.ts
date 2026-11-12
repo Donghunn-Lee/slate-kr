@@ -11,7 +11,7 @@ import {
   getKstDateAndMinutes,
 } from "@/shared/utils/market";
 
-// KIS FHKST03030200 output2 의 (date, hour) 는 거래소 현지 로컬 시각.
+// quote.time 의 (date, hour) 는 거래소 현지 로컬 시각 — 실시세 API의 형식을 그대로 쓴다.
 // 지수별 IANA 타임존으로 UTC 인스턴트를 확정한 뒤 KST "MM.DD HH:mm" 문자열로 렌더한다.
 // DST 는 IANA DB(America/New_York 등)에 위임 — EST/EDT 자동 전환.
 // 파싱 실패·유효하지 않은 시각은 null 반환(라벨 미표시).

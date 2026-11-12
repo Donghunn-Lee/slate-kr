@@ -55,7 +55,8 @@ const formatIndexVolume = (v: number): string => {
   return v.toLocaleString("ko-KR");
 };
 
-// KIS 체결일(yyyyMMdd)을 일봉 스냅샷 date 와 같은 축('yyyy-MM-dd')으로 맞춘다.
+// quote 체결일(yyyyMMdd — 실시세 API의 형식을 그대로 쓴다)을 일봉 스냅샷 date 와 같은
+// 축('yyyy-MM-dd')으로 맞춘다.
 const toIsoDate = (yyyymmdd: string): string =>
   `${yyyymmdd.slice(0, 4)}-${yyyymmdd.slice(4, 6)}-${yyyymmdd.slice(6, 8)}`;
 
@@ -214,7 +215,7 @@ export const IndexDetailPane = ({
 
   // 라벨은 request time 기준: 국내는 client clock 으로 세션 판정, 해외는 quote.time 판정.
   const isKrxRegular = isDomestic && now !== null && getKrxSessionState(now, calendar) === "regular";
-  // 정규장이라도 라이브 값이 없으면(KIS 실패 → EOD 폴백) 정규장 라벨·dot 을 붙이지 않는다 —
+  // 정규장이라도 라이브 값이 없으면(조회 실패 → EOD 폴백) 정규장 라벨·dot 을 붙이지 않는다 —
   // 셀 fetchedAt 은 실패 시각이라 "정규장 · HH:MM" 이 전일 값에 붙어 오표기된다.
   // 첫 응답 전(로딩)은 정규장 유지 — 스켈레톤 위에서 라벨이 전일→정규장으로 튀지 않게.
   const isKrxLive = isKrxRegular && (isLoading || Boolean(cell?.live));

@@ -15,7 +15,7 @@ import {
 // 창을 둘로 쪼개지 않는 이유: NXT 탭은 pre(08:00~08:50) 실거래 · 늦은 preopen(08:50~09:00)
 // 08:50 종가로 두 구간 모두 표시할 오늘 값이 있다.
 // live 유무는 축이 아니다 — 종목 단위라 NXT 상장 종목의 KRX 탭까지 리셋에서 빼고,
-// quote_snapshots 행 유무에도 흔들린다.
+// 마감 스냅샷 행 유무에도 흔들린다.
 // now=null(SSR·첫 렌더)은 false — 클라 시계가 서기 전엔 창 판정을 하지 않는다.
 // 세션 게이트를 앞에 두는 이유: isKrxOpeningWindow 의 늦은 preopen 항은 세션을 보지
 // 않고 클라 시계만 본다. preopen 구간엔 폴링이 멈춰 서버 세션이 전날 저녁 값으로 남을
@@ -33,7 +33,7 @@ export const isPreMarketReset = (
 
 // after 계열 + closed 의 KRX-only 폴백 창 — 직전 거래일 값 보존 (라벨은 SSR 행 축, ssrRowLabel).
 // pre 는 isPreMarketReset 이 처리하므로 여기서 제외.
-// failed=true(=KIS 실패) 는 정상 NXT 미지원과 구분해야 하므로 !isFailedQuote 로 게이트.
+// failed=true(=시세 조회 실패) 는 정상 NXT 미지원과 구분해야 하므로 !isFailedQuote 로 게이트.
 export const isClosedLikeMiss = (
   session: KrxSession | undefined,
   live: StockQuote | null,
@@ -63,9 +63,9 @@ export type HeaderLabelInput = {
   // undefined = 미지정 경로(토글 없는 종목). 세션 결정 채널이라 라이브 축은 NXT 탭과 같지만
   // 종목의 유일 시장이 KRX 라 애프터마켓 경계는 KRX 탭(16:00)을 따른다.
   market: QuoteMarket | undefined;
-  // null 이면 표시 값이 SSR 행 — closedLike·KIS 실패·쿼리 비활성 어느 쪽이든 라벨은 같은 축.
+  // null 이면 표시 값이 SSR 행 — closedLike·조회 실패·쿼리 비활성 어느 쪽이든 라벨은 같은 축.
   live: StockQuote | null;
-  initialDate: string | null; // SSR daily_prices 최신 행 date ('YYYY-MM-DD')
+  initialDate: string | null; // SSR 최신 일봉 date ('YYYY-MM-DD')
   kstToday: string; // 클라 시계 KST 오늘 ('YYYY-MM-DD')
   updatedAtText: string; // TanStack dataUpdatedAt HH:mm:ss
   // 개장 전 창(08:00~09:00) 여부. preopen 세션은 06:00~08:00 도 포함하므로
@@ -85,7 +85,7 @@ export type HeaderLabelResult = {
   timeText: string;
 };
 
-// 표시 값이 SSR 행(initialPrice)일 때의 라벨. daily_prices.close 는 20:00 마감 캔들이라 행 날짜가
+// 표시 값이 SSR 행(initialPrice)일 때의 라벨. 일봉 close 는 20:00 마감 캔들이라 행 날짜가
 // 마지막 마감일이면 애프터마켓 마감 축, 뒤처지면(EOD 미적재 창) 직전 거래일 종가 표기.
 // 날짜를 모르는 행(initialDate=null)은 캔들 축만 남기고 시각을 비운다.
 const ssrRowLabel = (initialDate: string | null, kstToday: string): HeaderLabelResult => {
@@ -143,7 +143,7 @@ export const computeHeaderLabel = ({
   const earlyPreopen = session === "preopen" && !openingWindow;
 
   // 마감 계열(after·after_close·closed)·이른 preopen·응답 전에 live 가 없으면 closedLike 든
-  // KIS 실패든 컴포넌트가 initialPrice 를 쓴다 — 라벨도 SSR 행을 따른다. 실패 신호는
+  // 조회 실패든 컴포넌트가 initialPrice 를 쓴다 — 라벨도 SSR 행을 따른다. 실패 신호는
   // "일시 지연" 배지가 따로 나르므로 세션 라벨을 붙잡아 둘 이유가 없다.
   if (live === null && session !== "regular" && session !== "pre" && !latePreopen) {
     return ssrRowLabel(initialDate, kstToday);

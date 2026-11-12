@@ -2,7 +2,7 @@ import type { ChartBar } from "@/shared/types/quote";
 
 // today-bar 합성용 라이브 quote 필드. IndexQuote/StockQuote 공통 최소 셋.
 // volume 은 종목 quote 만 제공 — 지수 quote 는 undefined.
-// basePrice 는 범례 등락 기준가 — 종목 호출부가 price − change(KIS prdy_vrss 축) 로 채운다.
+// basePrice 는 범례 등락 기준가 — 종목 호출부가 price − change(전일 대비 축) 로 채운다.
 // quote 타입엔 없는 이름이라 지수 quote 가 그대로 흘러도 실리지 않는다(직전 close 폴백).
 export type LiveQuoteForMerge = {
   open: number;
@@ -13,8 +13,8 @@ export type LiveQuoteForMerge = {
   basePrice?: number;
 };
 
-// KIS quote 응답이 세션 시작 전(preopen/비NXT 종목 등) 에 O/H/L 을 문자열 "0" 으로
-// 반환하는 케이스를 무효로 판정한다. change/changeRate 는 개별 필드로 유지되며
+// 세션 시작 전(preopen/비NXT 종목 등) quote 는 O/H/L 을 0 으로 싣는다(실시세 API의 형식을
+// 그대로 쓴다) — 이 케이스를 무효로 판정한다. change/changeRate 는 개별 필드로 유지되며
 // 여기서는 OHL 삼중 0 만을 무효 신호로 삼는다 — 세 값 모두 0 이 자연스러운 실거래
 // 봉은 존재하지 않음(호가만 있어도 OHL 은 채워짐).
 export const isInvalidQuoteOhl = (q: {
