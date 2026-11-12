@@ -182,7 +182,7 @@ export const RankingView = ({
 
       {showResults && (
         <p className="mt-3 text-caption text-muted-foreground">
-          관심종목은 KIS 고객 등록 수 기준
+          관심 등록 수는 가상 데이터입니다
         </p>
       )}
     </StockPanel>

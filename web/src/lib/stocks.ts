@@ -9,7 +9,6 @@ type StockRow = {
   market: "KOSPI" | "KOSDAQ";
   sector: string | null;
   shares: number | null;
-  listed_at: Date | null;
   reporting_currency: string;
   is_active: number;
   updated_at: Date;
@@ -56,14 +55,6 @@ export const getShares = async (ticker: string): Promise<number | null> => {
   if (row?.shares == null || Number(row.shares) <= 0) return null;
   return Number(row.shares);
 };
-
-export const getListedAt = cache(async (ticker: string): Promise<Date | null> => {
-  const [rows] = await pool.query<Pick<StockRow, "listed_at">[]>(
-    "SELECT listed_at FROM stocks WHERE ticker = $1 AND is_active = true",
-    [ticker]
-  );
-  return rows.length > 0 ? (rows[0].listed_at ?? null) : null;
-});
 
 export const getCorpCode = cache(async (ticker: string): Promise<string | null> => {
   const [rows] = await pool.query<StockRow[]>(

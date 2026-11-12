@@ -1,23 +1,18 @@
 import { cache } from "react";
-import { format } from "date-fns";
-import { pool } from "./db";
+import { generateIndexDailyBars, indexIntradayBarsAt } from "@/lib/demo/index-model";
+import { DEMO_HISTORY_START, getDemoEodDate } from "@/lib/demo/universe";
+import { fetchOverseasIndexIntradayChart } from "./overseas-index-source";
 import {
-  fetchIndexMinuteBarsRaw,
-  kstToFakeUtcSec,
-  toKisDate,
-} from "./kis-quote-fetch";
-import { fetchOverseasIndexIntradayChart } from "./kis-overseas-quote-fetch";
-import { getMarketCalendar } from "./market-calendar";
-import {
-  OVERSEAS_INDEX_CLOSE_LOCAL,
+  getIndexMeta,
+  INDEX_CODES,
   type DomesticIndexCode,
+  type IndexCode,
+  type OverseasIndexCode,
   type OverseasIntradayCode,
 } from "@/shared/constants/indices";
-import type { MarketCalendar } from "@/shared/types/marketCalendar";
-import { mergeChartBars } from "@/shared/utils/toEndLabelBars";
 import {
-  getKrxTradingDate,
-  getPreviousKrxTradingDate,
+  getOverseasIndexSessionState,
+  getOverseasIndexTradingDate,
   getPreviousOverseasIndexTradingDate,
 } from "@/shared/utils/market";
 import type {
@@ -26,52 +21,37 @@ import type {
   IndexIntradaySnapshot,
 } from "@/shared/types/quote";
 
-// quote(FHPUP02100000) · intraday(FHKUP03500200) TR 전용 매핑.
-// daily TR(FHKUP03500100) 은 KOSDAQ150=2203 으로 상이 —
-// collector/fetch_index_prices.py INDEX_CODE_TO_ISCD 참조.
-const ISCD_BY_INDEX: Record<DomesticIndexCode, string> = {
+// 국내 지수 시세 코드 — index-quotes route 가 이 코드로 현재가를 요청한다. 코드 ↔ 지수의 단일 소스.
+export const ISCD_BY_INDEX: Record<DomesticIndexCode, string> = {
   KOSPI: "0001",
   KOSDAQ: "1001",
   KOSPI200: "2001",
   KOSDAQ150: "3003",
 };
 
-type DailyIndexRow = {
-  base_date: Date;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  change: number;
-  change_rate: number;
-  volume: number;
-};
+const isIndexCode = (raw: string): raw is IndexCode =>
+  (INDEX_CODES as readonly string[]).includes(raw);
 
-const toSnapshot = (indexCode: string, row: DailyIndexRow): IndexDailySnapshot => ({
-  indexCode,
-  date: format(new Date(row.base_date), "yyyy-MM-dd"),
-  open: row.open,
-  high: row.high,
-  low: row.low,
-  close: row.close,
-  change: row.change,
-  changeRate: row.change_rate,
-  volume: row.volume,
-});
+// 지수 EOD 가 존재하는 마지막 거래일. 국내는 종목과 같은 20:10 EOD 축, 해외는 거래소 로컬
+// 세션이 마감된 날(장중이면 직전 거래일).
+const lastIndexEodDate = (code: IndexCode, now: Date): string => {
+  if (getIndexMeta(code).region === "domestic") return getDemoEodDate(now);
+  const overseas = code as OverseasIndexCode;
+  const tradingDate = getOverseasIndexTradingDate(overseas, now);
+  return getOverseasIndexSessionState(overseas, now) === "regular"
+    ? getPreviousOverseasIndexTradingDate(overseas, tradingDate)
+    : tradingDate;
+};
 
 export const getLatestIndexPrice = cache(
   async (indexCode: string): Promise<IndexDailySnapshot | null> => {
-    const [rows] = await pool.query<DailyIndexRow[]>(
-      "SELECT base_date, open, high, low, close, change, change_rate, volume FROM index_daily_prices WHERE index_code = $1 ORDER BY base_date DESC LIMIT 1",
-      [indexCode]
-    );
-    if (rows.length === 0) return null;
-    return toSnapshot(indexCode, rows[0]);
+    const bars = await getIndexDailyPrices(indexCode, 1);
+    return bars[0] ?? null;
   }
 );
 
 // fake-UTC epoch sec (KST/ET 벽시계를 UTC 로 위장) → 원본 캘린더 YYYY-MM-DD.
-// getUTC* 로 위장 컴포넌트를 그대로 복원 — 국내/해외 intraday 봉 timestamp 공용.
+// getUTC* 로 위장 컴포넌트를 그대로 복원.
 const sessionDateFromTimestamp = (sec: number): string => {
   const d = new Date(sec * 1000);
   const y = d.getUTCFullYear();
@@ -80,157 +60,7 @@ const sessionDateFromTimestamp = (sec: number): string => {
   return `${y}-${m}-${dd}`;
 };
 
-// intraday change 계산용 직전 세션 close. sessionDate 는 화면에 그릴 세션의 캘린더
-// 날짜 — 벽시계 today 대신 봉 데이터에서 파생해 야간/DST/collector 지연 corner 흡수.
-// getLatestIndexPrice 는 오늘자 EOD 를 이미 잡으므로 여기선 별도 쿼리로 base_date <
-// sessionDate 로 필터해야 "직전 세션 close" 시맨틱 유지.
-// null (신규 지수 등 직전 세션 row 부재) → 소비측이 prevClose=0 로 graceful degrade.
-const queryPrevSessionClose = async (
-  indexCode: string,
-  sessionDate: string,
-): Promise<number | null> => {
-  const [rows] = await pool.query<{ close: number }[]>(
-    "SELECT close FROM index_daily_prices WHERE index_code = $1 AND base_date < $2 ORDER BY base_date DESC LIMIT 1",
-    [indexCode, sessionDate],
-  );
-  return rows.length > 0 ? rows[0].close : null;
-};
-
-// ── 해외지수 intraday (US 3종 + 아시아 3종 + DAX) ─────────────────
-// collector 가 DB(overseas_index_intraday) 에 30분마다 1분봉을 적재하고, 여기서는
-// (a) DB 전 거래일 이후분 read + (b) KIS live 1콜(102봉 창) 을 병합해 반환한다.
-// live 우선 dedup — 같은 ts 라면 방금 fetch 한 봉이 더 최신 상태 (KIS 는 확장세션
-// 꼬리를 더 늦게 갱신하는 경우가 있어 항상 live 를 신뢰).
-// 실패 격리: live 실패 → DB-only degraded, DB 실패 → live-only, 둘 다 실패 → null.
-// 국내와 동형: 서버는 START 라벨 1분 봉을 반환하고 END/리샘플은 클라 소관.
-
-type OverseasIntradayRow = {
-  ts_str: string; // to_char(ts, 'YYYYMMDDHH24MISS') — 저장 시 ET 로컬 naive 를 그대로 보존
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-};
-
-const parseTsStrToFakeUtcSec = (tsStr: string): number =>
-  Math.floor(
-    Date.UTC(
-      Number(tsStr.slice(0, 4)),
-      Number(tsStr.slice(4, 6)) - 1,
-      Number(tsStr.slice(6, 8)),
-      Number(tsStr.slice(8, 10)),
-      Number(tsStr.slice(10, 12)),
-      Number(tsStr.slice(12, 14)),
-    ) / 1000,
-  );
-
-const readOverseasIntradayFromDb = async (
-  indexCode: OverseasIntradayCode,
-  tradingDate: string, // 'YYYY-MM-DD' (거래소 로컬 캘린더의 최근 세션 거래일)
-  calendar?: MarketCalendar,
-): Promise<ChartBar[]> => {
-  try {
-    // 창 축은 "이전 거래일 00:00 부터" — 캘린더 산술로 잡으면 로컬 자정~개장 사이
-    // 직전 세션이 창 밖으로 밀린다. 국내 `readDomesticIntradayFromDb` 의 `$2::date`
-    // 바인딩 패턴 동형.
-    const prevTradingDate = getPreviousOverseasIndexTradingDate(
-      indexCode,
-      tradingDate,
-      calendar,
-    );
-    const [rows] = await pool.query<OverseasIntradayRow[]>(
-      `SELECT to_char(ts, 'YYYYMMDDHH24MISS') AS ts_str, open, high, low, close
-       FROM overseas_index_intraday
-       WHERE index_code = $1
-         AND ts >= $2::date
-       ORDER BY ts ASC`,
-      [indexCode, prevTradingDate],
-    );
-    return rows.map((r) => ({
-      time: parseTsStrToFakeUtcSec(r.ts_str),
-      open: r.open,
-      high: r.high,
-      low: r.low,
-      close: r.close,
-    }));
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error(`[indices] overseas intraday DB read failed ${indexCode}: ${message}`);
-    return [];
-  }
-};
-
-// pure — live 우선 dedup 후 ASC 정렬. 테스트 대상.
-export const mergeIntradayBars = (
-  dbBars: ChartBar[],
-  liveBars: ChartBar[],
-): ChartBar[] => {
-  const merged = new Map<number, ChartBar>();
-  for (const b of dbBars) {
-    if (typeof b.time === "number") merged.set(b.time, b);
-  }
-  // live 가 나중에 set 되므로 자동 우선 (같은 key 덮어씀).
-  for (const b of liveBars) {
-    if (typeof b.time === "number") merged.set(b.time, b);
-  }
-  return Array.from(merged.values()).sort(
-    (a, b) => (a.time as number) - (b.time as number),
-  );
-};
-
-// 지수 마감 후 확정 재계산 프린트 접기 — HHMMSS > closeBoundary 인 raw 봉을
-// 그 봉 날짜의 closeBoundary 봉에 흡수(open=선행, close=후행, H/L 극값, vol 합).
-//
-// KIS 발행 규칙(KOSPI/KOSDAQ 실측): 15:30 마감 봉 이후 15:31·15:32 프린트가 나오며
-// 공식 종가는 15:32 프린트에만 확정값으로 담긴다(15:30 raw close 는 소수점 최종 반올림
-// 이전 값이라 어긋난다). 병합 결과 15:30 봉이 close=15:32 값을 상속하고 vol 은 세 행 합.
-//
-// KOSPI200/KOSDAQ150 처럼 15:31+ 프린트가 없는 케이스는 no-op.
-// 해외 지수도 마감 후 프린트가 발생하므로 closeBoundary(HHMMSS)를 지수별 마감
-// 시각으로 호출측에서 명시 전달한다. 경계 판정은 봉 시각의 getUTC* 컴포넌트로
-// 수행 — wall-clock 인코딩(fake-UTC epoch)에 그대로 성립.
-// 순서 유지 (입력 ASC 라면 병합 후에도 배열 인덱스 순서 = ASC).
-export const foldPostCloseIndexBars = (
-  bars: readonly ChartBar[],
-  closeBoundary: string,
-): ChartBar[] => {
-  const hh = Number(closeBoundary.slice(0, 2));
-  const mm = Number(closeBoundary.slice(2, 4));
-  const ss = Number(closeBoundary.slice(4, 6));
-  const closeSecFromBar = (barSec: number): number => {
-    const d = new Date(barSec * 1000);
-    return Math.floor(
-      Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), hh, mm, ss) /
-        1000,
-    );
-  };
-  const buckets = new Map<number, ChartBar>();
-  const stringTimeBars: ChartBar[] = [];
-  const orderKey: (number | string)[] = [];
-  for (const b of bars) {
-    if (typeof b.time !== "number") {
-      stringTimeBars.push(b);
-      orderKey.push(`s${stringTimeBars.length - 1}`);
-      continue;
-    }
-    const closeSec = closeSecFromBar(b.time);
-    const key = b.time > closeSec ? closeSec : b.time;
-    const existing = buckets.get(key);
-    const incoming: ChartBar = { ...b, time: key };
-    if (existing) {
-      buckets.set(key, mergeChartBars(existing, incoming, key));
-    } else {
-      buckets.set(key, incoming);
-      orderKey.push(key);
-    }
-  }
-  return orderKey.map((k) => {
-    if (typeof k === "string") return stringTimeBars[Number(k.slice(1))];
-    return buckets.get(k) as ChartBar;
-  });
-};
-
-// useBarVolume=false: KIS 해외 분봉 volume 은 항상 0 이므로 강제 0.
+// useBarVolume=false: 해외 지수 분봉은 거래량 없이 그린다 — 강제 0.
 // useBarVolume=true: 봉의 volume 을 그대로 전달 (histogram 오버레이).
 export const toIntradaySnapshots = (
   indexCode: string,
@@ -254,148 +84,43 @@ export const toIntradaySnapshots = (
     };
   });
 
-// 반환:
-//   null   — DB / live 둘 다 실패
-//   [] 또는 배열 — 정상. degraded (한쪽 실패) 도 성공으로 취급.
+// ── 해외지수 intraday (US 3종 + 아시아 3종 + DAX) ─────────────────
+// 서버는 START 라벨 1분 봉을 반환하고 END/리샘플은 클라 소관(국내와 동형).
+// 반환: null — 분봉이 없는 지수 / [] 또는 배열 — 정상.
+// tradingDate 는 route 캐시 키 축이라 시그니처에 남는다 — 봉의 세션은 지금 시각이 정한다.
 export const getOverseasIndexIntradayPrices = async (
   indexCode: OverseasIntradayCode,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   tradingDate: string,
 ): Promise<IndexIntradaySnapshot[] | null> => {
-  // 캘린더는 모듈 memo — 시그니처로 뚫지 않는다 (route unstable_cache 캐시 키 오염 방지).
-  const calendar = await getMarketCalendar();
-  const [dbBars, liveBars] = await Promise.all([
-    readOverseasIntradayFromDb(indexCode, tradingDate, calendar),
-    fetchOverseasIndexIntradayChart(indexCode),
-  ]);
-
-  const liveFailed = liveBars === null;
-  const dbFailed = dbBars.length === 0;
-  if (liveFailed && dbFailed) {
-    // live 실패 + DB 비어있음(적재 전이거나 read 실패) — 소비측이 실패로 처리.
-    return null;
-  }
-
-  // fold 만 서버에서 수행 — 마감 후 프린트를 그 세션 마감 봉에 흡수. END 라벨과
-  // N분 리샘플은 클라 소관(국내 파이프라인과 동형). mergeIntradayBars 가 ASC 정렬을
-  // 보장하므로 fold 입력 전제 충족.
-  const merged = mergeIntradayBars(dbBars, liveBars ?? []);
-  const folded = foldPostCloseIndexBars(
-    merged,
-    `${OVERSEAS_INDEX_CLOSE_LOCAL[indexCode]}00`,
-  );
-  const sessionDate =
-    folded.length > 0
-      ? sessionDateFromTimestamp(folded[folded.length - 1].time as number)
-      : null;
-  const prevClose =
-    sessionDate !== null
-      ? (await queryPrevSessionClose(indexCode, sessionDate)) ?? 0
-      : 0;
-  return toIntradaySnapshots(indexCode, folded, prevClose);
+  const bars = await fetchOverseasIndexIntradayChart(indexCode);
+  if (bars === null) return null;
+  if (bars.length === 0) return [];
+  // change 축 = 화면에 그릴 세션(마지막 봉의 거래일) 의 전일 일봉 종가.
+  const sessionDate = sessionDateFromTimestamp(bars[bars.length - 1].time as number);
+  const prevDate = getPreviousOverseasIndexTradingDate(indexCode, sessionDate);
+  const prevClose = generateIndexDailyBars(indexCode, prevDate, prevDate)[0]?.close ?? 0;
+  return toIntradaySnapshots(indexCode, bars, prevClose);
 };
 
-// ── 국내 지수 1분 (DB + KIS live tail) ─────────────────
-// tradingDate 1값이 창의 축 — DB 는 직전 거래일부터(전일 tail), live 는 tradingDate
-// 당일로 필터. 세션·일 경계에서 자연 정합. live 호출 게이트 없음.
-// 실패 계약: live 실패 + DB 빈 배열 → null (소비측 failed).
-// 한쪽만 실패 → degraded 성공 (빈 배열도 정상 응답).
-// 서버 fold 로 15:31·15:32 프린트만 15:30 봉에 흡수. END 라벨·리샘플은 클라 소관 —
-// 서빙 timestamp 는 START 라벨(HH:MM 시각) 이다.
-
-type DomesticIntradayRow = {
-  ts_date: string; // to_char(ts, 'YYYYMMDD')
-  ts_time: string; // to_char(ts, 'HH24MISS')
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-};
-
-// KST naive `ts` 를 kstToFakeUtcSec 로 fake-UTC epoch 초 인코딩 —
-// 라이브 파싱 경로와 동일 축을 보장해 DB↔live 병합 dedup key 정합 유지.
-const readDomesticIntradayFromDb = async (
-  indexCode: DomesticIndexCode,
-  tradingDate: string, // 'YYYY-MM-DD'
-  calendar?: MarketCalendar,
-): Promise<ChartBar[]> => {
-  try {
-    // 창 하한은 직전 거래일 00:00 — 상세 차트가 전일 tail 을 dim 으로 그린다.
-    // 해외 `readOverseasIntradayFromDb` 와 동형(상한 없음).
-    const prevTradingDate = getPreviousKrxTradingDate(tradingDate, calendar);
-    const [rows] = await pool.query<DomesticIntradayRow[]>(
-      `SELECT to_char(ts, 'YYYYMMDD') AS ts_date,
-              to_char(ts, 'HH24MISS') AS ts_time,
-              open, high, low, close, volume
-         FROM domestic_index_intraday
-        WHERE index_code = $1
-          AND ts >= $2::date
-        ORDER BY ts ASC`,
-      [indexCode, prevTradingDate],
-    );
-    return rows.map((r) => ({
-      time: kstToFakeUtcSec(r.ts_date, r.ts_time),
-      open: r.open,
-      high: r.high,
-      low: r.low,
-      close: r.close,
-      volume: r.volume,
-    }));
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error(
-      `[indices] domestic intraday DB read failed ${indexCode}: ${message}`,
-    );
-    return [];
-  }
-};
-
+// ── 국내 지수 1분 ─────────────────
+// 직전 거래일 전체 + 오늘(지금까지). 각 봉의 change 는 그 봉 거래일의 전일 일봉 종가 대비 —
+// 현재가(indexQuoteAt) 와 같은 축이라 헤더 = 분봉 마지막 봉.
 export const getIndexIntradayPrices = async (
   indexCode: DomesticIndexCode,
   now: Date = new Date(),
-): Promise<IndexIntradaySnapshot[] | null> => {
-  // 캘린더는 모듈 memo — 시그니처로 뚫지 않는다 (route unstable_cache 캐시 키 오염 방지).
-  const calendar = await getMarketCalendar();
-  const tradingDate = getKrxTradingDate(now, calendar);
-  const targetDate = toKisDate(tradingDate);
-  const iscd = ISCD_BY_INDEX[indexCode];
-
-  const [dbBars, liveBars] = await Promise.all([
-    readDomesticIntradayFromDb(indexCode, tradingDate, calendar),
-    fetchIndexMinuteBarsRaw(iscd, now, 60, targetDate),
-  ]);
-
-  const liveFailed = liveBars === null;
-  const dbFailed = dbBars.length === 0;
-  if (liveFailed && dbFailed) {
-    return null;
-  }
-
-  const merged = mergeIntradayBars(dbBars, liveBars ?? []);
-  const folded = foldPostCloseIndexBars(merged, "153000");
-  const sessionDate =
-    folded.length > 0
-      ? sessionDateFromTimestamp(folded[folded.length - 1].time as number)
-      : null;
-  const prevClose =
-    sessionDate !== null
-      ? (await queryPrevSessionClose(indexCode, sessionDate)) ?? 0
-      : 0;
-  return toIntradaySnapshots(indexCode, folded, prevClose, true);
-};
+): Promise<IndexIntradaySnapshot[] | null> => indexIntradayBarsAt(indexCode, now);
 
 export const getIndexDailyPrices = async (
   indexCode: string,
   limit?: number,
 ): Promise<IndexDailySnapshot[]> => {
-  // limit 생략 = LIMIT 절 없이 전량. 기본값을 두면 잊고 잘라올 위험이 있어 옵셔널로.
-  // 최신 N건 → 차트 소비용 ASC 로 뒤집는다.
-  const sql =
-    limit === undefined
-      ? "SELECT base_date, open, high, low, close, change, change_rate, volume FROM index_daily_prices WHERE index_code = $1 ORDER BY base_date DESC"
-      : "SELECT base_date, open, high, low, close, change, change_rate, volume FROM index_daily_prices WHERE index_code = $1 ORDER BY base_date DESC LIMIT $2";
-  const params: (string | number)[] =
-    limit === undefined ? [indexCode] : [indexCode, limit];
-  const [rows] = await pool.query<DailyIndexRow[]>(sql, params);
-  return rows.reverse().map((row) => toSnapshot(indexCode, row));
+  if (!isIndexCode(indexCode)) return [];
+  // limit 생략 = 전량. 기본값을 두면 잊고 잘라올 위험이 있어 옵셔널로. 최신 N건, ASC.
+  const bars = generateIndexDailyBars(
+    indexCode,
+    DEMO_HISTORY_START,
+    lastIndexEodDate(indexCode, new Date()),
+  );
+  return limit === undefined ? bars : bars.slice(Math.max(0, bars.length - limit));
 };

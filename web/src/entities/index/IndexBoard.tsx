@@ -45,9 +45,10 @@ export const IndexBoard = ({
         onSelect={handleSelect}
         dailyByIndex={dailyByIndex}
       />
+      {/* 모바일 칩 선택의 scrollIntoView 가 닿는 곳 — sticky 헤더(2행 78px) + 18px 만큼 띄워 상단이 가리지 않게 한다. */}
       <div
         ref={detailRef}
-        className="order-1 min-w-0 flex-1 md:order-2"
+        className="order-1 min-w-0 flex-1 scroll-mt-24 md:order-2"
       >
         <IndexDetailPane
           selected={selected}

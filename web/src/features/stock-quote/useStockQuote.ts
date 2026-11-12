@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { StockQuote } from "@/shared/types/quote";
+import type { RegularClose } from "@/shared/types/stock";
 import type { MarketCalendar } from "@/shared/types/marketCalendar";
 import type { KrxSession, QuoteMarket } from "@/shared/utils/market";
 import { getKrxSessionState, isKrxActiveSession } from "@/shared/utils/market";
@@ -14,6 +15,9 @@ export type StockQuoteResponse = {
   // quote 가 속한 거래일 'YYYY-MM-DD'. 라이브는 date 와 같고 스냅샷은 캡처 행 날짜(마지막
   // 마감일). 헤더 통계 행의 기준일 — 표시 현재가와 같은 축.
   quoteDate: string;
+  // quoteDate 의 KRX 정규장(15:30) 종가 — 표시 현재가와 같은 날짜 축. 그 날 정규장이 끝나기
+  // 전·실패 응답이면 null.
+  regularClose: RegularClose | null;
   // route catch 진입 시 true. quote:null 이 정상 empty(NXT 미지원 등) 인지 실패인지
   // 구분하는 신호. StockHeaderLivePrice 가 세션 라벨 유지 + "일시 지연" 배지 판정에 사용.
   failed: boolean;

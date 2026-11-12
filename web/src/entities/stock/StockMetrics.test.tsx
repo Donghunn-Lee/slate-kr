@@ -4,7 +4,7 @@ import { render, screen, within } from "@testing-library/react";
 import "@/test/domSetup";
 import { getFinancials } from "@/lib/financials";
 import { getLatestPrice } from "@/lib/prices";
-import { getListedAt, getNonKrwCurrency } from "@/lib/stocks";
+import { getNonKrwCurrency } from "@/lib/stocks";
 import type { FinancialPeriod, StockPriceSnapshot } from "@/shared/types/stock";
 import { StockMetrics } from "./StockMetrics";
 
@@ -14,7 +14,7 @@ vi.mock("@/lib/financials", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/financials")>()),
   getFinancials: vi.fn(),
 }));
-vi.mock("@/lib/stocks", () => ({ getListedAt: vi.fn(), getNonKrwCurrency: vi.fn() }));
+vi.mock("@/lib/stocks", () => ({ getNonKrwCurrency: vi.fn() }));
 
 // jsdom 은 matchMedia 를 구현하지 않는다 — 산식 Tooltip 의 터치 판정(useIsTouch)이 렌더 중 호출한다.
 window.matchMedia = (query: string) =>
@@ -75,7 +75,6 @@ describe("StockMetrics 부분 실패", () => {
   beforeEach(() => {
     vi.mocked(getLatestPrice).mockResolvedValue(PRICE);
     vi.mocked(getFinancials).mockResolvedValue({ annual: [ANNUAL], quarterly: [] });
-    vi.mocked(getListedAt).mockResolvedValue(null);
     vi.mocked(getNonKrwCurrency).mockResolvedValue(null);
     vi.spyOn(console, "error").mockImplementation(() => {});
   });

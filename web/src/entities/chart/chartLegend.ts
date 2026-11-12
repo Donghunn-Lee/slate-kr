@@ -1,5 +1,6 @@
 import type { ChartPalette } from "@/shared/constants/chart";
 import type { ChartBar } from "@/shared/types/quote";
+import { barDirection } from "@/entities/chart/chartSeriesData";
 
 // priceFormatter 미주입 시 legend 값 포맷. precision 을 그대로 사용해 축약 없이 로케일 표기.
 export const formatOhlc = (v: number, precision: number): string =>
@@ -26,7 +27,7 @@ export const changeBasis = (bars: readonly ChartBar[], i: number): number | null
 
 // legend DOM 갱신. bar=null → 텍스트 비움. 등락색은 CHART_THEME up/down 재사용.
 // 숫자 값만 삽입 → XSS 위험 없음.
-// candle: 시 고 저 종 [등락률] [거]. 종가색 = 봉 방향(close ≥ open).
+// candle: 시 고 저 종 [등락률] [거]. 종가색 = 봉 방향(barDirection, 시가=종가는 기본색).
 // line: 종 [등락률] [거]. 종가색 = 기준가 대비(prevClose = changeBasis 결과).
 // 거 는 showVolume 일 때만. candle hover 는 volume series join 이라 pane 이 없으면 자연히
 // 비지만, 미호버·line 경로는 바 원본 volume(pane 없는 지수도 0) 을 읽으므로 명시 가드가 필요.
@@ -47,7 +48,8 @@ export const paintLegend = (
   const labelCls = "text-muted-foreground";
   let closeColor: string | undefined;
   if (kind === "candle") {
-    closeColor = bar.close >= bar.open ? palette.up : palette.down;
+    const dir = barDirection(bar);
+    closeColor = dir === "up" ? palette.up : dir === "down" ? palette.down : undefined;
   } else if (prevClose !== null) {
     closeColor =
       bar.close > prevClose ? palette.up : bar.close < prevClose ? palette.down : undefined;

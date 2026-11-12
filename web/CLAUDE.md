@@ -57,29 +57,19 @@ AI 없이도 설득력 있어야 한다. AI는 투자 판단 도구가 아니라
   - neon() 호환 래퍼: 기존 `[rows, null]` 패턴 유지
   - placeholder: `$1, $2` (PostgreSQL 스타일)
 - **DB 마이그레이션**: `web/sql/*.sql`에 DDL·데이터 보정 DML·운영 템플릿을 추적, Neon 콘솔 수동 적용 (자동 실행 도구 없음)
-  - 예외: 감지된 기업행위 rescale만 Daily의 `rescale_corp_actions.py`가 게이트 전부 통과 시 적용하고 원장 `corp_action_rescales`에 기록. `web/sql` rescale 파일은 원장의 `sql`에서 옮겨 커밋
   - 예외: 신규 non-KRW 재무 격리는 Weekly의 `fetch_financials.py`가 게이트 전부 통과 시 적용(수치 NULL + `stocks.reporting_currency`)하고 artifact `non-krw-<run id>`에 SQL·스냅샷을 남긴다. 거절 건은 `web/sql/isolate_non_krw_ticker.sql`로 수동
-- **데이터 수집**: Python (collector/)
-  - 일일(20:12 KST): fetch_market_calendar.py (KIS 휴장일) / fetch_stocks.py (FSS) / fetch_daily_close.py (KIS J 멀티시세, 국내 종목 20:00 캔들 + base_price)
-    / fetch_index_prices.py (KIS, 국내 지수 4종 EOD) / fetch_overseas_indices.py (KIS, 해외 지수 8종)
-    / rescale_corp_actions.py (기업행위 재적재 + rescale) / verify_daily_freshness.py (적재 검증) / fetch_shares.py (KRX 일별매매정보 상장주식수 + bps 재계산)
-  - 인트라데이: fetch_index_minute.py (KIS, 국내 지수 4종 1분봉) / fetch_overseas_intraday.py (KIS, 해외 7종 1분봉 — .DJI 제외).
-    둘 다 30분 주기, 7일 retention
-  - 스냅샷: fetch_quote_snapshots.py (KIS, 20:10 KST UN/NX 통합 시세)
-  - 주간: fetch_listed_at.py (KRX Marketplace 상장일) / update_corp_codes.py (DART) / fetch_financials.py (DART)
-    / fetch_dividends.py (DART 배당)
-  - 백필 전용: fetch_prices.py (KIS 일봉, 2026-09-11 상한) / backfill_prices.py (pykrx, 9/14 이후 갭 채움 소스)
-    / backfill_prices_kis.py (KIS 수정주가, ≤2026-09-11 전면 재적재)
-    / backfill_index_prices.py (KRX Marketplace) / backfill_overseas_index_prices.py (KIS)
-  - 토큰: issue_kis_token.py + kis_token.py (공용 헬퍼)
-  - 공통: db.py (Neon 커넥션), kis_multi.py (멀티시세 청크 호출 + 적재 게이트), 로깅, 에러 격리, incremental update
-- **스케줄링**: GitHub Actions 수집 워크플로우 6개 전부 workflow_dispatch만 사용,
+- **데이터 수집**: Python (collector/), DART만
+  - 주간(`collector-weekly.yml`): fetch_stocks.py (DART 고유번호 + 기업개황, 종목 목록) / fetch_financials.py (DART 재무)
+    / fetch_dividends.py (DART 배당) / fetch_shares.py (DART 주식총수 현황 상장주식수 + bps 재계산)
+  - 공통: db.py (Neon 커넥션), 로깅, 에러 격리, incremental update
+- **스케줄링**: GitHub Actions 수집 워크플로우(`collector-weekly.yml`)는 workflow_dispatch만 사용,
   cron-job.org가 API로 트리거 (schedule 이벤트는 지연/드롭 이슈로 제거)
 - **CI**: `web-ci.yml` — main push·PR에서 `web/**`(또는 워크플로우 파일 자체) 변경 시 typecheck·lint·test (Node 24, next build 제외)
   / `collector-ci.yml` — main push·PR에서 `collector/**`(또는 워크플로우 파일 자체) 변경 시 unittest discover (`collector/tests`, Python 3.12).
-  둘 다 push·PR 트리거 검사용이라 위 수집 워크플로우 6개에 포함되지 않음
+  둘 다 push·PR 트리거 검사용이라 위 수집 워크플로우와 별개
 - **배포**: Vercel (Next.js) + Neon (PostgreSQL)
-- **외부 API**: KIS OpenAPI (국내 종목/지수 시세, 해외 지수 일봉·분봉·quote), KRX Marketplace (국내 지수 과거 일봉 · 상장주식수 · 상장일), DART OpenAPI (공시 데이터 + 재무제표), FSS API (종목 목록)
+- **외부 API**: DART OpenAPI (공시 데이터 + 재무제표 · 배당 · 종목 목록 · 상장주식수)
+- **가격 데이터**: 종목 시세·분봉·일봉, 국내·해외 지수, 순위는 외부 API 없이 `lib/demo/` 생성기가 계산 (아래 "가상 시세 생성기")
 - **AI 요약**: Gemini API (@google/genai SDK) (`lib/disclosure-summary.ts`), `POST /api/disclosure-summary` API Route, Zod 스키마 단일 소스 (`shared/types/disclosureSummary.ts`)
 
 ---
@@ -163,7 +153,7 @@ type SummarizeError =
 ### 네이밍
 
 - 파일명은 대표 export 이름을 따른다(컴포넌트 PascalCase `StockCard.tsx`, 훅·유틸 camelCase `useWatchlist.ts`·`formatPrice.ts`).
-  예외는 폴더 단위: `lib/` · `components/ui/`는 kebab-case (`kis-token.ts`)
+  예외는 폴더 단위: `lib/` · `components/ui/`는 kebab-case (`quote-source.ts`)
 - 타입: PascalCase, 접두사 없음 (`StockSummary`)
 - 상수: SCREAMING_SNAKE_CASE (`MAX_WATCHLIST_SIZE`)는 원시값·설정값. 인스턴스·클라이언트 싱글턴은 camelCase (`pool`)
 
@@ -174,7 +164,7 @@ type SummarizeError =
 ### 데이터 흐름
 
 ```
-DB / 외부 API
+DB / 외부 API / 가격 생성기
   → lib/ (조회 + 정규화)
     → 도메인 모델 (shared/types/)
       → UI 컴포넌트
@@ -182,8 +172,7 @@ DB / 외부 API
 
 - UI 컴포넌트는 내부 도메인 모델만 받는다. DB Row 타입이나 외부 API 타입을 직접 받지 않는다.
 - 정규화 함수는 순수 함수로 작성한다 (테스트 가능하게).
-- PER/PBR/배당수익률은 DART EPS/BPS + daily_prices 종가로 `lib/`에서 query time에 계산한다.
-  (pykrx 자체 PER/PBR은 2025년 2월 이후 KRX 구조 변경으로 신뢰 불가)
+- PER/PBR/배당수익률은 DART EPS/BPS + 생성기 일봉 종가로 `lib/`에서 query time에 계산한다.
 - 분기 PER은 분기말 종가 ÷ 그 분기까지 최근 4분기 EPS 합. 4분기가 연속으로 있을 때만 표시하고 단분기 EPS로 나누지 않는다
 - EPS 기준 불일치(`shareBasisMismatch`): EPS가 전제한 주식수(순이익 ÷ EPS) 대비 현재 상장주식수 비가 [0.6, 2.0] 밖이거나
   등록 무상증자의 권리락 전 기간이면 그 기간 PER을 숨기고, 쓰인 기간이 하나라도 걸리면 핵심 지표 PER·EPS·시가배당률도 숨긴다
@@ -204,31 +193,32 @@ DB / 외부 API
 - skeleton은 레이아웃 점프 최소화 목적으로만
 - DB 호출은 반드시 try-catch. `res.ok` 체크 후 `res.json()`.
 
+### 가상 시세 생성기
+
+- 생성기는 `lib/demo/`(`price-model` · `index-model` · `universe` · `prng`). route·UI는 어댑터
+  (`quote-source` · `ranking-source` · `overseas-index-source` · `indices` · `prices` · `quote-snapshots` · `financials`)를 거쳐 소비한다
+- 장애 주입 `applyDemoFault`는 가격 route 핸들러의 try 첫 줄에서 부른다. `unstable_cache` 콜백·어댑터 안에서 부르지 않는다
+  (캐시 함수 안에서는 쿠키를 읽을 수 없고, 주입된 실패가 캐시되면 다른 사용자에게도 서빙된다)
+- `getTickerProfile`의 추첨 순서를 바꾸지 않는다 — 뒤의 추첨과 가격 경로가 전부 바뀐다.
+  새 값은 같은 자리에서 뽑거나(`uVolume`) 별도 시드 스트림(`hashSeed(ticker, date, "nx-spread", …)`)에서 뽑는다
+
 ### 지수 데이터
 
 - 지수 목록 단일 소스: `shared/constants/indices.ts`의 `INDEX_REGISTRY`
-- 두 소스 구조(의도적): KIS = 현재가(quote)·분봉, KRX Marketplace = 국내 지수 과거 일봉
+- 현재가(quote)·분봉·일봉 모두 생성기(`lib/demo/index-model.ts`) 산출
 - 표시 우선순위: quote 데이터가 bar(분봉) 데이터보다 항상 우선.
   세션 기반 bar 우선 분기를 만들지 않는다 (홈/상세 값 불일치 재발 방지)
 - 셀 조립: `shared/utils/buildIndexCell.ts` 공용.
-  KIS sentinel 봉·국내 세션 갭 fill 판정: `shared/utils/intradaySentinel.ts`
 - 시각 표시: `@date-fns/tz` TZDate로 KST 변환 (IANA DB 위임, DST 대응)
 - 해외 분봉 `time`은 거래소 현지 벽시계 인코딩을 유지하고, 눈금·crosshair 표시에서만 KST로 변환한다(`toKstWallClockSec`).
   병합·fold·직전 종가 조회가 이 인코딩에 기댄다
 - 시각 라벨은 KST, 일봉 날짜·기준일은 거래소 거래일
-- KIS 토큰: GitHub Actions(kis-token.yml, 12h)가 발급 → Neon `kis_token` 단일행 캐시.
-  앱은 `lib/kis-token.ts`에서 모듈 캐시 → Neon(버퍼 600s) → fallback 직접 발급 순
 
 ### 종목 EOD 캔들
 
-- `daily_prices` 정의 = KRX 20:00 애프터마켓 마감 캔들 = KIS 일봉 당일 봉(정정 전) = 20:10 J 멀티시세.
-  O 09:00 시가 · H/L/C 애프터 포함 · V 시간외·대량매매 포함 누적
-- 저장 캔들과 헤더 라이브(J quote)는 같은 축. 라이브 병합의 최종 상태 = 저장 행
-- 등락 기준가 `base_price` = KIS `inter2_sdpr`(전일 정규장 15:30 종가, 권리락·병합 조정 반영).
-  9/13 이전 행은 NULL → `COALESCE(base_price, 전일 close)` 폴백. 저장 close 쌍으로 등락을 계산하지 않는다
-- KIS 일봉 D+1 정정본은 정규장(15:30) 정의라 저장 정의와 다름 → 9/14 이후 KIS 일봉 미사용(`fetch_prices` 9/11 상한)
-- pykrx `adjusted=True`(네이버 경로)는 20:00 정의와 일치 → 갭 채움 허용. `adjusted=False`(KRX 경유)만 금지
-- 적재 게이트: 거래일 ∧ KST 20:05 이후. bypass 레버 없음. `prpr == 0`만 스킵, V == 0은 flat 봉
+- 일봉 정의 = KRX 20:00 애프터마켓 마감 캔들(생성기 `getDailyBar`). O 09:00 시가 · H/L/C 애프터 포함
+- 일봉과 헤더 라이브(J quote)는 같은 축. 라이브 병합의 최종 상태 = 일봉
+- 등락 기준가 `basePrice` = 전일 정규장 15:30 종가. 일봉 close 쌍으로 등락을 계산하지 않는다
 - 종목 헤더 기본 탭은 `defaultQuoteMarket` 한 곳 — 개장 전 창(08:00~09:00 거래일)만 NXT, 그 외 KRX. 마운트 1회 판정, 렌더마다 재계산하지 않는다(헤더 탭·차트 subscribe 캐시 축 일치)
 - 시세 queryKey는 `stockQuoteQueryKey` 한 곳 — `["stock-quote", ticker, market ?? "auto"]`. 헤더 폴링과 차트 구독(subscribeOnly)이 같은 캐시 항목을 공유한다.
   키에 날짜를 넣지 않고, 확정 종가 갱신은 `closeDate`가 바뀔 때 같은 항목을 refetch
@@ -239,8 +229,8 @@ DB / 외부 API
 - 동적 페이지에는 segment revalidate를 선언하지 않는다
 - sitemap.xml: revalidate 86400 (종목 목록 일 1회 재생성)
 - 공시 목록·기업개황: DART fetch revalidate (목록 3600 · 기업개황 86400)
-- 종목 기본 정보·재무·일봉: DB 조회 + React.cache(요청 단위)만 — 시간 기반 캐시 없음
-- 종목 시세·분봉 route(`stock-quote`·`stock-intraday`): force-dynamic, 시간 캐시 없음 — 장외 시세는 `quote_snapshots` DB 우선, 분봉은 동시 요청 dedupe만
+- 종목 기본 정보·재무: DB 조회 + React.cache(요청 단위)만, 일봉: 생성기 계산 + React.cache — 시간 기반 캐시 없음
+- 종목 시세·분봉 route(`stock-quote`·`stock-intraday`): force-dynamic, 시간 캐시 없음 — 장외 시세는 마감 스냅샷(`lib/quote-snapshots.ts`) 우선, 분봉은 동시 요청 dedupe만
 - AI 요약: DB 캐시 (동일 공시 재요청 방지, `disclosure_summaries` 테이블)
 - 지수 quote·분봉: API route 층 unstable_cache + 세션 기반 revalidate
   (국내 regular 60s·마감 후 정산 15분 60s·그 외 3600s / 해외 quote active 60s·idle 3600s / 해외 분봉 regular 120s·마감 후 정산 45분 60s·그 외 3600s)
@@ -249,9 +239,9 @@ DB / 외부 API
 - 지수 캐시 태그: `{도메인}-{code}-{session}` 형식.
   조회 실패(null) 시 revalidateTag로 즉시 축출 (unstable_cache는 null도 캐시하므로)
 - unstable_cache의 revalidate는 래퍼 생성 시 고정된다 — 세션 안에서 TTL이 바뀌는 route(국내 지수 quote·분봉, 해외 분봉)는 memo 키와 keyParts에 revalidate 값을 포함한다
-- lib/ 조회 유틸은 React.cache(요청 단위 memo)가 기본 — Route Handler에서는 동작하지 않는다. 시간 기반 캐시는 예외 3곳:
-  `dart.ts` fetch revalidate(목록 3600·기업개황 86400), `kis-token.ts` 모듈 토큰 캐시, `market-calendar.ts` 모듈 memo(1h)
-- 목록 표면(검색·순위·관심종목)의 종목 링크는 `prefetch={false}` — 종목 layout 헤더가 렌더마다 KIS를 호출해 보이는 행 수만큼 콜이 나간다
+- lib/ 조회 유틸은 React.cache(요청 단위 memo)가 기본 — Route Handler에서는 동작하지 않는다. 시간 기반 캐시는 예외 2곳:
+  `dart.ts` fetch revalidate(목록 3600·기업개황 86400), `demo/universe.ts` 모듈 memo(1h)
+- 목록 표면(검색·순위·관심종목)의 종목 링크는 `prefetch={false}` — 종목 layout 헤더가 렌더마다 시세를 조회해 보이는 행 수만큼 서버 렌더가 나간다
 
 ### 관심종목 동기화 (X7)
 
@@ -328,13 +318,6 @@ SlateKR의 UI는 "slate(판)" 개념을 기반으로 한다.
 
 ## 데이터 수집 제약
 
-- **pykrx**: 백필·갭 채움 전용. OHLCV만 신뢰 가능 — 시가총액/PER/PBR 함수는 2025년 2월 KRX 구조 변경 이후 깨짐.
-  기본 경로(네이버)는 20:00 캔들 정의라 저장 축과 일치. 네이버 집계 특성상 대량매매 V 미포함·막판 소량 체결 누락으로 소수 종목 편차 있음
-- **KIS 일봉 정정**: D+1 밤(≥21:35 관측)에 C·L이 정규장 정의로 정정됨. 정정 후 `prdy_vrss`도 재계산되므로 정정 판정은 전일 조회값 diff로만 가능
-- **KIS 수정주가**: 감자는 미조정 사례가 있다(단일일 ×N 점프 잔존 — KIS 기준 수용). 단 002630 무상감자(2026-09-22)는 KIS가 조정했다 — 감자 여부로 단정하지 않고 `kis_adj`로 판별. volume도 역보정(분할 ×N / 병합 ÷N)
-- **기업행위 감지**: `base_price`가 직전 저장 봉 [L, H]를 1틱 넘게 이탈하면 20:12 job `corporate action suspected` WARN, 미처리 건은 `verify_daily_freshness`(full)가 FAIL. 예외는 `KNOWN_BASE_ADJ`에 (ticker, date)로 등록한 건뿐
-- **기업행위 후속**: 같은 run의 `rescale_corp_actions.py`가 자동 처리 — `kis_adj=1` · factor(재적재 전후 9/11 close 비)가 사건 비율과 일치 · 구간 한 축 등 게이트를 전부 통과한 종목만 ≤9/11 재적재와 9/14 이후 rescale을 한 트랜잭션으로 적용한다. 권리락 등 실거래 구간은 가격 ×f와 함께 volume ÷f
-- **기업행위 수동**: 자동 처리가 거절한 건(step exit 1 · verify FAIL, artifact에 SQL · summary)은 `backfill_prices_kis.py --tickers` 재실행 후 `web/sql/rescale_corporate_action.sql` 로 rescale. `kis_adj=0`(KIS 미조정)은 행을 손대지 않고 원인 확인 후 `KNOWN_BASE_ADJ`에 등록
 - **shares·bps 불변식**: `financial_statements.bps` = `total_equity` ÷ 현재 `stocks.shares`. shares를 바꾸는 `fetch_shares`는 같은 트랜잭션에서 `fetch_financials.sync_bps`로 bps를 맞추고, `fetch_financials`도 적재 후 `sync_bps`를 돈다
 - **non-KRW 재무**: 원화가 아닌 표시통화로 공시하는 종목은 `stocks.reporting_currency`가 단일 소스. `fetch_financials`는 등록 종목의 외화 공시를 WARN·exit 미기여로 건너뛰고(통화 미표기도 KRW 복귀로 보지 않음), 신규 발견은 같은 공시 단일 통화 · 직전 period 같은 통화 · run당 상한 게이트를 전부 통과하면 수치 7컬럼 NULL과 컬럼 갱신을 한 트랜잭션으로 적용한다. 직전 period가 KRW면 전환 시점 판단이 필요해 거절(exit 1). web은 이 컬럼으로 재무 슬레이트·핵심 지표 대신 안내를 보인다
 - **비ZIP DART 응답**: 집합투자증권 등 일부 공시가 ZIP이 아닌 status=014 XML 반환. 제목 키워드로 사전 필터링 불가 → 호출 시점에서 분기 처리.

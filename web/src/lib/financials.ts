@@ -2,6 +2,8 @@ import { cache } from "react";
 import { pool } from "./db";
 import { attachDividends, getDividendsByYear, type DividendMetrics } from "./dividends";
 import { getShares } from "./stocks";
+import { generateDailyBars } from "@/lib/demo/price-model";
+import { getDemoEntry, getDemoEodDate, getDemoHistoryStart } from "@/lib/demo/universe";
 import { getBonusIssueExDate } from "@/shared/constants/bonusIssueExDates";
 import type { FinancialPeriod, StockFinancials, TtmEpsSource } from "@/shared/types/stock";
 
@@ -23,26 +25,27 @@ export type FinancialRow = {
   created_at: Date;
 };
 
-type PriceRow = { yr: number; qtr: number; close: number };
 type PriceMap = ReadonlyMap<string, number>; // key: priceKey(year, quarter)
 
 // export 는 테스트용 (fixture priceMap 키 생성).
 export const priceKey = (year: number, quarter: number) => `${year}-${quarter}`;
 
-const fetchClosePricesByQuarter = async (ticker: string): Promise<PriceMap> => {
-  const [rows] = await pool.query<PriceRow[]>(
-    `SELECT DISTINCT ON (yr, qtr)
-       EXTRACT(year FROM date)::int AS yr,
-       CEIL(EXTRACT(month FROM date) / 3.0)::int AS qtr,
-       close
-     FROM daily_prices
-     WHERE ticker = $1
-     ORDER BY yr, qtr, date DESC`,
-    [ticker]
-  );
+// 분기별 마지막 거래일(진행 중 분기는 최신 EOD) 종가. export 는 테스트용.
+export const fetchClosePricesByQuarter = async (ticker: string): Promise<PriceMap> => {
   const map = new Map<string, number>();
-  for (const row of rows) {
-    map.set(priceKey(row.yr, row.qtr), row.close);
+  const entry = await getDemoEntry(ticker);
+  if (!entry) return map;
+  const bars = generateDailyBars(
+    ticker,
+    entry.profile,
+    getDemoHistoryStart(entry),
+    getDemoEodDate()
+  );
+  // ASC 순회라 같은 분기의 마지막 봉이 남는다.
+  for (const bar of bars) {
+    const year = Number(bar.date.slice(0, 4));
+    const quarter = Math.ceil(Number(bar.date.slice(5, 7)) / 3);
+    map.set(priceKey(year, quarter), bar.close);
   }
   return map;
 };
@@ -87,15 +90,21 @@ const PERIOD_END_MMDD: Readonly<Record<number, string>> = {
   4: "12-31",
 };
 
+// 기준 주식수 판정에 필요한 열만 — 연간 배당 핀(demo/universe)도 같은 판정을 쓴다.
+export type BasisRow = Pick<
+  FinancialRow,
+  "ticker" | "year" | "quarter" | "report_type" | "net_income" | "eps"
+>;
+
 // 권리락일 전에 끝난 기간의 공시 EPS 는 무상증자 전 주식수 기준이다.
-const isBeforeBonusExDate = (row: FinancialRow): boolean => {
+const isBeforeBonusExDate = (row: BasisRow): boolean => {
   const exDate = getBonusIssueExDate(row.ticker);
   const quarter = row.report_type === "annual" ? 4 : row.quarter;
   if (exDate === null || quarter === null) return false;
   return `${row.year}-${PERIOD_END_MMDD[quarter]}` < exDate;
 };
 
-const isRowBasisMismatch = (row: FinancialRow, shares: number | null): boolean =>
+export const isRowBasisMismatch = (row: BasisRow, shares: number | null): boolean =>
   isShareBasisMismatch(row.net_income, row.eps, shares) || isBeforeBonusExDate(row);
 
 const calcPbr = (close: number | undefined, bps: number | null): number | null => {
@@ -420,10 +429,6 @@ export type TtmEps = {
   source: TtmEpsSource;
 };
 
-// 상장일 기준 4분기 도래 여부 판정 임계 (12개월 + 공시 시차 여유)
-const RECENTLY_LISTED_MAX_MONTHS = 14;
-const MS_PER_MONTH = 1000 * 60 * 60 * 24 * 30.44;
-
 // 최근순 quarterly 배열에서 최상단 몇 개가 (year, quarter) 기준
 // 연속·EPS non-null 인지 세어 반환한다.
 const countTopConsecutive = (quarterly: FinancialPeriod[]): number => {
@@ -452,9 +457,7 @@ const anyMismatch = (periods: readonly FinancialPeriod[]): boolean =>
 
 export const computeTtmEps = (
   quarterly: FinancialPeriod[],
-  latestAnnual: FinancialPeriod | null,
-  listedAt: Date | null = null,
-  now: Date = new Date()
+  latestAnnual: FinancialPeriod | null
 ): TtmEps => {
   const annualEps = latestAnnual?.eps ?? null;
   const annualFallback: TtmEps =
@@ -477,12 +480,10 @@ export const computeTtmEps = (
       : { value: null, source: "ttm_negative" };
   }
 
-  // #3: 상장 1년 미만 & 최근부터 2~3분기 연속 → 연환산
+  // #3: EPS 있는 분기 4개 미만 & 최근부터 2~3분기 연속 → 연환산
   if (consecutive === 2 || consecutive === 3) {
-    const monthsSinceListing =
-      listedAt !== null ? (now.getTime() - listedAt.getTime()) / MS_PER_MONTH : null;
-    const notYetFourQuarters =
-      monthsSinceListing !== null && monthsSinceListing < RECENTLY_LISTED_MAX_MONTHS;
+    // EPS 없는 분기는 세지 않는다 — 신규 상장 종목은 Q1~Q3 가 없어 EPS 빈 파생 Q4 가 붙는다.
+    const notYetFourQuarters = quarterly.filter((q) => q.eps !== null).length < 4;
     if (notYetFourQuarters) {
       const used = quarterly.slice(0, consecutive);
       if (anyMismatch(used)) return BASIS_MISMATCH;

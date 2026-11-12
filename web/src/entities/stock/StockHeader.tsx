@@ -1,11 +1,16 @@
 import { Suspense } from "react";
 import { ExternalLink } from "lucide-react";
-import type { CompanyProfile, StockSummary, StockPriceSnapshot } from "@/shared/types/stock";
+import type {
+  CompanyProfile,
+  RegularClose,
+  StockSummary,
+  StockPriceSnapshot,
+} from "@/shared/types/stock";
 import type { MarketActionStatus } from "@/shared/types/quote";
-import { getDailyPrices, getLatestKstDate } from "@/lib/prices";
+import { getDailyPrices, getLatestKstDate, getRegularClose } from "@/lib/prices";
 import { getCorpCode, getShares } from "@/lib/stocks";
 import { getCompanyProfile } from "@/lib/dart";
-import { fetchStockMarketAction } from "@/lib/kis-quote-fetch";
+import { fetchStockMarketAction } from "@/lib/quote-source";
 import { fetchNxEligible } from "@/lib/quote-snapshots";
 import { WatchlistButton } from "@/features/watchlist/WatchlistButton";
 import { MemoButton } from "@/features/memo/MemoButton";
@@ -34,18 +39,23 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
   const marketAction = fetchStockMarketAction(ticker).catch(() => null);
 
   // 조회별 실패를 격리한다 — 실패한 요소만 빠진다(Promise.all 이면 하나의 실패가 전체를 reject).
-  const [pricesResult, profileResult, nxResult, kstDateResult, sharesResult] =
+  const [pricesResult, profileResult, nxResult, kstDateResult, sharesResult, regularCloseResult] =
     await Promise.allSettled([
-    getDailyPrices(ticker, 2),
-    (async () => {
-      const corpCode = await getCorpCode(ticker);
-      return corpCode ? getCompanyProfile(corpCode) : null;
-    })(),
-    fetchNxEligible(ticker),
-    getLatestKstDate(ticker),
-    // stocks 행은 layout 의 getStockByTicker 와 요청 캐시를 공유 — 추가 쿼리 없음.
-    getShares(ticker),
-  ]);
+      getDailyPrices(ticker, 2),
+      (async () => {
+        const corpCode = await getCorpCode(ticker);
+        return corpCode ? getCompanyProfile(corpCode) : null;
+      })(),
+      fetchNxEligible(ticker),
+      getLatestKstDate(ticker),
+      // stocks 행은 layout 의 getStockByTicker 와 요청 캐시를 공유 — 추가 쿼리 없음.
+      getShares(ticker),
+      // 저장 행 날짜의 정규장 종가 — 날짜 조회는 위 getLatestKstDate 와 요청 캐시를 공유한다.
+      (async () => {
+        const date = await getLatestKstDate(ticker);
+        return date ? getRegularClose(ticker, date) : null;
+      })(),
+    ]);
 
   const hasError = pricesResult.status === "rejected";
   const prices: StockPriceSnapshot[] =
@@ -59,6 +69,9 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
     kstDateResult.status === "fulfilled" ? kstDateResult.value : null;
   // null 은 시가총액 "-" 폴백. 실패도 동일 처리.
   const shares: number | null = sharesResult.status === "fulfilled" ? sharesResult.value : null;
+  // null 은 정규장 종가 줄을 비운다. 실패도 동일 처리.
+  const initialRegularClose: RegularClose | null =
+    regularCloseResult.status === "fulfilled" ? regularCloseResult.value : null;
 
   const latest = prices[0] ?? null;
   const prev = prices[1] ?? null;
@@ -157,6 +170,7 @@ export const StockHeader = async ({ ticker, stock }: StockHeaderProps) => {
         initialChangeRate={initialChangeRate}
         initialDate={initialKstDate}
         initialVolume={latest.volume}
+        initialRegularClose={initialRegularClose}
         shares={shares}
         nxEligible={nxEligible}
       />

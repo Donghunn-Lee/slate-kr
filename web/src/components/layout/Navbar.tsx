@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { NavbarSearch } from "@/features/search/NavbarSearch";
+import { DemoBanner } from "./DemoBanner";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -47,6 +48,7 @@ export const Navbar = () => {
           <ThemeToggle />
         </nav>
       </div>
+      <DemoBanner />
     </header>
   );
 };

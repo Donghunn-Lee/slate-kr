@@ -1,11 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { fetchMultiQuote } from "@/lib/kis-quote-fetch";
+import { fetchMultiQuote } from "@/lib/quote-source";
 import {
   decideMultiSnapshot,
   fetchQuoteSnapshots,
   isSnapshotSession,
 } from "@/lib/quote-snapshots";
 import { getMarketCalendar } from "@/lib/market-calendar";
+import { applyDemoFault } from "@/lib/demo-fault";
 import { getKrxSessionState, getKrxTradingDate } from "@/shared/utils/market";
 import type { StockQuote } from "@/shared/types/quote";
 
@@ -36,6 +37,7 @@ export const GET = async (req: NextRequest) => {
   const date = getKrxTradingDate(now, calendar);
 
   try {
+    await applyDemoFault(req);
     let quotes: Record<string, StockQuote | null> = {};
     let failed: Record<string, boolean> = {};
     if (tickers.length > 0) {

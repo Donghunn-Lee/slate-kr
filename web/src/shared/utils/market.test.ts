@@ -644,7 +644,7 @@ describe("getKrxTradingDate — 기준일 축", () => {
   });
   it("토요일 · 휴장일 → 직전 거래일", () => {
     expect(getKrxTradingDate(kst(2026, 7, 25, 10, 0))).toBe("2026-07-24");
-    expect(getKrxTradingDate(kst(2026, 1, 1, 8, 30))).toBe("2025-12-31");
+    expect(getKrxTradingDate(kst(2026, 1, 1, 8, 30))).toBe("2025-12-30");
   });
 });
 
@@ -723,7 +723,7 @@ describe("getKrxSessionState — 경계", () => {
 });
 
 // intraday 이전 세션 경계용 직전 거래일. 입력일 자체는 거래일 여부와 무관하게 하루 앞에서부터
-// 역방향으로 첫 거래일(주말·휴장 skip). 휴장은 KRX_HOLIDAYS_2026 정적 표 폴백.
+// 역방향으로 첫 거래일(주말·휴장 skip). 휴장은 KRX_HOLIDAYS 정적 표 폴백.
 describe("getPreviousKrxTradingDate", () => {
   it("화~금 → 전일 (2026-07-21 화 ~ 07-24 금)", () => {
     expect(getPreviousKrxTradingDate("2026-07-21")).toBe("2026-07-20");
@@ -742,9 +742,8 @@ describe("getPreviousKrxTradingDate", () => {
     // 09-27 일 · 09-26 토 · 09-25 추석 · 09-24 추석 연휴 skip.
     expect(getPreviousKrxTradingDate("2026-09-28")).toBe("2026-09-23");
   });
-  it("연초 첫 거래일 (2026-01-02 금) → 2025-12-31 (01-01 신정 skip, 연도 경계)", () => {
-    // 정적 표는 2026 만 담아 2025-12-31 은 거래일로 본다 — getKrxTradingDate 의 동일 케이스와 정합.
-    expect(getPreviousKrxTradingDate("2026-01-02")).toBe("2025-12-31");
+  it("연초 첫 거래일 (2026-01-02 금) → 2025-12-30 (01-01 신정 · 12-31 연말 휴장 skip, 연도 경계)", () => {
+    expect(getPreviousKrxTradingDate("2026-01-02")).toBe("2025-12-30");
   });
 });
 

@@ -111,10 +111,6 @@ CHECKED_UNIT_SUSPECTS = frozenset({
 # DART '조회된 데이터가 없습니다' — 비공시 마킹은 이 응답이 확정된 경우에만 한다.
 DART_NO_DATA = "013"
 
-# is_financial_filer=false 여도 상장 후 이 기간 안이면 매 run 재시도한다. 신규 상장은 첫 정기보고서
-# 전 period 를 조회하다 마킹되는데, 그 뒤 나온 보고서까지 영구 제외되지 않게 한다.
-NON_FILER_RETRY_DAYS = 365
-
 _QUARTER_MAP = {"11011": 4, "11012": 2, "11013": 1, "11014": 3}
 _REPORT_TYPE_MAP = {
     "11011": "annual",
@@ -523,27 +519,16 @@ def insert_financial(
     return "ok"
 
 
-def is_collect_target(is_financial_filer, listed_at, today) -> bool:
-    """비공시 마킹 종목은 상장 NON_FILER_RETRY_DAYS 이내(또는 상장일 미상)일 때만 다시 조회."""
-    if is_financial_filer is not False:
-        return True
-    return listed_at is None or (today - listed_at).days <= NON_FILER_RETRY_DAYS
-
-
-def get_all_corps(cursor, today=None) -> list[tuple[str, str, str]]:
-    today = today or datetime.today().date()
+def get_all_corps(cursor) -> list[tuple[str, str, str]]:
+    """활성 · corp_code 있는 종목 전부. is_financial_filer = false 종목도 매 run 다시 조회한다."""
     cursor.execute(
         """
-        SELECT ticker, corp_code, name, is_financial_filer, listed_at FROM stocks
+        SELECT ticker, corp_code, name FROM stocks
         WHERE corp_code IS NOT NULL
           AND is_active = true
         """
     )
-    return [
-        (ticker, corp_code, name)
-        for ticker, corp_code, name, filer, listed_at in cursor.fetchall()
-        if is_collect_target(filer, listed_at, today)
-    ]
+    return cursor.fetchall()
 
 
 def get_non_krw_tickers(cursor) -> dict[str, str]:

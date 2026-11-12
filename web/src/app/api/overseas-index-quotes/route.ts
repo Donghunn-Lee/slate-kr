@@ -1,6 +1,7 @@
 import { revalidateTag, unstable_cache } from "next/cache";
-import { NextResponse } from "next/server";
-import { fetchOverseasIndexQuote } from "@/lib/kis-overseas-quote-fetch";
+import { type NextRequest, NextResponse } from "next/server";
+import { fetchOverseasIndexQuote } from "@/lib/overseas-index-source";
+import { applyDemoFault } from "@/lib/demo-fault";
 import {
   INDEX_LABEL,
   OVERSEAS_INDEX_CODES,
@@ -72,11 +73,12 @@ const resolveLive = (
   return value;
 };
 
-export const GET = async () => {
+export const GET = async (req: NextRequest) => {
   const session = getGlobalOverseasSessionState();
   const date = getKstDateAndMinutes().date;
 
   try {
+    await applyDemoFault(req);
     // KIS 호출은 intraday 화이트리스트만. .DJI 는 output1 전 필드 0 으로 돌아와 null 강등 →
     // tag evict 가 매 요청 반복되므로 호출 없이 null (소비측은 일봉 폴백).
     const results = await Promise.allSettled(

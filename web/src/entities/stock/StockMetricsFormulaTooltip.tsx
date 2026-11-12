@@ -12,7 +12,7 @@ type PerCase = {
 const PER_CASES: PerCase[] = [
   { source: "ttm", label: "최근 4분기 합" },
   { source: "ttm_negative", label: "최근 4분기 합이 음수 → 표시 안 함" },
-  { source: "annualized", label: "상장 1년 미만 → 연환산" },
+  { source: "annualized", label: "실적 1년 미만 → 연환산" },
   { source: "annual_fallback", label: "분기 결측 → 연간 EPS" },
   {
     source: "basis_mismatch",
@@ -94,6 +94,7 @@ export const StockMetricsFormulaTooltip = ({
           </p>
         </section>
         <section className="space-y-1 border-t border-primary-foreground/20 dark:border-foreground/15 pt-1.5 text-micro text-primary-foreground/80 dark:text-foreground/70">
+          <p>현재가는 가상 시세입니다 — PER · PBR · 시가배당률은 실제 값과 다릅니다.</p>
           <p>붉은색으로 표시된 기준이 이 종목에 적용된 산식입니다.</p>
           <p>
             분기 수가 부족한 종목은 보유 분기를 연 단위로 환산하며, 실제 연간 실적과

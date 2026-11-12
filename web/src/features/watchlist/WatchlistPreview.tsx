@@ -86,6 +86,7 @@ export const WatchlistPreview = () => {
     quotes: liveQuotes,
     failed: liveFailed,
     preReset,
+    isLoading: isLiveLoading,
   } = useMultiQuote(items.slice(0, LIVE_TICKER_LIMIT).map((p) => p.ticker));
 
   // 스크롤 오버플로우 감지 — 넘칠 때만 하단 fade 마스크 노출.
@@ -192,10 +193,14 @@ export const WatchlistPreview = () => {
             <div className="relative -mx-6 min-h-0 flex-1">
               <div ref={scrollRef} className="h-full overflow-y-auto">
                 <ul>
-                  {items.map((item) => {
+                  {items.map((item, index) => {
                     const p = pricesMap[item.ticker];
                     const live = liveQuotes[item.ticker] ?? null;
                     const isLiveFailed = liveFailed[item.ticker] ?? false;
+                    // EOD · 라이브 둘 다 첫 응답 전이면 값 부재("—")와 구분되게 스켈레톤.
+                    // 라이브 상한 밖 종목은 라이브 응답이 오지 않으므로 EOD 만 기다린다.
+                    const isPricePending =
+                      pricesQuery.isLoading && (isLiveLoading || index >= LIVE_TICKER_LIMIT);
                     // 개장 전 창의 EOD 폴백 팔만 0 으로 덮는다 — 가격은 이미 오늘 기준가라
                     // 손대지 않고, EOD 행이 없으면(p undefined) 리셋할 폴백도 없다.
                     const displayPrice = live ? live.price : (p?.close ?? null);
@@ -229,7 +234,9 @@ export const WatchlistPreview = () => {
                               {item.name}
                             </span>
                             <div className="flex shrink-0 items-baseline gap-2">
-                              {displayPrice !== null ? (
+                              {isPricePending ? (
+                                <span className="h-lh w-24 animate-pulse rounded bg-muted text-body leading-none" />
+                              ) : displayPrice !== null ? (
                                 <>
                                   <span
                                     className={cn(

@@ -743,7 +743,7 @@ export const PriceChart = ({
     });
   }, [baseline, seriesKind]);
 
-  // bars-only 갱신. 첫 봉 time 동일 + length 동일/+1 → series.update 로 줌 유지.
+  // bars-only 갱신. 첫 봉 time 동일 + length 동일/+1 + 꼬리 정렬 → series.update 로 줌 유지.
   // 그 외(탭 전환 등 데이터셋 자체 변경) → setData + (intraday idle: applyLockedRange, EOD: 표시창 재적용).
   // volume series 는 candle 과 동일 setData/update 경로에 편입 (인덱스 정합 유지).
   useEffect(() => {
@@ -779,6 +779,9 @@ export const PriceChart = ({
     // 처럼 시작일·길이가 우연히 겹치는 dataset 스왑에서 마지막 봉만 갱신되는 버그가 난다.
     // 첫 봉은 가장 오래된 확정 이력이라 라이브 tick/intraday append 어느 경로에서도
     // OHLC 가 바뀌지 않으므로 tiebreak 로 사용해도 안전.
+    // 꼬리 정렬 — append 면 새 봉 바로 앞, 같은 길이면 마지막 봉이 prev 마지막 봉과 같은 시각이어야
+    // update 가 같은 봉을 덮는다. 중간 봉이 끼거나 빠져 어긋나면 setData 로 간다.
+    const appended = prev !== null && bars.length === prev.length + 1;
     const canIncremental =
       prev !== null &&
       prev.length > 0 &&
@@ -787,26 +790,32 @@ export const PriceChart = ({
       prev[0].high === bars[0].high &&
       prev[0].low === bars[0].low &&
       prev[0].close === bars[0].close &&
-      (bars.length === prev.length || bars.length === prev.length + 1);
+      (appended || bars.length === prev.length) &&
+      bars[bars.length - (appended ? 2 : 1)].time === prev[prev.length - 1].time;
 
     if (canIncremental) {
-      const lastBar = bars[bars.length - 1];
-      if (seriesKind === "line") {
-        (series as ISeriesApi<"Area" | "Baseline">).update(mapLine(lastBar));
-      } else {
-        (series as ISeriesApi<"Candlestick">).update(mapBar(lastBar, c, dimBefore));
-      }
-      if (volumeSeries) {
-        const volPoint = mapVolume(lastBar, c);
-        if (volPoint) volumeSeries.update(volPoint);
-        // volume 없는 봉(라이브 병합 append 등) 은 histogram 미갱신 — 이전 상태 유지.
-      }
-      // MA 는 마지막 SMA 포인트 1개만 재계산. bars 가 append 되어 방금 유효창에 진입했으면
-      // 첫 유효 포인트 하나가 그려짐 (line series 시작).
-      for (const { period, series: lineSeries } of maSeriesList) {
-        const point = computeSmaLast(bars, period);
-        if (point) lineSeries.update(point);
-      }
+      const applyBar = (bar: ChartBar, upTo: ChartBar[]) => {
+        if (seriesKind === "line") {
+          (series as ISeriesApi<"Area" | "Baseline">).update(mapLine(bar));
+        } else {
+          (series as ISeriesApi<"Candlestick">).update(mapBar(bar, c, dimBefore));
+        }
+        if (volumeSeries) {
+          const volPoint = mapVolume(bar, c);
+          if (volPoint) volumeSeries.update(volPoint);
+          // volume 없는 봉(라이브 병합 append 등) 은 histogram 미갱신 — 이전 상태 유지.
+        }
+        // MA 는 마지막 SMA 포인트 1개만 재계산. bars 가 append 되어 방금 유효창에 진입했으면
+        // 첫 유효 포인트 하나가 그려짐 (line series 시작).
+        for (const { period, series: lineSeries } of maSeriesList) {
+          const point = computeSmaLast(upTo, period);
+          if (point) lineSeries.update(point);
+        }
+      };
+      // append 면 직전 봉부터 최종값으로 덮는다 — 시리즈 마지막 봉일 때 update 는 교체로 동작하고,
+      // 새 봉을 먼저 붙이면 직전 봉이 과거 봉이 되어 기본 update 로는 고칠 수 없다.
+      if (appended) applyBar(bars[bars.length - 2], bars.slice(0, -1));
+      applyBar(bars[bars.length - 1], bars);
     } else {
       // 좌측 확장 감지: 우측 끝 봉 동일 + 길이 증가 + suffix 앵커 일치.
       // 앵커는 prev[1] — 리샘플된 뷰(주/월봉)에서는 첫 버킷이 부분 버킷일 수 있어 확장 전후로
