@@ -150,6 +150,7 @@ page 파일은 전부 Server Component이고, `use client`는 이벤트 · 브�
   <img src="docs/images/partial-failure.png" width="100%" alt="핵심 지표 — 가격 조회 실패 시 PER · PBR · 시가배당률에만 로딩 실패 배지">
 - 여러 건을 한 번에 조회할 때는 `Promise.allSettled`를 사용합니다. 그래서 지수 그리드는 실패한 셀만 종가 기준 값으로 바뀌고 나머지는 정상으로 표시됩니다.
 - Live에서는 상단 배너의 장애 시뮬레이션으로 가격 API를 지연 · 실패시켜 볼 수 있습니다. 헤더는 저장된 종가에 "일시 지연" 배지를 붙이고, 차트는 그 섹션 안에서만 오류와 다시 시도를 표시합니다.
+  <img src="docs/images/demo-banner.png" width="100%" alt="데모 배너 — 장애 시뮬레이션(정상 · 지연 3초 · 실패 응답)">
 
 <sub>코드 · [`stocks/[ticker]/layout.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/app/stocks/%5Bticker%5D/layout.tsx) · [`StockHeader.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/entities/stock/StockHeader.tsx)</sub><br>
 <sub>글 · [#037 empty와 error 분리](https://donghunn-lee-blog.vercel.app/blog/slatekr/037/) · [#155 분봉 실패 처리](https://donghunn-lee-blog.vercel.app/blog/slatekr/155/) · [#174 헤더 스트리밍 실측](https://donghunn-lee-blog.vercel.app/blog/slatekr/174/)</sub>
@@ -288,7 +289,7 @@ type DisclosureSummaryContent = {
 
 프로젝트 지침(CLAUDE.md)에 아키텍처 원칙 · 컨벤션 · 금지 사항을 고정하고, Claude Code가 만든 코드를 리뷰하는 기준으로 사용했습니다.
 
-작업 세션 194회 · 커밋 919 · Vitest 케이스 1,233(2026-11-12 기준). 작업 세션 단위 개발 일지는 같은 번호로 [블로그 시리즈](https://donghunn-lee-blog.vercel.app/blog/slatekr/)에 있고, 각 결정의 배경과 실측 결과는 해당 편에 정리했습니다.
+작업 세션 194회 · 커밋 921 · Vitest 케이스 1,233(2026-11-12 기준). 작업 세션 단위 개발 일지는 같은 번호로 [블로그 시리즈](https://donghunn-lee-blog.vercel.app/blog/slatekr/)에 있고, 각 결정의 배경과 실측 결과는 해당 편에 정리했습니다.
 
 ## 회고
 
