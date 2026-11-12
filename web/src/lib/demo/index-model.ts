@@ -470,7 +470,14 @@ const overseasLocalParts = (
 // now 에 보이는 세션 — 봉이 속한 거래일과 마지막으로 보이는 분. 개장 전(거래일은 오늘로 넘어왔지만
 // 봉이 없음)은 직전 거래일의 완결 상태(untilMin 무한). 현재가와 분봉 차트가 같은 커서를 보므로
 // "헤더 = 차트 마지막 봉" 이 구성상 성립한다. isToday = 로컬 오늘의 세션(개장 뒤 · 마감 뒤 포함).
-export type IndexSessionCursor = { date: string; untilMin: number; isToday: boolean };
+// ended = 그 세션이 끝났는지(직전 거래일 완결 · 오늘 마감 뒤). untilMin 은 마지막 봉에서 멈춰
+// 마지막 봉이 진행 중인 분과 마감 뒤를 가르지 못한다.
+export type IndexSessionCursor = {
+  date: string;
+  untilMin: number;
+  isToday: boolean;
+  ended: boolean;
+};
 
 export const indexSessionCursor = (code: IndexCode, now: Date): IndexSessionCursor => {
   const domestic = isDomestic(code);
@@ -481,7 +488,7 @@ export const indexSessionCursor = (code: IndexCode, now: Date): IndexSessionCurs
     ? getKrxTradingDate(now)
     : getOverseasIndexTradingDate(code as OverseasIndexCode, now);
   if (local.date !== tradingDate) {
-    return { date: tradingDate, untilMin: Number.POSITIVE_INFINITY, isToday: false };
+    return { date: tradingDate, untilMin: Number.POSITIVE_INFINITY, isToday: false, ended: true };
   }
   const { startMin, endMin } = sessionWindow(code);
   const delay = domestic ? 0 : (OVERSEAS_INDEX_DELAY_MIN[code as OverseasIndexCode] ?? 0);
@@ -491,9 +498,10 @@ export const indexSessionCursor = (code: IndexCode, now: Date): IndexSessionCurs
       date: previousIndexTradingDate(code, tradingDate),
       untilMin: Number.POSITIVE_INFINITY,
       isToday: false,
+      ended: true,
     };
   }
-  return { date: tradingDate, untilMin: Math.min(m, endMin), isToday: true };
+  return { date: tradingDate, untilMin: Math.min(m, endMin), isToday: true, ended: m > endMin };
 };
 
 // now 까지의 분봉 — 오늘 세션이면 직전 거래일 전체를 앞에 붙인다(차트가 전일 꼬리를 흐리게 그린다).
@@ -515,8 +523,8 @@ export const indexIntradayBarsAt = (
 
 export const indexQuoteAt = (code: IndexCode, name: string, now: Date): IndexQuote | null => {
   const domestic = isDomestic(code);
-  const { startMin } = sessionWindow(code);
-  const { date: effectiveDate, untilMin: cutoffMin } = indexSessionCursor(code, now);
+  const { startMin, endMin } = sessionWindow(code);
+  const { date: effectiveDate, untilMin: cutoffMin, ended } = indexSessionCursor(code, now);
   const [prev, today] = dailyPair(code, effectiveDate);
   const bars = intradayPath(code, effectiveDate, prev, today);
   const cutoffSec = fakeUtcSec(effectiveDate, cutoffMin);
@@ -547,12 +555,15 @@ export const indexQuoteAt = (code: IndexCode, name: string, now: Date): IndexQuo
   const n = INDEX_CONSTITUENTS[code];
   const advCount = Math.round(n * sigmoid((ADV_DECL_SLOPE * ret) / INDEX_SIGMA[code]));
   const declCount = Math.max(0, n - advCount - Math.round(n * UNCHANGED_SHARE));
+  // 끝난 세션의 체결 시각은 마감 시각이다(실시세 API 와 같은 값, endMin + 1 = 마감 분). 마지막 봉의
+  // 시작 분을 두면 마감 상수와 비교하는 표시 상태 판정이 마감 뒤에도 장중으로 남는다.
+  const timeMin = ended ? endMin + 1 : lastMinute;
   const time =
     domestic || code === ".DJI"
       ? null
       : {
           date: effectiveDate.replace(/-/g, ""),
-          hour: `${pad2(Math.floor(lastMinute / 60))}${pad2(lastMinute % 60)}00`,
+          hour: `${pad2(Math.floor(timeMin / 60))}${pad2(timeMin % 60)}00`,
         };
   return {
     name,

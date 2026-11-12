@@ -4,11 +4,13 @@ import {
   DEMO_INDEX_ANCHOR,
   generateIndexDailyBars,
   generateIndexIntradayBars,
+  indexIntradayBarsAt,
   indexQuoteAt,
 } from "./index-model";
 import { DEMO_ANCHOR_DATE, listTradingDates, marketReturnDaily } from "./price-model";
 import { DEMO_HISTORY_START } from "./universe";
 import type { IndexIntradaySnapshot } from "@/shared/types/quote";
+import { resolveOverseasDisplayState } from "@/shared/utils/resolveOverseasDisplayState";
 
 const kst = (date: string, hhmm: string): Date => {
   const [y, m, d] = date.split("-").map(Number);
@@ -129,5 +131,24 @@ describe("8. 지수", () => {
     const spxUpTo = spxBars.filter((b) => minuteOf(b) <= 11 * 60);
     expect(spx?.price).toBe(spxUpTo[spxUpTo.length - 1].close);
     expect(spx?.time).toEqual({ date: "20261110", hour: "110000" });
+  });
+
+  // 마감 경계 — SPX(지연 0)는 마지막 봉(15:59)이 진행 중인 분까지 장중, 16:00 부터 끝난 세션.
+  // NI225 는 지연 15분이라 JST 15:44 까지 장중, 마지막 봉이 보이는 15:45 부터. 다음 날 개장 전은 직전 세션.
+  it("해외 quote: 끝난 세션의 time 은 마감 시각 → closed, 장중은 현재 봉 분 → live", () => {
+    const cases = [
+      { code: "SPX", iso: "2026-11-10T20:59:00Z", hour: "155900", state: "live" },
+      { code: "SPX", iso: "2026-11-10T21:00:00Z", hour: "160000", state: "closed" },
+      { code: "NI225", iso: "2026-11-10T06:44:00Z", hour: "152900", state: "live" },
+      { code: "NI225", iso: "2026-11-10T06:45:00Z", hour: "153000", state: "closed" },
+      { code: "NI225", iso: "2026-11-10T23:00:00Z", hour: "153000", state: "closed" },
+    ] as const;
+    for (const c of cases) {
+      const q = indexQuoteAt(c.code, c.code, new Date(c.iso));
+      expect(q?.time).toEqual({ date: "20261110", hour: c.hour });
+      expect(resolveOverseasDisplayState(q?.time ?? null, c.code).kind).toBe(c.state);
+    }
+    const bars = indexIntradayBarsAt("SPX", new Date("2026-11-10T21:00:00Z")) as IndexIntradaySnapshot[];
+    expect(minuteOf(bars[bars.length - 1])).toBe(15 * 60 + 59);
   });
 });
