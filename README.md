@@ -229,7 +229,7 @@ type DisclosureSummaryContent = {
 
 ## 품질
 
-- 커밋 전에 `npm run check` 하나로 타입 검사 · ESLint · Vitest · 프로덕션 빌드를 실행합니다. CI는 main push와 PR마다 타입 검사 · ESLint · 테스트를 다시 실행하고, collector가 바뀌면 collector 테스트도 실행합니다.
+- 커밋 전에 `npm run check` 하나로 타입 검사 · ESLint · Prettier 포맷 검사 · Vitest · 프로덕션 빌드를 실행합니다. CI는 main push와 PR마다 타입 검사 · ESLint · 포맷 검사 · 테스트를 다시 실행하고, collector가 바뀌면 collector 테스트도 실행합니다.
 - 테스트는 순수 함수에 집중하고, 검색창 키보드 탐색 · 부분 실패 배지 · 서버 조회 전 편집 비활성 같은 핵심 상호작용은 Testing Library 컴포넌트 테스트로 검증합니다. 공시 분류 · 가격 통계 · 장 세션 판정 · 차트 데이터 변환 같은 로직은 물론, 헤더 라벨 같은 화면 상태 판정도 컴포넌트 밖 함수로 분리해 테스트합니다. 공시 분류는 제목 191건 픽스처로 회귀를 확인합니다.
 - 검색창은 combobox 패턴을 따라 방향키 · Enter · Escape로 탐색할 수 있습니다. 포커스는 링으로 표시하고, 대비가 부족했던 글자색 토큰은 WCAG AA 기준에 맞췄습니다.
 - 모바일에서는 하단 탭 바가 내비게이션을 대신합니다.
@@ -289,7 +289,7 @@ type DisclosureSummaryContent = {
 
 프로젝트 지침(CLAUDE.md)에 아키텍처 원칙 · 컨벤션 · 금지 사항을 고정하고, Claude Code가 만든 코드를 리뷰하는 기준으로 사용했습니다.
 
-작업 세션 194회 · 커밋 921 · Vitest 케이스 1,233(2026-11-12 기준). 작업 세션 단위 개발 일지는 같은 번호로 [블로그 시리즈](https://donghunn-lee-blog.vercel.app/blog/slatekr/)에 있고, 각 결정의 배경과 실측 결과는 해당 편에 정리했습니다.
+작업 세션 194회 · 커밋 930 · Vitest 케이스 1,220(2026-11-13 기준). 작업 세션 단위 개발 일지는 같은 번호로 [블로그 시리즈](https://donghunn-lee-blog.vercel.app/blog/slatekr/)에 있고, 각 결정의 배경과 실측 결과는 해당 편에 정리했습니다.
 
 ## 회고
 

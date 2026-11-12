@@ -39,6 +39,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Format check
+        run: npm run format:check
+
       # vitest.config.mts 가 더미 DATABASE_URL 을 주입하므로 secrets 없이 통과한다.
       - name: Test
         run: npm run test:run

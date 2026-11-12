@@ -52,7 +52,7 @@ AI 없이도 설득력 있어야 한다. AI는 투자 판단 도구가 아니라
 - **전역 UI 상태**: Zustand (관심종목, 최근 검색어, UI 상태)
 - **차트**: lightweight-charts v5 (v4와 API 차이 큼 — v4 예제 코드 사용 금지)
 - **유틸**: date-fns, Zod (외부 API 응답 · JSONB 스냅샷 · 요청 바디 런타임 검증), next-themes, @date-fns/tz (TZDate — KST/현지시각 변환)
-- **테스트**: Vitest (커밋 green 기준: tsc --noEmit, ESLint, next build, vitest)
+- **테스트**: Vitest (커밋 green 기준: tsc --noEmit, ESLint, prettier --check, next build, vitest — 모두 `npm run check`)
 - **폰트**: Noto Sans KR (next/font/google 셀프 호스팅, 가변 굵기 100–900)
 - **DB**: PostgreSQL on Neon (@neondatabase/serverless, lib/db.ts)
   - neon() 호환 래퍼: 기존 `[rows, null]` 패턴 유지
@@ -65,7 +65,7 @@ AI 없이도 설득력 있어야 한다. AI는 투자 판단 도구가 아니라
   - 공통: db.py (Neon 커넥션), 로깅, 에러 격리, incremental update
 - **스케줄링**: GitHub Actions 수집 워크플로우(`collector-weekly.yml`)는 workflow_dispatch만 사용,
   cron-job.org가 API로 트리거 (schedule 이벤트는 지연/드롭 이슈로 제거)
-- **CI**: `web-ci.yml` — main push·PR에서 `web/**`(또는 워크플로우 파일 자체) 변경 시 typecheck·lint·test (Node 24, next build 제외)
+- **CI**: `web-ci.yml` — main push·PR에서 `web/**`(또는 워크플로우 파일 자체) 변경 시 typecheck·lint·format:check·test (Node 24, next build 제외)
   / `collector-ci.yml` — main push·PR에서 `collector/**`(또는 워크플로우 파일 자체) 변경 시 unittest discover (`collector/tests`, Python 3.12).
   둘 다 push·PR 트리거 검사용이라 위 수집 워크플로우와 별개
 - **배포**: Vercel (Next.js) + Neon (PostgreSQL)
@@ -343,7 +343,8 @@ SlateKR의 UI는 "slate(판)" 개념을 기반으로 한다.
 ## 수정 범위 규칙
 
 - 변경된 모든 줄은 작업 요청에 직접 연결되어야 한다
-- 무관한 코드·주석·포맷을 "개선"하지 않는다. 기존 스타일을 따른다
+- 무관한 코드·주석을 "개선"하지 않는다. 기존 스타일을 따른다
+- 포맷은 Prettier가 정하고 CI가 검사한다. 손으로 맞추지 않고 `npm run format`을 돌린다(md 제외)
 - 내 변경으로 생긴 orphan(미사용 import/변수)만 정리한다
 - 범위 밖 dead code는 삭제하지 말고 보고만 한다
 
