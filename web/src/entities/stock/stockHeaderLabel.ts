@@ -119,7 +119,7 @@ export const computeHeaderLabel = ({
     // 꺼져 undefined 이거나 직전 세션 응답으로 stale 할 수 있다.
     if (openingWindow) return { labelText: "개장전", timeText: "" };
     if (session === "regular") {
-      return { labelText: "정규장", timeText: updatedAtText };
+      return { labelText: "정규장", timeText: live !== null ? updatedAtText : "" };
     }
     // 애프터 계열 라이브 — NXT 탭과 같은 축의 라벨. J 채널은 15:30~16:00 에도 마감가를
     // 돌려주므로 라이브 유무가 아니라 16:00 경계가 "애프터마켓" 표기를 가른다.

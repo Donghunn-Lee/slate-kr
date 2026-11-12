@@ -257,10 +257,11 @@ describe("computeHeaderLabel · KRX 탭", () => {
     });
   });
 
+  // live=null 의 표시 값은 SSR 행이라 updatedAtText 는 실패 응답 시각이다 — NXT 탭과 같은 규칙.
   it("regular · live=null → 라벨 유지 (실패 배지는 컴포넌트가 담당)", () => {
     expect(computeHeaderLabel(krx({ session: "regular", live: null }))).toEqual({
       labelText: "정규장",
-      timeText: UPDATED_AT,
+      timeText: "",
     });
   });
 
