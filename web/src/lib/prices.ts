@@ -21,36 +21,6 @@ import {
 } from "@/lib/demo/universe";
 import { getKrxLastCloseDate } from "@/shared/utils/market";
 
-type DailyPriceRow = {
-  id: number;
-  ticker: string;
-  date: string;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-  market_cap: number | null;
-  base_price: number | null;
-};
-
-// 무거래일의 open=high=low=0 fill 봉을 서빙 경계에서 flat(close)로 정규화 — 캔들 축 붕괴·52주
-// 저가 0원만 방지한다. 부분 0(예: open만 0)은 통과.
-export const rowToSnapshot = (row: DailyPriceRow): StockPriceSnapshot => {
-  const isFlatFill = row.open === 0 && row.high === 0 && row.low === 0;
-  return {
-    ticker: row.ticker,
-    date: row.date,
-    open: isFlatFill ? row.close : row.open,
-    high: isFlatFill ? row.close : row.high,
-    low: isFlatFill ? row.close : row.low,
-    close: row.close,
-    volume: row.volume,
-    marketCap: row.market_cap,
-    basePrice: row.base_price,
-  };
-};
-
 const barToSnapshot = (entry: DemoUniverseEntry, bar: DemoDailyBar): StockPriceSnapshot => ({
   ticker: entry.ticker,
   date: bar.date,

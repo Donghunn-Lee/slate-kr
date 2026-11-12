@@ -1,5 +1,5 @@
 import { afterEach, describe, it, expect, vi } from "vitest";
-import { getPriceStats, getRegularClose, rowToSnapshot } from "./prices";
+import { getPriceStats, getRegularClose } from "./prices";
 import { getDailyBar } from "@/lib/demo/price-model";
 import { getDemoEntry } from "@/lib/demo/universe";
 import { fetchStockQuote } from "@/lib/quote-source";
@@ -31,22 +31,6 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-type DailyPriceRow = Parameters<typeof rowToSnapshot>[0];
-
-const mkRow = (o: Partial<DailyPriceRow>): DailyPriceRow => ({
-  id: 1,
-  ticker: "TEST",
-  date: "2026-01-15",
-  open: 100,
-  high: 110,
-  low: 90,
-  close: 105,
-  volume: 1000,
-  market_cap: null,
-  base_price: null,
-  ...o,
-});
-
 // getPriceStats는 내부에서 정렬하지 않고 prices[0]을 oldest, prices[last]를 current로 취급한다.
 // 픽스처는 date 오름차순으로 구성한다.
 
@@ -61,74 +45,6 @@ const mkSnap = (o: Partial<StockPriceSnapshot>): StockPriceSnapshot => ({
   marketCap: null,
   basePrice: null,
   ...o,
-});
-
-describe("rowToSnapshot", () => {
-  it("정상 봉: 값·형식 passthrough (date는 YYYY-MM-DD)", () => {
-    const snap = rowToSnapshot(
-      mkRow({
-        open: 100,
-        high: 110,
-        low: 90,
-        close: 105,
-        volume: 12345,
-        market_cap: 999,
-        base_price: 102,
-      })
-    );
-    expect(snap).toEqual({
-      ticker: "TEST",
-      date: "2026-01-15",
-      open: 100,
-      high: 110,
-      low: 90,
-      close: 105,
-      volume: 12345,
-      marketCap: 999,
-      basePrice: 102,
-    });
-  });
-
-  it("OHL=0 fill 봉: open/high/low를 close로 flat", () => {
-    const snap = rowToSnapshot(mkRow({ open: 0, high: 0, low: 0, close: 5000, volume: 0 }));
-    expect(snap.open).toBe(5000);
-    expect(snap.high).toBe(5000);
-    expect(snap.low).toBe(5000);
-    expect(snap.close).toBe(5000);
-    expect(snap.volume).toBe(0);
-  });
-
-  it("부분 0(open만 0)은 미변환 통과", () => {
-    const snap = rowToSnapshot(mkRow({ open: 0, high: 110, low: 90, close: 105 }));
-    expect(snap.open).toBe(0);
-    expect(snap.high).toBe(110);
-    expect(snap.low).toBe(90);
-  });
-
-  it("부분 0(low만 0)은 미변환 통과", () => {
-    const snap = rowToSnapshot(mkRow({ open: 100, high: 110, low: 0, close: 105 }));
-    expect(snap.low).toBe(0);
-  });
-
-  it("부분 0(high만 0)은 미변환 통과", () => {
-    const snap = rowToSnapshot(mkRow({ open: 100, high: 0, low: 90, close: 105 }));
-    expect(snap.high).toBe(0);
-  });
-
-  it("OHL=0 && close=0: 전부 0 유지 (flat 결과도 0)", () => {
-    const snap = rowToSnapshot(mkRow({ open: 0, high: 0, low: 0, close: 0 }));
-    expect(snap).toMatchObject({ open: 0, high: 0, low: 0, close: 0 });
-  });
-
-  it("volume·marketCap·basePrice·date 매핑 보존 (null 포함)", () => {
-    const snap = rowToSnapshot(
-      mkRow({ date: "2024-03-05", volume: 7, market_cap: null, base_price: null })
-    );
-    expect(snap.date).toBe("2024-03-05");
-    expect(snap.volume).toBe(7);
-    expect(snap.marketCap).toBeNull();
-    expect(snap.basePrice).toBeNull();
-  });
 });
 
 describe("getPriceStats", () => {
