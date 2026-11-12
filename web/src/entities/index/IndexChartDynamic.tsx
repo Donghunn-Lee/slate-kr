@@ -13,6 +13,7 @@ const IndexChartInner = dynamic(
   {
     ssr: false,
     loading: () => (
+      // eslint-disable-next-line better-tailwindcss/enforce-canonical-classes -- 차트 높이 JS 상수(px)와 짝이라 rem 으로 바꾸지 않는다
       <div className="h-[356px] rounded-xl border bg-elevated sm:h-[490px]" />
     ),
   },

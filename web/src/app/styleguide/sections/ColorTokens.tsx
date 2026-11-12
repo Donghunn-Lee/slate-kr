@@ -47,7 +47,7 @@ const SwatchGroup = ({ title, tokens }: SwatchGroupProps) => (
           className="flex items-center gap-2.5 rounded-sm border border-subtle bg-elevated p-2"
         >
           <div
-            className="h-9 w-9 shrink-0 rounded-sm"
+            className="size-9 shrink-0 rounded-sm"
             style={{
               backgroundColor: `var(${token})`,
               border: "1px solid oklch(0.85 0.005 85 / 60%)",

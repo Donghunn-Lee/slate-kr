@@ -46,6 +46,7 @@ AI 없이도 설득력 있어야 한다. AI는 투자 판단 도구가 아니라
 - **Framework**: Next.js 16 App Router
 - **Language**: TypeScript strict mode
 - **Styling**: Tailwind CSS v4 + shadcn/ui (neutral baseColor)
+  - 클래스는 canonical 형태(`min-h-27.5` · `size-4`)로 쓰고 ESLint `better-tailwindcss/enforce-canonical-classes`가 강제한다. 예외: JS 픽셀 숫자와 짝인 px 임의값(차트 높이 상수에 맞춘 스켈레톤 · 로더 높이)은 px로 두고 `eslint-disable-next-line`에 이유를 단다. shadcn 컴포넌트를 CLI로 추가 · 갱신한 뒤에는 `eslint --fix`
 - **서버 상태**: Server Components + fetch + revalidate 우선
 - **클라이언트 상태**: TanStack Query v5 (상호작용 필요한 영역만)
 - **전역 UI 상태**: Zustand (관심종목, 최근 검색어, UI 상태)

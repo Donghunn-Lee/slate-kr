@@ -212,7 +212,7 @@ const DisclosureItem = ({
             [...disclosure.rmk].map((ch, i) => (
               <span
                 key={`${i}-${ch}`}
-                className="inline-flex size-[18px] items-center justify-center rounded border border-border/60 bg-secondary text-micro leading-none"
+                className="inline-flex size-4.5 items-center justify-center rounded border border-border/60 bg-secondary text-micro leading-none"
               >
                 {ch}
               </span>
@@ -223,7 +223,7 @@ const DisclosureItem = ({
             <button
               type="button"
               className={cn(
-                "w-full rounded border border-sky-border bg-elevated px-0.5 py-0.5 text-micro font-medium whitespace-nowrap cursor-pointer",
+                "w-full rounded border border-sky-border bg-elevated p-0.5 text-micro font-medium whitespace-nowrap cursor-pointer",
                 isExpanded
                   ? "text-muted-foreground hover:text-foreground"
                   : "text-sky-text hover:bg-sky-bg"
@@ -272,12 +272,12 @@ const DisclosureItem = ({
       >
         <div style={{ overflow: "hidden" }}>
           <div className="pt-3 pb-1">
-            <div className="rounded-sm border border-sky-border/60 bg-sky-bg px-4 py-4">
+            <div className="rounded-sm border border-sky-border/60 bg-sky-bg p-4">
               {summaryState.kind === "loading" && (
                 <div
                   role="status"
                   aria-live="polite"
-                  className="flex min-h-[110px] flex-col items-center justify-center gap-2 text-lavender-accent"
+                  className="flex min-h-27.5 flex-col items-center justify-center gap-2 text-lavender-accent"
                 >
                   <Loader2 className="size-5 animate-spin" aria-hidden="true" />
                   <p className="text-caption">

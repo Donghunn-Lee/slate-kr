@@ -117,7 +117,7 @@ export const RecentVisitedBar = () => {
           >
             <div
               ref={chipsRef}
-              className="flex flex-wrap content-start gap-x-1 gap-y-1 text-micro sm:gap-x-1.5 sm:text-caption"
+              className="flex flex-wrap content-start gap-1 text-micro sm:gap-x-1.5 sm:text-caption"
             >
               {items.map((s) => (
                 <span key={s.ticker} className="flex items-center">
@@ -142,11 +142,11 @@ export const RecentVisitedBar = () => {
                     }}
                     aria-label={`${s.name} 최근 조회 삭제`}
                     className={cn(
-                      "-ml-1 inline-flex cursor-pointer items-center justify-center p-[5px] text-muted-foreground/40 transition-opacity hover:text-foreground sm:ml-0 sm:p-1",
+                      "-ml-1 inline-flex cursor-pointer items-center justify-center p-1.25 text-muted-foreground/40 transition-opacity hover:text-foreground sm:ml-0 sm:p-1",
                       !open && "pointer-events-none opacity-0",
                     )}
                   >
-                    <X className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                    <X className="size-2.5 sm:size-3" />
                   </button>
                 </span>
               ))}
@@ -154,7 +154,7 @@ export const RecentVisitedBar = () => {
           </div>
           <ChevronDown
             className={cn(
-              "mt-1 h-3.5 w-3.5 shrink-0 text-muted-foreground/60 transition-transform duration-200 motion-reduce:transition-none",
+              "mt-1 size-3.5 shrink-0 text-muted-foreground/60 transition-transform duration-200 motion-reduce:transition-none",
               open && "rotate-180",
             )}
           />

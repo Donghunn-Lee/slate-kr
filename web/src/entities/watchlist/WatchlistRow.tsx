@@ -85,7 +85,7 @@ export const WatchlistRow = ({
               {hasMemo && (
                 <div className="flex items-center gap-1.5 text-micro leading-none md:text-caption">
                   <span className="text-muted-foreground">메모</span>
-                  <NotebookText className="h-4 w-4 text-sky-accent" />
+                  <NotebookText className="size-4 text-sky-accent" />
                 </div>
               )}
               {disclosure?.count != null && disclosure.count > 0 && (
@@ -111,7 +111,7 @@ export const WatchlistRow = ({
                   aria-label={`${item.name} 관심종목 해제`}
                   className="relative z-10 -mr-2 shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="size-4" />
                 </button>
               )}
             </div>

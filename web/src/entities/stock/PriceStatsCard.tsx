@@ -36,7 +36,7 @@ export const PriceStatsCard = ({ stats }: PriceStatsCardProps) => {
                 <div className="relative py-1.5">
                   <div className="h-1.5 rounded-full bg-sage-border" />
                   <div
-                    className="absolute top-1/2 h-4 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-sm bg-sage-accent"
+                    className="absolute top-1/2 h-4 w-1.5 -translate-1/2 rounded-sm bg-sage-accent"
                     style={{ left: `${range52w.position * 100}%` }}
                   />
                 </div>

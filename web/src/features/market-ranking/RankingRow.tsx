@@ -227,7 +227,7 @@ export const RankingRow = ({
 export const RankingRowSkeleton = () => (
   <li className="-mx-4 border-b border-subtle last:border-b-0 md:-mx-6">
     <div className={cn(GRID_CLASS, "animate-pulse px-4 py-1.5 sm:py-2 md:px-6")}>
-      <div className="mx-auto h-3 w-3 rounded bg-muted sm:h-3.5" />
+      <div className="mx-auto size-3 rounded bg-muted sm:h-3.5" />
       <div className="h-3.5 w-24 rounded bg-muted sm:h-4" />
       <div className="hidden h-3 w-10 rounded bg-muted md:block" />
       <div className="ml-auto h-3.5 w-12 rounded bg-muted sm:h-4 sm:w-16" />

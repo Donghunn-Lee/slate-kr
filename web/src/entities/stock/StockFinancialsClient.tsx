@@ -143,7 +143,7 @@ const FinancialsTable = ({ periods, mode, compact }: FinancialsTableProps) => {
         <thead>
           <tr className="border-b">
             <th
-              className={`sticky left-0 z-10 bg-amber-bg ${compact ? "pb-1 pr-3" : "pb-2 pl-3 sm:pl-4 pr-3 sm:pr-4"} text-left text-caption font-medium text-muted-foreground`}
+              className={`sticky left-0 z-10 bg-amber-bg ${compact ? "pb-1 pr-3" : "pb-2 px-3 sm:px-4"} text-left text-caption font-medium text-muted-foreground`}
             >
               지표
             </th>

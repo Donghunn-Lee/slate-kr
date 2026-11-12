@@ -30,7 +30,7 @@ export const HeaderSkeleton = ({ showRegularClose }: HeaderSkeletonProps) => (
     <div className="mt-4">
       {/* 토글 줄 높이는 상자(h-6)가 아니라 글자 기준선 정렬로 정해진다 — 글자를 넣어 같은 기준선을 만든다. */}
       <div className="mb-1.5">
-        <div className="inline-flex h-6 w-[92px] items-center rounded-md bg-muted text-caption sm:h-7">
+        <div className="inline-flex h-6 w-23 items-center rounded-md bg-muted text-caption sm:h-7">
           {" "}
         </div>
       </div>
@@ -75,11 +75,13 @@ export const MetricsSkeleton = () => (
 export const ChartSkeleton = () => (
   <StockPanel variant="lavender" className="animate-pulse">
     <div className="mb-3 h-5 w-24 rounded bg-muted" />
+    {/* eslint-disable-next-line better-tailwindcss/enforce-canonical-classes -- 차트 높이 JS 상수(px)와 짝이라 rem 으로 바꾸지 않는다 */}
     <div className="h-[210px] w-full rounded bg-muted sm:h-[340px]" />
   </StockPanel>
 );
 
 export const ChartTabsSkeleton = () => (
+  // eslint-disable-next-line better-tailwindcss/enforce-canonical-classes -- 차트 높이 JS 상수(px)와 짝이라 rem 으로 바꾸지 않는다
   <div className="h-[400px] w-full animate-pulse rounded-xl border bg-elevated sm:h-[498px]" />
 );
 
@@ -104,7 +106,7 @@ export const FinancialsSkeleton = ({ compact = false }: FinancialsSkeletonProps 
         <thead>
           <tr className="border-b">
             <th
-              className={`${compact ? "pb-1 pr-3" : "pb-2 pl-3 pr-3 sm:pl-4 sm:pr-4"} text-left`}
+              className={`${compact ? "pb-1 pr-3" : "pb-2 px-3 sm:px-4"} text-left`}
             >
               <div className="h-3.5 w-8 rounded bg-muted" />
             </th>
@@ -122,7 +124,7 @@ export const FinancialsSkeleton = ({ compact = false }: FinancialsSkeletonProps 
           {Array.from({ length: rows }).map((_, i) => (
             <tr key={i} className="border-b last:border-0">
               <td
-                className={`${compact ? "py-1.5 pr-3" : "py-2 pl-3 pr-3 sm:py-3 sm:pl-4 sm:pr-4"}`}
+                className={`${compact ? "py-1.5 pr-3" : "py-2 px-3 sm:py-3 sm:px-4"}`}
               >
                 <div className="h-4 w-20 rounded bg-muted" />
               </td>

@@ -923,12 +923,12 @@ export const PriceChart = ({
         >
           {leftEdgeStatus === "loading" ? (
             <Loader2
-              className="h-4 w-4 animate-spin motion-reduce:animate-none"
+              className="size-4 animate-spin motion-reduce:animate-none"
               aria-hidden="true"
             />
           ) : (
             <>
-              <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
               <span
                 ref={marginOverlayTextRef}
                 className="ml-1.5 whitespace-nowrap text-micro"

@@ -8,10 +8,11 @@ export default function Loading() {
         <div className="h-9 w-full animate-pulse rounded bg-muted md:hidden" />
         {/* Detail pane (mobile 첫번째, desktop 두번째). rounded-lg + lavender 톤 wrapper. */}
         <div className="order-1 min-w-0 flex-1 animate-pulse md:order-2">
+          {/* eslint-disable-next-line better-tailwindcss/enforce-canonical-classes -- 차트 px 높이를 포함한 근사값 */}
           <div className="h-[560px] rounded-lg border border-lavender-border bg-lavender-bg sm:h-[720px]" />
         </div>
         {/* Desktop rail — 모바일 hidden. 국내/해외 섹션 헤더 + 리스트 rows. */}
-        <aside className="order-2 hidden animate-pulse md:order-1 md:block md:w-[260px] md:shrink-0">
+        <aside className="order-2 hidden animate-pulse md:order-1 md:block md:w-65 md:shrink-0">
           <div className="space-y-2">
             <div className="h-8 w-16 rounded bg-muted" />
             <div className="space-y-1">

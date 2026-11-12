@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 export default function StyleguidePage() {
   return (
     <div className="min-h-screen bg-background px-6 py-12">
-      <div className="mx-auto max-w-[960px]">
+      <div className="mx-auto max-w-240">
         {/* 헤더 */}
         <div className="mb-12">
           <h1 className="mb-2 text-[28px] font-bold tracking-[-0.02em] text-foreground">

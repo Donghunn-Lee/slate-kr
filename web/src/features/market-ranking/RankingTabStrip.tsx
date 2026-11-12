@@ -90,7 +90,7 @@ export const RankingTabStrip = <TId extends string>({
           disabled={!avail.canLeft}
           className={chevronClass}
         >
-          <ChevronLeft className="h-4 w-4" />
+          <ChevronLeft className="size-4" />
         </button>
       )}
       <div className="relative min-w-0 flex-1">
@@ -120,10 +120,10 @@ export const RankingTabStrip = <TId extends string>({
           })}
         </div>
         {avail.canLeft && (
-          <div className="pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-elevated to-transparent" />
+          <div className="pointer-events-none absolute inset-y-0 left-0 w-6 bg-linear-to-r from-elevated to-transparent" />
         )}
         {avail.canRight && (
-          <div className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-elevated to-transparent" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-linear-to-l from-elevated to-transparent" />
         )}
       </div>
       {hasOverflow && (
@@ -134,7 +134,7 @@ export const RankingTabStrip = <TId extends string>({
           disabled={!avail.canRight}
           className={chevronClass}
         >
-          <ChevronRight className="h-4 w-4" />
+          <ChevronRight className="size-4" />
         </button>
       )}
     </div>

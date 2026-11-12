@@ -86,7 +86,7 @@ export const SlatePanels = () => (
             <div className={`size-2 shrink-0 rounded-full ${dot}`} />
             <p className="text-sm font-semibold text-foreground">패널 제목 — {name}</p>
           </div>
-          <p className="text-xs leading-normal text-muted-foreground">{label}</p>
+          <p className="text-xs/normal text-muted-foreground">{label}</p>
           <div className="mt-3 flex flex-wrap gap-1.5">
             <code
               className={`rounded font-mono text-[10px] text-muted-foreground ${codeBg} px-1.5 py-0.5`}

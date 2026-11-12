@@ -348,7 +348,7 @@ const MarketToggle = ({
 // 스켈레톤에서도 토글 자리를 미리 잡아 마운트 시 레이아웃 점프 방지.
 // 줄 높이는 상자(h-6)가 아니라 글자 기준선 정렬로 정해진다 — 글자를 넣어 같은 기준선을 만든다.
 const MarketToggleSkeleton = () => (
-  <div className="inline-flex h-6 w-[92px] animate-pulse items-center rounded-md bg-muted text-caption sm:h-7">
+  <div className="inline-flex h-6 w-23 animate-pulse items-center rounded-md bg-muted text-caption sm:h-7">
     {" "}
   </div>
 );

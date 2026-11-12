@@ -9,7 +9,7 @@ export const DisclosureSummaryBody = ({ content }: DisclosureSummaryBodyProps) =
 
   return (
     <div className="space-y-3">
-      <p className="text-body-lg font-semibold leading-snug">{headline}</p>
+      <p className="text-body-lg/snug font-semibold">{headline}</p>
 
       {facts.length > 0 && (
         <dl className="grid grid-cols-2 items-start gap-3 sm:grid-cols-[auto_minmax(0,1fr)] sm:gap-x-4 sm:gap-y-0">
@@ -31,7 +31,7 @@ export const DisclosureSummaryBody = ({ content }: DisclosureSummaryBodyProps) =
       )}
 
       {detail !== "" && (
-        <p className="whitespace-pre-wrap text-body leading-relaxed">{detail}</p>
+        <p className="whitespace-pre-wrap text-body/relaxed">{detail}</p>
       )}
     </div>
   );

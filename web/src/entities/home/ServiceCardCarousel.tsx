@@ -110,7 +110,7 @@ export const ServiceCardCarousel = () => {
       // 내용 폭으로 줄어들면 안쪽 container-type 이 기준 폭을 잃어 cqw 슬라이드가 무너진다.
       className="relative w-full max-w-sm justify-self-center md:max-w-none"
     >
-      <div className="overflow-hidden [container-type:inline-size]">
+      <div className="overflow-hidden @container">
         <div
           className="flex"
           style={{
@@ -143,7 +143,7 @@ export const ServiceCardCarousel = () => {
                       <span
                         className={`inline-flex size-8 items-center justify-center rounded-lg ${card.iconTint}`}
                       >
-                        <card.icon className="h-4 w-4" />
+                        <card.icon className="size-4" />
                       </span>
                       <p className="text-body font-semibold">{card.title}</p>
                     </div>
@@ -179,7 +179,7 @@ export const ServiceCardCarousel = () => {
               aria-label={`${card.title} 슬라이드`}
               aria-current={isActive}
               // 보이는 점은 6px 이지만 터치 타깃은 24×24. 음수 세로 마진으로 행 높이는 점 높이(6px)에 맞춘다.
-              className="group/dot -my-[9px] flex size-6 items-center justify-center"
+              className="group/dot -my-2.25 flex size-6 items-center justify-center"
             >
               <span
                 aria-hidden

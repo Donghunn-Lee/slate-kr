@@ -117,7 +117,7 @@ export const WatchlistPreview = () => {
             href="/watchlist"
             className="mt-3 inline-flex items-center gap-1 text-body font-medium transition-opacity hover:opacity-70"
           >
-            관심종목 둘러보기 <ArrowRight className="h-3.5 w-3.5" />
+            관심종목 둘러보기 <ArrowRight className="size-3.5" />
           </Link>
         </StockPanel>
       </section>
@@ -139,7 +139,7 @@ export const WatchlistPreview = () => {
           href="/watchlist"
           className="flex shrink-0 items-center gap-1 text-caption text-muted-foreground transition-colors hover:text-foreground"
         >
-          <span className="sr-only">내 관심종목 </span>전체 보기 <ArrowRight className="h-3 w-3" />
+          <span className="sr-only">내 관심종목 </span>전체 보기 <ArrowRight className="size-3" />
         </Link>
       </div>
       <StockPanel className="flex min-h-0 flex-1 flex-col">
@@ -179,7 +179,7 @@ export const WatchlistPreview = () => {
               href="/watchlist"
               className="mt-3 inline-flex items-center gap-1 text-body font-medium transition-opacity hover:opacity-70"
             >
-              관심종목 추가하기 <ArrowRight className="h-3.5 w-3.5" />
+              관심종목 추가하기 <ArrowRight className="size-3.5" />
             </Link>
           </div>
         ) : (
@@ -278,7 +278,7 @@ export const WatchlistPreview = () => {
                 </ul>
               </div>
               {isOverflowing && (
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-elevated to-transparent" />
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-linear-to-t from-elevated to-transparent" />
               )}
             </div>
           </>

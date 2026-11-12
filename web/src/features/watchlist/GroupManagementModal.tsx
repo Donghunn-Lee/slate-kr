@@ -371,7 +371,7 @@ export const GroupManagementModal = ({
           if (!next) requestClose();
         }}
       >
-        <DialogContent className="flex h-[85dvh] max-h-[90dvh] flex-col sm:h-[680px] sm:max-w-2xl">
+        <DialogContent className="flex h-[85dvh] max-h-[90dvh] flex-col sm:h-170 sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>관심종목 그룹 관리</DialogTitle>
             <DialogDescription className="text-body">
@@ -519,7 +519,7 @@ export const GroupManagementModal = ({
                       aria-label="종목 검색"
                     />
                     {showDropdown && (
-                      <div className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-md border bg-popover shadow-md">
+                      <div className="absolute inset-x-0 top-full z-20 mt-1 overflow-hidden rounded-md border bg-popover shadow-md">
                         {searchLoading ? (
                           <div className="px-3 py-2 text-body text-muted-foreground">
                             검색 중...

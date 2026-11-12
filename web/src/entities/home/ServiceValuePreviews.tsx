@@ -93,7 +93,7 @@ export const PricePreview = ({ play }: PreviewProps) => {
       <svg
         viewBox={`0 0 ${SPARKLINE_VIEW_W} ${SPARKLINE_VIEW_H}`}
         preserveAspectRatio="none"
-        className="h-full w-full overflow-visible"
+        className="size-full overflow-visible"
         aria-hidden
       >
         <line
@@ -129,7 +129,7 @@ export const PricePreview = ({ play }: PreviewProps) => {
       </svg>
       <span
         aria-hidden
-        className="pointer-events-none absolute size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-current ring-2 ring-lavender-bg"
+        className="pointer-events-none absolute size-1.5 -translate-1/2 rounded-full bg-current ring-2 ring-lavender-bg"
         style={{
           left: `${markerLeftPct}%`,
           top: `${markerTopPct}%`,

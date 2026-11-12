@@ -20,7 +20,7 @@ export const ResetViewButton = ({ onClick }: ResetViewButtonProps) => (
         onClick={onClick}
         className="inline-flex h-6 items-center justify-center rounded-md border border-subtle bg-elevated px-1.5 text-muted-foreground transition-colors hover:text-foreground sm:h-7 sm:px-2"
       >
-        <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+        <RotateCcw className="size-3.5" aria-hidden="true" />
       </button>
     </TooltipTrigger>
     <TooltipContent side="top" className="text-caption">

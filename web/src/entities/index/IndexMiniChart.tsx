@@ -227,7 +227,7 @@ export const IndexMiniChart = ({
 
   if (isLoading && sessionBars.length === 0) {
     return (
-      <div className="h-full w-full animate-pulse rounded bg-muted" aria-hidden />
+      <div className="size-full animate-pulse rounded bg-muted" aria-hidden />
     );
   }
   if (sessionBars.length === 0) {
@@ -238,5 +238,5 @@ export const IndexMiniChart = ({
     );
   }
 
-  return <div ref={containerRef} className="h-full w-full overflow-hidden" />;
+  return <div ref={containerRef} className="size-full overflow-hidden" />;
 };

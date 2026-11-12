@@ -7,7 +7,7 @@ type MotionTokenCardProps = {
 
 const MotionTokenCard = ({ token, value, label, swatch }: MotionTokenCardProps) => (
   <div className="flex items-center gap-2.5 rounded-sm border border-subtle bg-elevated p-2">
-    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-subtle font-mono text-[9px] text-muted-foreground">
+    <div className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-subtle font-mono text-[9px] text-muted-foreground">
       {swatch ?? value}
     </div>
     <div className="min-w-0">

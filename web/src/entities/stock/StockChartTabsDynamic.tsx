@@ -10,6 +10,7 @@ const StockChartTabsInner = dynamic(
     // 툴바(랩되면 2행) + 차트 높이(mobile 320 / desktop 450) 근사.
     // StockChartTabs 내부 상수 변경 시 여기도 함께 조정 — 레이아웃 점프 방지 목적.
     loading: () => (
+      // eslint-disable-next-line better-tailwindcss/enforce-canonical-classes -- 차트 높이 JS 상수(px)와 짝이라 rem 으로 바꾸지 않는다
       <div className="h-[400px] rounded-xl border bg-elevated sm:h-[498px]" />
     ),
   },

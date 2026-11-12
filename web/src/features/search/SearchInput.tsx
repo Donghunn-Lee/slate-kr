@@ -145,7 +145,7 @@ export const SearchInput = ({
           <Search className={size === "sm" ? "size-3.5" : "size-4"} aria-hidden />
         </button>
         {isOpen && (
-          <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-md border bg-popover shadow-md">
+          <div className="absolute inset-x-0 top-full z-50 mt-1 overflow-hidden rounded-md border bg-popover shadow-md">
             {isLoading && <div className="px-4 py-3 text-body text-muted-foreground">검색 중...</div>}
             {!isLoading && results.length === 0 && (
               <div className="px-4 py-3 text-body text-muted-foreground">검색 결과가 없습니다</div>

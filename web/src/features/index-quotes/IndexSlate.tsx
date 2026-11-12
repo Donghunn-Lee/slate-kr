@@ -318,7 +318,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
           href="/stocks/indices"
           className="flex items-center gap-1 text-caption text-muted-foreground transition-colors hover:text-foreground"
         >
-          <span className="sr-only">주요 지수 </span>전체 보기 <ArrowRight className="h-3 w-3" />
+          <span className="sr-only">주요 지수 </span>전체 보기 <ArrowRight className="size-3" />
         </Link>
       </div>
       <StockPanel className="overflow-hidden p-0">
@@ -329,7 +329,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
         <div className="divide-y divide-border/60 md:grid md:grid-cols-[2fr_1fr] md:divide-x md:divide-y-0">
           <div className="md:h-full">
             {isError && !data ? (
-              <div className="px-6 py-6 text-body text-muted-foreground">
+              <div className="p-6 text-body text-muted-foreground">
                 지수 시세를 불러오지 못했습니다
               </div>
             ) : isLoading || !data ? (

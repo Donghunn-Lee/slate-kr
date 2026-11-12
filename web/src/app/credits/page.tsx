@@ -129,7 +129,7 @@ export default function CreditsPage() {
               <h3 className="text-body font-semibold">TradingView Lightweight Charts™</h3>
               <p className="text-caption text-muted-foreground">Apache License 2.0</p>
             </div>
-            <div className="rounded border border-subtle bg-elevated p-3 font-mono text-body leading-relaxed">
+            <div className="rounded border border-subtle bg-elevated p-3 font-mono text-body/relaxed">
               <p>TradingView Lightweight Charts™</p>
               <p>
                 Copyright (с) 2025 TradingView, Inc.{" "}

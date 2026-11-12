@@ -349,7 +349,7 @@ export const IndexDetailPane = ({
         </div>
       </div>
 
-      <div className="px-4 py-4 sm:px-6 sm:py-5">
+      <div className="p-4 sm:px-6 sm:py-5">
         <div>
           {/* 스켈레톤은 값 행과 높이(headline 1줄)·display 를 맞춘다. React 가 이 div 를 값 행으로
               재사용하는데, display 가 바뀌면 박스가 새로 만들어지며 pulse 로 합성된 이전 위치가
