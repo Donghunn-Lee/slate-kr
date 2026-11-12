@@ -4,13 +4,15 @@
 
 국내 상장 종목의 가격 · 재무 · 공시와 국내·해외 주요 지수를 조회하는 웹앱
 
-**부분 실패 UI · 클라이언트 데이터 흐름 · 서버 캐시 · 런타임 검증 · 익명 동기화**
+**부분 실패 UI · 클라이언트 데이터 흐름 · 서버 캐시 · 런타임 검증 · 익명 동기화 · 가상 시세 생성기**
 
 [![Web CI](https://github.com/Donghunn-Lee/slate-kr/actions/workflows/web-ci.yml/badge.svg)](https://github.com/Donghunn-Lee/slate-kr/actions/workflows/web-ci.yml) [![Collector CI](https://github.com/Donghunn-Lee/slate-kr/actions/workflows/collector-ci.yml/badge.svg)](https://github.com/Donghunn-Lee/slate-kr/actions/workflows/collector-ci.yml) ![Next.js 16](https://img.shields.io/badge/Next.js_16-24292F?style=flat&logo=nextdotjs&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white) ![Tailwind CSS v4](https://img.shields.io/badge/Tailwind_CSS_v4-06B6D4?style=flat&logo=tailwindcss&logoColor=white) ![TanStack Query v5](https://img.shields.io/badge/TanStack_Query_v5-FF4154?style=flat&logo=reactquery&logoColor=white) ![Zustand](https://img.shields.io/badge/Zustand-555?style=flat) ![Zod](https://img.shields.io/badge/Zod-3E67B1?style=flat&logo=zod&logoColor=white) ![Vitest](https://img.shields.io/badge/Vitest-6E9F18?style=flat&logo=vitest&logoColor=white)
 
-[**Live**](https://slate-kr.vercel.app) &nbsp;·&nbsp; [Styleguide](https://slate-kr.vercel.app/styleguide) &nbsp;·&nbsp; 2026.04 – 2026.10 &nbsp;·&nbsp; 1인 개발
+[**Live(가상 데이터 데모)**](https://slate-kr.vercel.app) &nbsp;·&nbsp; [Styleguide](https://slate-kr.vercel.app/styleguide) &nbsp;·&nbsp; 2026.04 – 2026.11 &nbsp;·&nbsp; 1인 개발
 
 </div>
+
+> 시세 · 지수 · 순위는 **가상 데이터**입니다. 국내 시세는 재배포가 허용되지 않아, 재무 · 공시(DART)는 실데이터로 두고 가격 계열만 [결정론적 생성기](#6-가상-시세-생성기)로 대체했습니다. 상단 배너의 장애 시뮬레이션으로 가격 API 실패 · 지연 시의 화면을 직접 볼 수 있습니다.
 
 <img src="docs/images/hero.png" width="100%" alt="홈 히어로 — 헤드라인과 서비스 캐러셀">
 
@@ -34,7 +36,7 @@
     </tr>
     <tr>
       <td nowrap><a href="#3-서버-캐시">3. 서버 캐시</a></td>
-      <td>지수 · 순위 API 응답을 서버에서 캐시해 KIS(한국투자증권 OpenAPI) 호출 수를 사용자 수와 분리. 실패 응답은 감지 즉시 캐시에서 지움</td>
+      <td>지수 · 순위 API 응답을 서버에서 캐시해 원본 조회 수를 사용자 수와 분리. 실패 응답은 감지 즉시 캐시에서 지움</td>
     </tr>
     <tr>
       <td nowrap><a href="#4-런타임-검증-ai-공시-요약">4. 런타임 검증</a></td>
@@ -43,6 +45,10 @@
     <tr>
       <td nowrap><a href="#5-익명-동기화">5. 익명 동기화</a></td>
       <td>로그인 없이 쿠키로 브라우저를 식별해 관심종목 · 메모를 서버에 저장</td>
+    </tr>
+    <tr>
+      <td nowrap><a href="#6-가상-시세-생성기">6. 가상 시세 생성기</a></td>
+      <td>재배포할 수 없는 시세를 결정론적 생성기로 대체. 기존 시세 API와 같은 형태로 응답해 화면 · route 구조는 그대로이고, 화면 사이의 값 정합을 테스트로 고정</td>
     </tr>
   </tbody>
 </table>
@@ -87,7 +93,7 @@ SlateKR은 국내 주식과 관련된 여러 데이터를 구조화해 제공하
 ## 아키텍처
 
 ```
-DB / 외부 API
+DB / 외부 API / 가격 생성기
   → lib/            조회 + 정규화 (순수 함수 · Zod 검증)
     → shared/types/ 도메인 모델
       → UI          도메인 모델만 소비
@@ -104,9 +110,9 @@ web/src/
 ├── features/    검색 · 관심종목 · 메모 등 사용자 액션 단위
 ├── entities/    종목 · 공시 · 지표 · 지수 등 도메인 표시 단위
 ├── shared/      도메인 타입 · 상수 · 포맷터 · 범용 유틸
-├── lib/         DB 조회 · 정규화 · 서버 유틸
+├── lib/         DB 조회 · 정규화 · 서버 유틸 · 가상 시세 생성기(demo/)
 └── components/ui/  shadcn 기반 primitive
-collector/       Python 수집 스크립트
+collector/       Python 수집 스크립트(DART)
 web/sql/         DDL · 데이터 보정 · 캐시 리셋 SQL (Neon 콘솔 수동 적용, 파일로 추적)
 ```
 
@@ -118,9 +124,9 @@ web/sql/         DDL · 데이터 보정 · 캐시 리셋 SQL (Neon 콘솔 수�
 | 시세 · 분봉(종목 · 지수)                   | Client + TanStack Query                             | 장 세션별 폴링 주기, 탭 복귀 처리 |
 | 관심종목 · 메모 · 최근 조회                | Zustand persist + 익명 서버 스냅샷(관심종목 · 메모) | 사용자 소유 데이터, 로그인 없음   |
 
-page 파일은 전부 Server Component이고, `use client`는 이벤트 · 브라우저 API · 차트 · 입력 UI에만 사용합니다. 종목 상세는 페이지마다 메타 태그를 생성하고, sitemap은 활성 종목 약 2,650개를 담고 매일 새로 만들어집니다.
+page 파일은 전부 Server Component이고, `use client`는 이벤트 · 브라우저 API · 차트 · 입력 UI에만 사용합니다. 종목 상세는 페이지마다 메타 태그를 생성하고, sitemap은 활성 종목 약 2,590개를 담고 매일 새로 만들어집니다.
 
-데이터는 Python collector가 KIS(시세 · 지수 · 분봉) · DART(재무 · 배당 · 기업 코드) · FSS(종목 목록) · KRX(상장주식수 · 상장일)에서 수집해 Neon(PostgreSQL)에 적재합니다. 실행은 cron-job.org가 정해진 시각에 GitHub Actions 워크플로우를 호출하는 방식입니다. 주기와 백필 절차는 [collector/README.md](collector/README.md)에 정리했습니다.
+가격 · 지수 · 순위는 서버의 생성기(`lib/demo/`)가 요청 시점에 계산합니다. 재무 · 배당 · 종목 목록 · 주식 수는 Python collector가 DART에서 주 1회 수집해 Neon(PostgreSQL)에 적재하고, 실행은 cron-job.org가 GitHub Actions 워크플로우를 호출하는 방식입니다. 수집 주기와 외화 재무 처리는 [collector/README.md](collector/README.md)에 정리했습니다.
 
 ### Tech Stack
 
@@ -128,51 +134,53 @@ page 파일은 전부 Server Component이고, `use client`는 이벤트 · 브�
 | --------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | Frontend  | Next.js 16 App Router · TypeScript strict · Tailwind CSS v4 · shadcn/ui · TanStack Query v5 · Zustand · lightweight-charts v5 · Zod |
 | Infra     | Neon PostgreSQL · Vercel · GitHub Actions · cron-job.org                                                                            |
-| Data      | Python collector · KIS OpenAPI · DART OpenAPI · FSS API · KRX Marketplace                                                           |
+| Data      | Python collector · DART OpenAPI · 가상 시세 생성기(TypeScript)                                                                      |
 | AI · Test | Gemini API · Vitest                                                                                                                 |
 
 ## 설계 결정
 
+1~5는 실시세(KIS OpenAPI)를 연동해 운영하던 2026년 4~10월의 결정이고, 구조는 지금도 그대로 동작합니다. 가격 소스만 6번의 생성기로 바꿨습니다.
+
 ### 1. 부분 실패 UI
 
-종목 상세 한 페이지가 DB · DART · KIS 세 곳에서 데이터를 받습니다. 초기 구현은 조회에 실패하면 빈 배열을 돌려줘서, 페이지는 유지됐지만 데이터가 없는 것과 조회에 실패한 것이 구분되지 않았습니다. 여러 종목 가격을 `Promise.all`로 묶은 곳은 하나만 실패해도 전체가 500이 됐습니다.
+종목 상세 한 페이지가 DB · DART · 시세 API 세 곳에서 데이터를 받습니다. 초기 구현은 조회에 실패하면 빈 배열을 돌려줘서, 페이지는 유지됐지만 데이터가 없는 것과 조회에 실패한 것이 구분되지 않았습니다. 여러 종목 가격을 `Promise.all`로 묶은 곳은 하나만 실패해도 전체가 500이 됐습니다.
 
-- 섹션마다 Suspense로 나눠 따로 스트리밍하고, 실패도 그 섹션 안에서만 표시합니다. 헤더 안에서 KIS를 따로 조회하는 시장조치 배지는 한 번 더 분리해, KIS 응답을 3초 늦춘 로컬 프로덕션 빌드에서 헤더 제목 표시가 약 3.4초에서 0.3초로 빨라졌습니다.
+- 섹션마다 Suspense로 나눠 따로 스트리밍하고, 실패도 그 섹션 안에서만 표시합니다. 헤더 안에서 시세 API를 따로 조회하는 시장조치 배지는 한 번 더 분리해, 그 응답을 3초 늦춘 로컬 프로덕션 빌드에서 헤더 제목 표시가 약 3.4초에서 0.3초로 빨라졌습니다.
 - 섹션 상태는 loading · empty · error에 부분 실패를 더해 네 가지로 구분합니다. 부분 실패는 나머지 값은 유지하고 실패한 자리에만 배지를 붙이는 상태입니다.
   <img src="docs/images/partial-failure.png" width="100%" alt="핵심 지표 — 가격 조회 실패 시 PER · PBR · 시가배당률에만 로딩 실패 배지">
 - 여러 건을 한 번에 조회할 때는 `Promise.allSettled`를 사용합니다. 그래서 지수 그리드는 실패한 셀만 종가 기준 값으로 바뀌고 나머지는 정상으로 표시됩니다.
+- Live에서는 상단 배너의 장애 시뮬레이션으로 가격 API를 지연 · 실패시켜 볼 수 있습니다. 헤더는 저장된 종가에 "일시 지연" 배지를 붙이고, 차트는 그 섹션 안에서만 오류와 다시 시도를 표시합니다.
 
-<sub>코드 · [`stocks/[ticker]/layout.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.0-portfolio/web/src/app/stocks/%5Bticker%5D/layout.tsx) · [`StockHeader.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.0-portfolio/web/src/entities/stock/StockHeader.tsx)</sub><br>
-<sub>글 · [#037 empty와 error 분리](https://velog.io/@dh82680/SlateKR-037-fallback-점검-empty와-error를-구분하기) · [#155 분봉 실패 처리](https://velog.io/@dh82680/SlateKR-155-코드로만-종결한-두-판정과-120봉-TR-전환) · [#174 헤더 스트리밍 실측](https://velog.io/@dh82680/SlateKR-174-선언만-있던-revalidate와-한-달-멈춰-있던-차트-당일-봉)</sub>
+<sub>코드 · [`stocks/[ticker]/layout.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/app/stocks/%5Bticker%5D/layout.tsx) · [`StockHeader.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/entities/stock/StockHeader.tsx)</sub><br>
+<sub>글 · [#037 empty와 error 분리](https://donghunn-lee-blog.vercel.app/blog/slatekr/037/) · [#155 분봉 실패 처리](https://donghunn-lee-blog.vercel.app/blog/slatekr/155/) · [#174 헤더 스트리밍 실측](https://donghunn-lee-blog.vercel.app/blog/slatekr/174/)</sub>
 
 ### 2. 클라이언트 데이터 흐름
 
 시세와 분봉은 브라우저에서 TanStack Query로 폴링하고, 차트는 lightweight-charts가 React 렌더 밖에서 직접 그립니다.
 
 - 폴링은 장 세션 중에만 실행합니다. 차트는 따로 요청하지 않고 헤더가 받아 둔 시세 캐시를 구독만 해서, 같은 종목의 폴링이 중복되지 않습니다. 다른 탭이나 창에 있다가 돌아오면 분봉을 한 번 새로 받되, 장이 끝난 뒤에는 받지 않습니다.
-- Route Handler는 외부 API가 실패해도 가능한 한 HTTP 200에 `failed` 플래그를 담아 응답합니다. 클라이언트는 이 플래그가 붙은 분봉 응답으로 직전 정상 데이터를 덮어쓰지 않고, 직전 데이터가 없을 때만 실패 화면을 띄웁니다.
+- Route Handler는 조회가 실패해도 가능한 한 HTTP 200에 `failed` 플래그를 담아 응답합니다. 클라이언트는 이 플래그가 붙은 분봉 응답으로 직전 정상 데이터를 덮어쓰지 않고, 직전 데이터가 없을 때만 실패 화면을 띄웁니다.
 - 차트 컴포넌트는 React state를 사용하지 않습니다. 차트 인스턴스는 ref에 보관하고 범례는 DOM에 직접 그리므로 마우스를 움직여도 리렌더가 일어나지 않습니다. 사용자가 차트를 움직이면 최신 봉 따라가기를 멈추는데, 코드가 차트를 움직일 때도 같은 이벤트가 나기 때문에 가드 플래그로 걸러냅니다.
 
 <details>
 <summary>"실시간" 표기를 내린 이유</summary>
 
-초기 라벨은 "실시간"이었습니다. 종목 시세는 약 1분, 지수는 1~2분 주기의 폴링이므로 표기를 내렸습니다. 라벨은 장 세션 명칭(정규장 · 애프터마켓 · 마감 시각)으로 표기하고, 갱신 주기는 [`/credits`](https://slate-kr.vercel.app/credits)에 명시했습니다. 실시간은 KIS WebSocket과 상시 연결 서버가 필요한 별개 작업입니다.
+초기 라벨은 "실시간"이었습니다. 종목 시세는 약 1분, 지수는 1~2분 주기의 폴링이므로 표기를 내렸습니다. 라벨은 장 세션 명칭(정규장 · 애프터마켓 · 마감 시각)으로 표기하고, 갱신 주기는 [`/credits`](https://slate-kr.vercel.app/credits)에 명시했습니다. 실시간은 증권사 WebSocket과 상시 연결 서버가 필요한 별개 작업입니다.
 
 </details>
 
-<sub>코드 · [`useStockIntraday.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.0-portfolio/web/src/features/stock-intraday/useStockIntraday.ts) · [`useStockQuote.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.0-portfolio/web/src/features/stock-quote/useStockQuote.ts) · [`PriceChart.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.0-portfolio/web/src/entities/chart/PriceChart.tsx)</sub><br>
-<sub>글 · [#140 "실시간" 표기 제거](https://velog.io/@dh82680/SlateKR-140-지수-라벨-규칙-통일과-실시간을-내린-이유)</sub>
+<sub>코드 · [`useStockIntraday.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/features/stock-intraday/useStockIntraday.ts) · [`useStockQuote.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/features/stock-quote/useStockQuote.ts) · [`PriceChart.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/entities/chart/PriceChart.tsx)</sub><br>
+<sub>글 · [#140 "실시간" 표기 제거](https://donghunn-lee-blog.vercel.app/blog/slatekr/140/)</sub>
 
 ### 3. 서버 캐시
 
-KIS API는 초당 호출 한도가 있는데, 홈 화면 하나가 장중에 지수 12개를 계속 갱신합니다. 응답을 서버에서 캐시해, 사용자가 늘어도 지수 · 순위 API의 KIS 호출 수가 같이 늘지 않게 하는 것이 목표였습니다.
+실시세를 연동하던 시기에는 KIS API에 초당 호출 한도가 있었고, 홈 화면 하나가 장중에 지수 12개를 계속 갱신했습니다. 응답을 서버에서 캐시해, 사용자가 늘어도 지수 · 순위 API의 외부 호출 수가 같이 늘지 않게 하는 것이 목표였습니다. 생성기로 바꾼 지금도 같은 캐시가 계산 횟수를 사용자 수와 분리합니다.
 
 - 페이지 전체를 캐시하는 ISR은 홈에만 적용하고, 나머지 페이지는 요청마다 서버에서 렌더합니다. 대신 지수 · 순위 API 응답을 서버에서 캐시하고, 유지 시간은 장 세션에 따라 60초에서 1시간 사이로 바꿉니다. Next.js 16의 `cacheComponents`는 앱 전체에 한 번에 적용해야 하는 옵션이라 도입하지 않았습니다.
-- 실패 응답은 감지 즉시 캐시에서 지웁니다. KIS 장애 때 빈 차트가 캐시 유지 시간 내내 그대로 나가는 경우가 있어 이렇게 바꿨습니다.
-- 종목 상세의 DB 조회에는 시간 기반 캐시를 적용하지 않았습니다. 장 마감 후 이전 종가가 최신처럼 보일 수 있어서, 적재 후 재검증 장치가 먼저 필요하다고 판단했습니다.
+- 실패 응답은 감지 즉시 캐시에서 지웁니다. 외부 API 장애 때 빈 차트가 캐시 유지 시간 내내 그대로 나가는 경우가 있어 이렇게 바꿨습니다.
 
-<sub>코드 · [`session-cache.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.0-portfolio/web/src/lib/session-cache.ts) · [`index-quotes/route.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.0-portfolio/web/src/app/api/index-quotes/route.ts)</sub><br>
-<sub>글 · [#075 실패 응답 캐시 결함](https://velog.io/@dh82680/SlateKR-075-intraday-실패-캐시-결함-해결) · [#174 선언만 있던 revalidate](https://velog.io/@dh82680/SlateKR-174-선언만-있던-revalidate와-한-달-멈춰-있던-차트-당일-봉)</sub>
+<sub>코드 · [`session-cache.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/lib/session-cache.ts) · [`index-quotes/route.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/app/api/index-quotes/route.ts)</sub><br>
+<sub>글 · [#075 실패 응답 캐시 결함](https://donghunn-lee-blog.vercel.app/blog/slatekr/075/) · [#174 선언만 있던 revalidate](https://donghunn-lee-blog.vercel.app/blog/slatekr/174/)</sub>
 
 ### 4. 런타임 검증: AI 공시 요약
 
@@ -193,8 +201,8 @@ type DisclosureSummaryContent = {
 
 <p align="center"><img src="docs/images/disclosure-summary.png" width="600" alt="AI 공시 요약 — 공시 행 인라인 확장"></p>
 
-<sub>코드 · [`disclosureSummary.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.0-portfolio/web/src/shared/types/disclosureSummary.ts) · [`disclosure-summary.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.0-portfolio/web/src/lib/disclosure-summary.ts)</sub><br>
-<sub>글 · [#019 에러 분기 설계](https://velog.io/@dh82680/SlateKR-019-AI-공시-요약-2-Gemini-API-연동과-에러-분기-설계) · [#081 출력 구조화](https://velog.io/@dh82680/SlateKR-081-AI-공시-요약-출력-구조화) · [#168 3.8 승격과 폴백](https://velog.io/@dh82680/SlateKR-168-AI-공시-요약-gemini-3.8-flash-승격-및-기존-버전-폴백-결정)</sub>
+<sub>코드 · [`disclosureSummary.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/shared/types/disclosureSummary.ts) · [`disclosure-summary.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/lib/disclosure-summary.ts)</sub><br>
+<sub>글 · [#019 에러 분기 설계](https://donghunn-lee-blog.vercel.app/blog/slatekr/019/) · [#081 출력 구조화](https://donghunn-lee-blog.vercel.app/blog/slatekr/081/) · [#168 3.8 승격과 폴백](https://donghunn-lee-blog.vercel.app/blog/slatekr/168/)</sub>
 
 ### 5. 익명 동기화
 
@@ -204,8 +212,19 @@ type DisclosureSummaryContent = {
 - 관심종목과 메모는 브라우저마다 각각 JSONB 스냅샷 한 행으로 저장합니다. 로그인 없이 쓰기가 열려 있어서 요청 본문은 스키마 검증과 64KB 상한을 거칩니다.
 - 서버 조회에 실패한 상태에서 쓰면 비어 있는 로컬 목록이 서버 목록을 덮어쓸 수 있습니다. 그래서 첫 조회가 끝나기 전에는 편집을 비활성화하고, 조회에 실패하면 쓰지 않은 채 "서버 저장 안 됨" 배지를 띄웁니다. 편집 저장이 실패하면 마지막으로 서버에 저장된 상태로 되돌립니다.
 
-<sub>코드 · [`useWatchlistSync.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.0-portfolio/web/src/features/watchlist/useWatchlistSync.ts) · [`anon-id.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.0-portfolio/web/src/lib/anon-id.ts)</sub><br>
-<sub>글 · [#141 로그인 없는 식별과 스냅샷 동기화](https://velog.io/@dh82680/SlateKR-141-관심종목-서버-저장-로그인-없는-식별과-스냅샷-동기화)</sub>
+<sub>코드 · [`useWatchlistSync.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/features/watchlist/useWatchlistSync.ts) · [`anon-id.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/lib/anon-id.ts)</sub><br>
+<sub>글 · [#141 로그인 없는 식별과 스냅샷 동기화](https://donghunn-lee-blog.vercel.app/blog/slatekr/141/)</sub>
+
+### 6. 가상 시세 생성기
+
+2026년 11월, 사용하던 시세 소스(증권사 API · 거래소 · 공공데이터)가 모두 제3자 제공을 허용하지 않는다는 것을 확인하고 배포를 중단했습니다. 이용 제한이 없는 DART 재무 · 공시는 그대로 두고, 가격 · 지수 · 순위만 서버에서 계산하는 생성기로 바꿨습니다.
+
+- **교체 범위는 `lib/` 안입니다.** 생성기가 기존 시세 API와 같은 형태로 응답해서 route의 조회 · 캐시 · 실패 처리 코드는 손대지 않았고, 1~5의 화면 · 폴링 · 캐시 구조는 그대로 동작합니다.
+- **입력은 DART와 시드뿐입니다.** 실제 시세는 쓰지 않습니다. 가격 수준은 공시 재무(배당금 ÷ 시가배당률, 없으면 EPS · BPS)에서 잡고, 그 사이는 종목과 날짜로 정해지는 난수 경로로 잇습니다. 같은 종목 · 같은 시각이면 언제 요청해도 같은 값입니다.
+- **화면 사이의 값이 맞는지 테스트로 고정했습니다.** 일봉 → 분봉 → 현재가를 한 경로에서 파생하고, 동시호가 · 단일가 · 프리/애프터마켓 같은 장 규칙을 재현했습니다. 생성기는 오늘 종가를 미리 알 수 있어서, 아직 오지 않은 시각의 값은 서버가 응답에 싣지 않습니다.
+
+<sub>코드 · [`price-model.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/lib/demo/price-model.ts) · [`universe.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/lib/demo/universe.ts) · [`quote-source.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/lib/quote-source.ts) · [`swap.test.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/lib/demo/swap.test.ts)</sub><br>
+<sub>글 · [#188 시세 약관 조사와 배포 중단](https://donghunn-lee-blog.vercel.app/blog/slatekr/188/) · [#188-2 생성기 명세](https://donghunn-lee-blog.vercel.app/blog/slatekr/188-2/)</sub>
 
 ## 품질
 
@@ -215,7 +234,7 @@ type DisclosureSummaryContent = {
 - 모바일에서는 하단 탭 바가 내비게이션을 대신합니다.
   <p align="center"><img src="docs/images/stock-detail-mobile.png" width="240" alt="종목 상세 — 모바일, 하단 탭 바"></p>
 
-성능은 PageSpeed Insights lab 측정값입니다(2026년 10월, 조합당 3회 중앙값, 실사용자 데이터 없음).
+성능은 PageSpeed Insights lab 측정값입니다(2026년 10월 실시세 연동 시기 측정, 조합당 3회 중앙값, 실사용자 데이터 없음).
 
 | 페이지    | 기기     | 성능 | 접근성 | 권장사항 | SEO | LCP  | CLS   |
 | --------- | -------- | ---- | ------ | -------- | --- | ---- | ----- |
@@ -228,29 +247,29 @@ type DisclosureSummaryContent = {
 
 홈 모바일은 회차마다 편차가 큽니다(성능 66 ~ 77, LCP 4.1 ~ 5.6초). LCP는 Lighthouse 시뮬레이션에서만 길게 나왔고, CPU · 네트워크를 실제로 늦춘 로컬 측정에서는 약 1.5초였습니다. 접근성 96은 캐러셀의 비활성 슬라이드를 일부러 흐리게 한 결과입니다.
 
-<sub>코드 · [`classifyDisclosure.test.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.0-portfolio/web/src/shared/utils/classifyDisclosure.test.ts) · [`StockMetrics.test.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.0-portfolio/web/src/entities/stock/StockMetrics.test.tsx) · [`SearchInput.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.0-portfolio/web/src/features/search/SearchInput.tsx) · [`BottomTabBar.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.0-portfolio/web/src/components/layout/BottomTabBar.tsx)</sub><br>
-<sub>글 · [#087 Vitest 도입](https://velog.io/@dh82680/SlateKR-087-Vitest-도입과-순수함수-테스트)</sub>
+<sub>코드 · [`classifyDisclosure.test.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/shared/utils/classifyDisclosure.test.ts) · [`StockMetrics.test.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/entities/stock/StockMetrics.test.tsx) · [`SearchInput.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/features/search/SearchInput.tsx) · [`BottomTabBar.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/components/layout/BottomTabBar.tsx)</sub><br>
+<sub>글 · [#087 Vitest 도입](https://donghunn-lee-blog.vercel.app/blog/slatekr/087/)</sub>
 
 ## 알려진 한계
 
 **구현 범위 제외**
 
-- 종목 시세 · 분봉 API는 캐시하지 않았습니다. 조회가 약 2,650개 종목에 흩어져 있어 캐시해도 재사용되는 응답이 적다고 판단했습니다. 다만 사용자가 한 종목에 몰리면 KIS 호출도 사용자 수에 비례해 늘어나므로, 그런 트래픽에서는 캐시가 필요합니다.
 - AI 요약에 사용자별 호출 제한이 없습니다. Gemini 무료 등급의 호출 한도를 모든 사용자가 공유하므로, 한 사용자가 연속으로 요청하면 다른 사용자도 한도에 걸릴 수 있습니다. 요약은 공시마다 한 번만 생성해 저장하고, 한도를 넘으면 별도 한도를 가진 Gemini 2.5 Flash로 폴백해 영향을 줄였습니다.
 
 **성능 · 코드 부채**
 
 - PageSpeed Insights 기준 모바일 LCP가 4.7 ~ 5.6초이고, 홈과 종목 상세에 렌더링 차단 CSS가 2개 있습니다. CSS를 HTML에 인라인하는 Next.js 옵션(`inlineCss`)은 로컬 측정에서 홈 HTML이 압축 기준 12KB에서 155KB로 커지고 점수가 4 ~ 6점 내려가 적용하지 않았습니다.
 - 종목명이 길어 헤더가 여러 줄로 감기는 종목은 모바일 CLS가 0.17 ~ 0.23 남습니다. 대체 글꼴로 먼저 그려질 때 줄이 더 많이 감겼다가, 웹 글꼴이 적용되면서 헤더가 줄어드는 이동입니다(412px 폭 로컬 측정).
-- 차트 컴포넌트([`PriceChart.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.0-portfolio/web/src/entities/chart/PriceChart.tsx))는 순수 로직을 분리한 뒤에도 935줄 단일 클라이언트 컴포넌트입니다. effect · ref 구조 분해는 차트 동작의 회귀를 장중에 검증해야 해서 미뤘습니다.
-- 장중 지수 분봉은 증분 응답 없이 매번 하루치 전체를 받습니다. KIS 호출 한도는 횟수로 차감되어 응답 분량과는 관계가 없고, 증분으로 받으면 빠지거나 바뀐 봉을 검사하는 비용이 더 크다고 판단했습니다.
+- 차트 컴포넌트([`PriceChart.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/entities/chart/PriceChart.tsx))는 순수 로직을 분리한 뒤에도 944줄 단일 클라이언트 컴포넌트입니다. effect · ref 구조 분해는 차트 동작의 회귀를 장중에 검증해야 해서 미뤘습니다.
 
 **데이터**
 
-- 다우존스는 KIS에서 장중 시세 · 분봉을 받을 수 없어 일봉 종가만 표시합니다.
-- 일봉은 애프터마켓 체결까지 포함한 20:00 마감 캔들이라, 애프터마켓 거래가 있었던 종목은 정규장 종가 기준 차트와 종가 · 거래량이 다를 수 있습니다. 등락률은 전일 정규장 종가 기준입니다.
+- 가격 · 지수 · 순위는 생성기가 만든 값이라, 가격으로 계산하는 지표(PER · PBR · 시가배당률 · 시가총액)도 실제와 다릅니다. 종목 간 움직임은 시장 팩터 하나만 공유하고(업종 동조 없음), 변동성 등급과 NXT 거래 여부는 종목 규모와 무관하게 정해집니다.
+- 다우존스는 일봉 종가만 표시합니다. 실시세 소스에서 장중 시세 · 분봉을 받을 수 없던 제약을 생성기도 그대로 따릅니다.
+- 일봉은 애프터마켓 체결까지 포함한 20:00 마감 캔들이라, 애프터마켓 거래가 있었던 종목은 정규장 종가 기준 차트와 종가 · 거래량이 다를 수 있습니다. 등락률은 전일 정규장 종가 기준이며, 헤더는 15:30 이후 정규장 종가를 따로 표시합니다.
 - 병합 · 분할 · 무상증자로 주식수가 바뀐 종목은 공시 EPS의 기준 주식수가 현재와 달라 PER · EPS · 시가배당률이 어긋날 수 있습니다. 감지되면 "—"와 툴팁 사유를 표시하지만, 변동 폭이 작거나 최근에 생긴 변동은 감지하지 못합니다.
-- 재무제표를 원화가 아닌 통화로 공시하는 종목(21개)은 재무 요약 · 핵심 지표 대신 안내를 표시합니다. 환산 없이 외화 금액을 원 단위로 저장하지 않기 위한 조치이고, 새로 발견되는 종목은 weekly 수집이 격리 조건을 전부 통과한 건만 자동으로 처리합니다.
+- 재무제표를 원화가 아닌 통화로 공시하는 종목(23개)은 재무 요약 · 핵심 지표 대신 안내를 표시합니다. 환산 없이 외화 금액을 원 단위로 저장하지 않기 위한 조치이고, 새로 발견되는 종목은 weekly 수집이 격리 조건을 전부 통과한 건만 자동으로 처리합니다.
+- 12월 결산이 아닌 종목(46개)은 분기 라벨이 회계 기간과 어긋나 PER · EPS가 틀릴 수 있습니다. DART의 보고서 구분이 달력 분기가 아니라 회계 분기 기준이기 때문이며, 원인은 파악했고 수정은 다음 작업입니다.
 
 ## 개발 방식
 
@@ -269,14 +288,14 @@ type DisclosureSummaryContent = {
 
 프로젝트 지침(CLAUDE.md)에 아키텍처 원칙 · 컨벤션 · 금지 사항을 고정하고, Claude Code가 만든 코드를 리뷰하는 기준으로 사용했습니다.
 
-작업 세션 187회 · 커밋 897 · Vitest 케이스 1,208(2026-11-01 기준). 작업 세션 단위 개발 일지는 같은 번호로 [velog 시리즈](https://velog.io/@dh82680)에 있고, 각 결정의 배경과 실측 결과는 해당 편에 정리했습니다.
+작업 세션 194회 · 커밋 919 · Vitest 케이스 1,233(2026-11-12 기준). 작업 세션 단위 개발 일지는 같은 번호로 [블로그 시리즈](https://donghunn-lee-blog.vercel.app/blog/slatekr/)에 있고, 각 결정의 배경과 실측 결과는 해당 편에 정리했습니다.
 
 ## 회고
 
 결정이나 측정의 전제가 실제와 달라 판단을 되돌린 일이 있었습니다. 지금은 아래 두 가지를 기준으로 삼습니다.
 
-- 도구와 데이터 소스는 고르기 전에 적용 조건을 확인합니다. 종목 상세 탭은 탭을 오가도 상태가 유지된다는 점을 보고 Parallel Routes로 만들었습니다. 그런데 이 효과는 이동과 무관한 다른 슬롯에만 해당해서, 슬롯 하나 안에서 탭을 바꾸는 구조에서는 펼쳐 둔 공시 요약과 필터가 사라졌습니다. 남은 근거도 모두 라우트 분리만으로 되는 것이어서 5일 만에 nested layout으로 되돌렸습니다. 일봉 소스 pykrx는 거래소 공표가 다음 날 아침이라 당일 적재가 불가능해 KIS로 옮겼습니다. ([#045](https://velog.io/@dh82680/SlateKR-045-Parallel-Routes에서-nested-layout으로) · [#098](https://velog.io/@dh82680/SlateKR-098-종목-EOD-오적재와-일봉-소스-KIS-전환))
-- 측정값이 회차마다 갈리면 가설로 한쪽을 고르지 않고, 로컬에서 재현해 원인을 가립니다. 지수 페이지 모바일 CLS가 PageSpeed Insights에서 0.001과 0.439로 갈렸습니다. 높이가 안 맞는 문제라면 매번 같은 값이 나와야 하므로 가끔 생기는 스크롤 이동을 의심했고, 좋은 쪽을 본래 값으로 봤습니다. 그런데 로컬에서 layout shift를 전부 합산하자 매번 0.516이었고, 스크롤 이동을 없애도 값이 같았습니다. 원인은 스켈레톤과 실제 값의 크기 · display 차이였고, 크기만 맞추면 0.06, 둘 다 맞추면 0.001이었습니다. 이후 스켈레톤은 실제 값과 크기 · display를 함께 맞추고, 종목 상세에도 같은 기준을 적용했습니다. ([#185](https://velog.io/@dh82680/SlateKR-185-일단락-뒤의-리뷰어-순서-점검과-응답-없는-실패의-분기) · [#186](https://velog.io/@dh82680/SlateKR-186-README-2차-보완과-daily-기업행위-검증-반자동화))
+- 도구와 데이터 소스는 고르기 전에 적용 조건을 확인합니다. 종목 상세 탭은 탭을 오가도 상태가 유지된다는 점을 보고 Parallel Routes로 만들었습니다. 그런데 이 효과는 이동과 무관한 다른 슬롯에만 해당해서, 슬롯 하나 안에서 탭을 바꾸는 구조에서는 펼쳐 둔 공시 요약과 필터가 사라졌습니다. 남은 근거도 모두 라우트 분리만으로 되는 것이어서 5일 만에 nested layout으로 되돌렸습니다. 일봉 소스 pykrx는 거래소 공표가 다음 날 아침이라 당일 적재가 불가능해 KIS로 옮겼습니다. 시세 데이터의 재배포 조건도 배포 뒤에야 확인해서, 가격 계열 전체를 생성기로 바꿨습니다([6번](#6-가상-시세-생성기)). ([#045](https://donghunn-lee-blog.vercel.app/blog/slatekr/045/) · [#098](https://donghunn-lee-blog.vercel.app/blog/slatekr/098/))
+- 측정값이 회차마다 갈리면 가설로 한쪽을 고르지 않고, 로컬에서 재현해 원인을 가립니다. 지수 페이지 모바일 CLS가 PageSpeed Insights에서 0.001과 0.439로 갈렸습니다. 높이가 안 맞는 문제라면 매번 같은 값이 나와야 하므로 가끔 생기는 스크롤 이동을 의심했고, 좋은 쪽을 본래 값으로 봤습니다. 그런데 로컬에서 layout shift를 전부 합산하자 매번 0.516이었고, 스크롤 이동을 없애도 값이 같았습니다. 원인은 스켈레톤과 실제 값의 크기 · display 차이였고, 크기만 맞추면 0.06, 둘 다 맞추면 0.001이었습니다. 이후 스켈레톤은 실제 값과 크기 · display를 함께 맞추고, 종목 상세에도 같은 기준을 적용했습니다. ([#185](https://donghunn-lee-blog.vercel.app/blog/slatekr/185/) · [#186](https://donghunn-lee-blog.vercel.app/blog/slatekr/186/))
 
 ## 로컬 실행
 
@@ -291,7 +310,7 @@ pip install -r requirements.txt
 python -m unittest discover -s tests                    # collector 단위 테스트
 ```
 
-앱 실행은 `.env.example`을 `.env.local`로 복사해 KIS · DART · Gemini API 키와 Neon `DATABASE_URL`을 채운 뒤 `npm run dev`입니다. 종목 · 시세 데이터는 `collector/` 스크립트로 적재해야 조회되므로, 동작 확인은 [Live](https://slate-kr.vercel.app)를 권장합니다.
+앱 실행은 `.env.example`을 `.env.local`로 복사해 DART · Gemini API 키와 Neon `DATABASE_URL`을 채운 뒤 `npm run dev`입니다. 가격은 생성기가 계산하지만 종목 목록 · 재무는 `collector/` 스크립트로 적재해야 하므로, 동작 확인은 [Live](https://slate-kr.vercel.app)를 권장합니다.
 
 ## Author
 
@@ -302,4 +321,4 @@ python -m unittest discover -s tests                    # collector 단위 테�
 ## Credits · License
 
 - 코드는 [MIT](LICENSE)입니다.
-- 시세 · 재무 · 공시 데이터는 각 출처의 이용 조건을 따릅니다. 출처와 갱신 주기는 [`/credits`](https://slate-kr.vercel.app/credits)에 있습니다.
+- 가격 · 지수 · 순위는 가상 데이터이고, 재무 · 공시는 DART 데이터입니다. 출처와 갱신 주기는 [`/credits`](https://slate-kr.vercel.app/credits)에 있습니다.
