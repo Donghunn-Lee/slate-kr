@@ -131,6 +131,7 @@ export const buildDemoUniverse = (
       eps: latest?.eps ?? null,
       bps: latest?.bps ?? null,
       pins: toPins(stock.ticker, rows, shares),
+      shares,
     });
     return {
       ticker: stock.ticker,

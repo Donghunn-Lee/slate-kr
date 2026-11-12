@@ -130,6 +130,68 @@ describe("11. 평균회귀", () => {
   });
 });
 
+describe("12. 거래량 수준", () => {
+  const ignoreVolume = (profile: TickerProfile): TickerProfile => ({ ...profile, volumeScale: 0 });
+
+  // 시가총액이 한 구간(1조 원 미만) 안에 머물도록 주식수를 앵커 가격에서 역산한다 — 구간을 넘으면 회전율 범위가 바뀐다
+  it("shares 가 2배면 volumeScale 도 2배", () => {
+    for (let i = 0; i < 50; i++) {
+      const ticker = String(500_000 + i);
+      const shares = Math.round(1e11 / getTickerProfile(ticker, EPS_ANCHOR).anchorPrice);
+      const one = getTickerProfile(ticker, { ...EPS_ANCHOR, shares });
+      const two = getTickerProfile(ticker, { ...EPS_ANCHOR, shares: shares * 2 });
+      expect(two.volumeScale / one.volumeScale).toBeCloseTo(2, 12);
+    }
+  });
+
+  // 각 구간 경계에서 충분히 떨어진 시가총액
+  it("시가총액 구간별 회전율(volumeScale ÷ shares) 범위", () => {
+    const bands = [
+      { cap: 2e13, min: 0.0005, max: 0.002 },
+      { cap: 3e12, min: 0.0008, max: 0.004 },
+      { cap: 2e11, min: 0.001, max: 0.01 },
+    ];
+    for (let i = 0; i < 50; i++) {
+      const ticker = String(500_000 + i);
+      const { anchorPrice } = getTickerProfile(ticker, EPS_ANCHOR);
+      for (const band of bands) {
+        const shares = Math.round(band.cap / anchorPrice);
+        const turnover = getTickerProfile(ticker, { ...EPS_ANCHOR, shares }).volumeScale / shares;
+        expect(turnover).toBeGreaterThanOrEqual(band.min);
+        expect(turnover).toBeLessThanOrEqual(band.max);
+      }
+    }
+  });
+
+  it("shares 가 없으면(null · 필드 없음 · anchor null) tier 범위", () => {
+    const range = { large: [5e5, 5e6], mid: [1e5, 1e6], small: [2e4, 3e5] } as const;
+    for (let i = 0; i < 100; i++) {
+      const ticker = String(500_000 + i);
+      const absent = getTickerProfile(ticker, EPS_ANCHOR);
+      expect(getTickerProfile(ticker, { ...EPS_ANCHOR, shares: null }).volumeScale).toBe(
+        absent.volumeScale,
+      );
+      for (const profile of [absent, getTickerProfile(ticker, null)]) {
+        const [min, max] = range[profile.tier];
+        expect(profile.volumeScale).toBeGreaterThanOrEqual(min);
+        expect(profile.volumeScale).toBeLessThanOrEqual(max);
+      }
+    }
+  });
+
+  it("같은 ticker 의 nxEligible · anchorPrice 등 가격 쪽 프로필은 shares 와 무관 (사다리 · 핀)", () => {
+    for (let i = 0; i < 50; i++) {
+      const ticker = String(500_000 + i);
+      for (const anchor of [EPS_ANCHOR, { ...EPS_ANCHOR, pins: PINS }]) {
+        const base = ignoreVolume(getTickerProfile(ticker, anchor));
+        for (const shares of [1_000_000, 5_969_782_550]) {
+          expect(ignoreVolume(getTickerProfile(ticker, { ...anchor, shares }))).toEqual(base);
+        }
+      }
+    }
+  });
+});
+
 describe("4. 시장 규칙", () => {
   it.each(SAMPLE)("$ticker: 고저 포함 · 상하한 · 틱 · 거래량", ({ ticker, profile }) => {
     const bars = generateDailyBars(ticker, profile, "2024-01-02", "2026-12-31");

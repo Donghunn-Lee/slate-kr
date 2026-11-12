@@ -72,6 +72,7 @@ describe("demo/universe", () => {
         eps: 50_000,
         bps: 60_000,
         pins: [{ date: "2024-12-31", price: 1_446 / 0.027 }],
+        shares: 5_969_782_550,
       }),
     );
   });
@@ -96,7 +97,7 @@ describe("demo/universe", () => {
     const { getDemoEntry } = await import("./universe");
     const entry = await getDemoEntry("123450");
     expect(entry?.profile).toEqual(
-      getTickerProfile("123450", { eps: 1_000, bps: 12_000, pins: [] }),
+      getTickerProfile("123450", { eps: 1_000, bps: 12_000, pins: [], shares: 10_000_000 }),
     );
   });
 

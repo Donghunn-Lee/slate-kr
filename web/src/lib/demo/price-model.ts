@@ -1,5 +1,5 @@
 import { getTickSize } from "@/lib/get-tick-size";
-import { createGaussian, createRng, gaussian, hashSeed, logUniform } from "./prng";
+import { createGaussian, createRng, gaussian, hashSeed } from "./prng";
 import { isKrxHoliday } from "@/shared/utils/krxHolidays";
 import {
   getKrxTradingDate,
@@ -24,6 +24,8 @@ export type DemoAnchor = {
   bps: number | null;
   // 결산일 실제 주가 수준(DPS ÷ 시가배당률). DEMO_ANCHOR_DATE 이후 핀은 무시한다.
   pins?: DemoPin[];
+  // 상장주식수. 있으면 거래량 수준이 회전율로 정해진다.
+  shares?: number | null;
 };
 export type TickerProfile = {
   tier: DemoTier;
@@ -66,6 +68,14 @@ export const MEAN_REVERSION_THETA = 0.008;
 const TIER_CUMULATIVE = { large: 0.1, mid: 0.4 } as const; // small = 나머지 60%
 const TIER_SIGMA: Record<DemoTier, number> = { large: 0.012, mid: 0.02, small: 0.032 };
 const TIER_BETA: Record<DemoTier, number> = { large: 0.9, mid: 1.0, small: 1.2 };
+// 일 거래량 기준값(volumeScale). 일 거래량은 기준값 × 로그정규 × 수익률 가산이라 평균이 기준값의
+// 약 2.5~3배다. 상장주식수가 있으면 기준값 = 상장주식수 × 회전율이고, 회전율 범위는 앵커 가격 기준
+// 시가총액 구간에서 고른다(위에서부터 첫 구간) — 큰 종목일수록 회전율이 낮다. 없으면 tier 범위(주).
+const TURNOVER_BANDS = [
+  { minCap: 1e13, min: 0.0005, max: 0.002 }, // 10조 원 이상
+  { minCap: 1e12, min: 0.0008, max: 0.004 }, // 1조 원 이상
+  { minCap: 0, min: 0.001, max: 0.01 },
+] as const;
 const TIER_VOLUME: Record<DemoTier, readonly [number, number]> = {
   large: [5e5, 5e6],
   mid: [1e5, 1e6],
@@ -271,6 +281,25 @@ const normalizePins = (pins: DemoPin[] | undefined): DemoPin[] => {
     .sort((a, b) => (a.date < b.date ? -1 : 1));
 };
 
+const logLerp = (min: number, max: number, u: number): number =>
+  Math.exp(Math.log(min) + (Math.log(max) - Math.log(min)) * u);
+
+const volumeScaleOf = (
+  tier: DemoTier,
+  shares: number | null,
+  anchorPrice: number,
+  uVolume: number,
+): number => {
+  if (shares === null || !(shares > 0)) {
+    const [min, max] = TIER_VOLUME[tier];
+    return logLerp(min, max, uVolume);
+  }
+  const cap = shares * anchorPrice;
+  const band =
+    TURNOVER_BANDS.find((b) => cap >= b.minCap) ?? TURNOVER_BANDS[TURNOVER_BANDS.length - 1];
+  return shares * logLerp(band.min, band.max, uVolume);
+};
+
 type PathProfile = Pick<TickerProfile, "sigma" | "beta" | "clusterPhase">;
 
 export const getTickerProfile = (ticker: string, anchor: DemoAnchor | null): TickerProfile => {
@@ -279,8 +308,9 @@ export const getTickerProfile = (ticker: string, anchor: DemoAnchor | null): Tic
   const sigma =
     TIER_SIGMA[tier] * (SIGMA_JITTER_MIN + (SIGMA_JITTER_MAX - SIGMA_JITTER_MIN) * rng());
   const beta = TIER_BETA[tier] + (rng() * 2 - 1) * BETA_JITTER;
-  const [volMin, volMax] = TIER_VOLUME[tier];
-  const volumeScale = logUniform(rng, volMin, volMax);
+  // 거래량 몫은 이 자리에서 한 번만 뽑는다 — 기준값은 앵커 가격이 나온 뒤에 만들지만, 뒤의
+  // 추첨(nxEligible · 앵커 · 군집)과 가격 경로는 shares 유무와 무관해야 한다.
+  const uVolume = rng();
   const nxEligible = rng() < NX_ELIGIBLE_RATE;
   const uMultiple = rng();
   const uFallback = rng();
@@ -297,6 +327,7 @@ export const getTickerProfile = (ticker: string, anchor: DemoAnchor | null): Tic
         lastPin.price,
       ).at(-1) ?? lastPin.price
     : clampPrice(ladderPrice(anchor, uMultiple, uFallback));
+  const volumeScale = volumeScaleOf(tier, anchor?.shares ?? null, anchorPrice, uVolume);
   return { tier, sigma, beta, volumeScale, nxEligible, anchorPrice, pins, clusterPhase };
 };
 
