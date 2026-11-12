@@ -18,10 +18,7 @@ import type { ChartBar } from "@/shared/types/quote";
 // 다일자 봉(전일 tail + 오늘 라이브)이 섞여도 봉마다 자기 날짜의 경계 세트 기준.
 
 // fake-UTC 는 KST 벽시계를 UTC 로 위장한 값이라 getUTC* 로 원본 컴포넌트를 얻는다.
-const dateBoundariesFromBarTime = (
-  barSec: number,
-  closeHmsList: readonly string[],
-): number[] => {
+const dateBoundariesFromBarTime = (barSec: number, closeHmsList: readonly string[]): number[] => {
   const d = new Date(barSec * 1000);
   const y = d.getUTCFullYear();
   const m = d.getUTCMonth();
@@ -35,10 +32,7 @@ const dateBoundariesFromBarTime = (
 };
 
 // closeHmsList ASC 가정 → boundaries 도 ASC. 첫 boundary >= rawTime 반환 (없으면 null).
-const nextBoundaryAtOrAfter = (
-  rawTime: number,
-  boundaries: readonly number[],
-): number | null => {
+const nextBoundaryAtOrAfter = (rawTime: number, boundaries: readonly number[]): number | null => {
   for (const b of boundaries) {
     if (b >= rawTime) return b;
   }
@@ -47,11 +41,7 @@ const nextBoundaryAtOrAfter = (
 
 // existing = 선행(먼저 삽입, 이른 raw time), incoming = 후행(늦은 raw time).
 // volume: 하나라도 존재하면 합산, 전부 undefined 면 undefined 유지 (결측 신호 보존).
-export const mergeChartBars = (
-  existing: ChartBar,
-  incoming: ChartBar,
-  time: number,
-): ChartBar => {
+export const mergeChartBars = (existing: ChartBar, incoming: ChartBar, time: number): ChartBar => {
   const merged: ChartBar = {
     time,
     open: existing.open,
@@ -68,7 +58,7 @@ export const mergeChartBars = (
 export const toEndLabelBars = (
   bars: readonly ChartBar[],
   intervalSec: number,
-  closeHmsList: readonly string[],
+  closeHmsList: readonly string[]
 ): ChartBar[] => {
   const buckets = new Map<number, ChartBar>();
   for (const bar of bars) {

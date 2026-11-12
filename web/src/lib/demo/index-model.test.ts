@@ -43,7 +43,9 @@ describe("8. 지수", () => {
     const bars = generateIndexDailyBars("KOSPI", dates[0], dates[dates.length - 1]);
     expect(bars.length).toBeGreaterThanOrEqual(100);
     const sample = bars.slice(0, 100);
-    const matched = sample.filter((b) => Math.sign(b.change) === Math.sign(marketReturnDaily("KRX", b.date)));
+    const matched = sample.filter(
+      (b) => Math.sign(b.change) === Math.sign(marketReturnDaily("KRX", b.date))
+    );
     expect(matched.length / sample.length).toBeGreaterThan(0.8);
   });
 
@@ -95,7 +97,7 @@ describe("8. 지수", () => {
     }
     const auction = bars[bars.length - 1];
     expect([auction.open, auction.high, auction.low, auction.close]).toEqual(
-      Array(4).fill(today.close),
+      Array(4).fill(today.close)
     );
   });
 
@@ -148,7 +150,10 @@ describe("8. 지수", () => {
       expect(q?.time).toEqual({ date: "20261110", hour: c.hour });
       expect(resolveOverseasDisplayState(q?.time ?? null, c.code).kind).toBe(c.state);
     }
-    const bars = indexIntradayBarsAt("SPX", new Date("2026-11-10T21:00:00Z")) as IndexIntradaySnapshot[];
+    const bars = indexIntradayBarsAt(
+      "SPX",
+      new Date("2026-11-10T21:00:00Z")
+    ) as IndexIntradaySnapshot[];
     expect(minuteOf(bars[bars.length - 1])).toBe(15 * 60 + 59);
   });
 });

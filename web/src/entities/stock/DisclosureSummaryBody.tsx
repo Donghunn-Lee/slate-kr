@@ -30,9 +30,7 @@ export const DisclosureSummaryBody = ({ content }: DisclosureSummaryBodyProps) =
         </dl>
       )}
 
-      {detail !== "" && (
-        <p className="whitespace-pre-wrap text-body/relaxed">{detail}</p>
-      )}
+      {detail !== "" && <p className="whitespace-pre-wrap text-body/relaxed">{detail}</p>}
     </div>
   );
 };

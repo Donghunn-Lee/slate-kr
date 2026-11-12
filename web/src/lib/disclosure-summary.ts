@@ -169,9 +169,7 @@ const callGemini = async (
 
     const parsed = DisclosureSummaryContentSchema.safeParse(jsonValue);
     if (!parsed.success) {
-      console.error(
-        `[disclosure-summary] schema validation failed: ${parsed.error.message}`,
-      );
+      console.error(`[disclosure-summary] schema validation failed: ${parsed.error.message}`);
       return { ok: false, error: { kind: "parse_failed" } };
     }
 

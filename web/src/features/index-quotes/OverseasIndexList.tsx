@@ -32,7 +32,7 @@ export const OverseasIndexList = ({ snapshotsByCode }: OverseasIndexListProps) =
   const hasNoRowValue =
     !isPending &&
     OVERSEAS_INDEX_CODES.every(
-      (code) => (data?.quotes[code] ?? null) === null && snapshotsByCode[code] === null,
+      (code) => (data?.quotes[code] ?? null) === null && snapshotsByCode[code] === null
     );
 
   const renderRow = (code: OverseasIndexCode) => {
@@ -47,9 +47,7 @@ export const OverseasIndexList = ({ snapshotsByCode }: OverseasIndexListProps) =
     const price = live?.price ?? fallback?.close ?? null;
     const change = live?.change ?? fallback?.change ?? null;
     const changeRate = live?.changeRate ?? fallback?.changeRate ?? null;
-    const sign: PriceSign =
-      live?.sign ??
-      (fallback ? signOfChange(fallback.change) : "flat");
+    const sign: PriceSign = live?.sign ?? (fallback ? signOfChange(fallback.change) : "flat");
 
     return (
       <li key={code}>
@@ -65,17 +63,14 @@ export const OverseasIndexList = ({ snapshotsByCode }: OverseasIndexListProps) =
               {meta.label}
             </span>
             {showFallbackCaption && (
-              <span className="shrink-0 text-micro leading-none text-muted-foreground">종가 기준</span>
+              <span className="shrink-0 text-micro leading-none text-muted-foreground">
+                종가 기준
+              </span>
             )}
           </div>
           {price !== null && change !== null && changeRate !== null ? (
             <div className="flex shrink-0 items-baseline gap-1.5 md:gap-2">
-              <span
-                className={cn(
-                  "text-body-sm font-semibold tabular-nums",
-                  priceToneClass(sign),
-                )}
-              >
+              <span className={cn("text-body-sm font-semibold tabular-nums", priceToneClass(sign))}>
                 {formatIndexPrice(price)}
               </span>
               {/* 라벨(truncate) → 숫자블록(shrink-0) 순서로 폭 부족 시 라벨이 먼저 잘림.
@@ -126,7 +121,7 @@ export const OverseasIndexList = ({ snapshotsByCode }: OverseasIndexListProps) =
         <div
           className={cn(
             "grid grid-cols-1 divide-y divide-border/60 max-md:min-[560px]:grid-cols-2 max-md:min-[560px]:divide-x max-md:min-[560px]:divide-y-0",
-            hasNoRowValue && "invisible",
+            hasNoRowValue && "invisible"
           )}
         >
           <ul className="divide-y divide-border/60">

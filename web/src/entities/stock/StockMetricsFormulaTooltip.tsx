@@ -72,22 +72,19 @@ export const StockMetricsFormulaTooltip = ({
             <span className="font-semibold">PBR</span> = 현재가 ÷ BPS
           </p>
           <p>
-            <span className="font-semibold">EPS</span> = 최근 4분기 기본주당이익(보통주,
-            IFRS) 합
+            <span className="font-semibold">EPS</span> = 최근 4분기 기본주당이익(보통주, IFRS) 합
           </p>
           <p>
-            <span className="font-semibold">BPS</span> = 지배주주지분 ÷ 발행주식총수
-            (자기주식 미차감)
+            <span className="font-semibold">BPS</span> = 지배주주지분 ÷ 발행주식총수 (자기주식
+            미차감)
           </p>
           {bpsYear !== null && (
             <p>
-              <span className="font-semibold">BPS 출처</span>: {bpsYear}년 연간
-              사업보고서 기준
+              <span className="font-semibold">BPS 출처</span>: {bpsYear}년 연간 사업보고서 기준
             </p>
           )}
           <p>
-            <span className="font-semibold">DPS</span> = 최근 결산 주당현금배당금
-            (보통주)
+            <span className="font-semibold">DPS</span> = 최근 결산 주당현금배당금 (보통주)
           </p>
           <p>
             <span className="font-semibold">시가배당률</span> = 최근 결산 DPS ÷ 현재가
@@ -97,12 +94,12 @@ export const StockMetricsFormulaTooltip = ({
           <p>현재가는 가상 시세입니다 — PER · PBR · 시가배당률은 실제 값과 다릅니다.</p>
           <p>붉은색으로 표시된 기준이 이 종목에 적용된 산식입니다.</p>
           <p>
-            분기 수가 부족한 종목은 보유 분기를 연 단위로 환산하며, 실제 연간 실적과
-            차이가 있을 수 있습니다.
+            분기 수가 부족한 종목은 보유 분기를 연 단위로 환산하며, 실제 연간 실적과 차이가 있을 수
+            있습니다.
           </p>
           <p>
-            출처: DART 공시. 우선주 보유 종목은 보통주 기준이라 타 서비스 표기와 차이가
-            있을 수 있습니다.
+            출처: DART 공시. 우선주 보유 종목은 보통주 기준이라 타 서비스 표기와 차이가 있을 수
+            있습니다.
           </p>
         </section>
       </div>

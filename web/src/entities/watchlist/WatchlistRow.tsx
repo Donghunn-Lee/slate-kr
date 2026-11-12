@@ -54,11 +54,7 @@ export const WatchlistRow = ({
   const live = liveQuote ?? null;
   const displayPrice = live !== null ? live.price : (price?.close ?? null);
   const displayChange = resolveListChange(live?.change ?? null, price?.change, preReset);
-  const displayChangeRate = resolveListChange(
-    live?.changeRate ?? null,
-    price?.changePct,
-    preReset,
-  );
+  const displayChangeRate = resolveListChange(live?.changeRate ?? null, price?.changePct, preReset);
   const displaySign = live !== null ? live.sign : undefined;
 
   return (
@@ -79,9 +75,7 @@ export const WatchlistRow = ({
               {item.ticker} · {item.market}
             </span>
             <div className="ml-auto flex shrink-0 items-center gap-3">
-              {isLiveFailed && (
-                <StatusBadge label="일시 지연" />
-              )}
+              {isLiveFailed && <StatusBadge label="일시 지연" />}
               {hasMemo && (
                 <div className="flex items-center gap-1.5 text-micro leading-none md:text-caption">
                   <span className="text-muted-foreground">메모</span>
@@ -127,7 +121,7 @@ export const WatchlistRow = ({
                 <span
                   className={cn(
                     "text-body font-bold tabular-nums leading-none md:text-body-lg",
-                    priceToneClass(displaySign ?? displayChange),
+                    priceToneClass(displaySign ?? displayChange)
                   )}
                 >
                   {displayPrice !== null ? `${displayPrice.toLocaleString("ko-KR")}원` : "—"}

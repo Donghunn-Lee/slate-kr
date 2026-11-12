@@ -263,8 +263,8 @@ const ladderPrice = (anchor: DemoAnchor | null, uMultiple: number, uFallback: nu
   return roundTick(
     Math.exp(
       Math.log(FALLBACK_PRICE_MIN) +
-        (Math.log(FALLBACK_PRICE_MAX) - Math.log(FALLBACK_PRICE_MIN)) * uFallback,
-    ),
+        (Math.log(FALLBACK_PRICE_MAX) - Math.log(FALLBACK_PRICE_MIN)) * uFallback
+    )
   );
 };
 
@@ -288,7 +288,7 @@ const volumeScaleOf = (
   tier: DemoTier,
   shares: number | null,
   anchorPrice: number,
-  uVolume: number,
+  uVolume: number
 ): number => {
   if (shares === null || !(shares > 0)) {
     const [min, max] = TIER_VOLUME[tier];
@@ -319,13 +319,13 @@ export const getTickerProfile = (ticker: string, anchor: DemoAnchor | null): Tic
   const pathProfile: PathProfile = { sigma, beta, clusterPhase };
   const lastPin = pins[pins.length - 1];
   const anchorPrice = lastPin
-    ? walkForward(
+    ? (walkForward(
         ticker,
         pathProfile,
         lastPin.price,
         listTradingDates(lastPin.date, DEMO_ANCHOR_DATE).slice(1),
-        lastPin.price,
-      ).at(-1) ?? lastPin.price
+        lastPin.price
+      ).at(-1) ?? lastPin.price)
     : clampPrice(ladderPrice(anchor, uMultiple, uFallback));
   const volumeScale = volumeScaleOf(tier, anchor?.shares ?? null, anchorPrice, uVolume);
   return { tier, sigma, beta, volumeScale, nxEligible, anchorPrice, pins, clusterPhase };
@@ -380,14 +380,14 @@ const walkForward = (
   profile: PathProfile,
   start: number,
   dates: readonly string[],
-  level: number,
+  level: number
 ): number[] => {
   const out: number[] = [];
   let prev = start;
   for (const date of dates) {
     const r = dayReturn(ticker, profile, date);
     prev = clampPrice(
-      clampTo(roundTick(prev * Math.exp(r + meanReversion(prev, level))), limitBand(prev)),
+      clampTo(roundTick(prev * Math.exp(r + meanReversion(prev, level))), limitBand(prev))
     );
     out.push(prev);
   }
@@ -402,7 +402,7 @@ const walkBackward = (
   profile: PathProfile,
   end: number,
   dates: readonly string[],
-  level: number,
+  level: number
 ): number[] => {
   const out: number[] = new Array(dates.length);
   let next = end;
@@ -431,7 +431,7 @@ const bridgeForward = (
   profile: PathProfile,
   start: number,
   end: number,
-  dates: readonly string[],
+  dates: readonly string[]
 ): number[] => {
   const n = dates.length;
   if (n === 0) return [];
@@ -445,7 +445,9 @@ const bridgeForward = (
   const out: number[] = new Array(n);
   let prev = start;
   for (let i = 0; i < n; i++) {
-    prev = clampPrice(clampTo(roundTick(Math.exp(logs[i] + correction * (i + 1))), limitBand(prev)));
+    prev = clampPrice(
+      clampTo(roundTick(Math.exp(logs[i] + correction * (i + 1))), limitBand(prev))
+    );
     out[i] = prev;
   }
   return out;
@@ -458,7 +460,7 @@ const regularClosePath = (
   ticker: string,
   profile: TickerProfile,
   from: string,
-  to: string,
+  to: string
 ): Map<string, number> => {
   const out = new Map<string, number>();
   const anchorDate = snapToTradingDate(DEMO_ANCHOR_DATE);
@@ -470,7 +472,7 @@ const regularClosePath = (
   if (from < first.date) {
     const dates = listTradingDates(from, first.date).filter((d) => d < first.date);
     walkBackward(ticker, profile, first.price, dates, first.price).forEach((p, i) =>
-      out.set(dates[i], p),
+      out.set(dates[i], p)
     );
   }
   for (const f of fixed) if (f.date >= from && f.date <= to) out.set(f.date, f.price);
@@ -501,8 +503,10 @@ const regularClosePath = (
 // ── 일봉 ─────────────────
 const afterClose = (regularClose: number, noise: DayNoise, band: Band): number =>
   clampTo(
-    roundTick(regularClose * Math.exp(AFTER_CLOSE_SIGMA_RATIO * noise.sigmaDay * noise.zAfterClose)),
-    band,
+    roundTick(
+      regularClose * Math.exp(AFTER_CLOSE_SIGMA_RATIO * noise.sigmaDay * noise.zAfterClose)
+    ),
+    band
   );
 
 const buildDailyBar = (
@@ -511,32 +515,32 @@ const buildDailyBar = (
   date: string,
   regularClose: number,
   prevRegularClose: number,
-  prevClose: number,
+  prevClose: number
 ): DemoDailyBar => {
   const noise = dayNoise(ticker, profile, date);
   const band = limitBand(prevRegularClose);
   const close = afterClose(regularClose, noise, band);
   const open = clampTo(
     roundTick(prevClose * Math.exp(GAP_SIGMA_RATIO * noise.sigmaDay * noise.zGap)),
-    band,
+    band
   );
   const hiBase = Math.max(open, regularClose, close);
   const loBase = Math.min(open, regularClose, close);
   const high = clampTo(
     ceilTick(hiBase * (1 + WICK_SIGMA_RATIO * noise.sigmaDay * Math.abs(noise.zHigh))),
-    band,
+    band
   );
   const low = clampTo(
     floorTick(loBase * (1 - WICK_SIGMA_RATIO * noise.sigmaDay * Math.abs(noise.zLow))),
-    band,
+    band
   );
   const volume = Math.max(
     1,
     Math.round(
       profile.volumeScale *
         Math.exp(VOLUME_LOGNORMAL_SIGMA * noise.zVolume) *
-        (1 + (VOLUME_RETURN_BOOST * Math.abs(noise.r)) / noise.sigmaDay),
-    ),
+        (1 + (VOLUME_RETURN_BOOST * Math.abs(noise.r)) / noise.sigmaDay)
+    )
   );
   return { date, open, high, low, close, volume, regularClose, basePrice: prevRegularClose };
 };
@@ -545,7 +549,7 @@ export const generateDailyBars = (
   ticker: string,
   profile: TickerProfile,
   from: string,
-  to: string,
+  to: string
 ): DemoDailyBar[] => {
   const dates = listTradingDates(from, to);
   if (dates.length === 0) return [];
@@ -580,7 +584,7 @@ const minuteBridge = (
   start: number,
   end: number,
   n: number,
-  sigmaMinute: number,
+  sigmaMinute: number
 ): number[] => {
   const closes: number[] = new Array(n);
   let acc = Math.log(start);
@@ -597,7 +601,13 @@ const minuteBridge = (
 // 최소 비율을 고르므로 어떤 봉도 [low, high] 를 넘지 않는다.
 // 끝 노드는 브리지가 end 에 고정한 현 위의 점이라 대상이 아니다 — 부동소수 오차로 남은 초과를 잡으면
 // 한쪽에만 머문 경로에서 끝 노드가 고저로 튄다.
-const fitHighLow = (closes: number[], start: number, end: number, high: number, low: number): void => {
+const fitHighLow = (
+  closes: number[],
+  start: number,
+  end: number,
+  high: number,
+  low: number
+): void => {
   const n = closes.length;
   const step = (end - start) / n;
   let scaleUp = Infinity;
@@ -625,7 +635,7 @@ const allocateVolume = (
   gauss: () => number,
   n: number,
   total: number,
-  auction: boolean,
+  auction: boolean
 ): number[] => {
   const weights: number[] = new Array(n);
   const half = Math.max(1, (n - 1) / 2);
@@ -665,7 +675,7 @@ const lastTradeBeforeAuction = (
   auction: "open-auction" | "close-auction",
   auctionPrice: number,
   sigma: number,
-  band: Band,
+  band: Band
 ): number => {
   const z = gaussian(createRng(hashSeed(ticker, date, auction)));
   return clampTo(roundTick(auctionPrice * Math.exp(sigma * z)), band);
@@ -690,7 +700,7 @@ const buildSegmentBars = (
   dayStartSec: number,
   seg: Segment,
   band: Band,
-  sigmaDay: number,
+  sigmaDay: number
 ): DemoMinuteBar[] => {
   const rng = createRng(hashSeed(ticker, date, seg.name));
   const gauss = createGaussian(rng);
@@ -750,7 +760,7 @@ const buildIntradayBars = (
   date: string,
   today: DemoDailyBar,
   channel: DemoChannel,
-  untilMin: number,
+  untilMin: number
 ): DemoMinuteBar[] => {
   const nxt = profile.nxEligible;
   const { sigmaDay } = dayNoise(ticker, profile, date);
@@ -771,7 +781,7 @@ const buildIntradayBars = (
             "open-auction",
             today.open,
             OPEN_AUCTION_SIGMA,
-            band,
+            band
           ),
           sigmaRatio: PRE_SIGMA_RATIO,
           volume: preVolume,
@@ -822,7 +832,7 @@ export const generateIntradayBars = (
   date: string,
   prev: DemoDailyBar,
   today: DemoDailyBar,
-  channel: DemoChannel,
+  channel: DemoChannel
 ): DemoMinuteBar[] | null => {
   if (channel === "NX" && !profile.nxEligible) return null;
   return buildIntradayBars(ticker, profile, date, today, channel, Number.POSITIVE_INFINITY);
@@ -863,7 +873,7 @@ const nxPriceAt = (
   date: string,
   minuteOfDay: number,
   unPrice: number,
-  basePrice: number,
+  basePrice: number
 ): number =>
   clampTo(stepTicks(unPrice, nxSpreadTicks(ticker, date, minuteOfDay)), limitBand(basePrice));
 
@@ -872,13 +882,13 @@ export const nxCloseOf = (ticker: string, bar: DemoDailyBar): number =>
   nxPriceAt(ticker, bar.date, AFTER_END_MIN, bar.close, bar.basePrice ?? bar.regularClose);
 
 // ── 현재가 ─────────────────
-const toSign =(change: number): PriceSign => (change > 0 ? "up" : change < 0 ? "down" : "flat");
+const toSign = (change: number): PriceSign => (change > 0 ? "up" : change < 0 ? "down" : "flat");
 
 export const quoteAt = (
   ticker: string,
   profile: TickerProfile,
   now: Date,
-  channel: DemoChannel,
+  channel: DemoChannel
 ): StockQuote | null => {
   if (channel === "NX" && !profile.nxEligible) return null;
   const tradingDate = getKrxTradingDate(now);

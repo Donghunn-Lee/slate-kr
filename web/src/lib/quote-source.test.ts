@@ -137,7 +137,9 @@ describe("fetchStockIntradayChart", () => {
     // NXT 취급 종목은 08:00 프리마켓부터
     expect(minuteOf(today[0].time)).toBe(8 * 60);
     expect(minuteOf(today[today.length - 1].time)).toBe(10 * 60);
-    expect(bars.map((b) => b.time)).toEqual([...bars].map((b) => b.time).sort((a, b) => (a as number) - (b as number)));
+    expect(bars.map((b) => b.time)).toEqual(
+      [...bars].map((b) => b.time).sort((a, b) => (a as number) - (b as number))
+    );
   });
 
   it("07:00 → previousDay true + 전일 전체", async () => {

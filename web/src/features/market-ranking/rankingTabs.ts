@@ -1,13 +1,7 @@
 import type { Market, MarketRankingKind } from "@/shared/types/ranking";
 import type { RankingTabItem } from "./RankingTabStrip";
 
-export type RankingTabId =
-  | "up"
-  | "down"
-  | "volume"
-  | "trade-value"
-  | "market-cap"
-  | "top-interest";
+export type RankingTabId = "up" | "down" | "volume" | "trade-value" | "market-cap" | "top-interest";
 
 // 요청 payload 를 tab 정의에 co-locate — kind + direction/by 를 여기서 확정해
 // toKind 는 순수 매핑이 된다. UI·URL·hook·href 전부 이 배열만 참조.
@@ -28,9 +22,10 @@ export const RANKING_TABS = [
   { id: "top-interest", label: "관심 등록 상위", kind: "top-interest" },
 ] as const satisfies readonly RankingTabDef[];
 
-export const TAB_ITEMS: readonly RankingTabItem<RankingTabId>[] = RANKING_TABS.map(
-  (t) => ({ id: t.id, label: t.label }),
-);
+export const TAB_ITEMS: readonly RankingTabItem<RankingTabId>[] = RANKING_TABS.map((t) => ({
+  id: t.id,
+  label: t.label,
+}));
 
 export const MARKET_LABEL: Record<Market, string> = {
   all: "전체",
@@ -46,24 +41,15 @@ const TAB_BY_ID: Record<RankingTabId, RankingTabDef> = RANKING_TABS.reduce(
     acc[t.id] = t;
     return acc;
   },
-  {} as Record<RankingTabId, RankingTabDef>,
+  {} as Record<RankingTabId, RankingTabDef>
 );
 
-export const resolveRankingTab = (
-  raw: string | null | undefined,
-): RankingTabDef =>
-  raw && raw in TAB_BY_ID
-    ? TAB_BY_ID[raw as RankingTabId]
-    : TAB_BY_ID[DEFAULT_RANKING_TAB_ID];
+export const resolveRankingTab = (raw: string | null | undefined): RankingTabDef =>
+  raw && raw in TAB_BY_ID ? TAB_BY_ID[raw as RankingTabId] : TAB_BY_ID[DEFAULT_RANKING_TAB_ID];
 
-export const toRankingKind = (
-  tab: RankingTabDef,
-  market: Market,
-): MarketRankingKind => {
-  if (tab.kind === "fluctuation")
-    return { kind: "fluctuation", direction: tab.direction, market };
-  if (tab.kind === "volume")
-    return { kind: "volume", by: tab.by, market };
+export const toRankingKind = (tab: RankingTabDef, market: Market): MarketRankingKind => {
+  if (tab.kind === "fluctuation") return { kind: "fluctuation", direction: tab.direction, market };
+  if (tab.kind === "volume") return { kind: "volume", by: tab.by, market };
   if (tab.kind === "market-cap") return { kind: "market-cap", market };
   return { kind: "top-interest", market };
 };

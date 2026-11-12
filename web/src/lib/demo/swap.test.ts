@@ -28,7 +28,21 @@ vi.mock("@/lib/db", () => ({
         ? [[{ ticker: "005930", name: "삼성전자", market: "KOSPI", shares: 5_969_782_550 }], null]
         : sql.includes("MIN(year)")
           ? [[{ ticker: "005930", first_year: 2021 }], null]
-          : [[{ ticker: "005930", year: 2024, has_financial: true, eps: 4_950, bps: 57_930, net_income: 33_685_000_000_000, dps: 1_446, dart_yield: 2.7 }], null],
+          : [
+              [
+                {
+                  ticker: "005930",
+                  year: 2024,
+                  has_financial: true,
+                  eps: 4_950,
+                  bps: 57_930,
+                  net_income: 33_685_000_000_000,
+                  dps: 1_446,
+                  dart_yield: 2.7,
+                },
+              ],
+              null,
+            ],
   },
 }));
 

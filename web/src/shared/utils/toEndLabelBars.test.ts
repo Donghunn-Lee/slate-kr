@@ -15,14 +15,14 @@ const sec = (hhmmss: string): number =>
       D,
       Number(hhmmss.slice(0, 2)),
       Number(hhmmss.slice(2, 4)),
-      Number(hhmmss.slice(4, 6)),
-    ) / 1000,
+      Number(hhmmss.slice(4, 6))
+    ) / 1000
   );
 
 const bar = (
   hhmmss: string,
   ohlc: { o: number; h: number; l: number; c: number },
-  v?: number,
+  v?: number
 ): ChartBar => ({
   time: sec(hhmmss),
   open: ohlc.o,
@@ -102,16 +102,12 @@ describe("toEndLabelBars", () => {
     const flatPrice = 6894.05;
     const auction: ChartBar[] = [
       flat("152000", flatPrice, 200),
-      ...["152100", "152200", "152300", "152400", "152500", "152600", "152700", "152800"].map(
-        (h) => flat(h, flatPrice, 0),
+      ...["152100", "152200", "152300", "152400", "152500", "152600", "152700", "152800"].map((h) =>
+        flat(h, flatPrice, 0)
       ),
       flat("152900", flatPrice, 0),
     ];
-    const cross = bar(
-      "153000",
-      { o: flatPrice, h: 6912.12, l: flatPrice, c: 6912.12 },
-      6275,
-    );
+    const cross = bar("153000", { o: flatPrice, h: 6912.12, l: flatPrice, c: 6912.12 }, 6275);
     const result = toEndLabelBars([...auction, cross], 60, CLOSE);
     expect(result).toHaveLength(10);
     const expectedFlatTimes = [
@@ -140,9 +136,7 @@ describe("toEndLabelBars", () => {
   });
 
   it("volume undefined 봉 — undefined 유지 (합산 대상 없음)", () => {
-    const input: ChartBar[] = [
-      { time: sec("100000"), open: 100, high: 100, low: 100, close: 100 },
-    ];
+    const input: ChartBar[] = [{ time: sec("100000"), open: 100, high: 100, low: 100, close: 100 }];
     const result = toEndLabelBars(input, 60, CLOSE);
     expect(result[0].volume).toBeUndefined();
   });

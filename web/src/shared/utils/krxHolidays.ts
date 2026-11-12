@@ -264,10 +264,7 @@ export const KRX_HOLIDAYS: ReadonlySet<string> = new Set([
 ]);
 
 // 캘린더 행 있음 → is_open 값이 정본. 행 없음 → 정적 표 폴백.
-export const isKrxHoliday = (
-  dateStr: string,
-  calendar?: MarketCalendar,
-): boolean => {
+export const isKrxHoliday = (dateStr: string, calendar?: MarketCalendar): boolean => {
   const isOpen = calendar?.KRX?.[dateStr];
   if (isOpen !== undefined) return !isOpen;
   return KRX_HOLIDAYS.has(dateStr);

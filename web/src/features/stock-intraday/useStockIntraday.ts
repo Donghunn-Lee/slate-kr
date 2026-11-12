@@ -3,11 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ChartBar } from "@/shared/types/quote";
 import type { MarketCalendar } from "@/shared/types/marketCalendar";
 import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
-import {
-  getKrxSessionState,
-  isKrxActiveSession,
-  type KrxSession,
-} from "@/shared/utils/market";
+import { getKrxSessionState, isKrxActiveSession, type KrxSession } from "@/shared/utils/market";
 
 export type StockIntradayResponse = {
   bars: ChartBar[];
@@ -28,11 +24,9 @@ export type StockIntradayResponse = {
 // 직전 정상본이 없으면(첫 로드·연속 실패) 결손본이 그대로 들어가 failed UI 로 흐른다.
 export const keepLastGoodIntraday = (
   prev: StockIntradayResponse | undefined,
-  next: StockIntradayResponse,
+  next: StockIntradayResponse
 ): StockIntradayResponse =>
-  next.failed && prev !== undefined && !prev.failed
-    ? { ...prev, session: next.session }
-    : next;
+  next.failed && prev !== undefined && !prev.failed ? { ...prev, session: next.session } : next;
 
 type UseStockIntradayOptions = {
   enabled?: boolean;
@@ -55,10 +49,7 @@ const isActiveSession = (calendar?: MarketCalendar) =>
 //
 // staleTime:0 + refetchOnMount:'always' — 인트라데이는 초 단위 신선도가 계약이라
 // 전역 staleTime(60s) 로컬 override. 재접속 시 캐시된 옛 봉 서빙 차단.
-export const useStockIntraday = (
-  ticker: string,
-  options: UseStockIntradayOptions = {},
-) => {
+export const useStockIntraday = (ticker: string, options: UseStockIntradayOptions = {}) => {
   const { enabled = true } = options;
   const calendar = useMarketCalendar();
   const query = useQuery<StockIntradayResponse>({
@@ -68,13 +59,11 @@ export const useStockIntraday = (
     refetchOnMount: "always",
     refetchOnWindowFocus: () => isActiveSession(calendar),
     queryFn: async ({ client, queryKey }) => {
-      const res = await fetch(
-        `/api/stock-intraday?ticker=${encodeURIComponent(ticker)}`,
-      );
+      const res = await fetch(`/api/stock-intraday?ticker=${encodeURIComponent(ticker)}`);
       if (!res.ok) throw new Error("stock intraday fetch failed");
       return keepLastGoodIntraday(
         client.getQueryData<StockIntradayResponse>(queryKey),
-        await res.json(),
+        await res.json()
       );
     },
   });

@@ -35,6 +35,5 @@ export const useIndexQuotes = () =>
       if (!res.ok) throw new Error("index quotes fetch failed");
       return res.json();
     },
-    refetchInterval: (query) =>
-      query.state.data?.marketOpen ? POLL_INTERVAL_MS : CLOSED_POLL_MS,
+    refetchInterval: (query) => (query.state.data?.marketOpen ? POLL_INTERVAL_MS : CLOSED_POLL_MS),
   });

@@ -11,7 +11,10 @@ const jsonResponse = (status: number, body: unknown) =>
 const ok = () =>
   jsonResponse(200, {
     candidates: [
-      { content: { role: "model", parts: [{ text: JSON.stringify(CONTENT) }] }, finishReason: "STOP" },
+      {
+        content: { role: "model", parts: [{ text: JSON.stringify(CONTENT) }] },
+        finishReason: "STOP",
+      },
     ],
   });
 const unavailable = () =>
@@ -33,13 +36,13 @@ const scriptFetch = (steps: Step[]) => {
       const step = steps.shift() ?? "hang";
       return new Promise<Response>((resolve, reject) => {
         init?.signal?.addEventListener("abort", () =>
-          reject(new DOMException("This operation was aborted", "AbortError")),
+          reject(new DOMException("This operation was aborted", "AbortError"))
         );
         if (step === "hang") return;
         if (step.afterMs === 0) resolve(step.respond());
         else setTimeout(() => resolve(step.respond()), step.afterMs);
       });
-    }),
+    })
   );
   return callTimes;
 };
@@ -86,7 +89,12 @@ describe("summarizeDisclosure 재시도·예산", () => {
     expect(callTimes).toHaveLength(3);
     await vi.advanceTimersByTimeAsync(1);
 
-    expect(state.result).toEqual({ ok: true, content: CONTENT, modelName: expect.any(String), attempts: 4 });
+    expect(state.result).toEqual({
+      ok: true,
+      content: CONTENT,
+      modelName: expect.any(String),
+      attempts: 4,
+    });
     expect(callTimes.map((t) => t - t0)).toEqual([0, 1_000, 3_000, 7_000]);
   });
 

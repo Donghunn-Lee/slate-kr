@@ -6,11 +6,7 @@ import { useMemoStore } from "./store/useMemoStore";
 import { isSnapshotEqual, selectSnapshot } from "./store/memoSnapshot";
 import { shouldFlushOnPageHide } from "@/shared/utils/shouldFlushOnPageHide";
 import { SYNC_MARKER_COOKIE } from "@/shared/constants/syncMarkerCookie";
-import type {
-  MemoGetResponse,
-  MemoPutResponse,
-  MemoSnapshot,
-} from "@/shared/types/memo";
+import type { MemoGetResponse, MemoPutResponse, MemoSnapshot } from "@/shared/types/memo";
 
 const DEBOUNCE_MS = 300;
 const GET_RETRY_DELAY_MS = 2000;
@@ -18,12 +14,9 @@ const PUT_RETRY_DELAY_MS = 1000;
 
 const hasSyncMarker = (): boolean =>
   typeof document !== "undefined" &&
-  document.cookie
-    .split(";")
-    .some((c) => c.trim().startsWith(`${SYNC_MARKER_COOKIE}=`));
+  document.cookie.split(";").some((c) => c.trim().startsWith(`${SYNC_MARKER_COOKIE}=`));
 
-const sleep = (ms: number) =>
-  new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+const sleep = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 
 const fetchGet = async (): Promise<MemoGetResponse | null> => {
   try {
@@ -38,9 +31,7 @@ const fetchGet = async (): Promise<MemoGetResponse | null> => {
   }
 };
 
-const fetchPut = async (
-  snapshot: MemoSnapshot
-): Promise<MemoPutResponse | null> => {
+const fetchPut = async (snapshot: MemoSnapshot): Promise<MemoPutResponse | null> => {
   try {
     const res = await fetch("/api/memos", {
       method: "PUT",
@@ -70,9 +61,7 @@ export const useMemoSync = () => {
   useEffect(() => {
     let cancelled = false;
 
-    const setStatus = (
-      status: "idle" | "loading" | "synced" | "blocked" | "error"
-    ) => {
+    const setStatus = (status: "idle" | "loading" | "synced" | "blocked" | "error") => {
       useMemoStore.getState().setSyncStatus(status);
     };
 
@@ -124,9 +113,7 @@ export const useMemoSync = () => {
         } else {
           useMemoStore.getState().replaceAll(lastConfirmedRef.current);
           setStatus("error");
-          toast.error(
-            "메모를 저장하지 못했어요. 변경 전으로 되돌렸어요."
-          );
+          toast.error("메모를 저장하지 못했어요. 변경 전으로 되돌렸어요.");
         }
       }
     };

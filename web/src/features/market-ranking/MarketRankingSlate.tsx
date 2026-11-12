@@ -38,16 +38,12 @@ const toPriceSign = (code: string): PriceSign =>
 // 거래량(주) 압축. 억/만 단위. 순위 슬레이트 행에서 가독성 확보용.
 const compactShares = (n: number): string => {
   if (n >= 100_000_000) return (n / 100_000_000).toFixed(1) + "억주";
-  if (n >= 10_000)
-    return Math.round(n / 10_000).toLocaleString("ko-KR") + "만주";
+  if (n >= 10_000) return Math.round(n / 10_000).toLocaleString("ko-KR") + "만주";
   return n.toLocaleString("ko-KR") + "주";
 };
 
 // 값 부재는 "—". fluctuation 은 별도 값 열이 없어 secondary 자체를 null 로 둔다.
-const resolveSecondary = (
-  item: MarketRankingItem,
-  kind: MarketRankingKind,
-): string | null => {
+const resolveSecondary = (item: MarketRankingItem, kind: MarketRankingKind): string | null => {
   switch (kind.kind) {
     case "fluctuation":
       return null;
@@ -55,17 +51,11 @@ const resolveSecondary = (
       if (kind.by === "volume") {
         return item.volume !== undefined ? compactShares(item.volume) : "—";
       }
-      return item.tradeValue !== undefined
-        ? formatMarketCap(item.tradeValue)
-        : "—";
+      return item.tradeValue !== undefined ? formatMarketCap(item.tradeValue) : "—";
     case "market-cap":
-      return item.marketCap !== undefined
-        ? formatMarketCap(item.marketCap)
-        : "—";
+      return item.marketCap !== undefined ? formatMarketCap(item.marketCap) : "—";
     case "top-interest":
-      return item.interestCount !== undefined
-        ? item.interestCount.toLocaleString("ko-KR")
-        : "—";
+      return item.interestCount !== undefined ? item.interestCount.toLocaleString("ko-KR") : "—";
   }
 };
 
@@ -81,7 +71,7 @@ const Row = ({ item, secondary, linkable }: RowProps) => (
   <li
     className={cn(
       "group relative -mx-6 bg-transparent px-6 transition-colors",
-      linkable && "hover:bg-muted/40",
+      linkable && "hover:bg-muted/40"
     )}
   >
     <div className="flex items-stretch gap-3 border-b border-subtle py-1.5 group-last:border-b-0">
@@ -103,7 +93,7 @@ const Row = ({ item, secondary, linkable }: RowProps) => (
             <span
               className={cn(
                 "text-body font-bold leading-none tabular-nums",
-                priceToneClass(toPriceSign(item.changeSign)),
+                priceToneClass(toPriceSign(item.changeSign))
               )}
             >
               {item.price.toLocaleString("ko-KR")}원
@@ -165,20 +155,10 @@ export const MarketRankingSlate = () => {
   const [tabId, setTabId] = useState<RankingTabId>(RANKING_TABS[0].id);
   const [market, setMarket] = useState<Market>("all");
 
-  const kind = useMemo(
-    () => toRankingKind(resolveRankingTab(tabId), market),
-    [tabId, market],
-  );
+  const kind = useMemo(() => toRankingKind(resolveRankingTab(tabId), market), [tabId, market]);
 
-  const {
-    items,
-    failed,
-    marketResolved,
-    session,
-    isLoading,
-    isError,
-    isPlaceholderData,
-  } = useMarketRanking(kind);
+  const { items, failed, marketResolved, session, isLoading, isError, isPlaceholderData } =
+    useMarketRanking(kind);
   const caption = useRankingCaption(session);
 
   const rows = items.slice(0, TOP_N);
@@ -190,15 +170,11 @@ export const MarketRankingSlate = () => {
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex items-end gap-3">
           <h2 className="text-value font-semibold text-foreground">시장 순위</h2>
-          {caption !== null && (
-            <div className="text-body-sm text-muted-foreground">{caption}</div>
-          )}
+          {caption !== null && <div className="text-body-sm text-muted-foreground">{caption}</div>}
         </div>
         <div className="flex items-center gap-3">
           {/* rows 는 있지만 route 가 부분 실패 — 표시값이 stale 임을 알리는 유일한 신호. */}
-          {failed && rows.length > 0 && (
-            <StatusBadge label="일시 지연" />
-          )}
+          {failed && rows.length > 0 && <StatusBadge label="일시 지연" />}
           <Link
             href={toRankingHref(tabId, market)}
             className="flex items-center gap-1 text-caption text-muted-foreground transition-colors hover:text-foreground"
@@ -216,11 +192,7 @@ export const MarketRankingSlate = () => {
           ))}
         </div>
         <div className="mb-4 flex items-end gap-3 border-b border-border/60">
-          <RankingTabStrip
-            items={TAB_ITEMS}
-            activeId={tabId}
-            onSelect={setTabId}
-          />
+          <RankingTabStrip items={TAB_ITEMS} activeId={tabId} onSelect={setTabId} />
         </div>
 
         {isLoading ? (
@@ -230,16 +202,9 @@ export const MarketRankingSlate = () => {
             데이터를 일시적으로 불러오지 못했습니다
           </p>
         ) : showEmpty ? (
-          <p className="py-6 text-center text-body text-muted-foreground">
-            표시할 순위가 없습니다
-          </p>
+          <p className="py-6 text-center text-body text-muted-foreground">표시할 순위가 없습니다</p>
         ) : (
-          <ul
-            className={cn(
-              "transition-opacity",
-              isPlaceholderData && "opacity-70",
-            )}
-          >
+          <ul className={cn("transition-opacity", isPlaceholderData && "opacity-70")}>
             {rows.map((item) => (
               <Row
                 key={item.ticker}

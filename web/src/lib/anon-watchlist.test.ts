@@ -5,9 +5,7 @@ const GID = "11111111-1111-4111-8111-111111111111";
 
 const validSnapshot = {
   groups: [{ id: GID, name: "내 관심 종목", order: 0, createdAt: 1_700_000_000_000 }],
-  memberships: [
-    { groupId: GID, ticker: "005930", addedAt: 1_700_000_200_000, order: 0 },
-  ],
+  memberships: [{ groupId: GID, ticker: "005930", addedAt: 1_700_000_200_000, order: 0 }],
   stockMeta: {
     "005930": { name: "삼성전자", market: "KOSPI" },
   },
@@ -39,9 +37,7 @@ describe("parseAnonWatchlistRow", () => {
     const row = {
       snapshot: {
         ...validSnapshot,
-        memberships: [
-          { groupId: GID, ticker: "bad", addedAt: 1_700_000_200_000, order: 0 },
-        ],
+        memberships: [{ groupId: GID, ticker: "bad", addedAt: 1_700_000_200_000, order: 0 }],
         stockMeta: { bad: { name: "?", market: "KOSPI" } },
       },
       version: 1,

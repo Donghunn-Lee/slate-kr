@@ -2,12 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { MemoEntry, MemoSnapshot } from "@/shared/types/memo";
 
-export type MemoSyncStatus =
-  | "idle"
-  | "loading"
-  | "synced"
-  | "blocked"
-  | "error";
+export type MemoSyncStatus = "idle" | "loading" | "synced" | "blocked" | "error";
 
 type MemoInput = {
   body: string;

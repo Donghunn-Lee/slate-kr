@@ -15,7 +15,7 @@ export const StatusBadge = ({ label, title, className }: StatusBadgeProps) => (
     title={title}
     className={cn(
       "rounded-sm border border-subtle bg-muted px-1.5 py-0.5 text-micro leading-none text-muted-foreground",
-      className,
+      className
     )}
   >
     {label}

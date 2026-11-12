@@ -10,6 +10,6 @@ export const usePrefersReducedMotion = () => {
       return () => mq.removeEventListener("change", callback);
     },
     () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-    () => false,
+    () => false
   );
 };

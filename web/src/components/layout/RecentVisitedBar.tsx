@@ -101,9 +101,7 @@ export const RecentVisitedBar = () => {
             ref={scrollRef}
             className={cn(
               "-my-0.5 py-0.5 transition-[max-height] duration-200 ease-out motion-reduce:transition-none",
-              open && isMobile
-                ? "overflow-y-auto overscroll-contain"
-                : "overflow-hidden",
+              open && isMobile ? "overflow-y-auto overscroll-contain" : "overflow-hidden"
             )}
             style={{
               maxHeight:
@@ -143,7 +141,7 @@ export const RecentVisitedBar = () => {
                     aria-label={`${s.name} 최근 조회 삭제`}
                     className={cn(
                       "-ml-1 inline-flex cursor-pointer items-center justify-center p-1.25 text-muted-foreground/40 transition-opacity hover:text-foreground sm:ml-0 sm:p-1",
-                      !open && "pointer-events-none opacity-0",
+                      !open && "pointer-events-none opacity-0"
                     )}
                   >
                     <X className="size-2.5 sm:size-3" />
@@ -155,7 +153,7 @@ export const RecentVisitedBar = () => {
           <ChevronDown
             className={cn(
               "mt-1 size-3.5 shrink-0 text-muted-foreground/60 transition-transform duration-200 motion-reduce:transition-none",
-              open && "rotate-180",
+              open && "rotate-180"
             )}
           />
         </div>

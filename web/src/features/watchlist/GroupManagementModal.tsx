@@ -1,14 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  ChevronDown,
-  ChevronUp,
-  Pencil,
-  Plus,
-  Trash2,
-  X,
-} from "lucide-react";
+import { ChevronDown, ChevronUp, Pencil, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -32,10 +25,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import {
-  useStockSearch,
-  type SearchResultItem,
-} from "@/features/search/useStockSearch";
+import { useStockSearch, type SearchResultItem } from "@/features/search/useStockSearch";
 
 import { useWatchlistStore } from "./store/useWatchlistStore";
 import {
@@ -181,10 +171,7 @@ export const GroupManagementModal = ({
 
   useEffect(() => {
     const onMouseDown = (e: MouseEvent) => {
-      if (
-        searchWrapperRef.current &&
-        !searchWrapperRef.current.contains(e.target as Node)
-      ) {
+      if (searchWrapperRef.current && !searchWrapperRef.current.contains(e.target as Node)) {
         setSearchDismissed(true);
       }
     };
@@ -212,10 +199,8 @@ export const GroupManagementModal = ({
     [sortedGroups, selectedId]
   );
   const canMoveSelectedUp = selectedIndex > 0;
-  const canMoveSelectedDown =
-    selectedIndex >= 0 && selectedIndex < sortedGroups.length - 1;
-  const isRenamingSelected =
-    !!selectedGroup && renamingId === selectedGroup.id;
+  const canMoveSelectedDown = selectedIndex >= 0 && selectedIndex < sortedGroups.length - 1;
+  const isRenamingSelected = !!selectedGroup && renamingId === selectedGroup.id;
 
   const selectedTickers = useMemo(() => {
     if (!selectedGroup) return [];
@@ -230,14 +215,11 @@ export const GroupManagementModal = ({
       .filter((x): x is { ticker: string; name: string } => x !== null);
   }, [local.memberships, local.stockMeta, selectedGroup]);
 
-  const showDropdown =
-    !!selectedGroup && !searchDismissed && query.trim() !== "" && !searchError;
+  const showDropdown = !!selectedGroup && !searchDismissed && query.trim() !== "" && !searchError;
 
   const isAddedToSelected = (ticker: string): boolean =>
     !!selectedGroup &&
-    local.memberships.some(
-      (m) => m.groupId === selectedGroup.id && m.ticker === ticker
-    );
+    local.memberships.some((m) => m.groupId === selectedGroup.id && m.ticker === ticker);
 
   const requestClose = () => {
     if (isDirty) setShowLeaveConfirm(true);
@@ -275,8 +257,7 @@ export const GroupManagementModal = ({
     const sorted = [...local.groups].sort((a, b) => a.order - b.order);
     const idx = sorted.findIndex((g) => g.id === id);
     const remaining = sorted.filter((g) => g.id !== id);
-    const replacement =
-      remaining.length === 0 ? null : remaining[Math.max(0, idx - 1)];
+    const replacement = remaining.length === 0 ? null : remaining[Math.max(0, idx - 1)];
     setLocal((prev) => deleteGroupIn(prev, id));
     if (selectedId === id) {
       setSelectedId(replacement?.id ?? null);
@@ -321,9 +302,7 @@ export const GroupManagementModal = ({
       selectedGroup.id
     );
     if (next === null) {
-      toast.error(
-        `관심종목은 최대 ${MAX_WATCHLIST_SIZE}개까지 추가할 수 있습니다.`
-      );
+      toast.error(`관심종목은 최대 ${MAX_WATCHLIST_SIZE}개까지 추가할 수 있습니다.`);
       return;
     }
     setLocal(next);
@@ -434,13 +413,9 @@ export const GroupManagementModal = ({
                       ariaLabel="그룹 이름 변경"
                     />
                   ) : selectedGroup ? (
-                    <div className="truncate text-body font-medium">
-                      {selectedGroup.name}
-                    </div>
+                    <div className="truncate text-body font-medium">{selectedGroup.name}</div>
                   ) : (
-                    <div className="truncate text-body text-muted-foreground">
-                      관심 그룹 선택
-                    </div>
+                    <div className="truncate text-body text-muted-foreground">관심 그룹 선택</div>
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
@@ -450,9 +425,7 @@ export const GroupManagementModal = ({
                       variant="ghost"
                       size="icon-sm"
                       disabled={!selectedGroup || !canMoveSelectedUp}
-                      onClick={() =>
-                        selectedGroup && handleMove(selectedGroup.id, "up")
-                      }
+                      onClick={() => selectedGroup && handleMove(selectedGroup.id, "up")}
                       aria-label="그룹 순서 위로"
                     >
                       <ChevronUp />
@@ -462,9 +435,7 @@ export const GroupManagementModal = ({
                       variant="ghost"
                       size="icon-sm"
                       disabled={!selectedGroup || !canMoveSelectedDown}
-                      onClick={() =>
-                        selectedGroup && handleMove(selectedGroup.id, "down")
-                      }
+                      onClick={() => selectedGroup && handleMove(selectedGroup.id, "down")}
                       aria-label="그룹 순서 아래로"
                     >
                       <ChevronDown />
@@ -475,9 +446,7 @@ export const GroupManagementModal = ({
                     variant="ghost"
                     size="icon-sm"
                     disabled={!selectedGroup}
-                    onClick={() =>
-                      selectedGroup && setRenamingId(selectedGroup.id)
-                    }
+                    onClick={() => selectedGroup && setRenamingId(selectedGroup.id)}
                     aria-label="그룹 이름 변경"
                   >
                     <Pencil />
@@ -487,9 +456,7 @@ export const GroupManagementModal = ({
                     variant="ghost"
                     size="icon-sm"
                     disabled={!selectedGroup}
-                    onClick={() =>
-                      selectedGroup && handleDeleteRequest(selectedGroup)
-                    }
+                    onClick={() => selectedGroup && handleDeleteRequest(selectedGroup)}
                     aria-label="그룹 삭제"
                   >
                     <Trash2 />
@@ -565,9 +532,7 @@ export const GroupManagementModal = ({
                                     )}
                                   >
                                     <div className="flex min-w-0 items-center gap-2">
-                                      <span className="truncate font-medium">
-                                        {r.name}
-                                      </span>
+                                      <span className="truncate font-medium">{r.name}</span>
                                       <span className="shrink-0 font-mono text-caption text-muted-foreground">
                                         {r.ticker}
                                       </span>
@@ -592,9 +557,7 @@ export const GroupManagementModal = ({
                   </div>
                   <div className="mt-2 min-h-0 flex-1 overflow-y-auto">
                     {selectedTickers.length === 0 ? (
-                      <p className="text-body text-muted-foreground">
-                        이 그룹에 종목이 없습니다.
-                      </p>
+                      <p className="text-body text-muted-foreground">이 그룹에 종목이 없습니다.</p>
                     ) : (
                       <ul className="space-y-1" aria-label="그룹 내 종목">
                         {selectedTickers.map((t, idx) => {
@@ -612,10 +575,7 @@ export const GroupManagementModal = ({
                                 </span>
                               </div>
                               <div className="flex items-center gap-1">
-                                <div
-                                  className="flex items-center"
-                                  aria-label="종목 순서 변경"
-                                >
+                                <div className="flex items-center" aria-label="종목 순서 변경">
                                   <button
                                     type="button"
                                     disabled={!canMoveUp}
@@ -639,9 +599,7 @@ export const GroupManagementModal = ({
                                   type="button"
                                   variant="ghost"
                                   size="icon-sm"
-                                  onClick={() =>
-                                    handleRemoveMembership(t.ticker, selectedGroup.id)
-                                  }
+                                  onClick={() => handleRemoveMembership(t.ticker, selectedGroup.id)}
                                   aria-label={`${t.name} 제거`}
                                 >
                                   <X />
@@ -686,9 +644,7 @@ export const GroupManagementModal = ({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>취소</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDelete}>
-              삭제
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleConfirmDelete}>삭제</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -708,9 +664,7 @@ export const GroupManagementModal = ({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>계속 편집</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmLeave}>
-              나가기
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleConfirmLeave}>나가기</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

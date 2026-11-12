@@ -45,16 +45,18 @@ describe("snapshotToQuote", () => {
   // KRX 애프터마켓은 전 종목 대상이라 비NXT 의 un_close 도 20:00 애프터 종가 — nx_eligible 은
   // 서빙 게이트가 아니다.
   it("비NXT (nx_eligible=false) → un_* 축 StockQuote 반환", () => {
-    const q = snapshotToQuote(mkRow({
-      ticker: "035720",
-      un_close: 37050,
-      un_change: 850,
-      un_change_rate: 2.35,
-      un_volume: 1_800_149,
-      nx_eligible: false,
-      nx_close: null,
-      nx_volume: null,
-    }));
+    const q = snapshotToQuote(
+      mkRow({
+        ticker: "035720",
+        un_close: 37050,
+        un_change: 850,
+        un_change_rate: 2.35,
+        un_volume: 1_800_149,
+        nx_eligible: false,
+        nx_close: null,
+        nx_volume: null,
+      })
+    );
     expect(q).toEqual({
       ticker: "035720",
       price: 37050,
@@ -81,13 +83,15 @@ describe("snapshotToQuote", () => {
 describe("snapshotToNxQuote", () => {
   it("NXT + nx_close 有 → nx 축 StockQuote (change 는 전일 종가 대비 재산출)", () => {
     // 실측 9/15: UN 최종 체결 250,500(KRX 애프터) vs NX 종가 250,000. 전일 종가 245,000.
-    const q = snapshotToNxQuote(mkRow({
-      un_close: 250500,
-      un_change: 5500,
-      un_change_rate: 2.24,
-      nx_close: 250000,
-      nx_volume: 11_105_431,
-    }));
+    const q = snapshotToNxQuote(
+      mkRow({
+        un_close: 250500,
+        un_change: 5500,
+        un_change_rate: 2.24,
+        nx_close: 250000,
+        nx_volume: 11_105_431,
+      })
+    );
     expect(q).toEqual({
       ticker: "005930",
       price: 250000,
@@ -108,7 +112,7 @@ describe("snapshotToNxQuote", () => {
 
   it("비NXT (nx_eligible=false) → null", () => {
     expect(
-      snapshotToNxQuote(mkRow({ nx_eligible: false, nx_close: null, nx_volume: null })),
+      snapshotToNxQuote(mkRow({ nx_eligible: false, nx_close: null, nx_volume: null }))
     ).toBeNull();
   });
 
@@ -134,9 +138,8 @@ describe("isSnapshotSession", () => {
 });
 
 // KST = UTC+9.
-const kst = (
-  y: number, m: number, d: number, h: number, min = 0,
-): Date => new Date(Date.UTC(y, m - 1, d, h - 9, min));
+const kst = (y: number, m: number, d: number, h: number, min = 0): Date =>
+  new Date(Date.UTC(y, m - 1, d, h - 9, min));
 
 // 조회 키는 마지막 마감일 축 — 응답 date 가 쓰는 거래일 축과 갈라져도 캡처본을 따라간다.
 describe("getSnapshotLookupDate", () => {
@@ -182,12 +185,7 @@ describe("decideSingleSnapshot", () => {
   });
 
   it("대상 세션 + row hit(비NXT) → serve quote (NXT 와 같은 un_* 축)", () => {
-    const d = decideSingleSnapshot(
-      "closed",
-      mkRow({ nx_eligible: false }),
-      true,
-      null,
-    );
+    const d = decideSingleSnapshot("closed", mkRow({ nx_eligible: false }), true, null);
     expect(d.kind).toBe("serve");
     if (d.kind !== "serve") throw new Error();
     expect(d.quote?.price).toBe(255000);
@@ -230,7 +228,7 @@ describe("decideSingleSnapshot", () => {
         "closed",
         mkRow({ un_close: 250500, nx_close: null }),
         true,
-        "nxt",
+        "nxt"
       );
       if (d.kind !== "serve") throw new Error();
       expect(d.quote?.price).toBe(250500);
@@ -241,7 +239,7 @@ describe("decideSingleSnapshot", () => {
         "preopen",
         mkRow({ nx_eligible: false, nx_close: null, nx_volume: null }),
         true,
-        "nxt",
+        "nxt"
       );
       if (d.kind !== "serve") throw new Error();
       expect(d.quote?.price).toBe(255000);
@@ -254,9 +252,9 @@ describe("decideMultiSnapshot", () => {
   const nonRow = mkRow({ ticker: "035720", nx_eligible: false });
 
   it("라이브 세션 → fallback", () => {
-    expect(
-      decideMultiSnapshot("regular", ["005930"], { "005930": nxtRow }, true),
-    ).toEqual({ kind: "fallback" });
+    expect(decideMultiSnapshot("regular", ["005930"], { "005930": nxtRow }, true)).toEqual({
+      kind: "fallback",
+    });
   });
 
   it("대상 세션 + date 캡처 실패 → fallback", () => {
@@ -270,7 +268,7 @@ describe("decideMultiSnapshot", () => {
       "after_close",
       ["005930", "035720", "999999"],
       { "005930": nxtRow, "035720": nonRow },
-      true,
+      true
     );
     expect(d.kind).toBe("serve");
     if (d.kind !== "serve") throw new Error();

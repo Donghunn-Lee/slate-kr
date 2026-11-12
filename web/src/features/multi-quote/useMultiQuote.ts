@@ -23,8 +23,7 @@ const POLL_INTERVAL_MS = 60_000;
 export const LIVE_TICKER_LIMIT = 30;
 
 // 정렬+중복제거된 join 키. 순서·중복 무관하게 동일 queryKey가 되도록.
-const buildKey = (tickers: string[]): string =>
-  [...new Set(tickers)].sort().join(",");
+const buildKey = (tickers: string[]): string => [...new Set(tickers)].sort().join(",");
 
 type UseMultiQuoteResult = {
   quotes: Record<string, StockQuote | null>;

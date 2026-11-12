@@ -35,13 +35,13 @@ describe("toKstWallClockSec", () => {
   // ── 아시아 고정 오프셋 ───────────────────────────────
   it("HSI 7/15 16:00 HKT → KST 17:00 (+1h)", () => {
     expect(toKstWallClockSec(enc(2026, 7, 15, 16, 0), "Asia/Hong_Kong")).toBe(
-      enc(2026, 7, 15, 17, 0),
+      enc(2026, 7, 15, 17, 0)
     );
   });
 
   it("SHCOMP 7/15 15:00 CST → KST 16:00 (+1h)", () => {
     expect(toKstWallClockSec(enc(2026, 7, 15, 15, 0), "Asia/Shanghai")).toBe(
-      enc(2026, 7, 15, 16, 0),
+      enc(2026, 7, 15, 16, 0)
     );
   });
 

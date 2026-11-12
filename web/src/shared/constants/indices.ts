@@ -45,13 +45,13 @@ export const INDEX_CODES = INDEX_REGISTRY.map((m) => m.code) as readonly IndexCo
 // 이보다 오래된 이력은 좌측 팬 트리거로 /api/index-daily 가 전량 서빙.
 export const INDEX_DAILY_SSR_LIMIT = 270;
 
-export const DOMESTIC_INDEX_CODES = INDEX_REGISTRY
-  .filter((m): m is DomesticIndexEntry => m.region === "domestic")
-  .map((m) => m.code) as readonly DomesticIndexCode[];
+export const DOMESTIC_INDEX_CODES = INDEX_REGISTRY.filter(
+  (m): m is DomesticIndexEntry => m.region === "domestic"
+).map((m) => m.code) as readonly DomesticIndexCode[];
 
-export const OVERSEAS_INDEX_CODES = INDEX_REGISTRY
-  .filter((m): m is OverseasIndexEntry => m.region === "overseas")
-  .map((m) => m.code) as readonly OverseasIndexCode[];
+export const OVERSEAS_INDEX_CODES = INDEX_REGISTRY.filter(
+  (m): m is OverseasIndexEntry => m.region === "overseas"
+).map((m) => m.code) as readonly OverseasIndexCode[];
 
 // intraday(1분봉·현재가) 를 지원하는 해외 지수 화이트리스트.
 // .DJI 는 분봉을 공개하지 않는 지수라 제외(생성기도 실시세 API의 공백을 그대로 따른다) — 이
@@ -67,18 +67,13 @@ export const OVERSEAS_INTRADAY_CODES = [
 ] as const;
 export type OverseasIntradayCode = (typeof OVERSEAS_INTRADAY_CODES)[number];
 
-export const isOverseasIntradayCode = (
-  code: string,
-): code is OverseasIntradayCode =>
+export const isOverseasIntradayCode = (code: string): code is OverseasIntradayCode =>
   (OVERSEAS_INTRADAY_CODES as readonly string[]).includes(code);
 
 // 거래량 데이터 자체가 없는 지수 — daily/intraday 전 뷰에서 volume 축 렌더 금지.
 // 실시세 소스가 실값을 주지 않던 두 지수를 그대로 따르고, 생성기도 이 집합의 거래량을 0 으로
 // 낸다.
-export const INDICES_WITHOUT_VOLUME: ReadonlySet<IndexCode> = new Set([
-  "SPX",
-  "NDX",
-]);
+export const INDICES_WITHOUT_VOLUME: ReadonlySet<IndexCode> = new Set(["SPX", "NDX"]);
 
 // 해외 지수 → 거래소 IANA 타임존. quote.time 은 현지 로컬 시각(실시세 API의 형식을 그대로
 // 쓴다)이므로 UTC 인스턴트 확정 후 KST 렌더에 이 매핑을 사용한다. DST 는 IANA DB
@@ -153,12 +148,13 @@ export const OVERSEAS_INDEX_DELAY_MIN: Partial<Record<OverseasIndexCode, number>
   DAX: 15,
 };
 
-const META_BY_CODE = Object.fromEntries(
-  INDEX_REGISTRY.map((m) => [m.code, m]),
-) as Record<IndexCode, IndexEntry>;
+const META_BY_CODE = Object.fromEntries(INDEX_REGISTRY.map((m) => [m.code, m])) as Record<
+  IndexCode,
+  IndexEntry
+>;
 
 export const getIndexMeta = (code: IndexCode): IndexEntry => META_BY_CODE[code];
 
 export const INDEX_LABEL: Record<IndexCode, string> = Object.fromEntries(
-  INDEX_REGISTRY.map((m) => [m.code, m.label]),
+  INDEX_REGISTRY.map((m) => [m.code, m.label])
 ) as Record<IndexCode, string>;

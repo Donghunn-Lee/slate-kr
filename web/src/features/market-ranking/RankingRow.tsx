@@ -5,10 +5,7 @@ import type { TickerDisclosureCount } from "@/shared/types/stock";
 import { PriceChange } from "@/shared/components/PriceChange";
 import { formatMarketCap } from "@/shared/format";
 import type { PriceSign } from "@/shared/types/quote";
-import type {
-  MarketRankingItem,
-  MarketRankingKind,
-} from "@/shared/types/ranking";
+import type { MarketRankingItem, MarketRankingKind } from "@/shared/types/ranking";
 import { priceToneClass } from "@/shared/utils/priceTone";
 import { cn } from "@/lib/utils";
 
@@ -26,24 +23,19 @@ const percentText = (pct: number, sign: PriceSign): string => {
 // 데스크톱은 억/만 suffix 유지, 모바일은 단위를 헤더 라벨(만/억) 로 흡수해 정수 콤마만.
 const compactShares = (n: number): string => {
   if (n >= 100_000_000) return (n / 100_000_000).toFixed(1) + "억주";
-  if (n >= 10_000)
-    return Math.round(n / 10_000).toLocaleString("ko-KR") + "만주";
+  if (n >= 10_000) return Math.round(n / 10_000).toLocaleString("ko-KR") + "만주";
   return n.toLocaleString("ko-KR") + "주";
 };
 const shareInWan = (n: number): string => {
   if (n < 10_000) return (n / 10_000).toFixed(1);
   return Math.round(n / 10_000).toLocaleString("ko-KR");
 };
-const valueInEok = (n: number): string =>
-  Math.round(n / 100_000_000).toLocaleString("ko-KR");
+const valueInEok = (n: number): string => Math.round(n / 100_000_000).toLocaleString("ko-KR");
 
 const EMPTY_CELL = { mobile: "—", desktop: "—" } as const;
 
 type MetricCell = { mobile: string; desktop: string };
-const resolveMetricCell = (
-  item: MarketRankingItem,
-  kind: MarketRankingKind,
-): MetricCell => {
+const resolveMetricCell = (item: MarketRankingItem, kind: MarketRankingKind): MetricCell => {
   switch (kind.kind) {
     case "fluctuation":
       return item.volume !== undefined
@@ -98,7 +90,7 @@ const GRID_CLASS = cn(
   "grid items-center gap-3 overflow-hidden sm:gap-2",
   "grid-cols-[1.25rem_minmax(0,1fr)_3.5rem_3.25rem_2.75rem]",
   "sm:grid-cols-[1.5rem_minmax(0,1fr)_4.5rem_9rem_4.5rem_3.5rem]",
-  "md:grid-cols-[2rem_minmax(0,1fr)_4rem_5rem_9rem_4.5rem_4rem]",
+  "md:grid-cols-[2rem_minmax(0,1fr)_4rem_5rem_9rem_4.5rem_4rem]"
 );
 
 type RankingHeaderProps = {
@@ -111,7 +103,7 @@ export const RankingHeader = ({ kind }: RankingHeaderProps) => {
     <div
       className={cn(
         GRID_CLASS,
-        "-mx-4 whitespace-nowrap border-b border-subtle px-4 pb-2 pt-1 text-micro font-medium text-muted-foreground md:-mx-6 md:px-6",
+        "-mx-4 whitespace-nowrap border-b border-subtle px-4 pb-2 pt-1 text-micro font-medium text-muted-foreground md:-mx-6 md:px-6"
       )}
     >
       <span className="justify-self-center">순위</span>
@@ -136,12 +128,7 @@ type RankingRowProps = {
   linkable: boolean;
 };
 
-export const RankingRow = ({
-  item,
-  disclosure,
-  kind,
-  linkable,
-}: RankingRowProps) => {
+export const RankingRow = ({ item, disclosure, kind, linkable }: RankingRowProps) => {
   const sign = toPriceSign(item.changeSign);
   const metricCell = resolveMetricCell(item, kind);
   const count = disclosure?.count ?? null;
@@ -151,7 +138,7 @@ export const RankingRow = ({
     <li
       className={cn(
         "relative -mx-4 border-b border-subtle transition-colors last:border-b-0 md:-mx-6",
-        linkable && "hover:bg-muted/40",
+        linkable && "hover:bg-muted/40"
       )}
     >
       {/* 종목 layout 은 렌더마다 현재가를 조회한다 — prefetch 를 두면 보이는 행 수만큼
@@ -177,7 +164,7 @@ export const RankingRow = ({
         <span
           className={cn(
             "justify-self-end text-body-sm font-medium tabular-nums sm:text-body sm:font-bold",
-            priceToneClass(sign),
+            priceToneClass(sign)
           )}
         >
           {item.price.toLocaleString("ko-KR")}
@@ -186,7 +173,7 @@ export const RankingRow = ({
         <span
           className={cn(
             "justify-self-end text-body-sm font-medium tabular-nums sm:hidden",
-            priceToneClass(sign),
+            priceToneClass(sign)
           )}
         >
           {percentText(item.changePct, sign)}

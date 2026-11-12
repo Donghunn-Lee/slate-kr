@@ -35,7 +35,11 @@ export const ScrollToTopButton = () => {
 
   return (
     <>
-      <div ref={sentinelRef} aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-0" />
+      <div
+        ref={sentinelRef}
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-0"
+      />
       <button
         type="button"
         onClick={handleClick}

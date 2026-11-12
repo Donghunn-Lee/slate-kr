@@ -51,15 +51,9 @@ export const WatchlistButton = ({ ticker, name, market }: WatchlistButtonProps) 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button
-          variant={isInWatchlist ? "secondary" : "outline"}
-          size="sm"
-          aria-label={label}
-        >
+        <Button variant={isInWatchlist ? "secondary" : "outline"} size="sm" aria-label={label}>
           <Star className={isInWatchlist ? "fill-current" : ""} />
-          <span className="hidden sm:inline">
-            {isInWatchlist ? "관심종목" : "관심 등록"}
-          </span>
+          <span className="hidden sm:inline">{isInWatchlist ? "관심종목" : "관심 등록"}</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent

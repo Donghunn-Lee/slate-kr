@@ -118,16 +118,14 @@ export const INDEX_MINI_MIN_BAR_SPACING = 0.2;
 // 같은 방식으로 복원한다 — 문자열 time(일봉 거래일)은 옮기지 않는다. 하단 tickMarkFormatter 는 별도 관리.
 const pad2 = (n: number): string => String(n).padStart(2, "0");
 
-const formatCrosshairTime = (
-  time: Time,
-  timeVisible: boolean,
-  barTimeZone?: string,
-): string => {
-  let y: number, m: number, d: number, hh = 0, mm = 0;
+const formatCrosshairTime = (time: Time, timeVisible: boolean, barTimeZone?: string): string => {
+  let y: number,
+    m: number,
+    d: number,
+    hh = 0,
+    mm = 0;
   if (typeof time === "number") {
-    const dt = new Date(
-      (barTimeZone ? toKstWallClockSec(time, barTimeZone) : time) * 1000,
-    );
+    const dt = new Date((barTimeZone ? toKstWallClockSec(time, barTimeZone) : time) * 1000);
     y = dt.getUTCFullYear();
     m = dt.getUTCMonth() + 1;
     d = dt.getUTCDate();
@@ -150,6 +148,5 @@ const formatCrosshairTime = (
 
 export const crosshairLocalization = (timeVisible: boolean, barTimeZone?: string) => ({
   locale: "ko-KR",
-  timeFormatter: (time: Time): string =>
-    formatCrosshairTime(time, timeVisible, barTimeZone),
+  timeFormatter: (time: Time): string => formatCrosshairTime(time, timeVisible, barTimeZone),
 });

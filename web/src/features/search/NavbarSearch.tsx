@@ -18,12 +18,5 @@ export const NavbarSearch = () => {
     if (urlQuery !== null) setValue(urlQuery);
   }
 
-  return (
-    <SearchInput
-      value={value}
-      onChange={setValue}
-      size="sm"
-      placeholder="종목 검색"
-    />
-  );
+  return <SearchInput value={value} onChange={setValue} size="sm" placeholder="종목 검색" />;
 };

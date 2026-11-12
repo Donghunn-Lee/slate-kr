@@ -12,24 +12,12 @@ describe("makeLeadingWhitespace", () => {
       { time: 106 },
       { time: 107 },
     ];
-    expect(makeLeadingWhitespace(bars, 3)).toEqual([
-      { time: 97 },
-      { time: 98 },
-      { time: 99 },
-    ]);
+    expect(makeLeadingWhitespace(bars, 3)).toEqual([{ time: 97 }, { time: 98 }, { time: 99 }]);
   });
 
   it("주봉: step=7d", () => {
-    const bars = [
-      { time: 100 },
-      { time: 107 },
-      { time: 114 },
-      { time: 121 },
-    ];
-    expect(makeLeadingWhitespace(bars, 2)).toEqual([
-      { time: 86 },
-      { time: 93 },
-    ]);
+    const bars = [{ time: 100 }, { time: 107 }, { time: 114 }, { time: 121 }];
+    expect(makeLeadingWhitespace(bars, 2)).toEqual([{ time: 86 }, { time: 93 }]);
   });
 
   it("count=0 → []", () => {

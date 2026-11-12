@@ -54,17 +54,21 @@ export default function CreditsPage() {
         <h2 className="text-value font-semibold">가상 데이터 안내</h2>
         <StockPanel className="break-keep">
           <p className="text-body">
-            국내 시세는 거래소와의 정보 이용 계약 없이 불특정 다수에게 제공할 수 없습니다. 증권사 API · 공공데이터도 같은 조건이라, 공개 데모의 가격 계열은 가상 데이터로 대체했습니다.
+            국내 시세는 거래소와의 정보 이용 계약 없이 불특정 다수에게 제공할 수 없습니다. 증권사
+            API · 공공데이터도 같은 조건이라, 공개 데모의 가격 계열은 가상 데이터로 대체했습니다.
           </p>
           <CategoryList rows={DEMO_DATA_SCOPE} className="mt-3" />
           <p className="mt-3 text-caption text-muted-foreground">
-            가상 시세는 같은 종목 · 같은 시각이면 언제 다시 봐도 같은 값이 나오도록 생성합니다. 가격대는 DART 배당 · 재무로 정한 기준점에 맞추고, 지수와 종목은 같은 시장 흐름을 공유하며, 동시호가 · 프리마켓 · 애프터마켓 같은 장 운영 규칙을 따릅니다.
+            가상 시세는 같은 종목 · 같은 시각이면 언제 다시 봐도 같은 값이 나오도록 생성합니다.
+            가격대는 DART 배당 · 재무로 정한 기준점에 맞추고, 지수와 종목은 같은 시장 흐름을
+            공유하며, 동시호가 · 프리마켓 · 애프터마켓 같은 장 운영 규칙을 따릅니다.
           </p>
           <p className="mt-1 text-caption text-muted-foreground">
             PER · PBR · 시가배당률은 가상 시세로 계산하므로 실제 값과 다릅니다.
           </p>
           <p className="mt-1 text-caption text-muted-foreground">
-            화면 상단 &lsquo;데모 설정&rsquo;에서 가격 API에 지연(3초)이나 실패 응답을 주입해 섹션별 로딩 · 실패 화면을 볼 수 있습니다.
+            화면 상단 &lsquo;데모 설정&rsquo;에서 가격 API에 지연(3초)이나 실패 응답을 주입해 섹션별
+            로딩 · 실패 화면을 볼 수 있습니다.
           </p>
         </StockPanel>
       </section>
@@ -80,13 +84,19 @@ export default function CreditsPage() {
             국내 종목 일봉은 거래일 20:10 KST에 하루 1회 갱신됩니다.
           </p>
           <p className="mt-1 text-caption text-muted-foreground">
-            일봉은 KRX 애프터마켓 마감(20:00) 기준이며, 고가·저가·종가에 애프터마켓 체결이 포함됩니다.
+            일봉은 KRX 애프터마켓 마감(20:00) 기준이며, 고가·저가·종가에 애프터마켓 체결이
+            포함됩니다.
           </p>
           <p className="mt-1 text-caption text-muted-foreground">
-            등락률은 전일 정규장(15:30) 종가를 기준가로 계산하며, 증권사·네이버 표기와 같은 기준입니다.
+            등락률은 전일 정규장(15:30) 종가를 기준가로 계산하며, 증권사·네이버 표기와 같은
+            기준입니다.
           </p>
           <p className="mt-1 text-caption text-muted-foreground">
-            PER·EPS·시가배당률은 DART 공시 값과 가상 일봉 종가로 계산합니다. 주식 병합·분할·무상증자 등으로 주식수가 바뀐 종목은 공시 EPS의 기준 주식수가 현재와 달라 값이 어긋날 수 있습니다. 차이가 크게 감지되면 표시하지 않지만, 변동 폭이 작거나 최근에 발생한 경우에는 감지되지 않아 다른 서비스와 다른 값이 표시될 수 있습니다. 12월 결산이 아닌 종목은 분기 기준 값이 정확하지 않을 수 있습니다.
+            PER·EPS·시가배당률은 DART 공시 값과 가상 일봉 종가로 계산합니다. 주식 병합·분할·무상증자
+            등으로 주식수가 바뀐 종목은 공시 EPS의 기준 주식수가 현재와 달라 값이 어긋날 수
+            있습니다. 차이가 크게 감지되면 표시하지 않지만, 변동 폭이 작거나 최근에 발생한 경우에는
+            감지되지 않아 다른 서비스와 다른 값이 표시될 수 있습니다. 12월 결산이 아닌 종목은 분기
+            기준 값이 정확하지 않을 수 있습니다.
           </p>
           <p className="mt-1 text-caption text-muted-foreground">
             지수 시세·분봉은 장중 약 1~2분 간격으로 갱신됩니다.
@@ -98,7 +108,8 @@ export default function CreditsPage() {
             다우존스(DJI)는 장중 시세 · 분봉 없이 일봉 종가만 표시됩니다.
           </p>
           <p className="mt-1 text-caption text-muted-foreground">
-            순위는 장중 약 1분 간격으로 갱신되며, 거래일 06:00~09:00 KST에는 NXT(NXT 거래 종목만), 그 외 시간에는 KRX 기준으로 집계합니다.
+            순위는 장중 약 1분 간격으로 갱신되며, 거래일 06:00~09:00 KST에는 NXT(NXT 거래 종목만),
+            그 외 시간에는 KRX 기준으로 집계합니다.
           </p>
         </StockPanel>
       </section>
@@ -110,11 +121,10 @@ export default function CreditsPage() {
             관심종목·메모 서버 저장을 위해 익명 식별 쿠키(1년)를 사용합니다.
           </p>
           <p className="mt-2 text-body">
-            개인정보는 수집하지 않으며, 쿠키를 삭제하면 서버에 저장된 관심종목·메모와의 연결이 끊깁니다.
+            개인정보는 수집하지 않으며, 쿠키를 삭제하면 서버에 저장된 관심종목·메모와의 연결이
+            끊깁니다.
           </p>
-          <p className="mt-2 text-body">
-            장애 시뮬레이션을 켜면 설정 쿠키(1시간)를 사용합니다.
-          </p>
+          <p className="mt-2 text-body">장애 시뮬레이션을 켜면 설정 쿠키(1시간)를 사용합니다.</p>
           <p className="mt-2 text-body">
             첫 방문 안내를 닫으면 다시 표시하지 않도록 브라우저 저장소에 기록합니다.
           </p>

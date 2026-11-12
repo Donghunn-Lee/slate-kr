@@ -47,8 +47,5 @@ export const createGaussian = (rng: () => number): (() => number) => {
   };
 };
 
-export const logUniform = (
-  rng: () => number,
-  min: number,
-  max: number,
-): number => Math.exp(Math.log(min) + (Math.log(max) - Math.log(min)) * rng());
+export const logUniform = (rng: () => number, min: number, max: number): number =>
+  Math.exp(Math.log(min) + (Math.log(max) - Math.log(min)) * rng());

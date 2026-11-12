@@ -15,11 +15,7 @@ import {
   getOverseasIndexTradingDate,
   getPreviousOverseasIndexTradingDate,
 } from "@/shared/utils/market";
-import type {
-  ChartBar,
-  IndexDailySnapshot,
-  IndexIntradaySnapshot,
-} from "@/shared/types/quote";
+import type { ChartBar, IndexDailySnapshot, IndexIntradaySnapshot } from "@/shared/types/quote";
 
 // 국내 지수 시세 코드 — index-quotes route 가 이 코드로 현재가를 요청한다. 코드 ↔ 지수의 단일 소스.
 export const ISCD_BY_INDEX: Record<DomesticIndexCode, string> = {
@@ -66,7 +62,7 @@ export const toIntradaySnapshots = (
   indexCode: string,
   bars: ChartBar[],
   prevClose: number,
-  useBarVolume: boolean = false,
+  useBarVolume: boolean = false
 ): IndexIntradaySnapshot[] =>
   bars.map((bar) => {
     const change = prevClose > 0 ? bar.close - prevClose : 0;
@@ -80,7 +76,7 @@ export const toIntradaySnapshots = (
       close: bar.close,
       change,
       changeRate,
-      volume: useBarVolume ? bar.volume ?? 0 : 0,
+      volume: useBarVolume ? (bar.volume ?? 0) : 0,
     };
   });
 
@@ -91,7 +87,7 @@ export const toIntradaySnapshots = (
 export const getOverseasIndexIntradayPrices = async (
   indexCode: OverseasIntradayCode,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  tradingDate: string,
+  tradingDate: string
 ): Promise<IndexIntradaySnapshot[] | null> => {
   const bars = await fetchOverseasIndexIntradayChart(indexCode);
   if (bars === null) return null;
@@ -108,19 +104,19 @@ export const getOverseasIndexIntradayPrices = async (
 // 현재가(indexQuoteAt) 와 같은 축이라 헤더 = 분봉 마지막 봉.
 export const getIndexIntradayPrices = async (
   indexCode: DomesticIndexCode,
-  now: Date = new Date(),
+  now: Date = new Date()
 ): Promise<IndexIntradaySnapshot[] | null> => indexIntradayBarsAt(indexCode, now);
 
 export const getIndexDailyPrices = async (
   indexCode: string,
-  limit?: number,
+  limit?: number
 ): Promise<IndexDailySnapshot[]> => {
   if (!isIndexCode(indexCode)) return [];
   // limit 생략 = 전량. 기본값을 두면 잊고 잘라올 위험이 있어 옵셔널로. 최신 N건, ASC.
   const bars = generateIndexDailyBars(
     indexCode,
     DEMO_HISTORY_START,
-    lastIndexEodDate(indexCode, new Date()),
+    lastIndexEodDate(indexCode, new Date())
   );
   return limit === undefined ? bars : bars.slice(Math.max(0, bars.length - limit));
 };

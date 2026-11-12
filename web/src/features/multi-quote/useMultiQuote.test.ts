@@ -4,9 +4,8 @@ import type { KrxSession } from "@/shared/utils/market";
 import { resolveListChange } from "@/shared/utils/resolveListChange";
 
 // 명시적 UTC epoch 로 KST 로컬 시각을 유도 (KST = UTC+9, DST 없음).
-const kst = (
-  y: number, m: number, d: number, h: number, min = 0,
-): Date => new Date(Date.UTC(y, m - 1, d, h - 9, min));
+const kst = (y: number, m: number, d: number, h: number, min = 0): Date =>
+  new Date(Date.UTC(y, m - 1, d, h - 9, min));
 
 // 2026-07-23 은 목요일 거래일, 2026-01-01 은 휴장일.
 const t = (h: number, min = 0): Date => kst(2026, 7, 23, h, min);

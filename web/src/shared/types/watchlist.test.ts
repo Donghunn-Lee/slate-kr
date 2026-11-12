@@ -59,9 +59,7 @@ describe("WatchlistSnapshotSchema", () => {
   it("rejects ticker not matching 6-char [0-9A-Z] format", () => {
     const parsed = WatchlistSnapshotSchema.safeParse({
       ...baseSnapshot,
-      memberships: [
-        { groupId: GID_A, ticker: "5930", addedAt: 1_700_000_200_000, order: 0 },
-      ],
+      memberships: [{ groupId: GID_A, ticker: "5930", addedAt: 1_700_000_200_000, order: 0 }],
       stockMeta: { "5930": { name: "삼성전자", market: "KOSPI" } },
     });
     expect(parsed.success).toBe(false);
@@ -78,10 +76,7 @@ describe("WatchlistSnapshotSchema", () => {
   it("rejects group object with an unknown key (strict)", () => {
     const parsed = WatchlistSnapshotSchema.safeParse({
       ...baseSnapshot,
-      groups: [
-        { ...baseSnapshot.groups[0], color: "red" },
-        baseSnapshot.groups[1],
-      ],
+      groups: [{ ...baseSnapshot.groups[0], color: "red" }, baseSnapshot.groups[1]],
     });
     expect(parsed.success).toBe(false);
   });

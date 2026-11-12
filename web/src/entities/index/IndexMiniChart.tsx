@@ -80,9 +80,7 @@ export const IndexMiniChart = ({
     const last = bars[bars.length - 1].time;
     if (typeof last !== "number") return bars;
     const key = tradingDate ?? kstDateKey(last);
-    return bars.filter(
-      (b) => typeof b.time === "number" && kstDateKey(b.time) === key,
-    );
+    return bars.filter((b) => typeof b.time === "number" && kstDateKey(b.time) === key);
   }, [bars, tradingDate]);
 
   useEffect(() => {
@@ -151,9 +149,7 @@ export const IndexMiniChart = ({
           lineWidth: 2,
           priceFormat,
           lastValueVisible,
-          autoscaleInfoProvider: (
-            original: () => AutoscaleInfo | null,
-          ): AutoscaleInfo | null => {
+          autoscaleInfoProvider: (original: () => AutoscaleInfo | null): AutoscaleInfo | null => {
             const info = original();
             if (!info || !info.priceRange) return info;
             return {
@@ -180,7 +176,7 @@ export const IndexMiniChart = ({
         .map((b) => ({
           time: b.time as UTCTimestamp,
           value: b.close,
-        })),
+        }))
     );
 
     // 전일종가 dashed line — 축 라벨 없이 순수 시각 기준선.
@@ -226,9 +222,7 @@ export const IndexMiniChart = ({
   }, [sessionBars, prevClose, resolvedTheme, compact]);
 
   if (isLoading && sessionBars.length === 0) {
-    return (
-      <div className="size-full animate-pulse rounded bg-muted" aria-hidden />
-    );
+    return <div className="size-full animate-pulse rounded bg-muted" aria-hidden />;
   }
   if (sessionBars.length === 0) {
     return (

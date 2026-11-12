@@ -130,11 +130,8 @@ const FinancialsTable = ({ periods, mode, compact }: FinancialsTableProps) => {
   }
 
   const ordered = [...periods].reverse();
-  const baseRows = compact
-    ? METRIC_ROWS.filter((r) => SUMMARY_LABELS.has(r.label))
-    : METRIC_ROWS;
-  const rows =
-    mode === "quarterly" ? baseRows.filter((r) => !r.annualOnly) : baseRows;
+  const baseRows = compact ? METRIC_ROWS.filter((r) => SUMMARY_LABELS.has(r.label)) : METRIC_ROWS;
+  const rows = mode === "quarterly" ? baseRows.filter((r) => !r.annualOnly) : baseRows;
   const hasQ4 = mode === "quarterly" && ordered.some((p) => p.quarter === 4);
 
   return (

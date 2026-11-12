@@ -72,20 +72,16 @@ export const StockHeaderLivePrice = ({
   // 토글 없는 종목은 KRX 축이 사실이라 "krx" 고정 — closeDate·카운트업 key 가 market 을
   // showToggle 게이트 없이 읽는다.
   const [market, setMarket] = useState<QuoteMarket>(
-    () => initialQuoteMarket(nxEligible, now, calendar) ?? "krx",
+    () => initialQuoteMarket(nxEligible, now, calendar) ?? "krx"
   );
 
   const marketArg: QuoteMarket | undefined = showToggle ? market : undefined;
   // KRX 탭 라이브 창 = regular + after. after 는 KRX 애프터마켓(16:00~) 체결이 J 로 흐른다.
   const isKrxOffRegular =
-    showToggle &&
-    market === "krx" &&
-    clientSession !== "regular" &&
-    clientSession !== "after";
+    showToggle && market === "krx" && clientSession !== "regular" && clientSession !== "after";
   // EOD 미적재 창(15:30 통과 후 20:10 EOD 반영 전): initialDate 가 lastCloseDate 보다
   // 뒤처지면 KRX 확정 종가 1회 조회로 라벨/값을 격상.
-  const isKrxDelayWindow =
-    isKrxOffRegular && initialDate !== null && initialDate < lastCloseDate;
+  const isKrxDelayWindow = isKrxOffRegular && initialDate !== null && initialDate < lastCloseDate;
   // 지연 창엔 fetch 를 살려두고 폴링만 정지 (subscribeOnly).
   const queryEnabled = !isKrxOffRegular || isKrxDelayWindow;
 
@@ -130,7 +126,7 @@ export const StockHeaderLivePrice = ({
     session ?? clientSession,
     showToggle ? market : "krx",
     now,
-    calendar,
+    calendar
   );
   const closedLike = isClosedLikeMiss(session, live, isFailedQuote);
 
@@ -166,7 +162,7 @@ export const StockHeaderLivePrice = ({
       ? initialChange
       : closedLike
         ? initialChange
-        : live?.change ?? initialChange;
+        : (live?.change ?? initialChange);
 
   const displayChangeRate = preReset
     ? 0
@@ -174,7 +170,7 @@ export const StockHeaderLivePrice = ({
       ? initialChangeRate
       : closedLike
         ? initialChangeRate
-        : live?.changeRate ?? initialChangeRate;
+        : (live?.changeRate ?? initialChangeRate);
 
   // 비-regular KRX 강제 케이스는 서버 응답 대신 clientSession 을 라벨에 넘긴다.
   const labelSession = forceInitial ? clientSession : session;
@@ -234,10 +230,7 @@ export const StockHeaderLivePrice = ({
       )}
       <div className="flex flex-wrap items-end gap-3">
         <span
-          className={cn(
-            "text-display font-bold tracking-tight",
-            priceToneClass(displayChange),
-          )}
+          className={cn("text-display font-bold tracking-tight", priceToneClass(displayChange))}
         >
           {/* market 을 key 로 부여 → 탭 전환 시 remount 로 카운트업 애니 억제 (소스 전환).
               동일 탭 내 실시간 갱신은 key 유지 → 정상 카운트업. */}
@@ -260,9 +253,7 @@ export const StockHeaderLivePrice = ({
           <span>{labelText}</span>
           {timeText && <span aria-hidden>·</span>}
           {timeText && <span className="tabular-nums">{timeText}</span>}
-          {isFailedQuote && (
-            <StatusBadge label="일시 지연" />
-          )}
+          {isFailedQuote && <StatusBadge label="일시 지연" />}
         </span>
       </div>
       {showRegularClose && <RegularCloseRow value={stats.regularClose} />}
@@ -309,7 +300,7 @@ const toggleButtonCls = (active: boolean) =>
     "inline-flex items-center justify-center border-b px-2 text-caption sm:px-2.5",
     active
       ? "border-transparent bg-elevated text-foreground font-medium"
-      : "border-default bg-muted text-muted-foreground hover:text-foreground",
+      : "border-default bg-muted text-muted-foreground hover:text-foreground"
   );
 
 const MarketToggle = ({
@@ -338,10 +329,7 @@ const MarketToggle = ({
         );
       })}
     </div>
-    <div
-      aria-hidden
-      className="h-6 w-24 border-b border-default sm:h-7 sm:w-28"
-    />
+    <div aria-hidden className="h-6 w-24 border-b border-default sm:h-7 sm:w-28" />
   </div>
 );
 

@@ -17,11 +17,8 @@ export type LiveQuoteForMerge = {
 // 그대로 쓴다) — 이 케이스를 무효로 판정한다. change/changeRate 는 개별 필드로 유지되며
 // 여기서는 OHL 삼중 0 만을 무효 신호로 삼는다 — 세 값 모두 0 이 자연스러운 실거래
 // 봉은 존재하지 않음(호가만 있어도 OHL 은 채워짐).
-export const isInvalidQuoteOhl = (q: {
-  open: number;
-  high: number;
-  low: number;
-}): boolean => q.open === 0 && q.high === 0 && q.low === 0;
+export const isInvalidQuoteOhl = (q: { open: number; high: number; low: number }): boolean =>
+  q.open === 0 && q.high === 0 && q.low === 0;
 
 // EOD 일봉 + 라이브 quote 병합. 라이브가 오늘 봉이면 replace, 새 날짜면 append.
 //
@@ -35,7 +32,7 @@ export const isInvalidQuoteOhl = (q: {
 export const mergeLiveDayBar = (
   eod: ChartBar[],
   quote: LiveQuoteForMerge | null,
-  date: string | undefined,
+  date: string | undefined
 ): ChartBar[] => {
   if (!quote || !date) return eod;
   const last = eod[eod.length - 1];

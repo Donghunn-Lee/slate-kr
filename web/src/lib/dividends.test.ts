@@ -93,9 +93,7 @@ describe("attachDividends", () => {
   });
 
   it("매칭 연도 없는 annual → 3필드 null 유지", () => {
-    const periods: FinancialPeriod[] = [
-      mkFP({ year: 2020, reportType: "annual" }),
-    ];
+    const periods: FinancialPeriod[] = [mkFP({ year: 2020, reportType: "annual" })];
     const byYear = new Map<number, DividendMetrics>([
       [2024, { dps: 1446, payoutRatio: 0.292, dividendYield: 0.027 }],
     ]);

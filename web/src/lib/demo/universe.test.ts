@@ -31,12 +31,66 @@ const STOCKS: StockFixture[] = [
 // 005930: 2024 는 정상 핀, 2025 는 EPS 기준 주식수가 현재의 1/10 이라 핀 제외, 2023 은 무배당.
 // 123450: 핀이 없어 앵커가 최신 연간 EPS 로 정해진다 — 2026 행을 읽으면 프로필이 달라진다.
 const YEARLY: YearlyFixture[] = [
-  { ticker: "005930", year: 2023, has_financial: true, eps: 2_131, bps: 52_002, net_income: 14_473_401_000_000, dps: null, dart_yield: null },
-  { ticker: "005930", year: 2024, has_financial: true, eps: 4_950, bps: 57_930, net_income: 33_685_000_000_000, dps: 1_446, dart_yield: 2.7 },
-  { ticker: "005930", year: 2025, has_financial: true, eps: 50_000, bps: 60_000, net_income: 30_000_000_000_000, dps: 1_500, dart_yield: 3 },
-  { ticker: "999990", year: 2025, has_financial: false, eps: null, bps: null, net_income: null, dps: 100, dart_yield: 1 },
-  { ticker: "123450", year: 2025, has_financial: true, eps: 1_000, bps: 12_000, net_income: 10_000_000_000, dps: null, dart_yield: null },
-  { ticker: "123450", year: 2026, has_financial: true, eps: 3_000, bps: 30_000, net_income: 30_000_000_000, dps: 500, dart_yield: 2 },
+  {
+    ticker: "005930",
+    year: 2023,
+    has_financial: true,
+    eps: 2_131,
+    bps: 52_002,
+    net_income: 14_473_401_000_000,
+    dps: null,
+    dart_yield: null,
+  },
+  {
+    ticker: "005930",
+    year: 2024,
+    has_financial: true,
+    eps: 4_950,
+    bps: 57_930,
+    net_income: 33_685_000_000_000,
+    dps: 1_446,
+    dart_yield: 2.7,
+  },
+  {
+    ticker: "005930",
+    year: 2025,
+    has_financial: true,
+    eps: 50_000,
+    bps: 60_000,
+    net_income: 30_000_000_000_000,
+    dps: 1_500,
+    dart_yield: 3,
+  },
+  {
+    ticker: "999990",
+    year: 2025,
+    has_financial: false,
+    eps: null,
+    bps: null,
+    net_income: null,
+    dps: 100,
+    dart_yield: 1,
+  },
+  {
+    ticker: "123450",
+    year: 2025,
+    has_financial: true,
+    eps: 1_000,
+    bps: 12_000,
+    net_income: 10_000_000_000,
+    dps: null,
+    dart_yield: null,
+  },
+  {
+    ticker: "123450",
+    year: 2026,
+    has_financial: true,
+    eps: 3_000,
+    bps: 30_000,
+    net_income: 30_000_000_000,
+    dps: 500,
+    dart_yield: 2,
+  },
 ];
 // 999990 은 배당 행만으로 첫 연도가 잡히고, 777770 은 재무 · 배당 행이 둘 다 없어 결과에 없다.
 const FIRST_YEARS: FirstYearFixture[] = [
@@ -54,7 +108,7 @@ describe("demo/universe", () => {
         ? [STOCKS, null]
         : sql.includes("MIN(year)")
           ? [FIRST_YEARS, null]
-          : [YEARLY, null],
+          : [YEARLY, null]
     );
     vi.useFakeTimers({ now: new Date("2026-11-10T12:00:00Z") });
   });
@@ -73,7 +127,7 @@ describe("demo/universe", () => {
         bps: 60_000,
         pins: [{ date: "2024-12-31", price: 1_446 / 0.027 }],
         shares: 5_969_782_550,
-      }),
+      })
     );
   });
 
@@ -88,7 +142,7 @@ describe("demo/universe", () => {
         eps: null,
         bps: null,
         pins: [{ date: "2025-12-31", price: 100 / 0.01 }],
-      }),
+      })
     );
     expect(await getDemoEntry("000000")).toBeNull();
   });
@@ -97,7 +151,7 @@ describe("demo/universe", () => {
     const { getDemoEntry } = await import("./universe");
     const entry = await getDemoEntry("123450");
     expect(entry?.profile).toEqual(
-      getTickerProfile("123450", { eps: 1_000, bps: 12_000, pins: [], shares: 10_000_000 }),
+      getTickerProfile("123450", { eps: 1_000, bps: 12_000, pins: [], shares: 10_000_000 })
     );
   });
 

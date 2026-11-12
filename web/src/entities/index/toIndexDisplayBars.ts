@@ -9,7 +9,7 @@ import { resampleThenEndLabelBySession } from "@/shared/utils/resampleThenEndLab
 export const toIndexDisplayBars = (
   snapshots: readonly IndexIntradaySnapshot[],
   intervalMin: number,
-  code: IndexCode,
+  code: IndexCode
 ): ChartBar[] => {
   const raw: ChartBar[] = snapshots.map((s) => ({
     time: s.timestamp,

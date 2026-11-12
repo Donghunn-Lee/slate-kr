@@ -1,8 +1,5 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import type {
-  MarketRankingItem,
-  MarketRankingKind,
-} from "@/shared/types/ranking";
+import type { MarketRankingItem, MarketRankingKind } from "@/shared/types/ranking";
 import { isKrxActiveSession, type KrxSession } from "@/shared/utils/market";
 
 // route 응답 계약: 항상 200, failed/session/marketOpen 포함.
@@ -74,9 +71,7 @@ type UseMarketRankingResult = {
 // slice(상위 N) 는 컴포넌트 몫 — 훅은 route items 그대로 반환.
 // placeholderData: keepPreviousData — 탭/시장 전환 시 이전 카테고리 결과 유지 → skeleton 깜빡임 제거.
 // isLoading (v5: isPending && isFetching) 은 placeholder 존재 시 false 이므로 최초 mount 에만 skeleton 노출.
-export const useMarketRanking = (
-  kind: MarketRankingKind,
-): UseMarketRankingResult => {
+export const useMarketRanking = (kind: MarketRankingKind): UseMarketRankingResult => {
   const key = toKeyString(kind);
   const query = useQuery<MarketRankingResponse>({
     queryKey: ["market-ranking", key],
@@ -86,8 +81,7 @@ export const useMarketRanking = (
       return res.json();
     },
     placeholderData: keepPreviousData,
-    refetchInterval: (q) =>
-      isKrxActiveSession(q.state.data?.session) ? POLL_INTERVAL_MS : false,
+    refetchInterval: (q) => (isKrxActiveSession(q.state.data?.session) ? POLL_INTERVAL_MS : false),
   });
 
   return {

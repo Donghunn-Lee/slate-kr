@@ -63,18 +63,13 @@ const GRANULARITY_DEFAULT_BARS: Record<Granularity, number> = {
   month: 12,
 };
 
-
 // intraday 응답이 아직 도착하지 않았을 때 fallback — module-level 로 참조 안정화해
 // intradayResampled useMemo 의 deps 가 매 렌더 바뀌지 않게 한다.
 const EMPTY_BARS: ChartBar[] = [];
 
 // 종목 분봉 END 라벨 세션 경계 (ASC). NXT 프리마켓 마감 08:50, 정규장 마감 15:30,
 // 애프터마켓(NXT·KRX 공통) 마감 20:00 세 지점에서 각각 마감 크로스 클램프.
-const STOCK_END_LABEL_BOUNDARIES: readonly string[] = [
-  "085000",
-  "153000",
-  "200000",
-];
+const STOCK_END_LABEL_BOUNDARIES: readonly string[] = ["085000", "153000", "200000"];
 
 // KST 정규장 창 (분). 확장 세션(NXT 프리/애프터 · KRX 애프터마켓) 판정에 사용.
 const REGULAR_START_KST_MIN = 9 * 60;
@@ -195,14 +190,10 @@ export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsPro
   // seriesKind 는 granularity 전환에도 유지 (사용자 선호 지속).
   const [viewMode, setViewMode] = useState<ViewMode>("full");
   const [granularity, setGranularity] = useState<Granularity>("day");
-  const [intradayInterval, setIntradayInterval] = useState<number>(
-    INTRADAY_INTERVAL_DEFAULT,
-  );
+  const [intradayInterval, setIntradayInterval] = useState<number>(INTRADAY_INTERVAL_DEFAULT);
   const [seriesKind, setSeriesKind] = useState<SeriesKind>("candle");
   // 표시 봉 개수. null = 전체. 입력·프리셋 공용. PriceChart 가 visibleBars 로 소비 (데이터 slice 없음).
-  const [barCount, setBarCount] = useState<number | null>(
-    GRANULARITY_DEFAULT_BARS.day,
-  );
+  const [barCount, setBarCount] = useState<number | null>(GRANULARITY_DEFAULT_BARS.day);
   // input remount 카운터 — 무효 입력 후 defaultValue 로 원복시키기 위한 key nonce.
   // 프리셋 클릭 등 barCount 자체 변경은 barCount 값이 key 에 이미 들어 있어 자동 remount.
   const [inputRevertNonce, setInputRevertNonce] = useState(0);
@@ -222,7 +213,7 @@ export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsPro
   // 사용자가 헤더에서 비기본 탭에 머무는 동안 캐시가 갈라져 live merge 는 잠시 정지 —
   // 기본 상태 무손실 우선의 감수 갭.
   const [subscribeMarket] = useState<QuoteMarket | undefined>(() =>
-    initialQuoteMarket(nxEligible, new Date(), calendar),
+    initialQuoteMarket(nxEligible, new Date(), calendar)
   );
   const { data: quoteData } = useStockQuote(ticker, {
     subscribeOnly: true,
@@ -238,7 +229,7 @@ export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsPro
     // 전일이라 병합해도 저장 봉과 같은 값이다.
     const gatedQuote = isKrxOpeningWindow(quoteData?.session, new Date(), calendar)
       ? null
-      : quoteData?.quote ?? null;
+      : (quoteData?.quote ?? null);
     // 합성봉 등락 기준 = price − change (전일 대비 축) — 헤더 등락률과 같은 소스.
     const liveForMerge = gatedQuote
       ? { ...gatedQuote, basePrice: gatedQuote.price - gatedQuote.change }
@@ -273,9 +264,7 @@ export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsPro
   // 전송 실패(차단·5xx)는 data 가 없을 때만 failed 로 본다 — 직전 정상본이 있으면 TanStack 이
   // data 를 남기므로 failed 응답의 직전본 유지(keepLastGoodIntraday)와 같은 결과가 된다.
   const intradayFailed = intradayQuery.data?.failed ?? intradayQuery.isError;
-  const rawIntradayBars = intradayFailed
-    ? EMPTY_BARS
-    : (intradayQuery.data?.bars ?? EMPTY_BARS);
+  const rawIntradayBars = intradayFailed ? EMPTY_BARS : (intradayQuery.data?.bars ?? EMPTY_BARS);
   const hasIntraday = rawIntradayBars.length > 0;
   // 전일 스냅샷 fallback (preopen · 주말 · 공휴일). 라벨과 baseline 분기에 사용.
   const isPreviousDay = intradayQuery.data?.previousDay ?? false;
@@ -294,7 +283,7 @@ export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsPro
           ? m < REGULAR_START_KST_MIN || m > REGULAR_END_KST_MIN
           : m >= KRX_AFTER_MARKET_START_MINUTES;
       }),
-    [rawIntradayBars, nxEligible],
+    [rawIntradayBars, nxEligible]
   );
 
   // 파이프라인: raw START(1분) → 세션 분할 리샘플+END 라벨 → 헤더 quote 마스킹.
@@ -305,12 +294,8 @@ export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsPro
   // 1분 뷰에서는 내부 resampleIntradayBars 가 pass-through 하므로 자동 적용.
   const intradayEndLabeled = useMemo<ChartBar[]>(
     () =>
-      resampleThenEndLabelBySession(
-        rawIntradayBars,
-        intradayInterval,
-        STOCK_END_LABEL_BOUNDARIES,
-      ),
-    [rawIntradayBars, intradayInterval],
+      resampleThenEndLabelBySession(rawIntradayBars, intradayInterval, STOCK_END_LABEL_BOUNDARIES),
+    [rawIntradayBars, intradayInterval]
   );
   // 헤더 60s 폴링 quote 로 최신 봉 close 대체 — 서버 캐시 miss 사이 gap 마스킹.
   // previousDay / date 축 어긋남은 유틸 가드가 처리.
@@ -321,14 +306,9 @@ export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsPro
         quoteData?.quote ?? null,
         quoteData?.date,
         intradayQuery.data?.date,
-        intradayQuery.data?.previousDay ?? false,
+        intradayQuery.data?.previousDay ?? false
       ),
-    [
-      intradayEndLabeled,
-      quoteData,
-      intradayQuery.data?.date,
-      intradayQuery.data?.previousDay,
-    ],
+    [intradayEndLabeled, quoteData, intradayQuery.data?.date, intradayQuery.data?.previousDay]
   );
 
   const bars = isIntradayView
@@ -564,9 +544,7 @@ export const StockChartTabs = ({ ticker, prices, nxEligible }: StockChartTabsPro
             <p className="text-body font-medium text-foreground">
               당일 차트를 일시적으로 불러오지 못했어요
             </p>
-            <p className="text-caption text-muted-foreground">
-              잠시 후 다시 시도해 주세요
-            </p>
+            <p className="text-caption text-muted-foreground">잠시 후 다시 시도해 주세요</p>
           </div>
           <button
             type="button"

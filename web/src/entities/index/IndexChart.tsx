@@ -83,7 +83,7 @@ const fakeUtcSecToLocalDate = (sec: number): string => {
 // 의도된 동작 (헤더 quote 신선도와 차트 기준일 갭 해소).
 export const overseasQuoteMergeDate = (
   quote: IndexQuote | null,
-  latestDailyDate: string | null,
+  latestDailyDate: string | null
 ): string | undefined => {
   if (!quote?.time || !latestDailyDate) return undefined;
   const raw = quote.time.date;
@@ -181,13 +181,9 @@ export const IndexChart = ({
   const calendar = useMarketCalendar();
   const [viewMode, setViewMode] = useState<ViewMode>("full");
   const [granularity, setGranularity] = useState<Granularity>("day");
-  const [intradayInterval, setIntradayInterval] = useState<number>(
-    INTRADAY_INTERVAL_DEFAULT,
-  );
+  const [intradayInterval, setIntradayInterval] = useState<number>(INTRADAY_INTERVAL_DEFAULT);
   const [seriesKind, setSeriesKind] = useState<SeriesKind>("candle");
-  const [barCount, setBarCount] = useState<number | null>(
-    GRANULARITY_DEFAULT_BARS.day,
-  );
+  const [barCount, setBarCount] = useState<number | null>(GRANULARITY_DEFAULT_BARS.day);
   const [inputRevertNonce, setInputRevertNonce] = useState(0);
   // 툴바 "기본 배율" 버튼 트리거. 증가 시 PriceChart 가 현재 뷰의 초기 range 재적용.
   const [resetKey, setResetKey] = useState(0);
@@ -235,25 +231,19 @@ export const IndexChart = ({
   // 여백은 이력이 실제로 도착한 뒤에만 제거 — 로딩/에러 구간의 오버레이 표시 영역을 살려둔다.
   const historyLoaded = historyActive && dailyHistory !== undefined;
 
-  const intradayQuery = isOverseasIntraday
-    ? overseasIntradayQuery
-    : domesticIntradayQuery;
+  const intradayQuery = isOverseasIntraday ? overseasIntradayQuery : domesticIntradayQuery;
 
   const domesticCode: DomesticIndexCode | null =
-    intradayEnabled && !isOverseasIntraday
-      ? (indexCode as DomesticIndexCode)
-      : null;
+    intradayEnabled && !isOverseasIntraday ? (indexCode as DomesticIndexCode) : null;
   const overseasCode: OverseasIntradayCode | null =
-    intradayEnabled && isOverseasIntraday
-      ? (indexCode as OverseasIntradayCode)
-      : null;
+    intradayEnabled && isOverseasIntraday ? (indexCode as OverseasIntradayCode) : null;
 
   const rawIntraday: IndexIntradaySnapshot[] | null = isOverseasIntraday
     ? overseasCode !== null
-      ? overseasIntradayQuery.data?.quotes[overseasCode] ?? null
+      ? (overseasIntradayQuery.data?.quotes[overseasCode] ?? null)
       : null
     : domesticCode !== null
-      ? domesticIntradayQuery.data?.quotes[domesticCode] ?? null
+      ? (domesticIntradayQuery.data?.quotes[domesticCode] ?? null)
       : null;
 
   // 오늘 세션 date — 리전별 소스:
@@ -279,9 +269,9 @@ export const IndexChart = ({
           ? getPreviousOverseasIndexTradingDate(
               indexCode as OverseasIntradayCode,
               liveDate,
-              calendar,
+              calendar
             )
-          : getPreviousKrxTradingDate(liveDate, calendar),
+          : getPreviousKrxTradingDate(liveDate, calendar)
       )
     : undefined;
 
@@ -296,20 +286,15 @@ export const IndexChart = ({
   // 개장 전 창(08:00~09:00)엔 domestic quote 를 null 로 게이트 — 개장 전 당일
   // 지수봉이 EOD 축에 유입되는 것 차단 (StockChartTabs 와 동형).
   const domesticLiveQuote =
-    domesticCode !== null &&
-    !isKrxOpeningWindow(quotesData?.session, new Date(), calendar)
-      ? quotesData?.quotes[domesticCode].live ?? null
+    domesticCode !== null && !isKrxOpeningWindow(quotesData?.session, new Date(), calendar)
+      ? (quotesData?.quotes[domesticCode].live ?? null)
       : null;
   const overseasQuote: IndexQuote | null = isOverseasIndex
-    ? overseasQuotesData?.quotes[indexCode as OverseasIndexCode] ?? null
+    ? (overseasQuotesData?.quotes[indexCode as OverseasIndexCode] ?? null)
     : null;
   // 병합 게이트: quote.time.date > latestDaily.date (converted). time=null(.DJI) 자연 차단.
-  const latestDailyDate =
-    basePrices.length > 0 ? basePrices[basePrices.length - 1].date : null;
-  const overseasMergeDate = overseasQuoteMergeDate(
-    overseasQuote,
-    latestDailyDate,
-  );
+  const latestDailyDate = basePrices.length > 0 ? basePrices[basePrices.length - 1].date : null;
+  const overseasMergeDate = overseasQuoteMergeDate(overseasQuote, latestDailyDate);
   const overseasLiveQuote: LiveQuoteForMerge | null = overseasQuote
     ? {
         open: overseasQuote.open,
@@ -328,26 +313,20 @@ export const IndexChart = ({
   // route 가 완전 fetch 실패 시 해당 지수 true. bars 는 항상 [] 이므로 실패는 empty 를 동반.
   const intradayFailed = isOverseasIntraday
     ? overseasCode !== null
-      ? overseasIntradayQuery.data?.failed?.[overseasCode] ?? false
+      ? (overseasIntradayQuery.data?.failed?.[overseasCode] ?? false)
       : false
     : domesticCode !== null
-      ? domesticIntradayQuery.data?.failed?.[domesticCode] ?? false
+      ? (domesticIntradayQuery.data?.failed?.[domesticCode] ?? false)
       : false;
   // 실패는 항상 empty 를 동반하므로 failed 로 분기 우선순위 결정 — 두 분기는 상호 배타.
   const showFailedIntraday =
-    isIntradayView &&
-    !intradayQuery.isLoading &&
-    !intradayHasData &&
-    intradayFailed;
+    isIntradayView && !intradayQuery.isLoading && !intradayHasData && intradayFailed;
   const showEmptyIntraday =
-    isIntradayView &&
-    !intradayQuery.isPending &&
-    !intradayHasData &&
-    !intradayFailed;
+    isIntradayView && !intradayQuery.isPending && !intradayHasData && !intradayFailed;
 
   const dayBars = useMemo<ChartBar[]>(
     () => mergeLiveDayBar(dailyToBars(basePrices), liveQuote, mergeDate),
-    [basePrices, liveQuote, mergeDate],
+    [basePrices, liveQuote, mergeDate]
   );
 
   const weekBars = useMemo<ChartBar[]>(() => {
@@ -563,9 +542,7 @@ export const IndexChart = ({
             <p className="text-body font-medium text-foreground">
               당일 차트를 일시적으로 불러오지 못했어요
             </p>
-            <p className="text-caption text-muted-foreground">
-              잠시 후 다시 시도해 주세요
-            </p>
+            <p className="text-caption text-muted-foreground">잠시 후 다시 시도해 주세요</p>
           </div>
           <button
             type="button"
@@ -585,8 +562,7 @@ export const IndexChart = ({
           className="flex w-full items-center justify-center rounded-md text-body text-muted-foreground"
           style={{ height: chartHeight }}
         >
-          {!isOverseasIndex &&
-          isKrxOpeningWindow(quotesData?.session, new Date(), calendar)
+          {!isOverseasIndex && isKrxOpeningWindow(quotesData?.session, new Date(), calendar)
             ? "개장전"
             : "당일 인트라데이 데이터 없음"}
         </div>
@@ -602,8 +578,7 @@ export const IndexChart = ({
           // 해외 지수 분봉은 거래량이 없다 (어댑터가 volume 을 싣지 않는다).
           // INDICES_WITHOUT_VOLUME 등재 지수(SPX·NDX)는 daily 도 volume=0 이라 전 뷰 숨김.
           showVolume={
-            !(isOverseasIndex && isIntradayView) &&
-            !INDICES_WITHOUT_VOLUME.has(indexCode)
+            !(isOverseasIndex && isIntradayView) && !INDICES_WITHOUT_VOLUME.has(indexCode)
           }
           showLegend
           maPeriods={effectiveMaPeriods}
@@ -623,9 +598,7 @@ export const IndexChart = ({
           prevLookbackBars={INTRADAY_PREV_LOOKBACK_BARS}
           resetKey={resetKey}
           onNearLeftEdge={renderIntraday ? undefined : enableHistory}
-          leftMarginBars={
-            renderIntraday || historyLoaded ? undefined : LEFT_MARGIN_BARS
-          }
+          leftMarginBars={renderIntraday || historyLoaded ? undefined : LEFT_MARGIN_BARS}
           leftEdgeStatus={
             renderIntraday
               ? "idle"

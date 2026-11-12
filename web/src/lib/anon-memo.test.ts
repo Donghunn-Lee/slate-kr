@@ -58,9 +58,7 @@ describe("parseAnonMemoRow", () => {
   });
 
   it("returns null when updated_at is missing or malformed", () => {
-    expect(
-      parseAnonMemoRow({ snapshot: validSnapshot, version: 1, updated_at: null })
-    ).toBeNull();
+    expect(parseAnonMemoRow({ snapshot: validSnapshot, version: 1, updated_at: null })).toBeNull();
     expect(
       parseAnonMemoRow({
         snapshot: validSnapshot,

@@ -34,10 +34,7 @@ export const WatchlistPreview = () => {
   const syncStatus = useWatchlistStore((s) => s.syncStatus);
   const showSyncBadge = syncStatus === "blocked" || syncStatus === "error";
 
-  const sortedGroups = useMemo(
-    () => [...groups].sort((a, b) => a.order - b.order),
-    [groups]
-  );
+  const sortedGroups = useMemo(() => [...groups].sort((a, b) => a.order - b.order), [groups]);
 
   // 선택 그룹은 컴포넌트 local state (persist 안 함). 삭제/부재 시 첫 그룹으로 폴백.
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
@@ -132,7 +129,10 @@ export const WatchlistPreview = () => {
         <div className="flex min-w-0 items-center gap-2">
           <h2 className="text-value font-semibold text-foreground">내 관심종목</h2>
           {showSyncBadge && (
-            <StatusBadge label="서버 저장 안 됨" title="관심종목이 이 브라우저에만 저장되어 있어요" />
+            <StatusBadge
+              label="서버 저장 안 됨"
+              title="관심종목이 이 브라우저에만 저장되어 있어요"
+            />
           )}
         </div>
         <Link
@@ -150,13 +150,8 @@ export const WatchlistPreview = () => {
               {sortedGroups[0].name}
             </span>
           ) : (
-            <Select
-              value={effectiveGroupId ?? undefined}
-              onValueChange={setSelectedGroupId}
-            >
-              <SelectTrigger
-                className="h-auto min-w-0 gap-1.5 rounded-none border-0 bg-transparent p-0 text-body-lg font-semibold text-foreground shadow-none hover:bg-transparent focus-visible:border-transparent focus-visible:ring-0"
-              >
+            <Select value={effectiveGroupId ?? undefined} onValueChange={setSelectedGroupId}>
+              <SelectTrigger className="h-auto min-w-0 gap-1.5 rounded-none border-0 bg-transparent p-0 text-body-lg font-semibold text-foreground shadow-none hover:bg-transparent focus-visible:border-transparent focus-visible:ring-0">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent position="popper" side="bottom" align="start">
@@ -172,9 +167,7 @@ export const WatchlistPreview = () => {
         {items.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center">
             <Star className="size-5 text-muted-foreground/60" />
-            <p className="mt-2 text-body text-muted-foreground">
-              이 그룹에 저장된 종목이 없어요
-            </p>
+            <p className="mt-2 text-body text-muted-foreground">이 그룹에 저장된 종목이 없어요</p>
             <Link
               href="/watchlist"
               className="mt-3 inline-flex items-center gap-1 text-body font-medium transition-opacity hover:opacity-70"
@@ -207,12 +200,12 @@ export const WatchlistPreview = () => {
                     const displayChange = resolveListChange(
                       live?.change ?? null,
                       p?.change,
-                      preReset,
+                      preReset
                     );
                     const displayChangeRate = resolveListChange(
                       live?.changeRate ?? null,
                       p?.changePct,
-                      preReset,
+                      preReset
                     );
                     const displaySign = live ? live.sign : undefined;
                     return (
@@ -241,7 +234,7 @@ export const WatchlistPreview = () => {
                                   <span
                                     className={cn(
                                       "text-body font-bold leading-none tabular-nums",
-                                      priceToneClass(displaySign ?? displayChange),
+                                      priceToneClass(displaySign ?? displayChange)
                                     )}
                                   >
                                     {formatClose(displayPrice)}

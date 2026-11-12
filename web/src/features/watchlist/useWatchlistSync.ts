@@ -3,10 +3,7 @@
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useWatchlistStore } from "./store/useWatchlistStore";
-import {
-  isSnapshotEqual,
-  selectSnapshot,
-} from "./store/watchlistSnapshot";
+import { isSnapshotEqual, selectSnapshot } from "./store/watchlistSnapshot";
 import { shouldFlushOnPageHide } from "@/shared/utils/shouldFlushOnPageHide";
 import { SYNC_MARKER_COOKIE } from "@/shared/constants/syncMarkerCookie";
 import type {
@@ -21,12 +18,9 @@ const PUT_RETRY_DELAY_MS = 1000;
 
 const hasSyncMarker = (): boolean =>
   typeof document !== "undefined" &&
-  document.cookie
-    .split(";")
-    .some((c) => c.trim().startsWith(`${SYNC_MARKER_COOKIE}=`));
+  document.cookie.split(";").some((c) => c.trim().startsWith(`${SYNC_MARKER_COOKIE}=`));
 
-const sleep = (ms: number) =>
-  new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+const sleep = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 
 // Zod 검증은 서버 측 upsert 경로에서 하고, 클라 로드 경로는 route 응답의 형태만 확인.
 const fetchGet = async (): Promise<WatchlistGetResponse | null> => {
@@ -42,9 +36,7 @@ const fetchGet = async (): Promise<WatchlistGetResponse | null> => {
   }
 };
 
-const fetchPut = async (
-  snapshot: WatchlistSnapshot
-): Promise<WatchlistPutResponse | null> => {
+const fetchPut = async (snapshot: WatchlistSnapshot): Promise<WatchlistPutResponse | null> => {
   try {
     const res = await fetch("/api/watchlist", {
       method: "PUT",
@@ -75,9 +67,7 @@ export const useWatchlistSync = () => {
   useEffect(() => {
     let cancelled = false;
 
-    const setStatus = (
-      status: "idle" | "loading" | "synced" | "blocked" | "error"
-    ) => {
+    const setStatus = (status: "idle" | "loading" | "synced" | "blocked" | "error") => {
       useWatchlistStore.getState().setSyncStatus(status);
     };
 
@@ -131,9 +121,7 @@ export const useWatchlistSync = () => {
         } else {
           useWatchlistStore.getState().replaceAll(lastConfirmedRef.current);
           setStatus("error");
-          toast.error(
-            "관심종목을 저장하지 못했어요. 변경 전으로 되돌렸어요."
-          );
+          toast.error("관심종목을 저장하지 못했어요. 변경 전으로 되돌렸어요.");
         }
       }
     };
@@ -172,18 +160,14 @@ export const useWatchlistSync = () => {
         return;
       }
       if (!response.ok) {
-        console.error(
-          `[watchlist-sync] get error: ${response.error.kind}`
-        );
+        console.error(`[watchlist-sync] get error: ${response.error.kind}`);
         lastConfirmedRef.current = null;
         setStatus("blocked");
         return;
       }
 
       if (response.data === null) {
-        lastConfirmedRef.current = selectSnapshot(
-          useWatchlistStore.getState()
-        );
+        lastConfirmedRef.current = selectSnapshot(useWatchlistStore.getState());
         setStatus("synced");
         return;
       }

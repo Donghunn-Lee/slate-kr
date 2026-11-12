@@ -18,9 +18,7 @@ const PREOPEN: StockIntradayResponse = {
 };
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
-  <QueryClientProvider
-    client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
-  >
+  <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
     {children}
   </QueryClientProvider>
 );

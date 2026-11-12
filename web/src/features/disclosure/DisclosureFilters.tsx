@@ -307,7 +307,7 @@ export const DisclosureFilters = ({
       <div
         className={cn(
           "flex flex-wrap items-center justify-between gap-2 transition-opacity",
-          isPending && "pointer-events-none opacity-60",
+          isPending && "pointer-events-none opacity-60"
         )}
       >
         <ToggleGroup
@@ -325,7 +325,7 @@ export const DisclosureFilters = ({
               aria-label={opt.label}
               className={cn(
                 "h-7 border-sky-border bg-sky-border/30 px-2 text-caption text-secondary-foreground hover:bg-sky-border/40 hover:text-foreground",
-                opt.onClass,
+                opt.onClass
               )}
             >
               {opt.label}

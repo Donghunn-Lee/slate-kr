@@ -18,7 +18,7 @@ type LayoutProps = {
 
 export async function generateMetadata(
   { params }: { params: Promise<{ ticker: string }> },
-  parent: ResolvingMetadata,
+  parent: ResolvingMetadata
 ): Promise<Metadata> {
   const { ticker } = await params;
   let stock = null;
@@ -59,7 +59,7 @@ export default async function StockDetailLayout({ children, params }: LayoutProp
   const session = getKrxSessionState(now, calendar);
   const showRegularClose = isRegularCloseWindow(
     session,
-    isKrxOpeningWindow(session, now, calendar),
+    isKrxOpeningWindow(session, now, calendar)
   );
 
   return (

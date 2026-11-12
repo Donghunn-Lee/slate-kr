@@ -17,10 +17,9 @@ export const MemoSnapshotSchema = z
   .object({
     memos: z
       .record(TickerSchema, MemoEntrySchema)
-      .refine(
-        (memos) => Object.keys(memos).length <= MAX_MEMO_COUNT,
-        { message: `memos exceeds ${MAX_MEMO_COUNT} entries` }
-      ),
+      .refine((memos) => Object.keys(memos).length <= MAX_MEMO_COUNT, {
+        message: `memos exceeds ${MAX_MEMO_COUNT} entries`,
+      }),
   })
   .strict();
 

@@ -126,8 +126,8 @@ export const Typography = () => (
       Typography
     </h2>
     <p className="mb-6 text-[13px] text-muted-foreground">
-      role 기반 font-size 토큰 — 뷰포트 640px 미만에서 각 role이 모바일 값으로 자동 축소.
-      샘플 텍스트는 실제 유틸리티 클래스로 렌더링되며, 창 너비를 좁히면 크기가 반영된다.
+      role 기반 font-size 토큰 — 뷰포트 640px 미만에서 각 role이 모바일 값으로 자동 축소. 샘플
+      텍스트는 실제 유틸리티 클래스로 렌더링되며, 창 너비를 좁히면 크기가 반영된다.
     </p>
 
     <div>

@@ -3,23 +3,16 @@
 import { createContext, useContext } from "react";
 import type { MarketCalendar } from "@/shared/types/marketCalendar";
 
-const MarketCalendarContext = createContext<MarketCalendar | undefined>(
-  undefined,
-);
+const MarketCalendarContext = createContext<MarketCalendar | undefined>(undefined);
 
 type MarketCalendarProviderProps = {
   calendar: MarketCalendar;
   children: React.ReactNode;
 };
 
-export const MarketCalendarProvider = ({
-  calendar,
-  children,
-}: MarketCalendarProviderProps) => {
+export const MarketCalendarProvider = ({ calendar, children }: MarketCalendarProviderProps) => {
   return (
-    <MarketCalendarContext.Provider value={calendar}>
-      {children}
-    </MarketCalendarContext.Provider>
+    <MarketCalendarContext.Provider value={calendar}>{children}</MarketCalendarContext.Provider>
   );
 };
 

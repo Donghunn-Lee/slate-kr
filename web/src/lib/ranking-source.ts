@@ -1,8 +1,4 @@
-import type {
-  Market,
-  MarketRankingItem,
-  MarketRankingKind,
-} from "@/shared/types/ranking";
+import type { Market, MarketRankingItem, MarketRankingKind } from "@/shared/types/ranking";
 import type { StockQuote } from "@/shared/types/quote";
 import {
   getKstDateAndMinutes,
@@ -10,12 +6,7 @@ import {
   type KrxSession,
 } from "@/shared/utils/market";
 import { createRng, hashSeed, logUniform } from "@/lib/demo/prng";
-import {
-  limitPrices,
-  quoteAt,
-  type DemoChannel,
-  type DemoTier,
-} from "@/lib/demo/price-model";
+import { limitPrices, quoteAt, type DemoChannel, type DemoTier } from "@/lib/demo/price-model";
 import { getDemoEodDate, getDemoUniverse, type DemoUniverseEntry } from "@/lib/demo/universe";
 
 // 시장 순위 — universe 전 종목의 현재가를 한 표로 만들고 kind 별로 정렬한다.
@@ -66,10 +57,15 @@ const INTEREST_DAILY_JITTER = 0.1;
 
 const interestCountOf = (entry: DemoUniverseEntry, eodDate: string): number => {
   const base =
-    logUniform(createRng(hashSeed(entry.ticker, "interest")), INTEREST_BASE_MIN, INTEREST_BASE_MAX) *
-    INTEREST_TIER_WEIGHT[entry.profile.tier];
+    logUniform(
+      createRng(hashSeed(entry.ticker, "interest")),
+      INTEREST_BASE_MIN,
+      INTEREST_BASE_MAX
+    ) * INTEREST_TIER_WEIGHT[entry.profile.tier];
   const jitter =
-    1 - INTEREST_DAILY_JITTER + 2 * INTEREST_DAILY_JITTER * createRng(hashSeed(entry.ticker, "interest", eodDate))();
+    1 -
+    INTEREST_DAILY_JITTER +
+    2 * INTEREST_DAILY_JITTER * createRng(hashSeed(entry.ticker, "interest", eodDate))();
   return Math.round(base * jitter);
 };
 
@@ -113,9 +109,7 @@ const byTicker = (a: RankedQuote, b: RankedQuote): number =>
 
 const sortKey = (kind: MarketRankingKind): ((row: RankedQuote) => number) => {
   if (kind.kind === "fluctuation") {
-    return kind.direction === "up"
-      ? (row) => row.quote.changeRate
-      : (row) => -row.quote.changeRate;
+    return kind.direction === "up" ? (row) => row.quote.changeRate : (row) => -row.quote.changeRate;
   }
   if (kind.kind === "volume") {
     return kind.by === "volume" ? (row) => row.quote.volume : (row) => row.tradeValue;
@@ -150,7 +144,7 @@ const toItem = (row: RankedQuote, kind: MarketRankingKind, rank: number): Market
 // session 은 시세 채널 축(rankingMarketDiv)만 정한다 — 캐시·TTL 은 route 소관.
 export const fetchRanking = async (
   kind: MarketRankingKind,
-  session: KrxSession,
+  session: KrxSession
 ): Promise<RankingFetchResult> => {
   try {
     const table = await getTable(new Date(), rankingMarketDiv(session));

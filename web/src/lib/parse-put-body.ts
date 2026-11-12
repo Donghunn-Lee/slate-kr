@@ -7,10 +7,7 @@ export type ParsePutBodyResult<T> =
   | { ok: false; status: 400; kind: "invalid_json" | "invalid_snapshot" }
   | { ok: false; status: 413; kind: "too_large" };
 
-export const parsePutBody = <T>(
-  text: string,
-  schema: ZodType<T>
-): ParsePutBodyResult<T> => {
+export const parsePutBody = <T>(text: string, schema: ZodType<T>): ParsePutBodyResult<T> => {
   if (new TextEncoder().encode(text).length > MAX_BODY_BYTES) {
     return { ok: false, status: 413, kind: "too_large" };
   }

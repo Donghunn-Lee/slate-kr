@@ -12,7 +12,7 @@ export const STALE_TOLERANCE_MS = 15_000;
 export const isStaleIntradayResponse = (
   fetchedAt: number | null,
   ttlMs: number,
-  now: number = Date.now(),
+  now: number = Date.now()
 ): boolean => fetchedAt !== null && now - fetchedAt > ttlMs + STALE_TOLERANCE_MS;
 
 // 예약 1건. 반환 cleanup 이 언마운트·응답 교체에서 예약을 걷어낸다. hidden 탭은 발화 시점에
@@ -32,7 +32,7 @@ export const decideStaleRefetch = (
   retried: boolean,
   fetchedAt: number | null,
   ttlMs: number,
-  now: number = Date.now(),
+  now: number = Date.now()
 ): { schedule: boolean; retried: boolean } => {
   if (retried) return { schedule: false, retried: false };
   return { schedule: isStaleIntradayResponse(fetchedAt, ttlMs, now), retried: false };

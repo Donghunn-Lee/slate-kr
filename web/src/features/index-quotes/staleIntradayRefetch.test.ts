@@ -23,14 +23,12 @@ describe("isStaleIntradayResponse — 응답 fetchedAt 나이 vs TTL + 여유", 
     expect(isStaleIntradayResponse(NOW - 64_600, KRX_TTL, NOW)).toBe(false);
   });
   it("나이 == TTL + 여유 → false", () => {
-    expect(
-      isStaleIntradayResponse(NOW - KRX_TTL - STALE_TOLERANCE_MS, KRX_TTL, NOW),
-    ).toBe(false);
+    expect(isStaleIntradayResponse(NOW - KRX_TTL - STALE_TOLERANCE_MS, KRX_TTL, NOW)).toBe(false);
   });
   it("나이 TTL + 여유 + 1ms → true", () => {
-    expect(
-      isStaleIntradayResponse(NOW - KRX_TTL - STALE_TOLERANCE_MS - 1, KRX_TTL, NOW),
-    ).toBe(true);
+    expect(isStaleIntradayResponse(NOW - KRX_TTL - STALE_TOLERANCE_MS - 1, KRX_TTL, NOW)).toBe(
+      true
+    );
   });
   it("hidden 90s → true", () => {
     expect(isStaleIntradayResponse(NOW - 90_000, KRX_TTL, NOW)).toBe(true);
@@ -59,23 +57,21 @@ describe("decideStaleRefetch — 응답당 최대 1회, 체이닝 금지", () =>
   it("체이닝 차단 뒤 다음 tick 응답이 stale 이면 다시 예약", () => {
     const blocked = decideStaleRefetch(true, STALE_AT, KRX_TTL, NOW + STALE_REFETCH_DELAY_MS);
     expect(decideStaleRefetch(blocked.retried, STALE_AT, KRX_TTL, NOW + KRX_TTL).schedule).toBe(
-      true,
+      true
     );
   });
 
   it("예약이 취소돼 나가지 않았으면 다음 응답은 정상 판정", () => {
     const first = decideStaleRefetch(false, STALE_AT, KRX_TTL, NOW);
     // 언마운트·hidden 으로 발화 없음 → retried 그대로 false
-    expect(decideStaleRefetch(first.retried, STALE_AT, KRX_TTL, NOW + KRX_TTL).schedule).toBe(
-      true,
-    );
+    expect(decideStaleRefetch(first.retried, STALE_AT, KRX_TTL, NOW + KRX_TTL).schedule).toBe(true);
   });
 
   it("재조회 결과가 fresh 면 이후 응답도 예약 없음", () => {
     const fresh = decideStaleRefetch(true, NOW + 500, KRX_TTL, NOW + STALE_REFETCH_DELAY_MS);
     expect(fresh.schedule).toBe(false);
     expect(decideStaleRefetch(fresh.retried, NOW + 500, KRX_TTL, NOW + 10_000).schedule).toBe(
-      false,
+      false
     );
   });
 });

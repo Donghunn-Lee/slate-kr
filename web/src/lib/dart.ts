@@ -34,14 +34,10 @@ export type GetDisclosuresOptions = {
   revalidate?: number;
 };
 
-const toYyyymmdd = (date: Date): string =>
-  date.toISOString().slice(0, 10).replace(/-/g, "");
+const toYyyymmdd = (date: Date): string => date.toISOString().slice(0, 10).replace(/-/g, "");
 
 export const getDisclosures = cache(
-  async (
-    corpCode: string,
-    options: GetDisclosuresOptions = {},
-  ): Promise<DisclosuresResult> => {
+  async (corpCode: string, options: GetDisclosuresOptions = {}): Promise<DisclosuresResult> => {
     const apiKey = process.env.DART_API_KEY;
     const { pageNo = 1, pageCount = 100, bgnDate, endDate, revalidate = 3600 } = options;
 
@@ -89,7 +85,7 @@ export const getDisclosures = cache(
       totalPage: parsed.data.total_page ?? (items.length > 0 ? 1 : 0),
       currentPage: pageNo,
     };
-  },
+  }
 );
 
 // rcept_no 앞 8자리는 접수일이다. 그날 하루의 목록에서 찾는다.
@@ -127,35 +123,29 @@ const CompanyResponseSchema = z.object({
   hm_url: z.string().optional(),
 });
 
-export const getCompanyProfile = cache(
-  async (corpCode: string): Promise<CompanyProfile | null> => {
-    const apiKey = process.env.DART_API_KEY;
-    if (!apiKey || !corpCode) return null;
+export const getCompanyProfile = cache(async (corpCode: string): Promise<CompanyProfile | null> => {
+  const apiKey = process.env.DART_API_KEY;
+  if (!apiKey || !corpCode) return null;
 
-    const url = new URL("https://opendart.fss.or.kr/api/company.json");
-    url.searchParams.set("crtfc_key", apiKey);
-    url.searchParams.set("corp_code", corpCode);
+  const url = new URL("https://opendart.fss.or.kr/api/company.json");
+  url.searchParams.set("crtfc_key", apiKey);
+  url.searchParams.set("corp_code", corpCode);
 
-    try {
-      const res = await fetch(url.toString(), { next: { revalidate: 86400 } });
-      if (!res.ok) return null;
+  try {
+    const res = await fetch(url.toString(), { next: { revalidate: 86400 } });
+    if (!res.ok) return null;
 
-      const json: unknown = await res.json();
-      const parsed = CompanyResponseSchema.safeParse(json);
-      if (!parsed.success) return null;
-      if (parsed.data.status !== "000") return null;
+    const json: unknown = await res.json();
+    const parsed = CompanyResponseSchema.safeParse(json);
+    if (!parsed.success) return null;
+    if (parsed.data.status !== "000") return null;
 
-      const sectorName = getSectorName(parsed.data.induty_code);
-      const rawUrl = parsed.data.hm_url?.trim();
-      const homepageUrl = rawUrl
-        ? rawUrl.startsWith("http")
-          ? rawUrl
-          : `https://${rawUrl}`
-        : null;
+    const sectorName = getSectorName(parsed.data.induty_code);
+    const rawUrl = parsed.data.hm_url?.trim();
+    const homepageUrl = rawUrl ? (rawUrl.startsWith("http") ? rawUrl : `https://${rawUrl}`) : null;
 
-      return { sectorName, homepageUrl };
-    } catch {
-      return null;
-    }
-  },
-);
+    return { sectorName, homepageUrl };
+  } catch {
+    return null;
+  }
+});

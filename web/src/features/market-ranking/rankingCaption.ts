@@ -17,7 +17,7 @@ import {
 export const resolveRankingCaption = (
   session: KrxSession | undefined,
   now: Date | null,
-  calendar?: MarketCalendar,
+  calendar?: MarketCalendar
 ): string | null => {
   if (session === undefined || now === null) return null;
   if (session === "pre") return "프리마켓 · NXT";
@@ -28,9 +28,7 @@ export const resolveRankingCaption = (
   }
   if (session === "regular") return "정규장 · KRX";
   if (session === "after") {
-    return isKrxAfterMarketOpen(now, calendar)
-      ? "애프터마켓 · KRX"
-      : "정규장 마감 · KRX";
+    return isKrxAfterMarketOpen(now, calendar) ? "애프터마켓 · KRX" : "정규장 마감 · KRX";
   }
   return "애프터마켓 마감 · KRX";
 };

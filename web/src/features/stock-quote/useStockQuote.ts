@@ -51,10 +51,7 @@ const isActiveSession = (calendar?: MarketCalendar) =>
 // 클라이언트 시계 기준 60초 폴링. 서버 응답의 marketOpen 에 의존하지 않으므로
 // preopen → regular 같은 세션 전환 시에도 페이지 새로고침 없이 자동 재개된다.
 // subscribeOnly=true 면 폴링 없이 기존 queryKey 캐시만 구독한다 (동일 티커의 헤더 폴링을 재사용).
-export const useStockQuote = (
-  ticker: string,
-  options: UseStockQuoteOptions = {},
-) => {
+export const useStockQuote = (ticker: string, options: UseStockQuoteOptions = {}) => {
   const { subscribeOnly = false, market, enabled = true, closeDate } = options;
   const calendar = useMarketCalendar();
   const marketKey: QuoteMarket | "auto" = market ?? "auto";

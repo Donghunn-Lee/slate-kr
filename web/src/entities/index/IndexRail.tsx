@@ -2,11 +2,7 @@
 
 import { useState } from "react";
 import { ChevronRight } from "lucide-react";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { PriceChange } from "@/shared/components/PriceChange";
 import { PriceCountUp } from "@/entities/stock/PriceCountUp";
 import {
@@ -47,11 +43,7 @@ const SECTIONS: {
   { key: "overseas", label: "해외", codes: OVERSEAS_INDEX_CODES },
 ];
 
-export const IndexRail = ({
-  selected,
-  onSelect,
-  dailyByIndex,
-}: IndexRailProps) => {
+export const IndexRail = ({ selected, onSelect, dailyByIndex }: IndexRailProps) => {
   const { data, isLoading } = useIndexQuotes();
   // 해외 intraday 폴링. queryKey 는 DetailPane 과 동일 (["overseas-index-intraday"])
   // 이라 TanStack Query 가 dedup — Rail 추가로 인한 네트워크 비용 없음.
@@ -61,16 +53,16 @@ export const IndexRail = ({
   // 개장 전 창 판정은 클라 시계 축. now=null(SSR·첫 렌더)은 false 로 흘려 hydration 유지.
   const now = useNow();
   const calendar = useMarketCalendar();
-  const openingWindow =
-    now !== null && isKrxOpeningWindow(data?.session, now, calendar);
+  const openingWindow = now !== null && isKrxOpeningWindow(data?.session, now, calendar);
   // EOD 폴백 캡션은 라이브 소스가 응답한 뒤에만 — 해외는 첫 응답 전에도 SSR 값을 그리므로
   // 캡션을 무조건 붙이면 로드마다 깜빡인다. 국내는 스켈레톤 게이트로 응답 후에만 셀이 생긴다.
   const overseasAnswered = !overseasQuotesQuery.isPending;
   // 두 섹션 모두 기본 열림. 사용자가 접으면 그 상태를 유지 — 선택 지수가 있는
   // 섹션을 강제로 다시 열지는 않는다(선택 이동 자체는 하이라이트로 충분).
-  const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>(
-    { domestic: true, overseas: true },
-  );
+  const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
+    domestic: true,
+    overseas: true,
+  });
 
   return (
     <nav aria-label="지수 목록" className="space-y-2">
@@ -78,9 +70,7 @@ export const IndexRail = ({
         <Collapsible
           key={key}
           open={openSections[key]}
-          onOpenChange={(o) =>
-            setOpenSections((s) => ({ ...s, [key]: o }))
-          }
+          onOpenChange={(o) => setOpenSections((s) => ({ ...s, [key]: o }))}
         >
           <CollapsibleTrigger className="group flex w-full items-center gap-1.5 px-1 py-2 text-left text-caption font-medium uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground">
             <ChevronRight
@@ -95,30 +85,23 @@ export const IndexRail = ({
                 const meta = getIndexMeta(code);
                 const isDomestic = meta.region === "domestic";
                 const prices = dailyByIndex[code];
-                const latestDaily =
-                  prices && prices.length > 0
-                    ? prices[prices.length - 1]
-                    : null;
+                const latestDaily = prices && prices.length > 0 ? prices[prices.length - 1] : null;
                 // 해외 intraday(SPX/COMP/NDX): 최신 봉이 있으면 live 셀로 승격.
                 // 그 외 해외 지수는 isOverseasIntradayCode=false → 항상 EOD fallback.
                 const overseasBars = isOverseasIntradayCode(code)
-                  ? overseasIntradayQuery.data?.quotes[code] ?? []
+                  ? (overseasIntradayQuery.data?.quotes[code] ?? [])
                   : [];
                 const overseasLatestBar =
-                  overseasBars.length > 0
-                    ? overseasBars[overseasBars.length - 1]
-                    : null;
+                  overseasBars.length > 0 ? overseasBars[overseasBars.length - 1] : null;
                 const cell = buildIndexCell({
                   isDomestic,
                   name: INDEX_LABEL[code],
-                  domesticCell: isDomestic
-                    ? data?.quotes[code as DomesticIndexCode]
-                    : undefined,
+                  domesticCell: isDomestic ? data?.quotes[code as DomesticIndexCode] : undefined,
                   overseasQuote: isDomestic
                     ? null
-                    : overseasQuotesQuery.data?.quotes[
+                    : (overseasQuotesQuery.data?.quotes[
                         code as Exclude<IndexCode, DomesticIndexCode>
-                      ] ?? null,
+                      ] ?? null),
                   overseasLatestBar,
                   latestDaily,
                   session: data?.session,
@@ -139,13 +122,11 @@ export const IndexRail = ({
                         "flex w-full flex-col gap-0.5 rounded-md border px-3 py-2.5 text-left transition-colors",
                         isSelected
                           ? "border-lavender-accent bg-lavender-bg shadow-slate-hover"
-                          : "border-subtle bg-elevated shadow-slate hover:bg-lavender-bg/50",
+                          : "border-subtle bg-elevated shadow-slate hover:bg-lavender-bg/50"
                       )}
                     >
                       <div className="flex items-baseline gap-2">
-                        <span className="text-body font-medium">
-                          {INDEX_LABEL[code]}
-                        </span>
+                        <span className="text-body font-medium">{INDEX_LABEL[code]}</span>
                         <span className="text-body font-medium text-muted-foreground/80">
                           {meta.overline}
                         </span>
@@ -158,10 +139,7 @@ export const IndexRail = ({
                       ) : cell?.live ? (
                         <div className="flex items-baseline gap-2">
                           <span
-                            className={cn(
-                              "text-body tabular-nums",
-                              priceToneClass(cell.live.sign),
-                            )}
+                            className={cn("text-body tabular-nums", priceToneClass(cell.live.sign))}
                           >
                             <PriceCountUp value={cell.live.price} format={formatIndexPrice} />
                           </span>
@@ -179,7 +157,7 @@ export const IndexRail = ({
                           <span
                             className={cn(
                               "text-body tabular-nums",
-                              priceToneClass(cell.fallback.change),
+                              priceToneClass(cell.fallback.change)
                             )}
                           >
                             {formatIndexPrice(cell.fallback.close)}
@@ -192,15 +170,11 @@ export const IndexRail = ({
                             fractionDigits={2}
                           />
                           {(isDomestic || overseasAnswered) && (
-                            <span className="text-micro text-muted-foreground">
-                              종가 기준
-                            </span>
+                            <span className="text-micro text-muted-foreground">종가 기준</span>
                           )}
                         </div>
                       ) : (
-                        <span className="text-caption text-muted-foreground">
-                          데이터 없음
-                        </span>
+                        <span className="text-caption text-muted-foreground">데이터 없음</span>
                       )}
                     </button>
                   </li>

@@ -25,8 +25,7 @@ export const dynamic = "force-dynamic";
 const flatKey = (k: MarketRankingKind): string => {
   const suffix = `-${k.market}`;
   if (k.kind === "fluctuation") return `fluc-${k.direction}${suffix}`;
-  if (k.kind === "volume")
-    return `vol-${k.by === "volume" ? "shares" : "value"}${suffix}`;
+  if (k.kind === "volume") return `vol-${k.by === "volume" ? "shares" : "value"}${suffix}`;
   if (k.kind === "market-cap") return `mcap${suffix}`;
   return `interest${suffix}`;
 };
@@ -66,9 +65,7 @@ type RankingPayload = {
 // DB 조회로 종목별 시장 구분을 매핑. KIS 순위 응답에는 per-row market 이 없다.
 // 실패는 items 그대로 + marketResolved=false — 순위 응답 실패 계약(failed flag)에는 영향 없음.
 // unstable_cache 내부에서 호출되므로 캐시 hit 시 DB 재조회하지 않는다.
-const enrichWithMarket = async (
-  items: MarketRankingItem[],
-): Promise<RankingPayload> => {
+const enrichWithMarket = async (items: MarketRankingItem[]): Promise<RankingPayload> => {
   if (items.length === 0) return { items, marketResolved: true };
   try {
     const marketByTicker = await getMarketsByTickers(items.map((i) => i.ticker));
@@ -90,15 +87,14 @@ const enrichWithMarket = async (
 // 실패 kind 세부(token/http/business/…) 는 lib 에서 이미 console.error, route/클라이언트는 failed 만 소비.
 const runFetch = async (
   kind: MarketRankingKind,
-  session: KrxSession,
+  session: KrxSession
 ): Promise<RankingPayload | null> => {
   const r = await fetchRanking(kind, session);
   if (!r.ok) return null;
   return enrichWithMarket(r.items);
 };
 
-const cacheTag = (key: string, session: KrxSession): string =>
-  `market-ranking-${key}-${session}`;
+const cacheTag = (key: string, session: KrxSession): string => `market-ranking-${key}-${session}`;
 
 // key × session × krxDate 별 unstable_cache 래퍼 memoize. 활성 세션(regular·after·pre) 60s / 그 외 3600s.
 // 세션이 key 축에 있으므로 시장코드(J/NX) 전환에 별도 무효화가 필요 없다.
@@ -108,11 +104,8 @@ const cacheTag = (key: string, session: KrxSession): string =>
 type RankingFetcher = () => Promise<RankingPayload | null>;
 const fetchers = new Map<string, RankingFetcher>();
 
-const cacheKeyOf = (
-  key: string,
-  session: KrxSession,
-  tradingDate: string,
-): string => `${key}::${session}::${tradingDate}`;
+const cacheKeyOf = (key: string, session: KrxSession, tradingDate: string): string =>
+  `${key}::${session}::${tradingDate}`;
 
 // Data Cache 는 배포를 넘어 남는다 — 캐시 값(RankingPayload) 형태가 바뀌면 이 버전을 올려
 // 이전 형태로 저장된 엔트리를 새 코드가 읽지 않게 한다.
@@ -121,7 +114,7 @@ const CACHE_SHAPE_VERSION = "v2";
 const getCachedFetcher = (
   kind: MarketRankingKind,
   session: KrxSession,
-  tradingDate: string,
+  tradingDate: string
 ): { fetcher: RankingFetcher; key: string } => {
   const key = flatKey(kind);
   const mapKey = cacheKeyOf(key, session, tradingDate);
@@ -131,7 +124,7 @@ const getCachedFetcher = (
   const fresh = unstable_cache(
     () => runFetch(kind, session),
     ["market-ranking", CACHE_SHAPE_VERSION, key, session, tradingDate],
-    { revalidate: krxRankingRevalidate(session), tags: [tag] },
+    { revalidate: krxRankingRevalidate(session), tags: [tag] }
   );
   fetchers.set(mapKey, fresh);
   return { fetcher: fresh, key };
@@ -152,7 +145,7 @@ export const GET = async (req: NextRequest) => {
       {
         error: `invalid ranking params (kind=${RANKING_KIND_IDS.join("|")}, optional market=all|kospi|kosdaq; fluctuation needs direction=up|down, volume needs by=shares|value)`,
       },
-      { status: 400 },
+      { status: 400 }
     );
   }
 

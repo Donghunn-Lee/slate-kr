@@ -27,13 +27,7 @@ export const NXT_REGULAR_END_MINUTES = 15 * 60 + 20;
 export const NXT_AFTER_MARKET_START_MINUTES = 15 * 60 + 40;
 const AFTER_END_MINUTES = 20 * 60; // 20:00 KST — 애프터마켓 종료
 
-export type KrxSession =
-  | "regular"
-  | "after"
-  | "after_close"
-  | "pre"
-  | "preopen"
-  | "closed";
+export type KrxSession = "regular" | "after" | "after_close" | "pre" | "preopen" | "closed";
 
 const pad = (n: number): string => String(n).padStart(2, "0");
 
@@ -54,7 +48,7 @@ const toKstParts = (now: Date): KstParts => {
 // calendar 미전달 시 KRX_HOLIDAYS 정적 표 폴백 (isKrxHoliday 내부).
 export const getKrxSessionState = (
   now: Date = new Date(),
-  calendar?: MarketCalendar,
+  calendar?: MarketCalendar
 ): KrxSession => {
   const { day, minutes, date } = toKstParts(now);
   if (day === 0 || day === 6) return "closed";
@@ -68,10 +62,8 @@ export const getKrxSessionState = (
   return "closed";
 };
 
-export const isKrxMarketOpen = (
-  now: Date = new Date(),
-  calendar?: MarketCalendar,
-): boolean => getKrxSessionState(now, calendar) === "regular";
+export const isKrxMarketOpen = (now: Date = new Date(), calendar?: MarketCalendar): boolean =>
+  getKrxSessionState(now, calendar) === "regular";
 
 // KRX 정규장 / NXT 확장 세션(프리·애프터) 두 시장 축. 기본 탭은 defaultQuoteMarket —
 // 헤더 탭과 차트 subscribe 가 같은 캐시 축을 보도록 이 한 곳에서 결정한다.
@@ -87,19 +79,13 @@ export const isKrxActiveSession = (session: KrxSession | undefined): boolean =>
 // preopen 창을 세분화. NXT 프리 존재 가능성이 다르다.
 // 아침(06:00~08:00): NXT 프리 미개시 → 오늘 봉 자체 없음. 전일 스냅샷 fallback 대상.
 // 늦은(08:50~09:00): NXT 종목은 08:00~08:50 봉이 이미 쌓임. 라벨은 붙되 차트는 유지.
-export const isKrxEarlyPreopen = (
-  now: Date = new Date(),
-  calendar?: MarketCalendar,
-): boolean => {
+export const isKrxEarlyPreopen = (now: Date = new Date(), calendar?: MarketCalendar): boolean => {
   if (getKrxSessionState(now, calendar) !== "preopen") return false;
   const { minutes } = toKstParts(now);
   return minutes < PRE_START_MINUTES;
 };
 
-export const isKrxLatePreopen = (
-  now: Date = new Date(),
-  calendar?: MarketCalendar,
-): boolean => {
+export const isKrxLatePreopen = (now: Date = new Date(), calendar?: MarketCalendar): boolean => {
   if (getKrxSessionState(now, calendar) !== "preopen") return false;
   const { minutes } = toKstParts(now);
   return minutes >= PRE_END_MINUTES;
@@ -111,7 +97,7 @@ export const isKrxLatePreopen = (
 // 늘리지 않고 표시 계층만 이 술어로 가른다.
 export const isKrxAfterMarketOpen = (
   now: Date = new Date(),
-  calendar?: MarketCalendar,
+  calendar?: MarketCalendar
 ): boolean => {
   if (getKrxSessionState(now, calendar) !== "after") return false;
   const { minutes } = toKstParts(now);
@@ -123,9 +109,8 @@ export const isKrxAfterMarketOpen = (
 // 술어에 포함시켜 "정규장 개장 전엔 당일 봉을 얹지 않는다"는 의도를 문서화한다.
 // pre(08:00~08:50) 는 NXT 프리마켓 실봉이 KRX 라벨 일봉 축에 유입되는 것을 명시 차단.
 // regular · after · after_close · closed 는 false 로 당일 봉을 그대로 얹는다. 애프터마켓 정합은 stock-intraday 가 맡는다.
-export const isKrxBeforeMarketOpen = (
-  session: KrxSession | undefined,
-): boolean => session === "pre" || session === "preopen";
+export const isKrxBeforeMarketOpen = (session: KrxSession | undefined): boolean =>
+  session === "pre" || session === "preopen";
 
 // 개장 전 표시 창 — pre(08:00~08:50) + 늦은 preopen(08:50~09:00).
 // 이 창은 KRX 기준가가 이미 오늘 거래일로 리셋된 구간이라 전일 일중 등락을 얹으면
@@ -134,33 +119,25 @@ export const isKrxBeforeMarketOpen = (
 export const isKrxOpeningWindow = (
   session: KrxSession | undefined,
   now: Date = new Date(),
-  calendar?: MarketCalendar,
+  calendar?: MarketCalendar
 ): boolean => session === "pre" || isKrxLatePreopen(now, calendar);
 
 // 기본 시장 탭 — 개장 전 창(08:00~09:00)은 NXT, 그 외는 KRX(저장 캔들·헤더 라이브(J) 축).
 // 이 창은 NXT 만 체결이 흘러 KRX 탭이 0% 리셋으로 고정되기 때문. 창 판정은 종목 헤더
 // 라벨(openingWindow)과 같은 식 — 클라 세션 + isKrxOpeningWindow.
-export const defaultQuoteMarket = (
-  now: Date,
-  calendar?: MarketCalendar,
-): QuoteMarket =>
-  isKrxOpeningWindow(getKrxSessionState(now, calendar), now, calendar)
-    ? "nxt"
-    : "krx";
+export const defaultQuoteMarket = (now: Date, calendar?: MarketCalendar): QuoteMarket =>
+  isKrxOpeningWindow(getKrxSessionState(now, calendar), now, calendar) ? "nxt" : "krx";
 
 // 종목 헤더 탭과 차트 subscribe 의 마운트 1회 market 인자. NXT 취급 종목만 시장 축을 갖고
 // 그 외는 미지정(auto) — 호출부마다 따로 판정하면 경계 통과 시 서로 갈려 캐시 항목이 나뉜다.
 export const initialQuoteMarket = (
   nxEligible: boolean | null,
   now: Date,
-  calendar?: MarketCalendar,
-): QuoteMarket | undefined =>
-  nxEligible === true ? defaultQuoteMarket(now, calendar) : undefined;
+  calendar?: MarketCalendar
+): QuoteMarket | undefined => (nxEligible === true ? defaultQuoteMarket(now, calendar) : undefined);
 
 // KST 캘린더 일자와 분(0~1439) — 세션 무관, 순수 KST 파싱만.
-export const getKstDateAndMinutes = (
-  now: Date = new Date(),
-): { date: string; minutes: number } => {
+export const getKstDateAndMinutes = (now: Date = new Date()): { date: string; minutes: number } => {
   const { date, minutes } = toKstParts(now);
   return { date, minutes };
 };
@@ -183,10 +160,7 @@ const shiftKstDate = (yyyyMmDd: string, deltaDays: number): string => {
   return `${d0.getUTCFullYear()}-${pad(d0.getUTCMonth() + 1)}-${pad(d0.getUTCDate())}`;
 };
 
-const isKrxTradingDay = (
-  yyyyMmDd: string,
-  calendar?: MarketCalendar,
-): boolean => {
+const isKrxTradingDay = (yyyyMmDd: string, calendar?: MarketCalendar): boolean => {
   const [y, m, d] = yyyyMmDd.split("-").map(Number);
   const day = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
   if (day === 0 || day === 6) return false;
@@ -194,10 +168,7 @@ const isKrxTradingDay = (
 };
 
 // fromDate 부터 역방향으로 첫 트레이딩 데이. 연휴 최대 14일 백투백까지 안전.
-const findRecentTradingDay = (
-  fromDate: string,
-  calendar?: MarketCalendar,
-): string => {
+const findRecentTradingDay = (fromDate: string, calendar?: MarketCalendar): string => {
   let d = fromDate;
   for (let i = 0; i < 15; i++) {
     if (isKrxTradingDay(d, calendar)) return d;
@@ -211,29 +182,21 @@ const findRecentTradingDay = (
 // 08:00 은 KRX 기준가가 오늘로 리셋되는 시각 — 그 이후 도달하는 값은 오늘 거래일에 귀속된다.
 // 세션과 독립: preopen 이 06:00~08:00 과 08:50~09:00 두 비연속 구간을 한 이름으로 덮으므로
 // 세션으로 분기하면 거래일 축이 하루를 왕복한다.
-export const getKrxTradingDate = (
-  now: Date = new Date(),
-  calendar?: MarketCalendar,
-): string => {
+export const getKrxTradingDate = (now: Date = new Date(), calendar?: MarketCalendar): string => {
   const { minutes, date } = toKstParts(now);
   if (isKrxTradingDay(date, calendar) && minutes >= PRE_START_MINUTES) return date;
   return findRecentTradingDay(shiftKstDate(date, -1), calendar);
 };
 
 // fromDate 직전 거래일. intraday 이전 세션 경계 계산용.
-export const getPreviousKrxTradingDate = (
-  fromDate: string,
-  calendar?: MarketCalendar,
-): string => findRecentTradingDay(shiftKstDate(fromDate, -1), calendar);
+export const getPreviousKrxTradingDate = (fromDate: string, calendar?: MarketCalendar): string =>
+  findRecentTradingDay(shiftKstDate(fromDate, -1), calendar);
 
 // 지수 라벨용 "가장 최근 완결 정규장 마감일".
 // 오늘이 거래일이고 15:30 지났으면 오늘, 그 외(개장 전·주말·휴장·다음날 새벽/오전)엔 지난 거래일.
 // getKrxTradingDate 와 다른 점: 거래일 08:00~15:30(pre·늦은 preopen·regular)에도 지난 마감일을
 // 반환 — 지수는 정규장 마감 전까지 어제 종가가 최신 완결값이므로.
-export const getKrxLastCloseDate = (
-  now: Date = new Date(),
-  calendar?: MarketCalendar,
-): string => {
+export const getKrxLastCloseDate = (now: Date = new Date(), calendar?: MarketCalendar): string => {
   const { minutes, date } = toKstParts(now);
   if (isKrxTradingDay(date, calendar) && minutes >= REGULAR_END_MINUTES) return date;
   return findRecentTradingDay(shiftKstDate(date, -1), calendar);
@@ -243,7 +206,7 @@ export const getKrxLastCloseDate = (
 // 전일 마감까지 소급해 계산하지 않는다(당일 마감 후 확정 프린트 도달 창에만 관심).
 export const minutesSinceKrxClose = (
   now: Date = new Date(),
-  calendar?: MarketCalendar,
+  calendar?: MarketCalendar
 ): number | null => {
   const { date, minutes } = toKstParts(now);
   if (!isKrxTradingDay(date, calendar)) return null;
@@ -252,7 +215,13 @@ export const minutesSinceKrxClose = (
 };
 
 const WEEKDAY_TO_INDEX: Record<string, number> = {
-  Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
+  Sun: 0,
+  Mon: 1,
+  Tue: 2,
+  Wed: 3,
+  Thu: 4,
+  Fri: 5,
+  Sat: 6,
 };
 
 const shiftUsDate = shiftKstDate; // 순수 캘린더 산술 — TZ 무관, 재사용.
@@ -270,18 +239,12 @@ const GLOBAL_OVERSEAS_IDLE_END_MINUTES = 9 * 60; // 09:00 KST
 
 export type GlobalOverseasSession = "active" | "idle";
 
-export const getGlobalOverseasSessionState = (
-  now: Date = new Date(),
-): GlobalOverseasSession => {
+export const getGlobalOverseasSessionState = (now: Date = new Date()): GlobalOverseasSession => {
   const { minutes } = toKstParts(now);
   const sinceClose = minutesSinceOverseasIndexClose("SPX", now);
   const afterClose =
-    sinceClose !== null
-      ? sinceClose >= 45
-      : getOverseasIndexSessionState("SPX", now) === "closed";
-  return afterClose && minutes < GLOBAL_OVERSEAS_IDLE_END_MINUTES
-    ? "idle"
-    : "active";
+    sinceClose !== null ? sinceClose >= 45 : getOverseasIndexSessionState("SPX", now) === "closed";
+  return afterClose && minutes < GLOBAL_OVERSEAS_IDLE_END_MINUTES ? "idle" : "active";
 };
 
 export const isGlobalOverseasActive = (now: Date = new Date()): boolean =>
@@ -293,7 +256,7 @@ export const isGlobalOverseasActive = (now: Date = new Date()): boolean =>
 export const isOverseasIndexHoliday = (
   code: OverseasIndexCode,
   localDateStr: string,
-  calendar?: MarketCalendar,
+  calendar?: MarketCalendar
 ): boolean => {
   const market = OVERSEAS_INDEX_MARKET[code];
   if (market === "DE") return isXetraHoliday(localDateStr);
@@ -333,10 +296,7 @@ const getOverseasFormatter = (tz: string): Intl.DateTimeFormat => {
 
 type OverseasLocalParts = { day: number; minutes: number; date: string };
 
-const toOverseasLocalParts = (
-  code: OverseasIndexCode,
-  now: Date,
-): OverseasLocalParts => {
+const toOverseasLocalParts = (code: OverseasIndexCode, now: Date): OverseasLocalParts => {
   const parts = getOverseasFormatter(OVERSEAS_INDEX_TIMEZONE[code]).formatToParts(now);
   const bag: Record<string, string> = {};
   for (const p of parts) if (p.type !== "literal") bag[p.type] = p.value;
@@ -354,7 +314,7 @@ const hhmmToMinutes = (hhmm: string): number =>
 export const getOverseasIndexSessionState = (
   code: OverseasIndexCode,
   now: Date = new Date(),
-  calendar?: MarketCalendar,
+  calendar?: MarketCalendar
 ): OverseasIndexSessionState => {
   const { day, minutes, date } = toOverseasLocalParts(code, now);
   if (day === 0 || day === 6) return "closed";
@@ -370,7 +330,7 @@ export const getOverseasIndexSessionState = (
 export const minutesSinceOverseasIndexClose = (
   code: OverseasIndexCode,
   now: Date = new Date(),
-  calendar?: MarketCalendar,
+  calendar?: MarketCalendar
 ): number | null => {
   const { day, minutes, date } = toOverseasLocalParts(code, now);
   if (day === 0 || day === 6) return null;
@@ -383,7 +343,7 @@ export const minutesSinceOverseasIndexClose = (
 const isOverseasTradingDay = (
   code: OverseasIndexCode,
   yyyyMmDd: string,
-  calendar?: MarketCalendar,
+  calendar?: MarketCalendar
 ): boolean => {
   const [y, m, d] = yyyyMmDd.split("-").map(Number);
   const day = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
@@ -394,7 +354,7 @@ const isOverseasTradingDay = (
 const findRecentOverseasTradingDay = (
   code: OverseasIndexCode,
   fromDate: string,
-  calendar?: MarketCalendar,
+  calendar?: MarketCalendar
 ): string => {
   let d = fromDate;
   for (let i = 0; i < 15; i++) {
@@ -411,7 +371,7 @@ const findRecentOverseasTradingDay = (
 export const getOverseasIndexTradingDate = (
   code: OverseasIndexCode,
   now: Date = new Date(),
-  calendar?: MarketCalendar,
+  calendar?: MarketCalendar
 ): string => {
   const { date } = toOverseasLocalParts(code, now);
   if (getOverseasIndexSessionState(code, now, calendar) === "regular") return date;
@@ -424,6 +384,5 @@ export const getOverseasIndexTradingDate = (
 export const getPreviousOverseasIndexTradingDate = (
   code: OverseasIndexCode,
   fromDate: string,
-  calendar?: MarketCalendar,
-): string =>
-  findRecentOverseasTradingDay(code, shiftUsDate(fromDate, -1), calendar);
+  calendar?: MarketCalendar
+): string => findRecentOverseasTradingDay(code, shiftUsDate(fromDate, -1), calendar);

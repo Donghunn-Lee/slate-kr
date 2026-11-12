@@ -33,7 +33,7 @@ const cacheKeyOf = (
   code: DomesticIndexCode,
   session: KrxSession,
   tradingDate: string,
-  revalidate: number,
+  revalidate: number
 ): string => `${code}::${session}::${tradingDate}::${revalidate}`;
 
 const cacheTagOf = (code: DomesticIndexCode, session: KrxSession): string =>
@@ -43,7 +43,7 @@ const getCachedFetcher = (
   code: DomesticIndexCode,
   session: KrxSession,
   tradingDate: string,
-  minutesSinceClose: number | null,
+  minutesSinceClose: number | null
 ): IndexFetcher => {
   const revalidate = krxIndexRevalidate(session, minutesSinceClose);
   const key = cacheKeyOf(code, session, tradingDate, revalidate);
@@ -58,7 +58,7 @@ const getCachedFetcher = (
     {
       revalidate,
       tags: [cacheTagOf(code, session)],
-    },
+    }
   );
   fetchers.set(key, fresh);
   return fresh;
@@ -76,7 +76,7 @@ type IndexResolveResult = {
 const resolve = (
   code: DomesticIndexCode,
   session: KrxSession,
-  r: PromiseSettledResult<CachedIndexBars>,
+  r: PromiseSettledResult<CachedIndexBars>
 ): IndexResolveResult => {
   if (r.status !== "fulfilled" || r.value.bars === null) {
     revalidateTag(cacheTagOf(code, session), { expire: 0 });
@@ -87,9 +87,10 @@ const resolve = (
 
 // 전체 예외 시 계약 유지용 empty. Record 로 조립.
 const emptyQuotes = (): Record<DomesticIndexCode, IndexIntradaySnapshot[]> =>
-  Object.fromEntries(
-    DOMESTIC_INDEX_CODES.map((c) => [c, [] as IndexIntradaySnapshot[]]),
-  ) as Record<DomesticIndexCode, IndexIntradaySnapshot[]>;
+  Object.fromEntries(DOMESTIC_INDEX_CODES.map((c) => [c, [] as IndexIntradaySnapshot[]])) as Record<
+    DomesticIndexCode,
+    IndexIntradaySnapshot[]
+  >;
 
 const allFailed = (): Record<DomesticIndexCode, boolean> =>
   Object.fromEntries(DOMESTIC_INDEX_CODES.map((c) => [c, true])) as Record<
@@ -109,20 +110,20 @@ export const GET = async (req: NextRequest) => {
   try {
     await applyDemoFault(req);
     const results = await Promise.allSettled(
-      DOMESTIC_INDEX_CODES.map((code) =>
-        getCachedFetcher(code, session, tradingDate, sinceClose)(),
-      ),
+      DOMESTIC_INDEX_CODES.map((code) => getCachedFetcher(code, session, tradingDate, sinceClose)())
     );
     const resolved = DOMESTIC_INDEX_CODES.map(
-      (code, i) => [code, resolve(code, session, results[i])] as const,
+      (code, i) => [code, resolve(code, session, results[i])] as const
     );
 
-    const quotes = Object.fromEntries(
-      resolved.map(([code, r]) => [code, r.bars]),
-    ) as Record<DomesticIndexCode, IndexIntradaySnapshot[]>;
-    const failed = Object.fromEntries(
-      resolved.map(([code, r]) => [code, r.failed]),
-    ) as Record<DomesticIndexCode, boolean>;
+    const quotes = Object.fromEntries(resolved.map(([code, r]) => [code, r.bars])) as Record<
+      DomesticIndexCode,
+      IndexIntradaySnapshot[]
+    >;
+    const failed = Object.fromEntries(resolved.map(([code, r]) => [code, r.failed])) as Record<
+      DomesticIndexCode,
+      boolean
+    >;
     // 정규장 셀 중 가장 오래된 조립 시각 — 클라 stale 판정 축. 마감 후는 TTL 3600s 라
     // 판정 대상이 아니므로 null.
     const cellTimes = resolved.flatMap(([, r]) => (r.fetchedAt === null ? [] : [r.fetchedAt]));
@@ -139,7 +140,7 @@ export const GET = async (req: NextRequest) => {
         failed: allFailed(),
         fetchedAt: null,
       },
-      { status: 200 },
+      { status: 200 }
     );
   }
 };

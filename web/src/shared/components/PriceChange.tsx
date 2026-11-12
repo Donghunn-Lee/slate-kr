@@ -74,7 +74,7 @@ export const PriceChange = ({
           "inline-flex flex-col items-end leading-tight whitespace-nowrap",
           SIZE_CLASS[size],
           priceToneClass(resolved),
-          className,
+          className
         )}
       >
         <span>{changeText}</span>
@@ -84,7 +84,9 @@ export const PriceChange = ({
   }
 
   return (
-    <span className={cn("whitespace-nowrap", SIZE_CLASS[size], priceToneClass(resolved), className)}>
+    <span
+      className={cn("whitespace-nowrap", SIZE_CLASS[size], priceToneClass(resolved), className)}
+    >
       {changeText} ({rateText})
     </span>
   );

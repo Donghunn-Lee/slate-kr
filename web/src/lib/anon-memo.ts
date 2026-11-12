@@ -1,11 +1,7 @@
 import { cache } from "react";
 import { AnonIdSchema } from "@/shared/types/schemas";
 import { pool } from "./db";
-import {
-  MemoSnapshotSchema,
-  type AnonMemoRecord,
-  type MemoSnapshot,
-} from "@/shared/types/memo";
+import { MemoSnapshotSchema, type AnonMemoRecord, type MemoSnapshot } from "@/shared/types/memo";
 
 export type AnonMemoReadResult =
   | { ok: true; data: AnonMemoRecord | null }
@@ -56,30 +52,28 @@ export const parseAnonMemoRow = (row: unknown): AnonMemoRecord | null => {
   };
 };
 
-export const getAnonMemo = cache(
-  async (anonId: string): Promise<AnonMemoReadResult> => {
-    AnonIdSchema.parse(anonId);
+export const getAnonMemo = cache(async (anonId: string): Promise<AnonMemoReadResult> => {
+  AnonIdSchema.parse(anonId);
 
-    try {
-      const [rows] = await pool.query<AnonMemoRow[]>(
-        "SELECT snapshot, version, updated_at FROM anon_memos WHERE anon_id = $1",
-        [anonId]
-      );
-      if (rows.length === 0) return { ok: true, data: null };
+  try {
+    const [rows] = await pool.query<AnonMemoRow[]>(
+      "SELECT snapshot, version, updated_at FROM anon_memos WHERE anon_id = $1",
+      [anonId]
+    );
+    if (rows.length === 0) return { ok: true, data: null };
 
-      const record = parseAnonMemoRow(rows[0]);
-      if (record === null) {
-        console.error(`[anon-memo] corrupt snapshot for anon_id=${anonId}`);
-        return { ok: false, error: { kind: "corrupt" } };
-      }
-      return { ok: true, data: record };
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error(`[anon-memo] read failed: ${message}`);
-      return { ok: false, error: { kind: "db_error" } };
+    const record = parseAnonMemoRow(rows[0]);
+    if (record === null) {
+      console.error(`[anon-memo] corrupt snapshot for anon_id=${anonId}`);
+      return { ok: false, error: { kind: "corrupt" } };
     }
+    return { ok: true, data: record };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[anon-memo] read failed: ${message}`);
+    return { ok: false, error: { kind: "db_error" } };
   }
-);
+});
 
 export const upsertAnonMemo = async (
   anonId: string,

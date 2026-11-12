@@ -31,11 +31,7 @@ describe("selectSnapshot", () => {
       createGroup: () => {},
     };
     const snap = selectSnapshot(state);
-    expect(Object.keys(snap).sort()).toEqual([
-      "groups",
-      "memberships",
-      "stockMeta",
-    ]);
+    expect(Object.keys(snap).sort()).toEqual(["groups", "memberships", "stockMeta"]);
     expect(snap.groups).toBe(state.groups);
     expect(snap.memberships).toBe(state.memberships);
     expect(snap.stockMeta).toBe(state.stockMeta);
@@ -79,10 +75,7 @@ describe("isSnapshotEqual", () => {
   it("returns false when a group name differs", () => {
     const renamed: WatchlistSnapshot = {
       ...baseSnapshot,
-      groups: [
-        { ...baseSnapshot.groups[0], name: "다른 이름" },
-        baseSnapshot.groups[1],
-      ],
+      groups: [{ ...baseSnapshot.groups[0], name: "다른 이름" }, baseSnapshot.groups[1]],
     };
     expect(isSnapshotEqual(baseSnapshot, renamed)).toBe(false);
   });

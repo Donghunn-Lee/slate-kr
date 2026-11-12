@@ -70,22 +70,108 @@ describe("computeHeaderLabel · NXT 탭", () => {
     label: string;
     time: string;
   }> = [
-    { name: "regular · live 있음", session: "regular", live: q(), label: "정규장", time: UPDATED_AT },
+    {
+      name: "regular · live 있음",
+      session: "regular",
+      live: q(),
+      label: "정규장",
+      time: UPDATED_AT,
+    },
     { name: "regular · live=null", session: "regular", live: null, label: "정규장", time: "" },
-    { name: "after · live 있음 · 15:40 이후", session: "after", live: q(), kstMinutes: min(16), label: "애프터마켓", time: UPDATED_AT },
-    { name: "after · live=null → SSR 행", session: "after", live: null, kstMinutes: min(16), label: SSR_TODAY.labelText, time: SSR_TODAY.timeText },
-    { name: "after_close · live 있음", session: "after_close", live: q(), label: "애프터마켓 마감", time: "20:00" },
-    { name: "after_close · live=null → SSR 행", session: "after_close", live: null, label: SSR_TODAY.labelText, time: SSR_TODAY.timeText },
-    { name: "pre · live 있음", session: "pre", live: q(), openingWindow: true, label: "프리마켓", time: UPDATED_AT },
-    { name: "pre · live=null → preReset", session: "pre", live: null, openingWindow: true, label: "개장전", time: "" },
+    {
+      name: "after · live 있음 · 15:40 이후",
+      session: "after",
+      live: q(),
+      kstMinutes: min(16),
+      label: "애프터마켓",
+      time: UPDATED_AT,
+    },
+    {
+      name: "after · live=null → SSR 행",
+      session: "after",
+      live: null,
+      kstMinutes: min(16),
+      label: SSR_TODAY.labelText,
+      time: SSR_TODAY.timeText,
+    },
+    {
+      name: "after_close · live 있음",
+      session: "after_close",
+      live: q(),
+      label: "애프터마켓 마감",
+      time: "20:00",
+    },
+    {
+      name: "after_close · live=null → SSR 행",
+      session: "after_close",
+      live: null,
+      label: SSR_TODAY.labelText,
+      time: SSR_TODAY.timeText,
+    },
+    {
+      name: "pre · live 있음",
+      session: "pre",
+      live: q(),
+      openingWindow: true,
+      label: "프리마켓",
+      time: UPDATED_AT,
+    },
+    {
+      name: "pre · live=null → preReset",
+      session: "pre",
+      live: null,
+      openingWindow: true,
+      label: "개장전",
+      time: "",
+    },
     // 늦은 preopen(08:50~09:00) 은 08:50 프리마켓 종가가 있는 구간 — 값이 있으면 프리마켓 마감 축.
-    { name: "늦은 preopen · live 있음", session: "preopen", live: q(), openingWindow: true, label: "프리마켓 마감", time: "08:50" },
-    { name: "늦은 preopen · live=null", session: "preopen", live: null, openingWindow: true, label: "개장전", time: "" },
+    {
+      name: "늦은 preopen · live 있음",
+      session: "preopen",
+      live: q(),
+      openingWindow: true,
+      label: "프리마켓 마감",
+      time: "08:50",
+    },
+    {
+      name: "늦은 preopen · live=null",
+      session: "preopen",
+      live: null,
+      openingWindow: true,
+      label: "개장전",
+      time: "",
+    },
     // 이른 preopen(06:00~08:00) 은 리셋 창 밖 — 라이브는 스냅샷(20:00 NX 종가), 없으면 SSR 행.
-    { name: "이른 preopen · live 있음", session: "preopen", live: q(), openingWindow: false, label: "애프터마켓 마감", time: "20:00" },
-    { name: "이른 preopen · live=null → SSR 행", session: "preopen", live: null, openingWindow: false, label: SSR_TODAY.labelText, time: SSR_TODAY.timeText },
-    { name: "closed · live 있음", session: "closed", live: q(), label: "애프터마켓 마감", time: "20:00" },
-    { name: "closed · live=null → SSR 행", session: "closed", live: null, label: SSR_TODAY.labelText, time: SSR_TODAY.timeText },
+    {
+      name: "이른 preopen · live 있음",
+      session: "preopen",
+      live: q(),
+      openingWindow: false,
+      label: "애프터마켓 마감",
+      time: "20:00",
+    },
+    {
+      name: "이른 preopen · live=null → SSR 행",
+      session: "preopen",
+      live: null,
+      openingWindow: false,
+      label: SSR_TODAY.labelText,
+      time: SSR_TODAY.timeText,
+    },
+    {
+      name: "closed · live 있음",
+      session: "closed",
+      live: q(),
+      label: "애프터마켓 마감",
+      time: "20:00",
+    },
+    {
+      name: "closed · live=null → SSR 행",
+      session: "closed",
+      live: null,
+      label: SSR_TODAY.labelText,
+      time: SSR_TODAY.timeText,
+    },
   ];
 
   for (const c of cases) {
@@ -96,7 +182,7 @@ describe("computeHeaderLabel · NXT 탭", () => {
           live: c.live,
           openingWindow: c.openingWindow ?? false,
           ...(c.kstMinutes !== undefined ? { kstMinutes: c.kstMinutes } : {}),
-        }),
+        })
       );
       expect(r).toEqual({ labelText: c.label, timeText: c.time });
     });
@@ -117,10 +203,14 @@ describe("computeHeaderLabel · NXT 탭 · 미지정 경로 · live=null 은 SSR
   for (const mk of [nxt, auto]) {
     for (const s of sessions) {
       it(`${mk === nxt ? "NXT" : "미지정"} · ${s.session ?? "undefined"} · initialDate=today → 애프터마켓 마감 · 20:00`, () => {
-        expect(computeHeaderLabel(mk({ ...s, live: null, initialDate: KST_TODAY }))).toEqual(SSR_TODAY);
+        expect(computeHeaderLabel(mk({ ...s, live: null, initialDate: KST_TODAY }))).toEqual(
+          SSR_TODAY
+        );
       });
       it(`${mk === nxt ? "NXT" : "미지정"} · ${s.session ?? "undefined"} · initialDate<today → 전일 종가 · MM.DD`, () => {
-        expect(computeHeaderLabel(mk({ ...s, live: null, initialDate: PREV_DATE }))).toEqual(SSR_PREV);
+        expect(computeHeaderLabel(mk({ ...s, live: null, initialDate: PREV_DATE }))).toEqual(
+          SSR_PREV
+        );
       });
       it(`${mk === nxt ? "NXT" : "미지정"} · ${s.session ?? "undefined"} · initialDate=null → 애프터마켓 마감 · ''`, () => {
         expect(computeHeaderLabel(mk({ ...s, live: null, initialDate: null }))).toEqual({
@@ -137,8 +227,14 @@ describe("computeHeaderLabel · NXT 탭 · 미지정 경로 · live=null 은 SSR
         for (const open of [false, true]) {
           expect(
             computeHeaderLabel(
-              mk({ session: "after", live: null, initialDate: PREV_DATE, kstMinutes: m, krxAfterMarketOpen: open }),
-            ),
+              mk({
+                session: "after",
+                live: null,
+                initialDate: PREV_DATE,
+                kstMinutes: m,
+                krxAfterMarketOpen: open,
+              })
+            )
           ).toEqual(SSR_PREV);
         }
       }
@@ -151,33 +247,34 @@ describe("computeHeaderLabel · NXT 탭 · 미지정 경로 · live=null 은 SSR
 describe("computeHeaderLabel · NXT 탭 · 15:20 · 15:40 경계", () => {
   it("regular · 15:19 → '정규장' · updatedAtText", () => {
     expect(
-      computeHeaderLabel(nxt({ session: "regular", live: q(), kstMinutes: min(15, 19) })),
+      computeHeaderLabel(nxt({ session: "regular", live: q(), kstMinutes: min(15, 19) }))
     ).toEqual({ labelText: "정규장", timeText: UPDATED_AT });
   });
 
   it("regular · 15:20 → '정규장 마감' · '15:20'", () => {
     expect(
-      computeHeaderLabel(nxt({ session: "regular", live: q(), kstMinutes: min(15, 20) })),
+      computeHeaderLabel(nxt({ session: "regular", live: q(), kstMinutes: min(15, 20) }))
     ).toEqual({ labelText: "정규장 마감", timeText: "15:20" });
   });
 
   it("regular · 15:20 이후 · live=null → '정규장 마감' · '' (시각은 값이 있을 때만)", () => {
     expect(
-      computeHeaderLabel(nxt({ session: "regular", live: null, kstMinutes: min(15, 25) })),
+      computeHeaderLabel(nxt({ session: "regular", live: null, kstMinutes: min(15, 25) }))
     ).toEqual({ labelText: "정규장 마감", timeText: "" });
   });
 
   it("after · 15:30~15:39 → '정규장 마감' · '15:20'", () => {
     for (const m of [min(15, 30), min(15, 39)]) {
-      expect(
-        computeHeaderLabel(nxt({ session: "after", live: q(), kstMinutes: m })),
-      ).toEqual({ labelText: "정규장 마감", timeText: "15:20" });
+      expect(computeHeaderLabel(nxt({ session: "after", live: q(), kstMinutes: m }))).toEqual({
+        labelText: "정규장 마감",
+        timeText: "15:20",
+      });
     }
   });
 
   it("after · 15:40 → '애프터마켓' · updatedAtText", () => {
     expect(
-      computeHeaderLabel(nxt({ session: "after", live: q(), kstMinutes: min(15, 40) })),
+      computeHeaderLabel(nxt({ session: "after", live: q(), kstMinutes: min(15, 40) }))
     ).toEqual({ labelText: "애프터마켓", timeText: UPDATED_AT });
   });
 
@@ -185,8 +282,8 @@ describe("computeHeaderLabel · NXT 탭 · 15:20 · 15:40 경계", () => {
     for (const open of [false, true]) {
       expect(
         computeHeaderLabel(
-          nxt({ session: "after", live: q(), kstMinutes: min(15, 50), krxAfterMarketOpen: open }),
-        ),
+          nxt({ session: "after", live: q(), kstMinutes: min(15, 50), krxAfterMarketOpen: open })
+        )
       ).toEqual({ labelText: "애프터마켓", timeText: UPDATED_AT });
     }
   });
@@ -198,36 +295,37 @@ describe("computeHeaderLabel · NXT 탭 · 15:20 · 15:40 경계", () => {
 describe("computeHeaderLabel · 미지정 경로", () => {
   it("after · live 있음 · 16:00 전 → '정규장 마감' · '15:30'", () => {
     expect(
-      computeHeaderLabel(auto({ session: "after", live: q(), krxAfterMarketOpen: false })),
+      computeHeaderLabel(auto({ session: "after", live: q(), krxAfterMarketOpen: false }))
     ).toEqual({ labelText: "정규장 마감", timeText: "15:30" });
   });
 
   it("after · live 있음 · 16:00 이후 → '애프터마켓' · updatedAtText", () => {
     expect(
-      computeHeaderLabel(auto({ session: "after", live: q(), krxAfterMarketOpen: true })),
+      computeHeaderLabel(auto({ session: "after", live: q(), krxAfterMarketOpen: true }))
     ).toEqual({ labelText: "애프터마켓", timeText: UPDATED_AT });
   });
 
   // NXT 15:20·15:40 경계는 NXT 탭 전용 — 비NXT 종목의 정규장은 15:30 까지다.
   it("regular · 15:20 이후 → '정규장' (NXT 경계 무관)", () => {
     expect(
-      computeHeaderLabel(auto({ session: "regular", live: q(), kstMinutes: min(15, 25) })),
+      computeHeaderLabel(auto({ session: "regular", live: q(), kstMinutes: min(15, 25) }))
     ).toEqual({ labelText: "정규장", timeText: UPDATED_AT });
   });
 
   // 비NXT 종목은 프리마켓이 없어 늦은 preopen 은 개장전 축에 남는다.
   it("늦은 preopen · live 유무 무관 → '개장전' · ''", () => {
     for (const live of [q(), null]) {
-      expect(
-        computeHeaderLabel(auto({ session: "preopen", live, openingWindow: true })),
-      ).toEqual({ labelText: "개장전", timeText: "" });
+      expect(computeHeaderLabel(auto({ session: "preopen", live, openingWindow: true }))).toEqual({
+        labelText: "개장전",
+        timeText: "",
+      });
     }
   });
 
   // 이른 preopen 의 라이브는 UN 스냅샷(20:00 종가) — KRX 애프터마켓은 전 종목 대상이라 NXT 탭과 같은 축.
   it("이른 preopen · live 있음 → '애프터마켓 마감' · '20:00'", () => {
     expect(
-      computeHeaderLabel(auto({ session: "preopen", live: q(), openingWindow: false })),
+      computeHeaderLabel(auto({ session: "preopen", live: q(), openingWindow: false }))
     ).toEqual({ labelText: "애프터마켓 마감", timeText: "20:00" });
   });
 
@@ -268,16 +366,16 @@ describe("computeHeaderLabel · KRX 탭", () => {
   // KRX 정규장은 15:30 까지 — NXT 15:20 경계는 KRX 탭에 닿지 않는다.
   it("regular · 15:20 이후 → '정규장' · updatedAtText", () => {
     expect(
-      computeHeaderLabel(krx({ session: "regular", live: q(), kstMinutes: min(15, 25) })),
+      computeHeaderLabel(krx({ session: "regular", live: q(), kstMinutes: min(15, 25) }))
     ).toEqual({ labelText: "정규장", timeText: UPDATED_AT });
   });
 
   // 쿼리가 꺼진 KRX 탭의 표시 값은 SSR 일봉 행 = 20:00 마감 캔들 — 라벨도 그 축.
   it("비-regular · initialDate == today → '애프터마켓 마감' · '20:00'", () => {
     for (const s of ["after", "after_close", "pre", "preopen", "closed"] as const) {
-      expect(
-        computeHeaderLabel(krx({ session: s, live: null, initialDate: KST_TODAY })),
-      ).toEqual(SSR_TODAY);
+      expect(computeHeaderLabel(krx({ session: s, live: null, initialDate: KST_TODAY }))).toEqual(
+        SSR_TODAY
+      );
     }
   });
 
@@ -285,16 +383,17 @@ describe("computeHeaderLabel · KRX 탭", () => {
     for (const s of ["after", "after_close", "pre", "preopen", "closed"] as const) {
       expect(
         computeHeaderLabel(
-          krx({ session: s, live: null, initialDate: PREV_DATE, kstToday: KST_TODAY }),
-        ),
+          krx({ session: s, live: null, initialDate: PREV_DATE, kstToday: KST_TODAY })
+        )
       ).toEqual(SSR_PREV);
     }
   });
 
   it("비-regular · initialDate=null → '애프터마켓 마감' · '' (경계)", () => {
-    expect(
-      computeHeaderLabel(krx({ session: "closed", live: null, initialDate: null })),
-    ).toEqual({ labelText: "애프터마켓 마감", timeText: "" });
+    expect(computeHeaderLabel(krx({ session: "closed", live: null, initialDate: null }))).toEqual({
+      labelText: "애프터마켓 마감",
+      timeText: "",
+    });
   });
 
   // after 세션의 KRX 탭은 J 채널이 15:30 부터 응답하므로 live 유무가 아니라 16:00 경계가
@@ -304,8 +403,8 @@ describe("computeHeaderLabel · KRX 탭", () => {
     for (const initialDate of [KST_TODAY, PREV_DATE, null]) {
       expect(
         computeHeaderLabel(
-          krx({ session: "after", live: q(), initialDate, krxAfterMarketOpen: true }),
-        ),
+          krx({ session: "after", live: q(), initialDate, krxAfterMarketOpen: true })
+        )
       ).toEqual({ labelText: "애프터마켓", timeText: UPDATED_AT });
     }
   });
@@ -314,8 +413,8 @@ describe("computeHeaderLabel · KRX 탭", () => {
     for (const initialDate of [KST_TODAY, PREV_DATE, null]) {
       expect(
         computeHeaderLabel(
-          krx({ session: "after", live: q(), initialDate, krxAfterMarketOpen: false }),
-        ),
+          krx({ session: "after", live: q(), initialDate, krxAfterMarketOpen: false })
+        )
       ).toEqual({ labelText: "정규장 마감", timeText: "15:30" });
     }
   });
@@ -324,30 +423,31 @@ describe("computeHeaderLabel · KRX 탭", () => {
   it("after · live 있음 · 15:40~16:00 → '정규장 마감' · '15:30' (NXT 경계 무관)", () => {
     expect(
       computeHeaderLabel(
-        krx({ session: "after", live: q(), kstMinutes: min(15, 50), krxAfterMarketOpen: false }),
-      ),
+        krx({ session: "after", live: q(), kstMinutes: min(15, 50), krxAfterMarketOpen: false })
+      )
     ).toEqual({ labelText: "정규장 마감", timeText: "15:30" });
   });
 
   it("after · live=null → initialDate 기준 (16:00 이후여도 라이브 없으면 SSR 표기)", () => {
     expect(
       computeHeaderLabel(
-        krx({ session: "after", live: null, initialDate: PREV_DATE, krxAfterMarketOpen: true }),
-      ),
+        krx({ session: "after", live: null, initialDate: PREV_DATE, krxAfterMarketOpen: true })
+      )
     ).toEqual(SSR_PREV);
     expect(
       computeHeaderLabel(
-        krx({ session: "after", live: null, initialDate: KST_TODAY, krxAfterMarketOpen: true }),
-      ),
+        krx({ session: "after", live: null, initialDate: KST_TODAY, krxAfterMarketOpen: true })
+      )
     ).toEqual(SSR_TODAY);
   });
 
   it("after_close · closed · live 있음 → '애프터마켓 마감' · '20:00' (NXT 탭과 동일 문구)", () => {
     for (const s of ["after_close", "closed"] as const) {
       for (const initialDate of [KST_TODAY, PREV_DATE, null]) {
-        expect(
-          computeHeaderLabel(krx({ session: s, live: q(), initialDate })),
-        ).toEqual({ labelText: "애프터마켓 마감", timeText: "20:00" });
+        expect(computeHeaderLabel(krx({ session: s, live: q(), initialDate }))).toEqual({
+          labelText: "애프터마켓 마감",
+          timeText: "20:00",
+        });
       }
     }
   });
@@ -355,10 +455,10 @@ describe("computeHeaderLabel · KRX 탭", () => {
   // 이른 preopen 의 KRX 탭 라이브는 지연 창 1회 fetch 뿐 — 라벨은 격상된 initialDate 축.
   it("이른 preopen · live 있음 · 창 밖 → initialDate 기준", () => {
     expect(
-      computeHeaderLabel(krx({ session: "preopen", live: q(), initialDate: KST_TODAY })),
+      computeHeaderLabel(krx({ session: "preopen", live: q(), initialDate: KST_TODAY }))
     ).toEqual(SSR_TODAY);
     expect(
-      computeHeaderLabel(krx({ session: "preopen", live: q(), initialDate: PREV_DATE })),
+      computeHeaderLabel(krx({ session: "preopen", live: q(), initialDate: PREV_DATE }))
     ).toEqual(SSR_PREV);
   });
 
@@ -368,9 +468,7 @@ describe("computeHeaderLabel · KRX 탭", () => {
     for (const s of ["pre", "preopen"] as const) {
       for (const initialDate of [KST_TODAY, PREV_DATE, null]) {
         expect(
-          computeHeaderLabel(
-            krx({ session: s, live: null, initialDate, openingWindow: true }),
-          ),
+          computeHeaderLabel(krx({ session: s, live: null, initialDate, openingWindow: true }))
         ).toEqual({ labelText: "개장전", timeText: "" });
       }
     }
@@ -379,22 +477,28 @@ describe("computeHeaderLabel · KRX 탭", () => {
   it("개장 전 창 · 응답 없음(쿼리 비활성) → '개장전' · ''", () => {
     expect(
       computeHeaderLabel(
-        krx({ session: undefined, live: null, initialDate: KST_TODAY, openingWindow: true }),
-      ),
+        krx({ session: undefined, live: null, initialDate: KST_TODAY, openingWindow: true })
+      )
     ).toEqual({ labelText: "개장전", timeText: "" });
   });
 
   it("개장 전 창 · stale 응답 regular → '개장전' (창이 세션보다 앞선다)", () => {
-    expect(
-      computeHeaderLabel(krx({ session: "regular", live: q(), openingWindow: true })),
-    ).toEqual({ labelText: "개장전", timeText: "" });
+    expect(computeHeaderLabel(krx({ session: "regular", live: q(), openingWindow: true }))).toEqual(
+      { labelText: "개장전", timeText: "" }
+    );
   });
 
   it("개장 전 창 · 지연 창 fetch 성공 → 값 0 과 같은 축의 '개장전' (값·라벨 일치)", () => {
     expect(
       computeHeaderLabel(
-        krx({ session: "pre", live: q(), initialDate: KST_TODAY, kstToday: KST_TODAY, openingWindow: true }),
-      ),
+        krx({
+          session: "pre",
+          live: q(),
+          initialDate: KST_TODAY,
+          kstToday: KST_TODAY,
+          openingWindow: true,
+        })
+      )
     ).toEqual({ labelText: "개장전", timeText: "" });
   });
 
@@ -403,33 +507,32 @@ describe("computeHeaderLabel · KRX 탭", () => {
   it("KRX 지연 창 · fetch 미시도/실패 (initialDate 뒤처짐) → 전일 종가", () => {
     expect(
       computeHeaderLabel(
-        krx({ session: "after", live: null, initialDate: PREV_DATE, kstToday: KST_TODAY }),
-      ),
+        krx({ session: "after", live: null, initialDate: PREV_DATE, kstToday: KST_TODAY })
+      )
     ).toEqual(SSR_PREV);
   });
 
   it("KRX 지연 창 · after · fetch 성공 → 라이브 축 '정규장 마감 · 15:30' (16:00 전)", () => {
     expect(
       computeHeaderLabel(
-        krx({ session: "after", live: q(), initialDate: KST_TODAY, kstToday: KST_TODAY }),
-      ),
+        krx({ session: "after", live: q(), initialDate: KST_TODAY, kstToday: KST_TODAY })
+      )
     ).toEqual({ labelText: "정규장 마감", timeText: "15:30" });
   });
 
   it("KRX 지연 창 · after_close · fetch 성공 → '애프터마켓 마감 · 20:00'", () => {
     expect(
       computeHeaderLabel(
-        krx({ session: "after_close", live: q(), initialDate: KST_TODAY, kstToday: KST_TODAY }),
-      ),
+        krx({ session: "after_close", live: q(), initialDate: KST_TODAY, kstToday: KST_TODAY })
+      )
     ).toEqual({ labelText: "애프터마켓 마감", timeText: "20:00" });
   });
 });
 
 // ── isPreMarketReset · isClosedLikeMiss ─────────────────────────────
 // 명시적 UTC epoch 로 KST 로컬 시각을 유도 (KST = UTC+9, DST 없음).
-const kst = (
-  y: number, m: number, d: number, h: number, minute = 0,
-): Date => new Date(Date.UTC(y, m - 1, d, h - 9, minute));
+const kst = (y: number, m: number, d: number, h: number, minute = 0): Date =>
+  new Date(Date.UTC(y, m - 1, d, h - 9, minute));
 
 // 2026-07-23 은 목요일 거래일, 2026-07-25 는 토요일, 2026-01-01 은 휴장일.
 const TRADING_DAY = { y: 2026, m: 7, d: 23 };
@@ -503,10 +606,8 @@ describe("isPreMarketReset — 창 안 market × live 조합", () => {
 
 // 컴포넌트가 술어에 넘기는 세션 축. 응답이 없을 때만(KRX 탭 개장 전 창은 enabled:false 라
 // session 이 영영 undefined) 클라 시계 세션으로 대체한다.
-const tabSession = (
-  session: KrxSession | undefined,
-  now: Date,
-): KrxSession => session ?? getKrxSessionState(now);
+const tabSession = (session: KrxSession | undefined, now: Date): KrxSession =>
+  session ?? getKrxSessionState(now);
 
 // KRX 탭 개장 전 창 — 쿼리가 꺼져 서버 세션이 오지 않는 경로.
 // NXT 상장 종목의 KRX 탭이 전일 축(등락 잔존)으로 남던 회귀를 고정한다.
@@ -518,27 +619,97 @@ describe("isPreMarketReset — 응답 없는 KRX 탭의 클라 세션 축 폴백
     now: Date;
     expected: boolean;
   }[] = [
-    { name: "08:20 · 응답 없음 · KRX 탭", session: undefined, market: "krx", now: t(8, 20), expected: true },
-    { name: "08:55 · 응답 없음 · KRX 탭", session: undefined, market: "krx", now: t(8, 55), expected: true },
-    { name: "07:30 · 응답 없음 · KRX 탭 (이른 preopen 은 창 밖)", session: undefined, market: "krx", now: t(7, 30), expected: false },
-    { name: "10:00 · 응답 없음 · KRX 탭 (정규장)", session: undefined, market: "krx", now: t(10, 0), expected: false },
-    { name: "16:00 · 응답 없음 · KRX 탭 (after)", session: undefined, market: "krx", now: t(16, 0), expected: false },
-    { name: "08:20 · 응답 없음 · NXT 탭 (탭 보존 예외 유지)", session: undefined, market: "nxt", now: t(8, 20), expected: false },
-    { name: "08:55 · 응답 없음 · NXT 탭", session: undefined, market: "nxt", now: t(8, 55), expected: false },
-    { name: "휴장일 08:30 · 응답 없음 · KRX 탭", session: undefined, market: "krx", now: kst(2026, 1, 1, 8, 30), expected: false },
-    { name: "토요일 08:30 · 응답 없음 · KRX 탭", session: undefined, market: "krx", now: kst(2026, 7, 25, 8, 30), expected: false },
+    {
+      name: "08:20 · 응답 없음 · KRX 탭",
+      session: undefined,
+      market: "krx",
+      now: t(8, 20),
+      expected: true,
+    },
+    {
+      name: "08:55 · 응답 없음 · KRX 탭",
+      session: undefined,
+      market: "krx",
+      now: t(8, 55),
+      expected: true,
+    },
+    {
+      name: "07:30 · 응답 없음 · KRX 탭 (이른 preopen 은 창 밖)",
+      session: undefined,
+      market: "krx",
+      now: t(7, 30),
+      expected: false,
+    },
+    {
+      name: "10:00 · 응답 없음 · KRX 탭 (정규장)",
+      session: undefined,
+      market: "krx",
+      now: t(10, 0),
+      expected: false,
+    },
+    {
+      name: "16:00 · 응답 없음 · KRX 탭 (after)",
+      session: undefined,
+      market: "krx",
+      now: t(16, 0),
+      expected: false,
+    },
+    {
+      name: "08:20 · 응답 없음 · NXT 탭 (탭 보존 예외 유지)",
+      session: undefined,
+      market: "nxt",
+      now: t(8, 20),
+      expected: false,
+    },
+    {
+      name: "08:55 · 응답 없음 · NXT 탭",
+      session: undefined,
+      market: "nxt",
+      now: t(8, 55),
+      expected: false,
+    },
+    {
+      name: "휴장일 08:30 · 응답 없음 · KRX 탭",
+      session: undefined,
+      market: "krx",
+      now: kst(2026, 1, 1, 8, 30),
+      expected: false,
+    },
+    {
+      name: "토요일 08:30 · 응답 없음 · KRX 탭",
+      session: undefined,
+      market: "krx",
+      now: kst(2026, 7, 25, 8, 30),
+      expected: false,
+    },
     // 지연 창(EOD 미적재)은 fetch 가 살아있어 서버 세션이 온다 — 그 축이 그대로 정본.
-    { name: "08:20 · 지연 창 응답 pre · KRX 탭", session: "pre", market: "krx", now: t(8, 20), expected: true },
-    { name: "08:55 · 지연 창 응답 preopen · KRX 탭", session: "preopen", market: "krx", now: t(8, 55), expected: true },
+    {
+      name: "08:20 · 지연 창 응답 pre · KRX 탭",
+      session: "pre",
+      market: "krx",
+      now: t(8, 20),
+      expected: true,
+    },
+    {
+      name: "08:55 · 지연 창 응답 preopen · KRX 탭",
+      session: "preopen",
+      market: "krx",
+      now: t(8, 55),
+      expected: true,
+    },
     // 응답이 있으면 stale 이어도 서버 세션이 이긴다 (isClosedLikeMiss 와 같은 축 유지).
-    { name: "08:55 · stale 응답 after_close · KRX 탭", session: "after_close", market: "krx", now: t(8, 55), expected: false },
+    {
+      name: "08:55 · stale 응답 after_close · KRX 탭",
+      session: "after_close",
+      market: "krx",
+      now: t(8, 55),
+      expected: false,
+    },
   ];
 
   for (const c of cases) {
     it(`${c.name} → ${c.expected}`, () => {
-      expect(
-        isPreMarketReset(tabSession(c.session, c.now), c.market, c.now),
-      ).toBe(c.expected);
+      expect(isPreMarketReset(tabSession(c.session, c.now), c.market, c.now)).toBe(c.expected);
     });
   }
 });
@@ -580,10 +751,21 @@ describe("isClosedLikeMiss — after 계열/closed 의 KRX-only 폴백 창", () 
 // 배타성이 유지되는지가 폴백의 안전 조건이다.
 describe("두 술어의 상호 배타성", () => {
   const SESSIONS: (KrxSession | undefined)[] = [
-    "regular", "after", "after_close", "pre", "preopen", "closed", undefined,
+    "regular",
+    "after",
+    "after_close",
+    "pre",
+    "preopen",
+    "closed",
+    undefined,
   ];
   const NOWS: Date[] = [
-    t(7, 30), t(8, 20), t(8, 55), t(10, 0), t(16, 0), t(21, 0),
+    t(7, 30),
+    t(8, 20),
+    t(8, 55),
+    t(10, 0),
+    t(16, 0),
+    t(21, 0),
     kst(2026, 7, 25, 10, 0), // 토요일
     kst(2026, 1, 1, 8, 30), // 휴장일 · 창 시각
   ];

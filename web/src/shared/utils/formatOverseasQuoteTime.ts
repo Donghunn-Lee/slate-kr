@@ -5,11 +5,7 @@ import {
   type OverseasIndexCode,
 } from "@/shared/constants/indices";
 import type { IndexQuote } from "@/shared/types/quote";
-import {
-  formatClock,
-  formatMonthDay,
-  getKstDateAndMinutes,
-} from "@/shared/utils/market";
+import { formatClock, formatMonthDay, getKstDateAndMinutes } from "@/shared/utils/market";
 
 // quote.time 의 (date, hour) 는 거래소 현지 로컬 시각 — 실시세 API의 형식을 그대로 쓴다.
 // 지수별 IANA 타임존으로 UTC 인스턴트를 확정한 뒤 KST "MM.DD HH:mm" 문자열로 렌더한다.
@@ -18,7 +14,7 @@ import {
 // 상태 접미어("기준" · "장 마감") 는 호출측 조립 — 이 함수는 시각 문자열만 담당한다.
 export const formatOverseasQuoteTime = (
   time: IndexQuote["time"],
-  code: OverseasIndexCode,
+  code: OverseasIndexCode
 ): string | null => {
   if (!time) return null;
   const { date, hour } = time;
@@ -46,7 +42,7 @@ export const formatOverseasQuoteTime = (
 // 수용 리스크: 미국 조기 폐장(연 4일 13:00 ET)은 close 상수 밖이라 미반영.
 export const resolveOverseasCloseLabel = (
   sessionDate: string,
-  code: OverseasIndexCode,
+  code: OverseasIndexCode
 ): string | null => {
   if (sessionDate.length !== 10) return null;
   const y = Number(sessionDate.slice(0, 4));
@@ -62,7 +58,7 @@ export const resolveOverseasCloseLabel = (
     Number(close.slice(0, 2)),
     Number(close.slice(2, 4)),
     0,
-    OVERSEAS_INDEX_TIMEZONE[code],
+    OVERSEAS_INDEX_TIMEZONE[code]
   );
   if (Number.isNaN(localInstant.getTime())) return null;
 

@@ -29,7 +29,7 @@ const fetchUnfiltered = async (
   corpCode: string,
   page: number,
   bgnDate: Date | undefined,
-  endDate: Date | undefined,
+  endDate: Date | undefined
 ): Promise<FetchResult> => {
   const dartPage = Math.ceil(page / (DART_PAGE_COUNT / PAGE_SIZE));
   const result = await getDisclosures(corpCode, {
@@ -53,7 +53,7 @@ const fetchFiltered = async (
   types: DisclosureFilterType[],
   page: number,
   bgnDate: Date | undefined,
-  endDate: Date | undefined,
+  endDate: Date | undefined
 ): Promise<FetchResult> => {
   const first = await getDisclosures(corpCode, {
     pageNo: 1,
@@ -71,8 +71,8 @@ const fetchFiltered = async (
           pageCount: DART_PAGE_COUNT,
           bgnDate,
           endDate,
-        }),
-      ),
+        })
+      )
     );
     rest.forEach((r) => allItems.push(...r.items));
   }
@@ -120,11 +120,7 @@ export const StockDisclosures = async ({
     } else {
       const corpCode = await getCorpCode(ticker);
       if (corpCode) {
-        const { bgnDate: bgn, endDate: end } = resolveDateRange(
-          preset,
-          bgnDate,
-          endDate,
-        );
+        const { bgnDate: bgn, endDate: end } = resolveDateRange(preset, bgnDate, endDate);
         const needsMerge = query !== "" || types.length > 0;
         const result = needsMerge
           ? await fetchFiltered(corpCode, query, types, page, bgn, end)

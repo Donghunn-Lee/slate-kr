@@ -15,5 +15,5 @@ export const useIsTouch = (): boolean =>
       return () => mq.removeEventListener("change", callback);
     },
     () => window.matchMedia(TOUCH_QUERY).matches,
-    () => false,
+    () => false
   );

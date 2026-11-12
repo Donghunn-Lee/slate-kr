@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { classifyDisclosure, isExchangeFiled, DisclosureType } from "@/shared/utils/classifyDisclosure";
+import {
+  classifyDisclosure,
+  isExchangeFiled,
+  DisclosureType,
+} from "@/shared/utils/classifyDisclosure";
 import {
   CURATED_CASES,
   EXCHANGE_FILED_SAMPLE,

@@ -115,9 +115,7 @@ export const ServiceCardCarousel = () => {
           className="flex"
           style={{
             transform: `translateX(calc(${CENTER_OFFSET_CQW}cqw - ${active} * ${SLIDE_WIDTH_CQW}cqw))`,
-            transition: prefersReduced
-              ? "none"
-              : "transform 500ms var(--ease-smooth)",
+            transition: prefersReduced ? "none" : "transform 500ms var(--ease-smooth)",
           }}
         >
           {CARDS.map((card, i) => {
@@ -130,15 +128,8 @@ export const ServiceCardCarousel = () => {
                 style={{ width: `${SLIDE_WIDTH_CQW}cqw` }}
                 aria-hidden={!isActive}
               >
-                <SlideCard
-                  isActive={isActive}
-                  onClick={() => goTo(i)}
-                  title={card.title}
-                >
-                  <StockPanel
-                    variant={card.variant}
-                    className="flex h-full flex-col p-4 sm:p-5"
-                  >
+                <SlideCard isActive={isActive} onClick={() => goTo(i)} title={card.title}>
+                  <StockPanel variant={card.variant} className="flex h-full flex-col p-4 sm:p-5">
                     <div className="flex items-center gap-3">
                       <span
                         className={`inline-flex size-8 items-center justify-center rounded-lg ${card.iconTint}`}
@@ -153,10 +144,7 @@ export const ServiceCardCarousel = () => {
                     {/* 카드는 트랙에서 가장 높은 카드를 채우고, 남는 높이는 설명과 프리뷰 사이로 보낸다.
                         프리뷰 아래로 보내면 짧은 프리뷰 밑이 비어 보이고, 하단 여백은 네 장이 같아야 한다. */}
                     <div className="mt-auto flex items-center pt-4">
-                      <Preview
-                        key={isActive ? `play-${activationSeq}` : "idle"}
-                        play={isActive}
-                      />
+                      <Preview key={isActive ? `play-${activationSeq}` : "idle"} play={isActive} />
                     </div>
                   </StockPanel>
                 </SlideCard>
@@ -187,7 +175,7 @@ export const ServiceCardCarousel = () => {
                   "h-1.5 rounded-full transition-all duration-300 ease-out",
                   isActive
                     ? "w-6 bg-foreground"
-                    : "w-1.5 bg-foreground/30 group-hover/dot:bg-foreground/50",
+                    : "w-1.5 bg-foreground/30 group-hover/dot:bg-foreground/50"
                 )}
               />
             </button>
@@ -208,14 +196,9 @@ type SlideCardProps = {
 // 활성 카드는 정적 컨테이너, 비활성 카드는 클릭 시 goTo. tabIndex=-1 로 키보드 tab 순회 제외
 // (도트 버튼이 유일한 키보드 진입점).
 const SlideCard = ({ isActive, onClick, title, children }: SlideCardProps) => {
-  const baseTransition =
-    "block h-full w-full text-left transition-all duration-300 ease-out";
+  const baseTransition = "block h-full w-full text-left transition-all duration-300 ease-out";
   if (isActive) {
-    return (
-      <div className={cn(baseTransition, "scale-100 opacity-100")}>
-        {children}
-      </div>
-    );
+    return <div className={cn(baseTransition, "scale-100 opacity-100")}>{children}</div>;
   }
   return (
     <button
@@ -224,10 +207,7 @@ const SlideCard = ({ isActive, onClick, title, children }: SlideCardProps) => {
       onClick={onClick}
       aria-label={`${title} 슬라이드로 이동`}
       tabIndex={-1}
-      className={cn(
-        baseTransition,
-        "scale-95 cursor-pointer opacity-60 hover:opacity-80",
-      )}
+      className={cn(baseTransition, "scale-95 cursor-pointer opacity-60 hover:opacity-80")}
     >
       {children}
     </button>

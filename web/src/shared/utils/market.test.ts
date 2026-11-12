@@ -23,15 +23,13 @@ import {
 
 // Date 생성 헬퍼 — 명시적 UTC epoch 를 통해 ET 로컬 시각을 유도한다.
 // EDT(3~11월) = UTC-4 · EST(11~3월) = UTC-5.
-const utc = (
-  y: number, m: number, d: number, h: number, min = 0,
-): Date => new Date(Date.UTC(y, m - 1, d, h, min));
+const utc = (y: number, m: number, d: number, h: number, min = 0): Date =>
+  new Date(Date.UTC(y, m - 1, d, h, min));
 
 // KRX preopen 세분화 — fetchStockIntradayChart 의 fallback 분기 게이트.
 // KST = UTC+9. 06:00 KST = 21:00 UTC 전일.
-const kst = (
-  y: number, m: number, d: number, h: number, min = 0,
-): Date => new Date(Date.UTC(y, m - 1, d, h - 9, min));
+const kst = (y: number, m: number, d: number, h: number, min = 0): Date =>
+  new Date(Date.UTC(y, m - 1, d, h - 9, min));
 
 describe("isKrxEarlyPreopen", () => {
   it("06:00 KST 거래일 → true (창 시작 경계 포함)", () => {
@@ -103,180 +101,120 @@ describe("isKrxAfterMarketOpen", () => {
 // NI225·HSI·SHCOMP·DAX 는 각 로컬 마감/개장.
 describe("getOverseasIndexSessionState", () => {
   it("SPX EDT 정규장 중 (2026-07-23 15:00 UTC → 11:00 ET) → regular", () => {
-    expect(getOverseasIndexSessionState("SPX", utc(2026, 7, 23, 15, 0))).toBe(
-      "regular",
-    );
+    expect(getOverseasIndexSessionState("SPX", utc(2026, 7, 23, 15, 0))).toBe("regular");
   });
   it("SPX EDT 개장 전 (12:00 UTC → 08:00 ET) → closed", () => {
-    expect(getOverseasIndexSessionState("SPX", utc(2026, 7, 23, 12, 0))).toBe(
-      "closed",
-    );
+    expect(getOverseasIndexSessionState("SPX", utc(2026, 7, 23, 12, 0))).toBe("closed");
   });
   it("SPX EDT 마감 후 (20:00 UTC → 16:00 ET) → closed (경계 미포함)", () => {
-    expect(getOverseasIndexSessionState("SPX", utc(2026, 7, 23, 20, 0))).toBe(
-      "closed",
-    );
+    expect(getOverseasIndexSessionState("SPX", utc(2026, 7, 23, 20, 0))).toBe("closed");
   });
   it("SPX 주말 (토요일 EDT 15:00 UTC) → closed", () => {
-    expect(getOverseasIndexSessionState("SPX", utc(2026, 7, 25, 15, 0))).toBe(
-      "closed",
-    );
+    expect(getOverseasIndexSessionState("SPX", utc(2026, 7, 25, 15, 0))).toBe("closed");
   });
   it("SPX EST 정규장 중 (2026-12-15 15:00 UTC → 10:00 ET) → regular", () => {
-    expect(getOverseasIndexSessionState("SPX", utc(2026, 12, 15, 15, 0))).toBe(
-      "regular",
-    );
+    expect(getOverseasIndexSessionState("SPX", utc(2026, 12, 15, 15, 0))).toBe("regular");
   });
   it("SPX EST 마감 후 (21:00 UTC → 16:00 ET) → closed", () => {
-    expect(getOverseasIndexSessionState("SPX", utc(2026, 12, 15, 21, 0))).toBe(
-      "closed",
-    );
+    expect(getOverseasIndexSessionState("SPX", utc(2026, 12, 15, 21, 0))).toBe("closed");
   });
 
   it("NI225 09:00 JST 개장 경계 (00:00 UTC = 09:00 JST) → regular", () => {
     // 2026-07-23 목요일 00:00 UTC = 09:00 JST
-    expect(
-      getOverseasIndexSessionState("NI225", utc(2026, 7, 23, 0, 0)),
-    ).toBe("regular");
+    expect(getOverseasIndexSessionState("NI225", utc(2026, 7, 23, 0, 0))).toBe("regular");
   });
   it("NI225 08:59 JST → closed (개장 직전)", () => {
-    expect(
-      getOverseasIndexSessionState("NI225", utc(2026, 7, 22, 23, 59)),
-    ).toBe("closed");
+    expect(getOverseasIndexSessionState("NI225", utc(2026, 7, 22, 23, 59))).toBe("closed");
   });
   it("NI225 15:30 JST 마감 경계 → closed (경계 미포함)", () => {
-    expect(
-      getOverseasIndexSessionState("NI225", utc(2026, 7, 23, 6, 30)),
-    ).toBe("closed");
+    expect(getOverseasIndexSessionState("NI225", utc(2026, 7, 23, 6, 30))).toBe("closed");
   });
 
   it("HSI 12:30 HKT 점심 시간 → regular (점심 휴장은 모델링하지 않음)", () => {
     // 2026-07-23 목요일 04:30 UTC = 12:30 HKT
-    expect(getOverseasIndexSessionState("HSI", utc(2026, 7, 23, 4, 30))).toBe(
-      "regular",
-    );
+    expect(getOverseasIndexSessionState("HSI", utc(2026, 7, 23, 4, 30))).toBe("regular");
   });
 
   it("DAX 17:29 CEST → regular (2026-08-28 = DST 기간)", () => {
     // CEST(UTC+2): 17:29 local = 15:29 UTC
-    expect(getOverseasIndexSessionState("DAX", utc(2026, 8, 28, 15, 29))).toBe(
-      "regular",
-    );
+    expect(getOverseasIndexSessionState("DAX", utc(2026, 8, 28, 15, 29))).toBe("regular");
   });
   it("DAX 17:31 CEST → closed (2026-08-28)", () => {
-    expect(getOverseasIndexSessionState("DAX", utc(2026, 8, 28, 15, 31))).toBe(
-      "closed",
-    );
+    expect(getOverseasIndexSessionState("DAX", utc(2026, 8, 28, 15, 31))).toBe("closed");
   });
   it("DAX 17:29 CET → regular (2026-01-15 = 비-DST)", () => {
     // CET(UTC+1): 17:29 local = 16:29 UTC
-    expect(getOverseasIndexSessionState("DAX", utc(2026, 1, 15, 16, 29))).toBe(
-      "regular",
-    );
+    expect(getOverseasIndexSessionState("DAX", utc(2026, 1, 15, 16, 29))).toBe("regular");
   });
 });
 
 describe("getOverseasIndexTradingDate", () => {
   it("SPX EDT 정규장 중 → 오늘 ET", () => {
-    expect(getOverseasIndexTradingDate("SPX", utc(2026, 7, 23, 15, 0))).toBe(
-      "2026-07-23",
-    );
+    expect(getOverseasIndexTradingDate("SPX", utc(2026, 7, 23, 15, 0))).toBe("2026-07-23");
   });
   it("SPX EDT 개장 전 → 직전 거래일 (휴장 캘린더 부재로 어제)", () => {
     // 개장 전 어제 = 7-22 (평일).
-    expect(getOverseasIndexTradingDate("SPX", utc(2026, 7, 23, 12, 0))).toBe(
-      "2026-07-22",
-    );
+    expect(getOverseasIndexTradingDate("SPX", utc(2026, 7, 23, 12, 0))).toBe("2026-07-22");
   });
   it("SPX 일요일 → 직전 금요일", () => {
-    expect(getOverseasIndexTradingDate("SPX", utc(2026, 7, 26, 15, 0))).toBe(
-      "2026-07-24",
-    );
+    expect(getOverseasIndexTradingDate("SPX", utc(2026, 7, 26, 15, 0))).toBe("2026-07-24");
   });
 
   it("NI225 월요일 08:30 JST (개장 전) → 직전 금요일", () => {
     // 2026-07-27 월요일 08:30 JST = 2026-07-26 23:30 UTC
     // 세션 아직 시작 전 → 어제(일)부터 역방향 → 금요일 7-24.
-    expect(
-      getOverseasIndexTradingDate("NI225", utc(2026, 7, 26, 23, 30)),
-    ).toBe("2026-07-24");
+    expect(getOverseasIndexTradingDate("NI225", utc(2026, 7, 26, 23, 30))).toBe("2026-07-24");
   });
   it("DAX 일요일 → 직전 금요일", () => {
-    expect(getOverseasIndexTradingDate("DAX", utc(2026, 7, 26, 12, 0))).toBe(
-      "2026-07-24",
-    );
+    expect(getOverseasIndexTradingDate("DAX", utc(2026, 7, 26, 12, 0))).toBe("2026-07-24");
   });
 
   // 마감 후~로컬 자정 사이는 당일 유지 — DB 창·세션 캐시 키가 세션 경계를 넘도록.
   it("SPX 월 04:00 ET (개장 전) → 직전 금요일", () => {
     // 2026-07-27 월 04:00 ET = 08:00 UTC. 개장 전 → 어제(일) 역방향 → 금(7-24).
-    expect(getOverseasIndexTradingDate("SPX", utc(2026, 7, 27, 8, 0))).toBe(
-      "2026-07-24",
-    );
+    expect(getOverseasIndexTradingDate("SPX", utc(2026, 7, 27, 8, 0))).toBe("2026-07-24");
   });
   it("SPX 월 12:00 ET (정규장 중) → 당일", () => {
-    expect(getOverseasIndexTradingDate("SPX", utc(2026, 7, 27, 16, 0))).toBe(
-      "2026-07-27",
-    );
+    expect(getOverseasIndexTradingDate("SPX", utc(2026, 7, 27, 16, 0))).toBe("2026-07-27");
   });
   it("SPX 월 17:00 ET (마감 후) → 당일", () => {
     // 2026-07-27 월 17:00 ET = 21:00 UTC. 마감(16:00) 후 → 로컬 당일 유지.
-    expect(getOverseasIndexTradingDate("SPX", utc(2026, 7, 27, 21, 0))).toBe(
-      "2026-07-27",
-    );
+    expect(getOverseasIndexTradingDate("SPX", utc(2026, 7, 27, 21, 0))).toBe("2026-07-27");
   });
   it("SPX 화 01:00 ET (다음날 새벽) → 직전 월요일", () => {
     // 2026-07-28 화 01:00 ET = 05:00 UTC. 개장 전 → 어제(월) 역방향 → 월(7-27).
-    expect(getOverseasIndexTradingDate("SPX", utc(2026, 7, 28, 5, 0))).toBe(
-      "2026-07-27",
-    );
+    expect(getOverseasIndexTradingDate("SPX", utc(2026, 7, 28, 5, 0))).toBe("2026-07-27");
   });
   it("SPX 토요일 → 직전 금요일", () => {
     // 2026-08-01 토 11:00 ET = 15:00 UTC. 주말 → minutesSinceClose=null → 어제부터 역방향.
-    expect(getOverseasIndexTradingDate("SPX", utc(2026, 8, 1, 15, 0))).toBe(
-      "2026-07-31",
-    );
+    expect(getOverseasIndexTradingDate("SPX", utc(2026, 8, 1, 15, 0))).toBe("2026-07-31");
   });
   it("NI225 월 16:00 JST (마감 후) → 당일", () => {
     // 2026-07-27 월 16:00 JST = 07:00 UTC. close=15:30 → 마감 후 → 로컬 당일.
-    expect(getOverseasIndexTradingDate("NI225", utc(2026, 7, 27, 7, 0))).toBe(
-      "2026-07-27",
-    );
+    expect(getOverseasIndexTradingDate("NI225", utc(2026, 7, 27, 7, 0))).toBe("2026-07-27");
   });
   it("DAX 월 18:00 CEST (마감 후) → 당일", () => {
     // 2026-07-27 월 18:00 Berlin (CEST=UTC+2) = 16:00 UTC. close=17:30 → 마감 후.
-    expect(getOverseasIndexTradingDate("DAX", utc(2026, 7, 27, 16, 0))).toBe(
-      "2026-07-27",
-    );
+    expect(getOverseasIndexTradingDate("DAX", utc(2026, 7, 27, 16, 0))).toBe("2026-07-27");
   });
   it("DAX 화 01:00 CEST (다음날 새벽) → 직전 월요일", () => {
     // 2026-07-28 화 01:00 Berlin = 2026-07-27 23:00 UTC. 개장 전 → 어제(월) 역방향 → 월.
-    expect(getOverseasIndexTradingDate("DAX", utc(2026, 7, 27, 23, 0))).toBe(
-      "2026-07-27",
-    );
+    expect(getOverseasIndexTradingDate("DAX", utc(2026, 7, 27, 23, 0))).toBe("2026-07-27");
   });
 });
 
 describe("getPreviousOverseasIndexTradingDate", () => {
   it("SPX 일요일 → 금요일", () => {
-    expect(getPreviousOverseasIndexTradingDate("SPX", "2026-07-27")).toBe(
-      "2026-07-24",
-    );
+    expect(getPreviousOverseasIndexTradingDate("SPX", "2026-07-27")).toBe("2026-07-24");
   });
   it("SPX 휴장 반영: 7-6 → 7-2", () => {
-    expect(getPreviousOverseasIndexTradingDate("SPX", "2026-07-06")).toBe(
-      "2026-07-02",
-    );
+    expect(getPreviousOverseasIndexTradingDate("SPX", "2026-07-06")).toBe("2026-07-02");
   });
   it("NI225 월요일 → 금요일 (아시아 휴장 캘린더 없음, 주말만 skip)", () => {
-    expect(getPreviousOverseasIndexTradingDate("NI225", "2026-07-27")).toBe(
-      "2026-07-24",
-    );
+    expect(getPreviousOverseasIndexTradingDate("NI225", "2026-07-27")).toBe("2026-07-24");
   });
   it("DAX 화요일 → 월요일 (평일 연속)", () => {
-    expect(getPreviousOverseasIndexTradingDate("DAX", "2026-07-28")).toBe(
-      "2026-07-27",
-    );
+    expect(getPreviousOverseasIndexTradingDate("DAX", "2026-07-28")).toBe("2026-07-27");
   });
 });
 
@@ -362,56 +300,36 @@ describe("getGlobalOverseasSessionState", () => {
 describe("minutesSinceOverseasIndexClose", () => {
   // NI225 15:30 JST 마감. JST(UTC+9) — 06:30 UTC 가 15:30 JST.
   it("NI225 정규장 중 (12:00 JST) → null", () => {
-    expect(
-      minutesSinceOverseasIndexClose("NI225", utc(2026, 7, 23, 3, 0)),
-    ).toBeNull();
+    expect(minutesSinceOverseasIndexClose("NI225", utc(2026, 7, 23, 3, 0))).toBeNull();
   });
   it("NI225 마감 +5분 (15:35 JST) → 5", () => {
-    expect(
-      minutesSinceOverseasIndexClose("NI225", utc(2026, 7, 23, 6, 35)),
-    ).toBe(5);
+    expect(minutesSinceOverseasIndexClose("NI225", utc(2026, 7, 23, 6, 35))).toBe(5);
   });
   it("NI225 마감 +44분 (16:14 JST) → 44 (창 경계 안)", () => {
-    expect(
-      minutesSinceOverseasIndexClose("NI225", utc(2026, 7, 23, 7, 14)),
-    ).toBe(44);
+    expect(minutesSinceOverseasIndexClose("NI225", utc(2026, 7, 23, 7, 14))).toBe(44);
   });
   it("NI225 마감 +45분 (16:15 JST) → 45 (창 밖)", () => {
-    expect(
-      minutesSinceOverseasIndexClose("NI225", utc(2026, 7, 23, 7, 15)),
-    ).toBe(45);
+    expect(minutesSinceOverseasIndexClose("NI225", utc(2026, 7, 23, 7, 15))).toBe(45);
   });
   it("NI225 토요일 → null (주말)", () => {
-    expect(
-      minutesSinceOverseasIndexClose("NI225", utc(2026, 7, 25, 7, 0)),
-    ).toBeNull();
+    expect(minutesSinceOverseasIndexClose("NI225", utc(2026, 7, 25, 7, 0))).toBeNull();
   });
 
   // SPX 16:00 ET 마감. EDT(UTC-4): 20:00 UTC. EST(UTC-5): 21:00 UTC.
   it("SPX EDT 마감 +5분 (16:05 ET) → 5 (2026-07-23)", () => {
-    expect(
-      minutesSinceOverseasIndexClose("SPX", utc(2026, 7, 23, 20, 5)),
-    ).toBe(5);
+    expect(minutesSinceOverseasIndexClose("SPX", utc(2026, 7, 23, 20, 5))).toBe(5);
   });
   it("SPX EDT 마감 +44분 → 44 (창 경계 안)", () => {
-    expect(
-      minutesSinceOverseasIndexClose("SPX", utc(2026, 7, 23, 20, 44)),
-    ).toBe(44);
+    expect(minutesSinceOverseasIndexClose("SPX", utc(2026, 7, 23, 20, 44))).toBe(44);
   });
   it("SPX EDT 마감 +45분 → 45 (창 밖)", () => {
-    expect(
-      minutesSinceOverseasIndexClose("SPX", utc(2026, 7, 23, 20, 45)),
-    ).toBe(45);
+    expect(minutesSinceOverseasIndexClose("SPX", utc(2026, 7, 23, 20, 45))).toBe(45);
   });
   it("SPX EDT 정규장 중 (11:00 ET) → null", () => {
-    expect(
-      minutesSinceOverseasIndexClose("SPX", utc(2026, 7, 23, 15, 0)),
-    ).toBeNull();
+    expect(minutesSinceOverseasIndexClose("SPX", utc(2026, 7, 23, 15, 0))).toBeNull();
   });
   it("SPX EST 마감 +5분 (16:05 ET, 2026-12-15) → 5 (DST 전환 대칭)", () => {
-    expect(
-      minutesSinceOverseasIndexClose("SPX", utc(2026, 12, 15, 21, 5)),
-    ).toBe(5);
+    expect(minutesSinceOverseasIndexClose("SPX", utc(2026, 12, 15, 21, 5))).toBe(5);
   });
 });
 
@@ -483,70 +401,58 @@ describe("해외 4함수 캘린더 관통 (F76)", () => {
     US: { "2026-09-07": false },
     JP: { "2026-09-21": false, "2026-09-22": true, "2026-09-23": false },
     CN: {
-      "2026-10-01": false, "2026-10-02": false, "2026-10-03": false,
-      "2026-10-04": false, "2026-10-05": false, "2026-10-06": false,
-      "2026-10-07": false, "2026-10-08": false, "2026-10-09": true,
+      "2026-10-01": false,
+      "2026-10-02": false,
+      "2026-10-03": false,
+      "2026-10-04": false,
+      "2026-10-05": false,
+      "2026-10-06": false,
+      "2026-10-07": false,
+      "2026-10-08": false,
+      "2026-10-09": true,
     },
   };
 
   it("getOverseasIndexSessionState('SPX', 2026-09-07 ET 장중, cal) → closed", () => {
     // 09-07 EDT 15:00 UTC = 11:00 ET (Labor Day, 캘린더 closed).
-    expect(
-      getOverseasIndexSessionState("SPX", utc(2026, 9, 7, 15, 0), cal),
-    ).toBe("closed");
+    expect(getOverseasIndexSessionState("SPX", utc(2026, 9, 7, 15, 0), cal)).toBe("closed");
   });
 
   it("minutesSinceOverseasIndexClose('SPX', 09-07 마감 후, cal) → null (주말과 동일)", () => {
     // 09-07 EDT 20:05 UTC = 16:05 ET (마감 5분 후). 캘린더 전달 시 null.
-    expect(
-      minutesSinceOverseasIndexClose("SPX", utc(2026, 9, 7, 20, 5), cal),
-    ).toBeNull();
+    expect(minutesSinceOverseasIndexClose("SPX", utc(2026, 9, 7, 20, 5), cal)).toBeNull();
     // 캘린더 미전달 시에도 US 는 정적 NYSE 표 폴백으로 09-07 Labor Day 인식 → null.
-    expect(
-      minutesSinceOverseasIndexClose("SPX", utc(2026, 9, 7, 20, 5)),
-    ).toBeNull();
+    expect(minutesSinceOverseasIndexClose("SPX", utc(2026, 9, 7, 20, 5))).toBeNull();
   });
 
   it("getOverseasIndexTradingDate('SHCOMP', 10-05 장중, cal) → 2026-09-30 (연휴 전 마지막 거래일)", () => {
     // 10-05 월 04:00 UTC = 12:00 SHCOMP. 캘린더로 10-01~10-04 전부 closed → findRecent
     // 는 09-30 (Wed 평일 무휴장) 반환.
-    expect(
-      getOverseasIndexTradingDate("SHCOMP", utc(2026, 10, 5, 4, 0), cal),
-    ).toBe("2026-09-30");
+    expect(getOverseasIndexTradingDate("SHCOMP", utc(2026, 10, 5, 4, 0), cal)).toBe("2026-09-30");
   });
 
   it("getPreviousOverseasIndexTradingDate('NI225', '2026-09-24', cal) → 2026-09-22", () => {
     // 09-24 → shift -1 = 09-23 (JP 캘린더 closed) → shift -1 = 09-22 (JP 캘린더 open).
-    expect(
-      getPreviousOverseasIndexTradingDate("NI225", "2026-09-24", cal),
-    ).toBe("2026-09-22");
+    expect(getPreviousOverseasIndexTradingDate("NI225", "2026-09-24", cal)).toBe("2026-09-22");
   });
 
   it("캘린더 미전달 시 기존 동작 유지 — SPX 는 정적 NYSE 표로 09-07 여전히 closed", () => {
     // 정적 usMarketHolidays.ts 에 09-07 Labor Day 포함 → 폴백 경로도 동일 결과.
-    expect(getOverseasIndexSessionState("SPX", utc(2026, 9, 7, 15, 0))).toBe(
-      "closed",
-    );
+    expect(getOverseasIndexSessionState("SPX", utc(2026, 9, 7, 15, 0))).toBe("closed");
   });
 
   it("캘린더 미전달 시 JP 는 폴백 없음 — 09-23 평일이면 regular 시각대엔 regular", () => {
     // 09-23 수 06:30 UTC = 15:30 JST 마감 경계 미포함 → closed. 06:00 UTC = 15:00 JST 는
     // regular. 이 케이스는 폴백 부재 확인용.
-    expect(
-      getOverseasIndexSessionState("NI225", utc(2026, 9, 23, 6, 0)),
-    ).toBe("regular");
+    expect(getOverseasIndexSessionState("NI225", utc(2026, 9, 23, 6, 0))).toBe("regular");
     // 캘린더 전달 시 휴장으로 뒤바뀐다.
-    expect(
-      getOverseasIndexSessionState("NI225", utc(2026, 9, 23, 6, 0), cal),
-    ).toBe("closed");
+    expect(getOverseasIndexSessionState("NI225", utc(2026, 9, 23, 6, 0), cal)).toBe("closed");
   });
 
   it("getPreviousOverseasIndexTradingDate('DAX', ...) — DE 는 XETRA 정적 표로 계속 처리", () => {
     // 12-28 → shift -1 = 12-27 (Sun) → -1 = 12-26 (Sat) → -1 = 12-25 (XETRA closed) →
     // -1 = 12-24 (XETRA closed) → -1 = 12-23 (Wed 평일 무휴장) 반환.
-    expect(
-      getPreviousOverseasIndexTradingDate("DAX", "2026-12-28"),
-    ).toBe("2026-12-23");
+    expect(getPreviousOverseasIndexTradingDate("DAX", "2026-12-28")).toBe("2026-12-23");
   });
 });
 

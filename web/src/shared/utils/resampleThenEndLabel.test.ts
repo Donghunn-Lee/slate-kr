@@ -27,15 +27,15 @@ const sec = (hhmmss: string, day: number = D): number =>
       day,
       Number(hhmmss.slice(0, 2)),
       Number(hhmmss.slice(2, 4)),
-      Number(hhmmss.slice(4, 6)),
-    ) / 1000,
+      Number(hhmmss.slice(4, 6))
+    ) / 1000
   );
 
 const bar = (
   hhmmss: string,
   ohlc: { o: number; h: number; l: number; c: number },
   v: number,
-  day: number = D,
+  day: number = D
 ): ChartBar => ({
   time: sec(hhmmss, day),
   open: ohlc.o,
@@ -234,7 +234,9 @@ describe("resample → toEndLabel 파이프라인 (StockChartTabs 조립)", () =
 
   const VOL = (hhmm: string): number => {
     const row = RAW_005930_1510_1559.find(
-      (b) => typeof b.time === "number" && new Date((b.time as number) * 1000).toISOString().slice(11, 16) === hhmm,
+      (b) =>
+        typeof b.time === "number" &&
+        new Date((b.time as number) * 1000).toISOString().slice(11, 16) === hhmm
     );
     if (!row || row.volume === undefined) throw new Error(`no row ${hhmm}`);
     return row.volume;
@@ -252,7 +254,7 @@ describe("resample → toEndLabel 파이프라인 (StockChartTabs 조립)", () =
     const byTime = new Map(
       out
         .filter((b): b is ChartBar & { time: number } => typeof b.time === "number")
-        .map((b) => [b.time, b] as const),
+        .map((b) => [b.time, b] as const)
     );
     // END 15:30 = Σraw 15:15~15:19 + 15:30 = 444,775 + 1,146,522
     const end1530 = byTime.get(sec("153000"));
@@ -272,7 +274,7 @@ describe("resample → toEndLabel 파이프라인 (StockChartTabs 조립)", () =
     const byTime = new Map(
       out
         .filter((b): b is ChartBar & { time: number } => typeof b.time === "number")
-        .map((b) => [b.time, b] as const),
+        .map((b) => [b.time, b] as const)
     );
     // 30분 정규장 세그먼트: bucket 15:00 (raw 15:10~15:19) + bucket 15:30 (raw 15:30) → END 15:30 병합
     const end1530 = byTime.get(sec("153000"));
@@ -287,7 +289,7 @@ describe("resample → toEndLabel 파이프라인 (StockChartTabs 조립)", () =
     const byTime = new Map(
       out
         .filter((b): b is ChartBar & { time: number } => typeof b.time === "number")
-        .map((b) => [b.time, b] as const),
+        .map((b) => [b.time, b] as const)
     );
     // 60분 정규장 세그먼트 bucket 15:00 (raw ≤ 15:30 전량) → clamp END 15:30
     const end1530 = byTime.get(sec("153000"));
@@ -301,7 +303,7 @@ describe("resample → toEndLabel 파이프라인 (StockChartTabs 조립)", () =
   for (const minutes of [1, 5, 10]) {
     it(`${minutes}분: 세션 분할 유틸 === 직결 pipeline`, () => {
       expect(pipeline(RAW_005930_1510_1559, minutes)).toEqual(
-        directPipeline(RAW_005930_1510_1559, minutes),
+        directPipeline(RAW_005930_1510_1559, minutes)
       );
     });
   }

@@ -25,12 +25,7 @@ export type WatchlistItem = {
   addedAt: number;
 };
 
-export type WatchlistSyncStatus =
-  | "idle"
-  | "loading"
-  | "synced"
-  | "blocked"
-  | "error";
+export type WatchlistSyncStatus = "idle" | "loading" | "synced" | "blocked" | "error";
 
 const DEFAULT_GROUP_NAME = "내 관심 종목";
 
@@ -93,8 +88,7 @@ export const useWatchlistStore = create<WatchlistState>()(
         return true;
       },
 
-      removeMembership: (ticker, groupId) =>
-        set((s) => removeMembershipIn(s, ticker, groupId)),
+      removeMembership: (ticker, groupId) => set((s) => removeMembershipIn(s, ticker, groupId)),
 
       moveMembership: (ticker, groupId, dir) =>
         set((s) => moveMembershipIn(s, ticker, groupId, dir)),
@@ -102,8 +96,7 @@ export const useWatchlistStore = create<WatchlistState>()(
       addToWatchlist: (item, groupId) => {
         const { groups } = get();
         if (groups.length === 0) return;
-        const targetGroupId =
-          groupId ?? [...groups].sort((a, b) => a.order - b.order)[0].id;
+        const targetGroupId = groupId ?? [...groups].sort((a, b) => a.order - b.order)[0].id;
         get().addMembership(item, targetGroupId);
       },
 
@@ -145,9 +138,7 @@ export const useWatchlistStore = create<WatchlistState>()(
       migrate: (persistedState, version) => {
         if (version === 0) {
           const old = persistedState as { items?: WatchlistItem[] };
-          const items = [...(old?.items ?? [])].sort(
-            (a, b) => b.addedAt - a.addedAt
-          );
+          const items = [...(old?.items ?? [])].sort((a, b) => b.addedAt - a.addedAt);
           const defaultGroup = createDefaultGroup();
           const memberships: Membership[] = items.map((i, idx) => ({
             groupId: defaultGroup.id,
@@ -200,23 +191,13 @@ export const useWatchlistStore = create<WatchlistState>()(
   )
 );
 
-export const selectTickersByGroup = (
-  state: WatchlistState,
-  groupId: string
-): Membership[] => {
-  return state.memberships
-    .filter((m) => m.groupId === groupId)
-    .sort((a, b) => a.order - b.order);
+export const selectTickersByGroup = (state: WatchlistState, groupId: string): Membership[] => {
+  return state.memberships.filter((m) => m.groupId === groupId).sort((a, b) => a.order - b.order);
 };
 
-export const selectGroupsByTicker = (
-  state: WatchlistState,
-  ticker: string
-): WatchlistGroup[] => {
+export const selectGroupsByTicker = (state: WatchlistState, ticker: string): WatchlistGroup[] => {
   const groupIds = new Set(
     state.memberships.filter((m) => m.ticker === ticker).map((m) => m.groupId)
   );
-  return state.groups
-    .filter((g) => groupIds.has(g.id))
-    .sort((a, b) => a.order - b.order);
+  return state.groups.filter((g) => groupIds.has(g.id)).sort((a, b) => a.order - b.order);
 };

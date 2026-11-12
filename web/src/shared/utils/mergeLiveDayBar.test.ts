@@ -1,10 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { ChartBar, IndexQuote } from "@/shared/types/quote";
-import {
-  isInvalidQuoteOhl,
-  mergeLiveDayBar,
-  type LiveQuoteForMerge,
-} from "./mergeLiveDayBar";
+import { isInvalidQuoteOhl, mergeLiveDayBar, type LiveQuoteForMerge } from "./mergeLiveDayBar";
 
 const bar = (date: string, close: number, extra: Partial<ChartBar> = {}): ChartBar => ({
   time: date,
@@ -41,10 +37,7 @@ describe("isInvalidQuoteOhl", () => {
 });
 
 describe("mergeLiveDayBar - 정상 quote", () => {
-  const eod: ChartBar[] = [
-    bar("2026-07-17", 700),
-    bar("2026-07-18", 720, { volume: 5000 }),
-  ];
+  const eod: ChartBar[] = [bar("2026-07-17", 700), bar("2026-07-18", 720, { volume: 5000 })];
 
   it("quote null → EOD 그대로", () => {
     expect(mergeLiveDayBar(eod, null, "2026-07-21")).toEqual(eod);
@@ -79,11 +72,7 @@ describe("mergeLiveDayBar - 정상 quote", () => {
   });
 
   it("replace 경로 · quote.volume undefined → EOD preservedVolume 유지", () => {
-    const result = mergeLiveDayBar(
-      eod,
-      validQuote({ volume: undefined }),
-      "2026-07-18",
-    );
+    const result = mergeLiveDayBar(eod, validQuote({ volume: undefined }), "2026-07-18");
     expect(result[1].volume).toBe(5000);
   });
 
@@ -124,10 +113,7 @@ describe("mergeLiveDayBar - 정상 quote", () => {
 });
 
 describe("mergeLiveDayBar - 무효 quote (OHL=0) 도지 게이트", () => {
-  const eod: ChartBar[] = [
-    bar("2026-07-17", 700),
-    bar("2026-07-20", 749.64, { volume: 8000 }),
-  ];
+  const eod: ChartBar[] = [bar("2026-07-17", 700), bar("2026-07-20", 749.64, { volume: 8000 })];
 
   const invalidQuote: LiveQuoteForMerge = {
     open: 0,

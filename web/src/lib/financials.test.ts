@@ -60,12 +60,7 @@ describe("computeTtmEps", () => {
   describe("#1 TTM 정상", () => {
     it("최근 4분기 연속 non-null, 합 > 0 → { source: 'ttm', value: sum }", () => {
       // countTopConsecutive는 최신→과거 순서를 가정하며 Q4 뒤에는 다음해 Q1이 와야 연속으로 인정한다.
-      const quarterly = [
-        mkQ(2026, 1, 100),
-        mkQ(2025, 4, 200),
-        mkQ(2025, 3, 150),
-        mkQ(2025, 2, 50),
-      ];
+      const quarterly = [mkQ(2026, 1, 100), mkQ(2025, 4, 200), mkQ(2025, 3, 150), mkQ(2025, 2, 50)];
       const result = computeTtmEps(quarterly, mkA(2025, 999));
       expect(result).toEqual({ value: 500, source: "ttm" });
     });
@@ -135,7 +130,12 @@ describe("computeTtmEps", () => {
     });
 
     it("consecutive=2인데 결측 앞 분기가 남음 → 연환산 조건 불충족 → annual_fallback (폴스루)", () => {
-      const quarterly = [mkQ(2026, 2, 100), mkQ(2026, 1, 100), mkQ(2025, 3, 100), mkQ(2025, 2, 100)];
+      const quarterly = [
+        mkQ(2026, 2, 100),
+        mkQ(2026, 1, 100),
+        mkQ(2025, 3, 100),
+        mkQ(2025, 2, 100),
+      ];
       const result = computeTtmEps(quarterly, mkA(2025, 700));
       expect(result).toEqual({ value: 700, source: "annual_fallback" });
     });
@@ -243,10 +243,38 @@ describe("attachGrowthRates", () => {
   it("분기: 전년 동분기 매칭 (Q4 포함, 전분기 대비가 아니라 전년 동분기 대비)", () => {
     // 순서 뒤섞음: attachGrowthRates 는 정렬 가정 없음.
     const periods = [
-      makeFP({ year: 2025, quarter: 4, reportType: "quarter", revenue: 200, operatingProfit: 80, netIncome: 50 }),
-      makeFP({ year: 2024, quarter: 4, reportType: "quarter", revenue: 160, operatingProfit: 40, netIncome: 25 }),
-      makeFP({ year: 2025, quarter: 1, reportType: "quarter", revenue: 110, operatingProfit: 22, netIncome: 11 }),
-      makeFP({ year: 2024, quarter: 1, reportType: "quarter", revenue: 100, operatingProfit: 20, netIncome: 10 }),
+      makeFP({
+        year: 2025,
+        quarter: 4,
+        reportType: "quarter",
+        revenue: 200,
+        operatingProfit: 80,
+        netIncome: 50,
+      }),
+      makeFP({
+        year: 2024,
+        quarter: 4,
+        reportType: "quarter",
+        revenue: 160,
+        operatingProfit: 40,
+        netIncome: 25,
+      }),
+      makeFP({
+        year: 2025,
+        quarter: 1,
+        reportType: "quarter",
+        revenue: 110,
+        operatingProfit: 22,
+        netIncome: 11,
+      }),
+      makeFP({
+        year: 2024,
+        quarter: 1,
+        reportType: "quarter",
+        revenue: 100,
+        operatingProfit: 20,
+        netIncome: 10,
+      }),
     ];
     const out = attachGrowthRates(periods);
     // 2025Q4 vs 2024Q4
@@ -370,7 +398,11 @@ describe("computeTtmEps — 기준 주식수 불일치", () => {
   });
 
   it("연환산 경로의 분기 1개 불일치 → basis_mismatch", () => {
-    const quarterly = [mkQm(2026, 3, 100, false), mkQm(2026, 2, 200, true), mkQm(2026, 1, 300, false)];
+    const quarterly = [
+      mkQm(2026, 3, 100, false),
+      mkQm(2026, 2, 200, true),
+      mkQm(2026, 1, 300, false),
+    ];
     const result = computeTtmEps(quarterly, mkA(2025, 999));
     expect(result).toEqual({ value: null, source: "basis_mismatch" });
   });
@@ -467,14 +499,24 @@ describe("buildFinancials — 기간 기준 판정", () => {
   });
 
   it("파생 Q4 는 같은 연도 연간 판정을 상속 (연간 불일치 → Q4 불일치)", () => {
-    const rows = [aRow(2025, 1_000, 2_000_000), qRow(2025, 3, 300), qRow(2025, 2, 300), qRow(2025, 1, 300)];
+    const rows = [
+      aRow(2025, 1_000, 2_000_000),
+      qRow(2025, 3, 300),
+      qRow(2025, 2, 300),
+      qRow(2025, 1, 300),
+    ];
     const { quarterly } = buildFinancials(rows, prices, NO_DIVIDENDS, SHARES);
     expect(quarterOf(quarterly, 4).shareBasisMismatch).toBe(true);
     expect(quarterOf(quarterly, 3).shareBasisMismatch).toBe(false);
   });
 
   it("연간 일치 + 재료 Q2 불일치 → 파생 Q4 불일치", () => {
-    const rows = [aRow(2025, 1_000), qRow(2025, 3, 300), qRow(2025, 2, 300, 600_000), qRow(2025, 1, 300)];
+    const rows = [
+      aRow(2025, 1_000),
+      qRow(2025, 3, 300),
+      qRow(2025, 2, 300, 600_000),
+      qRow(2025, 1, 300),
+    ];
     const { quarterly } = buildFinancials(rows, prices, NO_DIVIDENDS, SHARES);
     expect(quarterOf(quarterly, 4).shareBasisMismatch).toBe(true);
     expect(quarterOf(quarterly, 3).shareBasisMismatch).toBe(false);
@@ -488,7 +530,12 @@ describe("buildFinancials — 기간 기준 판정", () => {
 
   it("파생 Q4 자체 r 이 밴드 밖이어도 연간이 일치면 false", () => {
     // Q3 순이익만 키워 파생 Q4 = (1,000,000 − 990,000) ÷ (1,000 − 900) → 전제 주식수 100, r = 10.
-    const rows = [aRow(2025, 1_000), qRow(2025, 3, 300, 390_000), qRow(2025, 2, 300), qRow(2025, 1, 300)];
+    const rows = [
+      aRow(2025, 1_000),
+      qRow(2025, 3, 300, 390_000),
+      qRow(2025, 2, 300),
+      qRow(2025, 1, 300),
+    ];
     const { quarterly } = buildFinancials(rows, prices, NO_DIVIDENDS, SHARES);
     const q4 = quarterOf(quarterly, 4);
     expect(isShareBasisMismatch(q4.netIncome, q4.eps, SHARES)).toBe(true);
@@ -496,7 +543,12 @@ describe("buildFinancials — 기간 기준 판정", () => {
   });
 
   it("shares null → 판정 불가, 전 기간 false", () => {
-    const rows = [aRow(2025, 1_000, 2_000_000), qRow(2025, 3, 300, 600_000), qRow(2025, 2, 300), qRow(2025, 1, 300)];
+    const rows = [
+      aRow(2025, 1_000, 2_000_000),
+      qRow(2025, 3, 300, 600_000),
+      qRow(2025, 2, 300),
+      qRow(2025, 1, 300),
+    ];
     const { annual, quarterly } = buildFinancials(rows, prices, NO_DIVIDENDS, null);
     expect([...annual, ...quarterly].every((p) => !p.shareBasisMismatch)).toBe(true);
   });
@@ -519,13 +571,23 @@ describe("buildFinancials — 분기 PER (최근 4분기 기준)", () => {
   });
 
   it("4분기 합 ≤ 0 → null", () => {
-    const rows = [aRow(2025, -1_000), qRow(2025, 3, -300), qRow(2025, 2, -300), qRow(2025, 1, -300)];
+    const rows = [
+      aRow(2025, -1_000),
+      qRow(2025, 3, -300),
+      qRow(2025, 2, -300),
+      qRow(2025, 1, -300),
+    ];
     const { quarterly } = buildFinancials(rows, prices, NO_DIVIDENDS, SHARES);
     expect(quarterOf(quarterly, 4).per).toBeNull();
   });
 
   it("4분기 중 기준 불일치 기간 포함 → null", () => {
-    const rows = [aRow(2025, 1_000), qRow(2025, 3, 300), qRow(2025, 2, 300, 600_000), qRow(2025, 1, 300)];
+    const rows = [
+      aRow(2025, 1_000),
+      qRow(2025, 3, 300),
+      qRow(2025, 2, 300, 600_000),
+      qRow(2025, 1, 300),
+    ];
     const { quarterly } = buildFinancials(rows, prices, NO_DIVIDENDS, SHARES);
     expect(quarterOf(quarterly, 2).shareBasisMismatch).toBe(true);
     expect(quarterOf(quarterly, 4).per).toBeNull();
@@ -537,7 +599,13 @@ describe("buildFinancials — 무상증자 권리락일", () => {
   const bonus = (row: FinancialRow): FinancialRow => ({ ...row, ticker: "BONUS" });
 
   it("기간말이 권리락일 전인 행 → 불일치, 같은 날·이후 → 일치", () => {
-    const rows = [aRow(2025, 1_000), qRow(2025, 3, 300), qRow(2025, 2, 300), qRow(2025, 1, 300), aRow(2024, 1_000)];
+    const rows = [
+      aRow(2025, 1_000),
+      qRow(2025, 3, 300),
+      qRow(2025, 2, 300),
+      qRow(2025, 1, 300),
+      aRow(2024, 1_000),
+    ];
     const { annual, quarterly } = buildFinancials(rows.map(bonus), prices, NO_DIVIDENDS, SHARES);
     expect(quarterOf(quarterly, 1).shareBasisMismatch).toBe(true);
     expect(quarterOf(quarterly, 2).shareBasisMismatch).toBe(false);
@@ -546,13 +614,25 @@ describe("buildFinancials — 무상증자 권리락일", () => {
   });
 
   it("미등록 종목 → 영향 없음", () => {
-    const rows = [aRow(2025, 1_000), qRow(2025, 3, 300), qRow(2025, 2, 300), qRow(2025, 1, 300), aRow(2024, 1_000)];
+    const rows = [
+      aRow(2025, 1_000),
+      qRow(2025, 3, 300),
+      qRow(2025, 2, 300),
+      qRow(2025, 1, 300),
+      aRow(2024, 1_000),
+    ];
     const { annual, quarterly } = buildFinancials(rows, prices, NO_DIVIDENDS, SHARES);
     expect([...annual, ...quarterly].every((p) => !p.shareBasisMismatch)).toBe(true);
   });
 
   it("TTM 재료에 권리락 전 행이 없으면 값 표시", () => {
-    const rows = [aRow(2026, 1_000), qRow(2026, 3, 300), qRow(2026, 2, 300), qRow(2026, 1, 300), qRow(2025, 1, 300)];
+    const rows = [
+      aRow(2026, 1_000),
+      qRow(2026, 3, 300),
+      qRow(2026, 2, 300),
+      qRow(2026, 1, 300),
+      qRow(2025, 1, 300),
+    ];
     const { annual, quarterly } = buildFinancials(rows.map(bonus), prices, NO_DIVIDENDS, SHARES);
     expect(computeTtmEps(quarterly, annual[0])).toEqual({ value: 1_000, source: "ttm" });
   });

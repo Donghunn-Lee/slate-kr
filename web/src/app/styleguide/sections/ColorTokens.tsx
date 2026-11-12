@@ -11,7 +11,9 @@ const parseTokenBlock = (selector: string) => {
   const start = globalsCss.indexOf(`\n${selector} {`);
   const end = globalsCss.indexOf("\n}", start);
   const block = globalsCss.slice(start, end);
-  return new Map([...block.matchAll(/(--[\w-]+):\s*([^;]+);/g)].map(([, token, value]) => [token, value.trim()]));
+  return new Map(
+    [...block.matchAll(/(--[\w-]+):\s*([^;]+);/g)].map(([, token, value]) => [token, value.trim()])
+  );
 };
 
 const TOKEN_VALUES = { light: parseTokenBlock(":root"), dark: parseTokenBlock(".dark") };
@@ -110,10 +112,16 @@ export const ColorTokens = () => (
         ]}
       />
       <ul className="-mt-5 list-disc space-y-0.5 pl-5 text-body-sm text-muted-foreground">
-        <li>가격·변동폭·등락률 모두 등락색(price-up / price-down)으로 표기한다. 클래스는 priceToneClass 단일 출처.</li>
+        <li>
+          가격·변동폭·등락률 모두 등락색(price-up / price-down)으로 표기한다. 클래스는
+          priceToneClass 단일 출처.
+        </li>
         <li>보합(변동 0)·데이터 없음(null)은 text-foreground를 명시한다.</li>
         <li>예외: 52주 고/저는 부호와 무관한 고정색(고=price-up, 저=price-down)을 유지한다.</li>
-        <li>차트(CHART_THEME)의 상승·하락 색은 CSS 토큰의 computed sRGB와 동일값이어야 한다(라이트·다크 각각).</li>
+        <li>
+          차트(CHART_THEME)의 상승·하락 색은 CSS 토큰의 computed sRGB와 동일값이어야
+          한다(라이트·다크 각각).
+        </li>
       </ul>
       <div className="flex flex-wrap items-baseline gap-6">
         <PriceChange change={1250} changeRate={1.84} unit="원" />
@@ -123,9 +131,7 @@ export const ColorTokens = () => (
 
       <SwatchGroup
         title="Functional — 상태 (라이트·다크 공용)"
-        tokens={[
-          { token: "--live", label: "실시간 시세 점" },
-        ]}
+        tokens={[{ token: "--live", label: "실시간 시세 점" }]}
       />
 
       {ACCENT_COLORS.map(({ name, prefix, extra = [] }) => (
@@ -152,7 +158,10 @@ export const ColorTokens = () => (
           { token: "--disclosure-ownership-text", label: "소유상황 텍스트" },
           { token: "--disclosure-audit-bg", label: "감사 배경" },
           { token: "--disclosure-audit-text", label: "감사 텍스트" },
-          { token: "--disclosure-shareholder-meeting-bg", label: "주주총회 배경 (텍스트는 --amber-text)" },
+          {
+            token: "--disclosure-shareholder-meeting-bg",
+            label: "주주총회 배경 (텍스트는 --amber-text)",
+          },
           { token: "--disclosure-market-action-bg", label: "시장조치 배경" },
           { token: "--disclosure-market-action-text", label: "시장조치 텍스트" },
         ]}

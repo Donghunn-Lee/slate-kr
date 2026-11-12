@@ -7,10 +7,7 @@ type NonKrwNoticeProps = {
 
 export const NonKrwNotice = ({ currency, showBoundary = true }: NonKrwNoticeProps) => (
   <div className="flex items-start gap-2.5">
-    <Info
-      aria-hidden
-      className="mt-0.5 size-4 shrink-0 text-muted-foreground/60"
-    />
+    <Info aria-hidden className="mt-0.5 size-4 shrink-0 text-muted-foreground/60" />
     <div className="space-y-1">
       <p className="text-body font-medium">재무 데이터 제공 제한</p>
       <p className="text-body text-muted-foreground">

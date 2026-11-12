@@ -14,5 +14,4 @@ export const NYSE_HOLIDAYS_2026: ReadonlySet<string> = new Set([
   "2026-12-25", // Christmas Day
 ]);
 
-export const isUsMarketHoliday = (dateStr: string): boolean =>
-  NYSE_HOLIDAYS_2026.has(dateStr);
+export const isUsMarketHoliday = (dateStr: string): boolean => NYSE_HOLIDAYS_2026.has(dateStr);

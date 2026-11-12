@@ -13,7 +13,7 @@ const useMediaQuery = (query: string): boolean =>
       return () => mq.removeEventListener("change", callback);
     },
     () => window.matchMedia(query).matches,
-    () => false,
+    () => false
   );
 
 // Tailwind sm 브레이크 (< 640px) 감지. SSR-safe 서버 스냅샷은 false (데스크톱 가정) —

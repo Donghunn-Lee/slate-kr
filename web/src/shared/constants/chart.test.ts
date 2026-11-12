@@ -11,14 +11,14 @@ describe("crosshairLocalization timeFormatter", () => {
   });
 
   it("시간대 전달 → KST 로 옮긴 MM-DD HH:mm (익일 00:00)", () => {
-    expect(
-      crosshairLocalization(true, "America/New_York").timeFormatter(NY_1100),
-    ).toBe("07-16 00:00");
+    expect(crosshairLocalization(true, "America/New_York").timeFormatter(NY_1100)).toBe(
+      "07-16 00:00"
+    );
   });
 
   it("시간대 전달 · 일봉 문자열 time → 거래일 그대로", () => {
-    expect(
-      crosshairLocalization(false, "America/New_York").timeFormatter("2026-07-15"),
-    ).toBe("2026-07-15");
+    expect(crosshairLocalization(false, "America/New_York").timeFormatter("2026-07-15")).toBe(
+      "2026-07-15"
+    );
   });
 });

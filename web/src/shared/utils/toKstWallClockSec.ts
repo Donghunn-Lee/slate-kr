@@ -15,7 +15,7 @@ export const toKstWallClockSec = (localSec: number, timeZone: string): number =>
     local.getUTCHours(),
     local.getUTCMinutes(),
     local.getUTCSeconds(),
-    timeZone,
+    timeZone
   ).withTimeZone(KST_ZONE);
   return Math.floor(
     Date.UTC(
@@ -24,7 +24,7 @@ export const toKstWallClockSec = (localSec: number, timeZone: string): number =>
       kst.getDate(),
       kst.getHours(),
       kst.getMinutes(),
-      kst.getSeconds(),
-    ) / 1000,
+      kst.getSeconds()
+    ) / 1000
   );
 };

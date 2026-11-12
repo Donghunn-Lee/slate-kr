@@ -23,11 +23,7 @@ const subtractYears = (years: number): Date => {
   return d;
 };
 
-export const resolveDateRange = (
-  preset: PeriodPreset,
-  bgn?: string,
-  end?: string,
-): DateRange => {
+export const resolveDateRange = (preset: PeriodPreset, bgn?: string, end?: string): DateRange => {
   switch (preset) {
     case "6M":
       return { bgnDate: subtractMonths(6) };

@@ -28,9 +28,7 @@ export const Providers = ({ calendar, children }: ProvidersProps) => {
   return (
     <NextThemesProvider attribute="class" defaultTheme="light" enableSystem>
       <QueryClientProvider client={queryClient}>
-        <MarketCalendarProvider calendar={calendar}>
-          {children}
-        </MarketCalendarProvider>
+        <MarketCalendarProvider calendar={calendar}>{children}</MarketCalendarProvider>
       </QueryClientProvider>
       <Toaster richColors position="top-right" />
     </NextThemesProvider>

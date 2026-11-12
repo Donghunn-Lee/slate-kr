@@ -23,11 +23,20 @@ vi.mock("@/lib/demo/universe", async (importOriginal) => {
     });
   for (let i = 0; i < 12; i++) push(String(100_001 + i), i);
   for (let i = 0; i < 6; i++)
-    push(String(200_001 + i), i, [{ date: "2025-12-29", price: 1_000 }, { date: "2025-12-30", price: 2_000 }]);
+    push(String(200_001 + i), i, [
+      { date: "2025-12-29", price: 1_000 },
+      { date: "2025-12-30", price: 2_000 },
+    ]);
   for (let i = 0; i < 6; i++)
-    push(String(300_001 + i), i, [{ date: "2025-12-29", price: 1_000 }, { date: "2025-12-30", price: 500 }]);
+    push(String(300_001 + i), i, [
+      { date: "2025-12-29", price: 1_000 },
+      { date: "2025-12-30", price: 500 },
+    ]);
   for (let i = 0; i < 5; i++)
-    push(String(400_001 + i), i, [{ date: "2025-12-29", price: 100 }, { date: "2025-12-30", price: 100 }]);
+    push(String(400_001 + i), i, [
+      { date: "2025-12-29", price: 100 },
+      { date: "2025-12-30", price: 100 },
+    ]);
   push("500001", 0);
   return {
     ...actual,
@@ -49,7 +58,10 @@ const VALUE: MarketRankingKind = { kind: "volume", by: "value", market: "kospi" 
 const MCAP: MarketRankingKind = { kind: "market-cap", market: "all" };
 const INTEREST: MarketRankingKind = { kind: "top-interest", market: "kosdaq" };
 
-const items = async (kind: MarketRankingKind, session: "after_close" | "closed" | "regular" = "after_close") => {
+const items = async (
+  kind: MarketRankingKind,
+  session: "after_close" | "closed" | "regular" = "after_close"
+) => {
   const r = await fetchRanking(kind, session);
   if (!r.ok) throw new Error(r.error.message);
   return r.items;
@@ -68,9 +80,11 @@ describe("fetchRanking", () => {
     const up = await items(UP);
     expect(up).toHaveLength(30);
     expect(up.map((i) => i.rank)).toEqual(Array.from({ length: 30 }, (_, i) => i + 1));
-    for (let i = 1; i < up.length; i++) expect(up[i - 1].changePct).toBeGreaterThanOrEqual(up[i].changePct);
+    for (let i = 1; i < up.length; i++)
+      expect(up[i - 1].changePct).toBeGreaterThanOrEqual(up[i].changePct);
     const down = await items(DOWN);
-    for (let i = 1; i < down.length; i++) expect(down[i - 1].changePct).toBeLessThanOrEqual(down[i].changePct);
+    for (let i = 1; i < down.length; i++)
+      expect(down[i - 1].changePct).toBeLessThanOrEqual(down[i].changePct);
     expect(up[0].volume).toBeGreaterThan(0);
     expect(up[0].tradeValue).toBeUndefined();
   });
@@ -78,18 +92,25 @@ describe("fetchRanking", () => {
   it("market 필터 · kind 별 필드 · 시총은 shares 없는 종목 제외", async () => {
     const value = await items(VALUE);
     expect(value.every((i) => i.market === "KOSPI")).toBe(true);
-    for (let i = 1; i < value.length; i++) expect(value[i - 1].tradeValue ?? 0).toBeGreaterThanOrEqual(value[i].tradeValue ?? 0);
+    for (let i = 1; i < value.length; i++)
+      expect(value[i - 1].tradeValue ?? 0).toBeGreaterThanOrEqual(value[i].tradeValue ?? 0);
     expect(value[0].tradeValue).toBe(value[0].price * (value[0].volume ?? 0));
 
     const mcap = await items(MCAP);
     expect(mcap.map((i) => i.ticker)).not.toContain("500001");
     expect(mcap).toHaveLength(29);
-    for (let i = 1; i < mcap.length; i++) expect(mcap[i - 1].marketCap ?? 0).toBeGreaterThanOrEqual(mcap[i].marketCap ?? 0);
-    expect(mcap[0].marketCap).toBe(mcap[0].price * ((mcap[0].volume ?? 0) > 0 ? mcap[0].marketCap! / mcap[0].price : 0));
+    for (let i = 1; i < mcap.length; i++)
+      expect(mcap[i - 1].marketCap ?? 0).toBeGreaterThanOrEqual(mcap[i].marketCap ?? 0);
+    expect(mcap[0].marketCap).toBe(
+      mcap[0].price * ((mcap[0].volume ?? 0) > 0 ? mcap[0].marketCap! / mcap[0].price : 0)
+    );
 
     const interest = await items(INTEREST);
     expect(interest.every((i) => i.market === "KOSDAQ")).toBe(true);
-    for (let i = 1; i < interest.length; i++) expect(interest[i - 1].interestCount ?? 0).toBeGreaterThanOrEqual(interest[i].interestCount ?? 0);
+    for (let i = 1; i < interest.length; i++)
+      expect(interest[i - 1].interestCount ?? 0).toBeGreaterThanOrEqual(
+        interest[i].interestCount ?? 0
+      );
     expect(interest[0].tradeValue).toBeDefined();
   });
 

@@ -1,11 +1,6 @@
 import type { StockPriceSnapshot, FinancialPeriod } from "@/shared/types/stock";
 import { getLatestPrice } from "@/lib/prices";
-import {
-  calcLatestDividendYield,
-  calcPer,
-  getFinancials,
-  computeTtmEps,
-} from "@/lib/financials";
+import { calcLatestDividendYield, calcPer, getFinancials, computeTtmEps } from "@/lib/financials";
 import { getNonKrwCurrency } from "@/lib/stocks";
 import { formatRatio, formatEps, formatPercent } from "@/shared/format";
 import { StatusBadge } from "@/shared/components/StatusBadge";
@@ -109,7 +104,7 @@ export const StockMetrics = async ({ ticker }: StockMetricsProps) => {
         </h2>
         <StockMetricsFormulaTooltip
           source={ttm.source}
-          bpsYear={displayBps !== null ? latestAnnual?.year ?? null : null}
+          bpsYear={displayBps !== null ? (latestAnnual?.year ?? null) : null}
         />
       </div>
       {hasError ? (

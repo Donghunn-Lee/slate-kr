@@ -30,13 +30,7 @@ type ApiResponse =
   | { ok: true; content: DisclosureSummaryContent }
   | { ok: false; error: { kind: string } };
 
-const RETRYABLE = new Set([
-  "rate_limit",
-  "timeout",
-  "api_error",
-  "empty_response",
-  "parse_failed",
-]);
+const RETRYABLE = new Set(["rate_limit", "timeout", "api_error", "empty_response", "parse_failed"]);
 
 type NotSummarizableReason = "financial" | "procedural" | "unclassified";
 
@@ -162,9 +156,7 @@ const DisclosureItem = ({
     <li
       className={cn(
         "group -mx-6 px-6",
-        isExpanded
-          ? "bg-sky-border"
-          : "bg-transparent transition-colors hover:bg-sky-border/40",
+        isExpanded ? "bg-sky-border" : "bg-transparent transition-colors hover:bg-sky-border/40",
         dimmed && "opacity-50"
       )}
       style={{
@@ -173,10 +165,14 @@ const DisclosureItem = ({
           : "opacity var(--duration-base, 250ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1)), background-color var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1))",
       }}
     >
-      <div className={cn("grid", GRID_COLS, "border-b border-sky-border/30 py-1.5 md:py-2 group-last:border-b-0")}>
-        <div className="hidden text-center md:block">
-          {type && <CheckpointBadge type={type} />}
-        </div>
+      <div
+        className={cn(
+          "grid",
+          GRID_COLS,
+          "border-b border-sky-border/30 py-1.5 md:py-2 group-last:border-b-0"
+        )}
+      >
+        <div className="hidden text-center md:block">{type && <CheckpointBadge type={type} />}</div>
         <div className="flex min-w-0 flex-col gap-0.5 md:contents">
           <div className="flex items-center gap-1.5 overflow-hidden">
             <div className="hidden min-w-0 truncate text-micro text-muted-foreground md:block">

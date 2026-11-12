@@ -2,11 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { StockPriceSnapshot } from "@/shared/types/stock";
 import { stockPricesToBars } from "./StockChartTabs";
 
-const snap = (
-  date: string,
-  close: number,
-  basePrice: number | null,
-): StockPriceSnapshot => ({
+const snap = (date: string, close: number, basePrice: number | null): StockPriceSnapshot => ({
   ticker: "306620",
   date,
   open: close,

@@ -5,7 +5,7 @@ import type { MemoEntry } from "@/shared/types/memo";
 const makeEntry = (
   name: string,
   updatedAt: string,
-  market: MemoEntry["market"] = "KOSPI",
+  market: MemoEntry["market"] = "KOSPI"
 ): MemoEntry => ({
   body: `${name} 메모`,
   name,
@@ -24,11 +24,7 @@ describe("selectMemoItems", () => {
       "000660": makeEntry("SK하이닉스", "2026-03-01T00:00:00.000Z"),
       "035420": makeEntry("NAVER", "2026-02-01T00:00:00.000Z"),
     };
-    expect(selectMemoItems(memos).map((i) => i.ticker)).toEqual([
-      "000660",
-      "035420",
-      "005930",
-    ]);
+    expect(selectMemoItems(memos).map((i) => i.ticker)).toEqual(["000660", "035420", "005930"]);
   });
 
   it("maps ticker/name/market and drops body/updatedAt", () => {

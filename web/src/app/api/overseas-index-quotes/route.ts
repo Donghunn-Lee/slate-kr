@@ -29,18 +29,16 @@ const quoteFetchers = new Map<string, OverseasQuoteFetcher>();
 const cacheKeyOf = (
   code: OverseasIndexCode,
   session: GlobalOverseasSession,
-  date: string,
+  date: string
 ): string => `${code}::${session}::${date}`;
 
-const cacheTagOf = (
-  code: OverseasIndexCode,
-  session: GlobalOverseasSession,
-): string => `overseas-index-quote-${code}-${session}`;
+const cacheTagOf = (code: OverseasIndexCode, session: GlobalOverseasSession): string =>
+  `overseas-index-quote-${code}-${session}`;
 
 const getCachedQuote = (
   code: OverseasIndexCode,
   session: GlobalOverseasSession,
-  date: string,
+  date: string
 ): OverseasQuoteFetcher => {
   const key = cacheKeyOf(code, session, date);
   const cached = quoteFetchers.get(key);
@@ -51,7 +49,7 @@ const getCachedQuote = (
     {
       revalidate: globalOverseasQuoteRevalidate(session),
       tags: [cacheTagOf(code, session)],
-    },
+    }
   );
   quoteFetchers.set(key, fresh);
   return fresh;
@@ -64,7 +62,7 @@ const pick = <T>(r: PromiseSettledResult<T | null>): T | null =>
 const resolveLive = (
   code: OverseasIndexCode,
   session: GlobalOverseasSession,
-  r: PromiseSettledResult<IndexQuote | null>,
+  r: PromiseSettledResult<IndexQuote | null>
 ): IndexQuote | null => {
   const value = pick(r);
   if (value === null) {
@@ -82,19 +80,14 @@ export const GET = async (req: NextRequest) => {
     // 현재가 조회는 intraday 화이트리스트만. .DJI 는 daily-only 지수라 호출 없이 null
     // (소비측은 일봉 폴백).
     const results = await Promise.allSettled(
-      OVERSEAS_INTRADAY_CODES.map((code) =>
-        getCachedQuote(code, session, date)(),
-      ),
+      OVERSEAS_INTRADAY_CODES.map((code) => getCachedQuote(code, session, date)())
     );
     const live = Object.fromEntries(
-      OVERSEAS_INTRADAY_CODES.map((code, i) => [
-        code,
-        resolveLive(code, session, results[i]),
-      ]),
+      OVERSEAS_INTRADAY_CODES.map((code, i) => [code, resolveLive(code, session, results[i])])
     ) as Partial<Record<OverseasIndexCode, IndexQuote | null>>;
 
     const quotes = Object.fromEntries(
-      OVERSEAS_INDEX_CODES.map((code) => [code, live[code] ?? null]),
+      OVERSEAS_INDEX_CODES.map((code) => [code, live[code] ?? null])
     ) as Record<OverseasIndexCode, IndexQuote | null>;
 
     return NextResponse.json({
@@ -105,9 +98,6 @@ export const GET = async (req: NextRequest) => {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[overseas-index-quotes] ${message}`);
-    return NextResponse.json(
-      { error: "해외 지수 시세를 불러오지 못했습니다" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "해외 지수 시세를 불러오지 못했습니다" }, { status: 500 });
   }
 };

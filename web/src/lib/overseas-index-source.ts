@@ -10,7 +10,7 @@ import { indexIntradayBarsAt, indexQuoteAt } from "@/lib/demo/index-model";
 // now 주입 가능 — 로컬 테스트용.
 export const fetchOverseasIndexIntradayChart = async (
   code: OverseasIndexCode,
-  now: Date = new Date(),
+  now: Date = new Date()
 ): Promise<ChartBar[] | null> => {
   const bars = indexIntradayBarsAt(code, now);
   if (bars === null) return null;
@@ -26,5 +26,5 @@ export const fetchOverseasIndexIntradayChart = async (
 // 8종 quote 폴링용. .DJI 는 분봉이 없어 time=null 로 돌아온다 — 소비측이 일봉 폴백으로 그린다.
 export const fetchOverseasIndexQuote = async (
   code: OverseasIndexCode,
-  name: string,
+  name: string
 ): Promise<IndexQuote | null> => indexQuoteAt(code, name, new Date());

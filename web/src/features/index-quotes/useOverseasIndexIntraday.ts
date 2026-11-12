@@ -64,8 +64,7 @@ export const useOverseasIndexIntraday = () => {
       return res.json();
     },
     enabled: ready,
-    refetchInterval: (query) =>
-      query.state.data?.marketOpen ? POLL_INTERVAL_MS : CLOSED_POLL_MS,
+    refetchInterval: (query) => (query.state.data?.marketOpen ? POLL_INTERVAL_MS : CLOSED_POLL_MS),
   });
   const { dataUpdatedAt, refetch } = query;
   const fetchedAt = query.data?.fetchedAt ?? null;

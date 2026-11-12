@@ -69,10 +69,7 @@ const PROCEDURAL_KEYWORDS = [
 ] as const;
 
 // null = 배지 미부여
-export const classifyDisclosure = (
-  disclosureNm: string,
-  flrNm: string,
-): DisclosureType | null => {
+export const classifyDisclosure = (disclosureNm: string, flrNm: string): DisclosureType | null => {
   if (isExchangeFiled(flrNm)) {
     // 거래정지는 사유(파렌테시스) 불문 주가 관련성 신호 — PROCEDURAL 컷보다 선행.
     if (disclosureNm.includes("매매거래정지")) return DisclosureType.MARKET_ACTION;

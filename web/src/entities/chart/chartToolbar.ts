@@ -43,7 +43,7 @@ export const TOOLBAR_GROUP_CLS =
 export const TOOLBAR_INPUT_CLS = cn(
   "h-6 w-12 rounded-md border border-subtle bg-elevated px-2 text-caption text-foreground sm:h-7 sm:w-14",
   "focus:border-lavender-border focus:outline-none",
-  "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+  "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
 );
 
 // 선택 상태 색은 차트 섹션(무채색 원칙) 의 예외 — 툴바 강조에 한해 lavender 사용.
@@ -53,9 +53,7 @@ export const TOOLBAR_INPUT_CLS = cn(
 export const TOOLBAR_BUTTON_CLS = (active: boolean, disabled = false) =>
   cn(
     "inline-flex items-center justify-center rounded-sm px-1.5 text-caption transition-colors sm:px-2",
-    active
-      ? "bg-lavender-bg text-lavender-accent font-medium"
-      : "text-muted-foreground",
+    active ? "bg-lavender-bg text-lavender-accent font-medium" : "text-muted-foreground",
     !disabled && !active && "hover:text-foreground",
-    disabled && "opacity-40",
+    disabled && "opacity-40"
   );

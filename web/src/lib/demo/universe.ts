@@ -101,8 +101,8 @@ const toPins = (ticker: string, rows: readonly YearlyRow[], shares: number | nul
             net_income: row.net_income,
             eps: row.eps,
           },
-          shares,
-        ),
+          shares
+        )
     )
     .map((row) => ({
       date: `${row.year}-12-31`,
@@ -113,7 +113,7 @@ const toPins = (ticker: string, rows: readonly YearlyRow[], shares: number | nul
 export const buildDemoUniverse = (
   stocks: readonly StockRow[],
   yearly: readonly YearlyRow[],
-  firstYears: readonly FirstYearRow[],
+  firstYears: readonly FirstYearRow[]
 ): DemoUniverseEntry[] => {
   const yearlyByTicker = new Map<string, YearlyRow[]>();
   for (const row of yearly) {

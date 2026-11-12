@@ -23,18 +23,12 @@ describe("dateToKstStartSec", () => {
   });
 
   it("전일 NXT 애프터마켓(20시대) 봉은 당일 경계보다 앞선다", () => {
-    expect(fakeUtcSec("2026-07-28", "2000")).toBeLessThan(
-      dateToKstStartSec("2026-07-29"),
-    );
+    expect(fakeUtcSec("2026-07-28", "2000")).toBeLessThan(dateToKstStartSec("2026-07-29"));
   });
 
   it("연속한 날짜는 정확히 하루(86400초) 차이다 — 연·월 경계 포함", () => {
-    expect(
-      dateToKstStartSec("2026-01-01") - dateToKstStartSec("2025-12-31"),
-    ).toBe(86_400);
-    expect(
-      dateToKstStartSec("2026-03-01") - dateToKstStartSec("2026-02-28"),
-    ).toBe(86_400);
+    expect(dateToKstStartSec("2026-01-01") - dateToKstStartSec("2025-12-31")).toBe(86_400);
+    expect(dateToKstStartSec("2026-03-01") - dateToKstStartSec("2026-02-28")).toBe(86_400);
   });
 
   it("로컬 타임존과 무관하게 캘린더 날짜만으로 결정된다", () => {

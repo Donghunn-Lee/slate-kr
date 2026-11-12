@@ -39,8 +39,7 @@ export const GET = async (req: NextRequest) => {
   // catch 경로에서도 그대로 재사용 (초기 로드 스켈레톤 게이트 해소용).
   const session = getKrxSessionState(now, calendar);
   // 폴링 게이트: 활성 세션(regular/after/pre)만 true. after_close는 1회 호출 후 정지.
-  const marketOpen =
-    session === "regular" || session === "after" || session === "pre";
+  const marketOpen = session === "regular" || session === "after" || session === "pre";
   const date = getKrxTradingDate(now, calendar);
 
   try {
@@ -104,11 +103,7 @@ export const GET = async (req: NextRequest) => {
       quote = await fetchStockQuote(ticker, "J");
     } else if (session === "after") {
       quote = await fetchStockQuote(ticker, "UN");
-    } else if (
-      session === "after_close" ||
-      session === "pre" ||
-      session === "closed"
-    ) {
+    } else if (session === "after_close" || session === "pre" || session === "closed") {
       quote = await fetchStockQuote(ticker, "NX");
     }
 

@@ -49,10 +49,8 @@ const fetchDailyBarsDesc = cache(
   }
 );
 
-export const getDailyPrices = async (
-  ticker: string,
-  limit = 365
-): Promise<StockPriceSnapshot[]> => fetchDailyBarsDesc(ticker, limit);
+export const getDailyPrices = async (ticker: string, limit = 365): Promise<StockPriceSnapshot[]> =>
+  fetchDailyBarsDesc(ticker, limit);
 
 // EOD 가 존재하는 최신 거래일. 상장 전·미등록 종목은 null.
 export const getLatestKstDate = async (ticker: string): Promise<string | null> => {

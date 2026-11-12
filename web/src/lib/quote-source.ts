@@ -1,9 +1,4 @@
-import type {
-  ChartBar,
-  IndexQuote,
-  MarketActionStatus,
-  StockQuote,
-} from "@/shared/types/quote";
+import type { ChartBar, IndexQuote, MarketActionStatus, StockQuote } from "@/shared/types/quote";
 import { INDEX_LABEL, type DomesticIndexCode } from "@/shared/constants/indices";
 import { dateToKstStartSec } from "@/shared/utils/dateToKstStartSec";
 import {
@@ -44,7 +39,7 @@ type QuoteMarketDiv = "J" | "NX" | typeof MARKET_DIV_INTEGRATED;
 
 export const fetchStockQuote = async (
   ticker: string,
-  marketDiv: QuoteMarketDiv,
+  marketDiv: QuoteMarketDiv
 ): Promise<StockQuote | null> => {
   const entry = await getDemoEntry(ticker);
   if (!entry) return null;
@@ -54,7 +49,7 @@ export const fetchStockQuote = async (
 // 시장조치(거래정지 · 관리종목 등)는 가상 시세에 없다 — 배지 슬롯은 항상 비운다.
 export const fetchStockMarketAction = async (
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  ticker: string,
+  ticker: string
 ): Promise<MarketActionStatus | null> => null;
 
 export type MultiQuoteResult = {
@@ -70,7 +65,7 @@ export const fetchMultiQuote = async (tickers: string[]): Promise<MultiQuoteResu
   let effective = tickers;
   if (tickers.length > MULTI_QUOTE_LIMIT) {
     console.warn(
-      `[quote-source] multi quote input ${tickers.length} exceeds limit ${MULTI_QUOTE_LIMIT}, truncating`,
+      `[quote-source] multi quote input ${tickers.length} exceeds limit ${MULTI_QUOTE_LIMIT}, truncating`
     );
     effective = tickers.slice(0, MULTI_QUOTE_LIMIT);
   }
@@ -92,7 +87,7 @@ const INDEX_BY_ISCD = new Map<string, DomesticIndexCode>(
   (Object.entries(ISCD_BY_INDEX) as [DomesticIndexCode, string][]).map(([code, iscd]) => [
     iscd,
     code,
-  ]),
+  ])
 );
 
 export const fetchIndexQuote = async (iscd: string): Promise<IndexQuote | null> => {
@@ -120,7 +115,7 @@ const dayBars = (
   ticker: string,
   profile: TickerProfile,
   date: string,
-  channel: DemoChannel,
+  channel: DemoChannel
 ): ChartBar[] => {
   const [prev, today] = generateDailyBars(ticker, profile, getPreviousKrxTradingDate(date), date);
   return (generateIntradayBars(ticker, profile, date, prev, today, channel) ?? []).map(toChartBar);
@@ -142,7 +137,7 @@ export type StockIntradayChartResult = {
 // null 은 미등록 ticker 뿐. now 주입 가능 — 로컬 테스트용.
 export const fetchStockIntradayChart = async (
   ticker: string,
-  now: Date = new Date(),
+  now: Date = new Date()
 ): Promise<StockIntradayChartResult | null> => {
   const entry = await getDemoEntry(ticker);
   if (!entry) return null;
@@ -172,11 +167,8 @@ export const fetchStockIntradayChart = async (
   const { minutes } = getKstDateAndMinutes(now);
   const cutoffSec = dateToKstStartSec(tradingDate) + minutes * MINUTE_SEC;
   const upToNow = today.filter((bar) => (bar.time as number) <= cutoffSec);
-  const tail = dayBars(
-    ticker,
-    profile,
-    getPreviousKrxTradingDate(tradingDate),
-    channel,
-  ).slice(-PREVIOUS_DAY_TAIL_BARS);
+  const tail = dayBars(ticker, profile, getPreviousKrxTradingDate(tradingDate), channel).slice(
+    -PREVIOUS_DAY_TAIL_BARS
+  );
   return { bars: [...tail, ...upToNow], tradingDate, previousDay: false, failed: false };
 };

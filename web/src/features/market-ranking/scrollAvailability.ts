@@ -5,7 +5,7 @@ export type ScrollAvailability = { canLeft: boolean; canRight: boolean };
 export const computeScrollAvailability = (
   scrollLeft: number,
   scrollWidth: number,
-  clientWidth: number,
+  clientWidth: number
 ): ScrollAvailability => ({
   canLeft: scrollLeft > 0,
   canRight: scrollLeft + clientWidth < scrollWidth - 1,

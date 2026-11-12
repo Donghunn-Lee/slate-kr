@@ -32,7 +32,9 @@ export const StockChartSection = async ({
   }
 
   if (hasError) {
-    const errorContent = <SectionError title="가격 차트" message="차트 데이터를 불러오지 못했습니다" />;
+    const errorContent = (
+      <SectionError title="가격 차트" message="차트 데이터를 불러오지 못했습니다" />
+    );
     return interactive ? errorContent : <StockPanel variant={variant}>{errorContent}</StockPanel>;
   }
 

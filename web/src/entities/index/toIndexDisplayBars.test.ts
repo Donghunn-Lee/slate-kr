@@ -3,13 +3,12 @@ import { toIndexDisplayBars } from "./toIndexDisplayBars";
 import type { ChartBar, IndexIntradaySnapshot } from "@/shared/types/quote";
 
 // timestamp fake-UTC 인코딩: Date.UTC 로 KST 벽시계 위장.
-const ts = (hh: number, mm: number): number =>
-  Math.floor(Date.UTC(2026, 7, 28, hh, mm, 0) / 1000);
+const ts = (hh: number, mm: number): number => Math.floor(Date.UTC(2026, 7, 28, hh, mm, 0) / 1000);
 
 const snap = (
   hh: number,
   mm: number,
-  overrides: Partial<IndexIntradaySnapshot> = {},
+  overrides: Partial<IndexIntradaySnapshot> = {}
 ): IndexIntradaySnapshot => ({
   indexCode: "KOSPI",
   timestamp: ts(hh, mm),
@@ -66,13 +65,11 @@ const KOSPI_1500_1530_FIXTURE: IndexIntradaySnapshot[] = [
   }),
 ];
 
-const sumVolBetween = (
-  from: number,
-  toExclusive: number,
-): number =>
-  KOSPI_1500_1530_FIXTURE.filter(
-    (s) => s.timestamp >= from && s.timestamp < toExclusive,
-  ).reduce((sum, s) => sum + s.volume, 0);
+const sumVolBetween = (from: number, toExclusive: number): number =>
+  KOSPI_1500_1530_FIXTURE.filter((s) => s.timestamp >= from && s.timestamp < toExclusive).reduce(
+    (sum, s) => sum + s.volume,
+    0
+  );
 
 describe("toIndexDisplayBars", () => {
   it("빈 입력 → []", () => {
@@ -138,7 +135,7 @@ const overseasSnap = (
   d: number,
   hh: number,
   mm: number,
-  close: number,
+  close: number
 ): IndexIntradaySnapshot => ({
   indexCode: code,
   timestamp: Math.floor(Date.UTC(2026, 7, d, hh, mm, 0) / 1000),
@@ -166,27 +163,21 @@ describe("toIndexDisplayBars — overseas (START 라벨 유지)", () => {
   it("SPX 1분: 첫 라벨 09:30 · 마지막 라벨 16:00 (START, END 시프트 없음)", () => {
     const out = toIndexDisplayBars(spxFullSession(), 1, "SPX");
     expect(out[0].time).toBe(Math.floor(Date.UTC(2026, 7, 28, 9, 30, 0) / 1000));
-    expect(out[out.length - 1].time).toBe(
-      Math.floor(Date.UTC(2026, 7, 28, 16, 0, 0) / 1000),
-    );
+    expect(out[out.length - 1].time).toBe(Math.floor(Date.UTC(2026, 7, 28, 16, 0, 0) / 1000));
     expect(out[out.length - 1].close).toBe(7711.76);
   });
 
   it("SPX 5분: 첫 09:30 · 마지막 16:00 (START, END shift 없음)", () => {
     const out = toIndexDisplayBars(spxFullSession(), 5, "SPX");
     expect(out[0].time).toBe(Math.floor(Date.UTC(2026, 7, 28, 9, 30, 0) / 1000));
-    expect(out[out.length - 1].time).toBe(
-      Math.floor(Date.UTC(2026, 7, 28, 16, 0, 0) / 1000),
-    );
+    expect(out[out.length - 1].time).toBe(Math.floor(Date.UTC(2026, 7, 28, 16, 0, 0) / 1000));
     expect(out[out.length - 1].close).toBe(7711.76);
   });
 
   it("SPX 15분: 첫 09:30 · 마지막 16:00 (START, END shift 없음)", () => {
     const out = toIndexDisplayBars(spxFullSession(), 15, "SPX");
     expect(out[0].time).toBe(Math.floor(Date.UTC(2026, 7, 28, 9, 30, 0) / 1000));
-    expect(out[out.length - 1].time).toBe(
-      Math.floor(Date.UTC(2026, 7, 28, 16, 0, 0) / 1000),
-    );
+    expect(out[out.length - 1].time).toBe(Math.floor(Date.UTC(2026, 7, 28, 16, 0, 0) / 1000));
     expect(out[out.length - 1].close).toBe(7711.76);
   });
 
@@ -200,10 +191,10 @@ describe("toIndexDisplayBars — overseas (START 라벨 유지)", () => {
     ];
     const out = toIndexDisplayBars(snaps, 15, "NI225");
     const morningEnd = out.find(
-      (b) => b.time === Math.floor(Date.UTC(2026, 7, 28, 11, 30, 0) / 1000),
+      (b) => b.time === Math.floor(Date.UTC(2026, 7, 28, 11, 30, 0) / 1000)
     );
     const lunchResumeStart = out.find(
-      (b) => b.time === Math.floor(Date.UTC(2026, 7, 28, 12, 30, 0) / 1000),
+      (b) => b.time === Math.floor(Date.UTC(2026, 7, 28, 12, 30, 0) / 1000)
     );
     expect(morningEnd).toBeDefined();
     expect(morningEnd?.close).toBe(66100);

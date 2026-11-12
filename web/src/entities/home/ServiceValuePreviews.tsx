@@ -44,7 +44,7 @@ export const DisclosurePreview = ({ play }: PreviewProps) => {
             "inline-flex items-center rounded-sm px-1.5 py-0.5 text-micro font-medium",
             chip.cls,
             shouldAnimate && "transition-all duration-500 ease-out",
-            entered || !shouldAnimate ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0",
+            entered || !shouldAnimate ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0"
           )}
           style={shouldAnimate ? { transitionDelay: `${i * 150}ms` } : undefined}
         >
@@ -59,12 +59,38 @@ export const DisclosurePreview = ({ play }: PreviewProps) => {
 // 구간별로 슬로프와 진폭을 달리해 실제 시장 차트 느낌. pathLength=1 정규화 후 dashoffset draw.
 const SPARKLINE_PATH = [
   "M 4 51",
-  "L 10 53", "L 16 50", "L 22 54", "L 28 51", "L 34 55", "L 40 52",
-  "L 46 47", "L 52 40", "L 58 35", "L 64 38", "L 70 32",
-  "L 76 40", "L 82 46", "L 88 52", "L 94 56", "L 100 53", "L 106 55",
-  "L 112 48", "L 118 42", "L 124 38", "L 130 33", "L 136 36", "L 142 28",
-  "L 148 30", "L 154 22", "L 160 26", "L 166 18", "L 172 22",
-  "L 178 12", "L 184 15", "L 192 8", "L 200 4",
+  "L 10 53",
+  "L 16 50",
+  "L 22 54",
+  "L 28 51",
+  "L 34 55",
+  "L 40 52",
+  "L 46 47",
+  "L 52 40",
+  "L 58 35",
+  "L 64 38",
+  "L 70 32",
+  "L 76 40",
+  "L 82 46",
+  "L 88 52",
+  "L 94 56",
+  "L 100 53",
+  "L 106 55",
+  "L 112 48",
+  "L 118 42",
+  "L 124 38",
+  "L 130 33",
+  "L 136 36",
+  "L 142 28",
+  "L 148 30",
+  "L 154 22",
+  "L 160 26",
+  "L 166 18",
+  "L 172 22",
+  "L 178 12",
+  "L 184 15",
+  "L 192 8",
+  "L 200 4",
 ].join(" ");
 
 const SPARKLINE_VIEW_W = 200;
@@ -176,13 +202,7 @@ const useCountUp = (target: number, shouldAnimate: boolean) => {
   return shouldAnimate ? value : target;
 };
 
-const MetricValue = ({
-  metric,
-  shouldAnimate,
-}: {
-  metric: Metric;
-  shouldAnimate: boolean;
-}) => {
+const MetricValue = ({ metric, shouldAnimate }: { metric: Metric; shouldAnimate: boolean }) => {
   const value = useCountUp(metric.target, shouldAnimate);
   return (
     <div className="flex items-baseline gap-1.5">
@@ -234,7 +254,7 @@ export const RankingPreview = () => (
         <span
           className={cn(
             "ml-auto rounded-sm px-1.5 py-0.5 text-micro font-medium leading-none tabular-nums",
-            row.tone === "up" ? "bg-price-up/10 text-price-up" : "bg-price-down/10 text-price-down",
+            row.tone === "up" ? "bg-price-up/10 text-price-up" : "bg-price-down/10 text-price-down"
           )}
         >
           {row.change}

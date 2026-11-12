@@ -1,9 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { generateIndexIntradayBars } from "@/lib/demo/index-model";
-import {
-  fetchOverseasIndexIntradayChart,
-  fetchOverseasIndexQuote,
-} from "./overseas-index-source";
+import { fetchOverseasIndexIntradayChart, fetchOverseasIndexQuote } from "./overseas-index-source";
 import type { IndexIntradaySnapshot } from "@/shared/types/quote";
 
 const minuteOf = (time: string | number): number => ((time as number) % 86_400) / 60;
@@ -18,7 +15,8 @@ describe("fetchOverseasIndexIntradayChart", () => {
   });
 
   it("SPX ET 11:00 → 전일 전체 + 오늘 11:00 까지, volume 없음", async () => {
-    const bars = (await fetchOverseasIndexIntradayChart("SPX", new Date("2026-11-10T16:00:00Z"))) ?? [];
+    const bars =
+      (await fetchOverseasIndexIntradayChart("SPX", new Date("2026-11-10T16:00:00Z"))) ?? [];
     const prev = bars.filter((b) => dateOf(b.time) === "2026-11-09");
     const today = bars.filter((b) => dateOf(b.time) === TODAY);
     expect(prev).toHaveLength(390);
@@ -40,7 +38,8 @@ describe("fetchOverseasIndexIntradayChart", () => {
   });
 
   it("토요일(현지) → 금요일 전체만", async () => {
-    const bars = (await fetchOverseasIndexIntradayChart("SPX", new Date("2026-11-14T18:00:00Z"))) ?? [];
+    const bars =
+      (await fetchOverseasIndexIntradayChart("SPX", new Date("2026-11-14T18:00:00Z"))) ?? [];
     expect(bars.every((b) => dateOf(b.time) === "2026-11-13")).toBe(true);
     expect(bars).toHaveLength(390);
   });

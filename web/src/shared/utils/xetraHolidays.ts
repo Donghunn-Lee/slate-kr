@@ -6,5 +6,4 @@ export const XETRA_HOLIDAYS_2026: ReadonlySet<string> = new Set([
   "2026-12-31", // New Year's Eve
 ]);
 
-export const isXetraHoliday = (dateStr: string): boolean =>
-  XETRA_HOLIDAYS_2026.has(dateStr);
+export const isXetraHoliday = (dateStr: string): boolean => XETRA_HOLIDAYS_2026.has(dateStr);

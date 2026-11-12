@@ -1,9 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type {
-  IndexDailySnapshot,
-  IndexIntradaySnapshot,
-  IndexQuote,
-} from "@/shared/types/quote";
+import type { IndexDailySnapshot, IndexIntradaySnapshot, IndexQuote } from "@/shared/types/quote";
 import type { IndexCellData } from "@/features/index-quotes/useIndexQuotes";
 import { buildIndexCell } from "./buildIndexCell";
 
@@ -32,9 +28,7 @@ const bar = (over: Partial<IndexIntradaySnapshot> = {}): IndexIntradaySnapshot =
   ...over,
 });
 
-const domesticCell = (
-  over: Partial<IndexCellData["live"]> = {},
-): IndexCellData => ({
+const domesticCell = (over: Partial<IndexCellData["live"]> = {}): IndexCellData => ({
   live: {
     name: "코스피",
     price: 2800,

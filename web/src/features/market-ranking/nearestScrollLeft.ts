@@ -3,7 +3,7 @@ export const nearestScrollLeft = (
   itemStart: number,
   itemEnd: number,
   scrollLeft: number,
-  clientWidth: number,
+  clientWidth: number
 ): number => {
   if (itemStart < scrollLeft) return itemStart;
   if (itemEnd > scrollLeft + clientWidth) return itemEnd - clientWidth;

@@ -2,8 +2,7 @@ import { describe, it, expect } from "vitest";
 import { resolveRankingCaption } from "./rankingCaption";
 
 // KST = UTC+9. 2026-07-23(목) 거래일 고정.
-const kst = (h: number, min = 0): Date =>
-  new Date(Date.UTC(2026, 6, 23, h - 9, min));
+const kst = (h: number, min = 0): Date => new Date(Date.UTC(2026, 6, 23, h - 9, min));
 
 describe("resolveRankingCaption", () => {
   it("session 미도달·now=null → null", () => {

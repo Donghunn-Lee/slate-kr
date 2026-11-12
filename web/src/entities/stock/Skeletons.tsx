@@ -105,16 +105,11 @@ export const FinancialsSkeleton = ({ compact = false }: FinancialsSkeletonProps 
       <table className="w-full">
         <thead>
           <tr className="border-b">
-            <th
-              className={`${compact ? "pb-1 pr-3" : "pb-2 px-3 sm:px-4"} text-left`}
-            >
+            <th className={`${compact ? "pb-1 pr-3" : "pb-2 px-3 sm:px-4"} text-left`}>
               <div className="h-3.5 w-8 rounded bg-muted" />
             </th>
             {Array.from({ length: periodCols }).map((_, i) => (
-              <th
-                key={i}
-                className={`${compact ? "pb-1 pl-3" : "pb-2 pl-3 sm:pl-4"} text-right`}
-              >
+              <th key={i} className={`${compact ? "pb-1 pl-3" : "pb-2 pl-3 sm:pl-4"} text-right`}>
                 <div className="ml-auto h-3.5 w-12 rounded bg-muted" />
               </th>
             ))}
@@ -123,16 +118,11 @@ export const FinancialsSkeleton = ({ compact = false }: FinancialsSkeletonProps 
         <tbody>
           {Array.from({ length: rows }).map((_, i) => (
             <tr key={i} className="border-b last:border-0">
-              <td
-                className={`${compact ? "py-1.5 pr-3" : "py-2 px-3 sm:py-3 sm:px-4"}`}
-              >
+              <td className={`${compact ? "py-1.5 pr-3" : "py-2 px-3 sm:py-3 sm:px-4"}`}>
                 <div className="h-4 w-20 rounded bg-muted" />
               </td>
               {Array.from({ length: periodCols }).map((_, j) => (
-                <td
-                  key={j}
-                  className={`${compact ? "py-1.5 pl-3" : "py-2 pl-3 sm:py-3 sm:pl-4"}`}
-                >
+                <td key={j} className={`${compact ? "py-1.5 pl-3" : "py-2 pl-3 sm:py-3 sm:pl-4"}`}>
                   <div className="ml-auto h-4 w-14 rounded bg-muted" />
                 </td>
               ))}
@@ -154,10 +144,7 @@ export const DisclosuresSkeleton = () => (
     </div>
     <ul>
       {Array.from({ length: 5 }).map((_, i) => (
-        <li
-          key={i}
-          className="-mx-6 border-b border-sky-border px-6 py-2 last:border-0"
-        >
+        <li key={i} className="-mx-6 border-b border-sky-border px-6 py-2 last:border-0">
           <div className="flex items-start justify-between gap-2">
             <div className="h-4 w-3/4 rounded bg-muted" />
             <div className="h-4 w-16 shrink-0 rounded bg-muted" />

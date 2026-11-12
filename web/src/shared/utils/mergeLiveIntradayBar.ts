@@ -32,7 +32,7 @@ export const mergeLiveIntradayBar = (
   quote: LiveQuoteForMerge | null,
   quoteDate: string | undefined,
   chartTradingDate: string | undefined,
-  previousDay: boolean,
+  previousDay: boolean
 ): ChartBar[] => {
   if (!quote || previousDay) return bars;
   if (isInvalidQuoteOhl(quote)) return bars;

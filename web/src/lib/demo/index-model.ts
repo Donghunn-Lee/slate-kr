@@ -171,7 +171,9 @@ const previousIndexTradingDate = (code: IndexCode, date: string): string =>
     : getPreviousOverseasIndexTradingDate(code as OverseasIndexCode, date);
 
 const snapToIndexTradingDate = (code: IndexCode, date: string): string =>
-  listIndexTradingDates(code, date, date).length === 1 ? date : previousIndexTradingDate(code, date);
+  listIndexTradingDates(code, date, date).length === 1
+    ? date
+    : previousIndexTradingDate(code, date);
 
 const nextIndexTradingDate = (code: IndexCode, date: string): string => {
   let t = dateToMs(date) + DAY_MS;
@@ -185,7 +187,13 @@ type DayNoise = { r: number; zGap: number; zHigh: number; zLow: number; zVolume:
 const dayNoise = (code: IndexCode, date: string): DayNoise => {
   const rng = createRng(hashSeed("index", code, date));
   const r = INDEX_BETA[code] * marketReturnDaily(marketOf(code), date) + IDIO_SIGMA * gaussian(rng);
-  return { r, zGap: gaussian(rng), zHigh: gaussian(rng), zLow: gaussian(rng), zVolume: gaussian(rng) };
+  return {
+    r,
+    zGap: gaussian(rng),
+    zHigh: gaussian(rng),
+    zLow: gaussian(rng),
+    zVolume: gaussian(rng),
+  };
 };
 
 // 앵커 수준으로 되돌리는 OU 항 — 종목 모델과 같은 θ. 역방향도 같은 의미로 건다.
@@ -223,19 +231,21 @@ const buildDailyBar = (
   code: IndexCode,
   date: string,
   close: number,
-  prevClose: number,
+  prevClose: number
 ): IndexDailySnapshot => {
   const noise = dayNoise(code, date);
   const sigma = INDEX_SIGMA[code];
   const open = round2(prevClose * Math.exp(GAP_SIGMA_RATIO * sigma * noise.zGap));
-  const high = round2(Math.max(open, close) * (1 + WICK_SIGMA_RATIO * sigma * Math.abs(noise.zHigh)));
+  const high = round2(
+    Math.max(open, close) * (1 + WICK_SIGMA_RATIO * sigma * Math.abs(noise.zHigh))
+  );
   const low = round2(Math.min(open, close) * (1 - WICK_SIGMA_RATIO * sigma * Math.abs(noise.zLow)));
   const change = round2(close - prevClose);
   const scale = INDICES_WITHOUT_VOLUME.has(code) ? 0 : INDEX_VOLUME_SCALE[code];
   const volume = Math.round(
     scale *
       Math.exp(VOLUME_LOGNORMAL_SIGMA * noise.zVolume) *
-      (1 + (VOLUME_RETURN_BOOST * Math.abs(noise.r)) / sigma),
+      (1 + (VOLUME_RETURN_BOOST * Math.abs(noise.r)) / sigma)
   );
   return {
     indexCode: code,
@@ -253,7 +263,7 @@ const buildDailyBar = (
 export const generateIndexDailyBars = (
   code: IndexCode,
   from: string,
-  to: string,
+  to: string
 ): IndexDailySnapshot[] => {
   const dates = listIndexTradingDates(code, from, to);
   if (dates.length === 0) return [];
@@ -291,7 +301,7 @@ const minuteBridge = (
   start: number,
   end: number,
   n: number,
-  sigmaMinute: number,
+  sigmaMinute: number
 ): number[] => {
   const logs: number[] = new Array(n);
   let acc = Math.log(start);
@@ -311,7 +321,7 @@ const fitHighLow = (
   end: number,
   high: number,
   low: number,
-  fitted: number,
+  fitted: number
 ): void => {
   const n = closes.length;
   const chord = (i: number): number => start + ((end - start) * (i + 1)) / n;
@@ -336,7 +346,7 @@ const allocateVolume = (
   rng: () => number,
   n: number,
   total: number,
-  auction: boolean,
+  auction: boolean
 ): number[] => {
   const weights: number[] = new Array(n);
   const half = Math.max(1, (n - 1) / 2);
@@ -374,7 +384,7 @@ const intradayPath = (
   code: IndexCode,
   date: string,
   prev: IndexDailySnapshot,
-  today: IndexDailySnapshot,
+  today: IndexDailySnapshot
 ): IndexIntradaySnapshot[] => {
   const { startMin, endMin } = sessionWindow(code);
   const n = endMin - startMin + 1;
@@ -432,7 +442,7 @@ const dailyPair = (code: IndexCode, date: string): [IndexDailySnapshot, IndexDai
 
 export const generateIndexIntradayBars = (
   code: IndexCode,
-  date: string,
+  date: string
 ): IndexIntradaySnapshot[] | null => {
   if (code === ".DJI") return null;
   const d = snapToIndexTradingDate(code, date);
@@ -445,7 +455,7 @@ const OVERSEAS_FORMATTER_CACHE = new Map<string, Intl.DateTimeFormat>();
 
 const overseasLocalParts = (
   code: OverseasIndexCode,
-  now: Date,
+  now: Date
 ): { date: string; minutes: number } => {
   const tz = OVERSEAS_INDEX_TIMEZONE[code];
   let f = OVERSEAS_FORMATTER_CACHE.get(tz);
@@ -506,15 +516,12 @@ export const indexSessionCursor = (code: IndexCode, now: Date): IndexSessionCurs
 
 // now 까지의 분봉 — 오늘 세션이면 직전 거래일 전체를 앞에 붙인다(차트가 전일 꼬리를 흐리게 그린다).
 // 각 봉의 change 는 그 봉 거래일의 전일 종가 대비. .DJI 는 분봉을 공개하지 않는다.
-export const indexIntradayBarsAt = (
-  code: IndexCode,
-  now: Date,
-): IndexIntradaySnapshot[] | null => {
+export const indexIntradayBarsAt = (code: IndexCode, now: Date): IndexIntradaySnapshot[] | null => {
   if (code === ".DJI") return null;
   const cursor = indexSessionCursor(code, now);
   const cutoffSec = fakeUtcSec(cursor.date, cursor.untilMin);
   const today = (generateIndexIntradayBars(code, cursor.date) ?? []).filter(
-    (bar) => bar.timestamp <= cutoffSec,
+    (bar) => bar.timestamp <= cutoffSec
   );
   if (!cursor.isToday) return today;
   const prevDate = previousIndexTradingDate(code, cursor.date);

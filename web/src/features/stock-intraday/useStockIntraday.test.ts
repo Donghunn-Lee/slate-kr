@@ -1,22 +1,17 @@
 import { describe, it, expect } from "vitest";
 import { getKrxSessionState, isKrxActiveSession } from "@/shared/utils/market";
-import {
-  keepLastGoodIntraday,
-  type StockIntradayResponse,
-} from "./useStockIntraday";
+import { keepLastGoodIntraday, type StockIntradayResponse } from "./useStockIntraday";
 
 // 명시적 UTC epoch 로 KST 로컬 시각을 유도 (KST = UTC+9, DST 없음).
-const kst = (
-  y: number, m: number, d: number, h: number, min = 0,
-): Date => new Date(Date.UTC(y, m - 1, d, h - 9, min));
+const kst = (y: number, m: number, d: number, h: number, min = 0): Date =>
+  new Date(Date.UTC(y, m - 1, d, h - 9, min));
 
 // 2026-07-23 은 목요일 거래일, 2026-07-25 은 토요일, 2026-01-01 은 휴장일.
 const t = (h: number, min = 0): Date => kst(2026, 7, 23, h, min);
 
 // useStockIntraday 의 refetchOnWindowFocus 조립식. 훅은 vitest node 환경에서 렌더할 수
 // 없으므로 useMultiQuote.test.ts 관례대로 테스트에 복제해 고정한다.
-const refetchOnFocus = (now: Date): boolean =>
-  isKrxActiveSession(getKrxSessionState(now));
+const refetchOnFocus = (now: Date): boolean => isKrxActiveSession(getKrxSessionState(now));
 
 describe("useStockIntraday 복귀 refetch 게이트 — 클라 시계 축", () => {
   it("09:30 regular → true", () => {

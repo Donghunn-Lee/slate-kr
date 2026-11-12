@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
 import { RankingView } from "@/features/market-ranking/RankingView";
-import {
-  resolveRankingTab,
-  type RankingTabDef,
-} from "@/features/market-ranking/rankingTabs";
+import { resolveRankingTab, type RankingTabDef } from "@/features/market-ranking/rankingTabs";
 import type { Market } from "@/shared/types/ranking";
 
 type RankingSearchParams = {
@@ -38,9 +35,7 @@ const buildTitle = (tab: RankingTabDef, m: Market): string => {
   return m === "all" ? `${term} 순위` : `${marketLabel(m)} ${term} 순위`;
 };
 
-export const generateMetadata = async ({
-  searchParams,
-}: RankingPageProps): Promise<Metadata> => {
+export const generateMetadata = async ({ searchParams }: RankingPageProps): Promise<Metadata> => {
   const params = await searchParams;
   const tab = resolveRankingTab(params.tab);
   const market = parseMarket(params.market);

@@ -46,10 +46,7 @@ export const IndexBoard = ({
         dailyByIndex={dailyByIndex}
       />
       {/* 모바일 칩 선택의 scrollIntoView 가 닿는 곳 — sticky 헤더(2행 78px) + 18px 만큼 띄워 상단이 가리지 않게 한다. */}
-      <div
-        ref={detailRef}
-        className="order-1 min-w-0 flex-1 scroll-mt-24 md:order-2"
-      >
+      <div ref={detailRef} className="order-1 min-w-0 flex-1 scroll-mt-24 md:order-2">
         <IndexDetailPane
           selected={selected}
           dailyByIndex={dailyByIndex}
@@ -58,11 +55,7 @@ export const IndexBoard = ({
         />
       </div>
       <aside className="order-2 hidden md:order-1 md:block md:w-65 md:shrink-0">
-        <IndexRail
-          selected={selected}
-          onSelect={handleSelect}
-          dailyByIndex={dailyByIndex}
-        />
+        <IndexRail selected={selected} onSelect={handleSelect} dailyByIndex={dailyByIndex} />
       </aside>
     </div>
   );

@@ -44,8 +44,7 @@ export const IndexChipStrip = ({
   // 개장 전 창 판정은 클라 시계 축. now=null(SSR·첫 렌더)은 false 로 흘려 hydration 유지.
   const now = useNow();
   const calendar = useMarketCalendar();
-  const openingWindow =
-    now !== null && isKrxOpeningWindow(data?.session, now, calendar);
+  const openingWindow = now !== null && isKrxOpeningWindow(data?.session, now, calendar);
   // EOD 폴백 캡션은 라이브 소스가 응답한 뒤에만 — 해외는 첫 응답 전에도 SSR 값을 그리므로
   // 캡션을 무조건 붙이면 로드마다 깜빡인다. 국내는 스켈레톤 게이트로 응답 후에만 셀이 생긴다.
   const overseasAnswered = !overseasQuotesQuery.isPending;
@@ -64,24 +63,19 @@ export const IndexChipStrip = ({
     const meta = getIndexMeta(code);
     const isDomestic = meta.region === "domestic";
     const prices = dailyByIndex[code];
-    const latestDaily =
-      prices && prices.length > 0 ? prices[prices.length - 1] : null;
+    const latestDaily = prices && prices.length > 0 ? prices[prices.length - 1] : null;
     const overseasBars = isOverseasIntradayCode(code)
-      ? overseasIntradayQuery.data?.quotes[code] ?? []
+      ? (overseasIntradayQuery.data?.quotes[code] ?? [])
       : [];
     const overseasLatestBar =
       overseasBars.length > 0 ? overseasBars[overseasBars.length - 1] : null;
     const cell = buildIndexCell({
       isDomestic,
       name: INDEX_LABEL[code],
-      domesticCell: isDomestic
-        ? data?.quotes[code as DomesticIndexCode]
-        : undefined,
+      domesticCell: isDomestic ? data?.quotes[code as DomesticIndexCode] : undefined,
       overseasQuote: isDomestic
         ? null
-        : overseasQuotesQuery.data?.quotes[
-            code as Exclude<IndexCode, DomesticIndexCode>
-          ] ?? null,
+        : (overseasQuotesQuery.data?.quotes[code as Exclude<IndexCode, DomesticIndexCode>] ?? null),
       overseasLatestBar,
       latestDaily,
       session: data?.session,
@@ -104,14 +98,12 @@ export const IndexChipStrip = ({
           isDomestic && "min-w-44 sm:min-w-48",
           isSelected
             ? "border-lavender-accent bg-lavender-bg shadow-slate-hover"
-            : "border-subtle bg-elevated shadow-slate",
+            : "border-subtle bg-elevated shadow-slate"
         )}
       >
         <div className="flex items-baseline gap-1.5">
           <span className="text-caption font-medium">{INDEX_LABEL[code]}</span>
-          <span className="text-caption font-medium text-muted-foreground/80">
-            {meta.overline}
-          </span>
+          <span className="text-caption font-medium text-muted-foreground/80">{meta.overline}</span>
         </div>
         {/* 스켈레톤은 값 행과 높이(caption 1줄)·display 를 맞춘다. React 가 이 div 를 값 행으로
             재사용하는데, display 가 바뀌면 박스가 새로 만들어지며 pulse 로 합성된 이전 위치가
@@ -120,12 +112,7 @@ export const IndexChipStrip = ({
           <div className="flex h-lh w-16 animate-pulse rounded bg-muted text-caption" />
         ) : cell?.live ? (
           <div className="flex items-baseline gap-1.5">
-            <span
-              className={cn(
-                "text-caption tabular-nums",
-                priceToneClass(cell.live.sign),
-              )}
-            >
+            <span className={cn("text-caption tabular-nums", priceToneClass(cell.live.sign))}>
               <PriceCountUp value={cell.live.price} format={formatIndexPrice} />
             </span>
             <PriceChange
@@ -139,12 +126,7 @@ export const IndexChipStrip = ({
           </div>
         ) : cell?.fallback ? (
           <div className="flex items-baseline gap-1.5">
-            <span
-              className={cn(
-                "text-caption tabular-nums",
-                priceToneClass(cell.fallback.change),
-              )}
-            >
+            <span className={cn("text-caption tabular-nums", priceToneClass(cell.fallback.change))}>
               {formatIndexPrice(cell.fallback.close)}
             </span>
             <PriceChange
@@ -171,16 +153,10 @@ export const IndexChipStrip = ({
   return (
     <nav
       aria-label="지수 선택"
-      className={cn(
-        "-mx-4 flex gap-2 overflow-x-auto scrollbar-slim px-4 pb-2",
-        className,
-      )}
+      className={cn("-mx-4 flex gap-2 overflow-x-auto scrollbar-slim px-4 pb-2", className)}
     >
       {DOMESTIC_INDEX_CODES.map((code) => renderChip(code))}
-      <div
-        aria-hidden
-        className="w-px shrink-0 self-stretch bg-border"
-      />
+      <div aria-hidden className="w-px shrink-0 self-stretch bg-border" />
       {OVERSEAS_INDEX_CODES.map((code) => renderChip(code))}
     </nav>
   );

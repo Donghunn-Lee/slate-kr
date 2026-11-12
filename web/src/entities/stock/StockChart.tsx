@@ -52,7 +52,7 @@ export const StockChart = ({
   // 기본 market 을 명시 — 헤더 탭과 같은 마운트 1회 판정. 렌더마다 재계산하면 경계 통과 시
   // 헤더 탭과 갈려 live merge 가 끊긴다.
   const [subscribeMarket] = useState<QuoteMarket | undefined>(() =>
-    initialQuoteMarket(nxEligible, new Date(), calendar),
+    initialQuoteMarket(nxEligible, new Date(), calendar)
   );
   const { data } = useStockQuote(ticker, { subscribeOnly: true, market: subscribeMarket });
   const isMobile = useIsMobile();
@@ -61,7 +61,7 @@ export const StockChart = ({
     // 개장 전 창(08:00~09:00)엔 quote를 null로 게이트 — StockChartTabs 와 동형.
     const gatedQuote = isKrxOpeningWindow(data?.session, new Date(), calendar)
       ? null
-      : data?.quote ?? null;
+      : (data?.quote ?? null);
     return mergeLiveDayBar(toBars(prices), gatedQuote, data?.date);
   }, [prices, data, calendar]);
 

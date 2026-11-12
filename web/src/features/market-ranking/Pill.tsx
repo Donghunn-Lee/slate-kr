@@ -15,9 +15,7 @@ export const Pill = ({ active, onClick, children }: PillProps) => (
     onClick={onClick}
     className={cn(
       "rounded-sm px-2.5 py-1 text-caption transition-colors",
-      active
-        ? "bg-muted text-foreground"
-        : "text-muted-foreground hover:text-foreground",
+      active ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"
     )}
   >
     {children}

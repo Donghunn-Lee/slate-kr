@@ -29,9 +29,7 @@ const CLASS_BY_KIND: Record<MarketActionStatus["kind"], string> = {
 };
 
 export const MarketActionBadge = ({ status }: MarketActionBadgeProps) => (
-  <span
-    className={`rounded px-2 py-0.5 text-caption font-medium ${CLASS_BY_KIND[status.kind]}`}
-  >
+  <span className={`rounded px-2 py-0.5 text-caption font-medium ${CLASS_BY_KIND[status.kind]}`}>
     {LABEL_BY_KIND[status.kind]}
   </span>
 );

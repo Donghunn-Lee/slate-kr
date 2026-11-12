@@ -8,11 +8,7 @@ import { PriceCountUp } from "@/entities/stock/PriceCountUp";
 import { PriceChange } from "@/shared/components/PriceChange";
 import { IndexMiniChart } from "@/entities/index/IndexMiniChart";
 import { toIndexDisplayBars } from "@/entities/index/toIndexDisplayBars";
-import type {
-  ChartBar,
-  IndexDailySnapshot,
-  IndexIntradaySnapshot,
-} from "@/shared/types/quote";
+import type { ChartBar, IndexDailySnapshot, IndexIntradaySnapshot } from "@/shared/types/quote";
 import {
   DOMESTIC_INDEX_CODES,
   INDEX_LABEL,
@@ -50,8 +46,7 @@ const DOMESTIC_GRID_ORDER: readonly DomesticIndexCode[] = [
 // 국내 2×2 그리드. 십자 구분선은 gap-px 사이로 비치는 그리드 배경 — divide-x/y 는 그리드
 // 마지막 열·행의 바깥 경계에도 선을 긋기 때문에 쓰지 않는다. md:h-full 로 부모(2fr 열)
 // 높이를 받아 grid-rows-2 가 셀에 절반씩 배분한다(<md 는 콘텐츠 높이).
-const DOMESTIC_GRID_CLS =
-  "grid grid-cols-2 grid-rows-2 gap-px bg-border/60 md:h-full";
+const DOMESTIC_GRID_CLS = "grid grid-cols-2 grid-rows-2 gap-px bg-border/60 md:h-full";
 
 // 국내 셀 공통 컨테이너 — 실셀·스켈레톤이 공유해 로딩→로드 전환 시 그리드가 흔들리지 않는다.
 // bg-elevated 는 gap-px 구분선이 셀 뒤로 비치지 않게 하는 불투명 바닥(패널 bg 와 동일 토큰).
@@ -82,12 +77,23 @@ type IndexCellProps = {
   compact: boolean;
 };
 
-const IndexCell = ({ code, label, cell, bars, prevClose, intradayFailed, intradayLoading, isPreopen, tradingDate, compact }: IndexCellProps) => (
+const IndexCell = ({
+  code,
+  label,
+  cell,
+  bars,
+  prevClose,
+  intradayFailed,
+  intradayLoading,
+  isPreopen,
+  tradingDate,
+  compact,
+}: IndexCellProps) => (
   <Link
     href={`/stocks/indices?index=${encodeURIComponent(code)}`}
     className={cn(
       CELL_CLS,
-      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     )}
   >
     <div>
@@ -97,7 +103,7 @@ const IndexCell = ({ code, label, cell, bars, prevClose, intradayFailed, intrada
           <span
             className={cn(
               "text-value font-semibold tabular-nums md:text-headline md:font-medium",
-              priceToneClass(cell.live.sign),
+              priceToneClass(cell.live.sign)
             )}
           >
             <PriceCountUp value={cell.live.price} format={formatIndexPrice} />
@@ -118,7 +124,7 @@ const IndexCell = ({ code, label, cell, bars, prevClose, intradayFailed, intrada
           <span
             className={cn(
               "text-value font-semibold tabular-nums md:text-headline md:font-medium",
-              priceToneClass(cell.fallback.change),
+              priceToneClass(cell.fallback.change)
             )}
           >
             {formatIndexPrice(cell.fallback.close)}
@@ -136,7 +142,9 @@ const IndexCell = ({ code, label, cell, bars, prevClose, intradayFailed, intrada
         </div>
       ) : (
         <div className="mt-1 flex items-baseline gap-2">
-          <span className="text-value font-semibold tabular-nums text-muted-foreground md:text-headline md:font-medium">—</span>
+          <span className="text-value font-semibold tabular-nums text-muted-foreground md:text-headline md:font-medium">
+            —
+          </span>
           <span className="text-body-sm text-muted-foreground">데이터 없음</span>
         </div>
       )}
@@ -145,7 +153,15 @@ const IndexCell = ({ code, label, cell, bars, prevClose, intradayFailed, intrada
         preventDefault 해 셀 Link 의 click 합성이 막힌다. 마우스 크로스헤어는 유지. */}
     <div className={cn(CHART_AREA_CLS, "pointer-coarse:pointer-events-none")}>
       <div className="absolute inset-0">
-        <IndexMiniChart bars={bars} prevClose={prevClose} failed={intradayFailed} isLoading={intradayLoading} isPreopen={isPreopen} tradingDate={tradingDate} compact={compact} />
+        <IndexMiniChart
+          bars={bars}
+          prevClose={prevClose}
+          failed={intradayFailed}
+          isLoading={intradayLoading}
+          isPreopen={isPreopen}
+          tradingDate={tradingDate}
+          compact={compact}
+        />
       </div>
     </div>
   </Link>
@@ -222,7 +238,7 @@ const MarketStatus = ({
     ? kstToday
       ? `개장전 · ${formatMonthDay(kstToday)}`
       : "개장전"
-    : sourceLabel ?? "정규장 마감";
+    : (sourceLabel ?? "정규장 마감");
   return <div className="text-body-sm text-muted-foreground">{text}</div>;
 };
 
@@ -232,9 +248,7 @@ type DomesticDisplay = { bars: ChartBar[]; prevClose: number | null };
 
 // snapshot 첫 봉의 `close - change` 로 prevClose 를 유도. 리샘플 후엔 close 가
 // 버킷 마지막 값으로 바뀌므로 반드시 raw snapshot 에서 뽑는다.
-const derivePrevClose = (
-  snapshots: IndexIntradaySnapshot[] | undefined,
-): number | null => {
+const derivePrevClose = (snapshots: IndexIntradaySnapshot[] | undefined): number | null => {
   if (!snapshots || snapshots.length === 0) return null;
   const first = snapshots[0];
   const pc = first.close - first.change;
@@ -250,8 +264,7 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
   // 개장 전 창 판정은 클라 시계 축. now=null(SSR·첫 렌더)은 false 로 흘려 hydration 유지.
   // 창 안의 intraday 는 전일 봉을 서빙하므로 미니차트가 비는 건 DB 0봉일 때뿐 — 그때만
   // empty 문구를 "장중 데이터 없음" 대신 "개장전" 으로 대체한다.
-  const openingWindow =
-    now !== null && isKrxOpeningWindow(data?.session, now, calendar);
+  const openingWindow = now !== null && isKrxOpeningWindow(data?.session, now, calendar);
 
   const displayByCode = useMemo<Record<DomesticIndexCode, DomesticDisplay>>(() => {
     const out = {} as Record<DomesticIndexCode, DomesticDisplay>;
@@ -288,9 +301,9 @@ export const IndexSlate = ({ overseasSnapshotsByCode }: IndexSlateProps) => {
   // 어떤 셀보다도 새 시각을 주장하지 않도록.
   const oldestFetchedAt = useMemo<number | null>(() => {
     if (!data) return null;
-    const stamps = DOMESTIC_INDEX_CODES.map(
-      (code) => data.quotes[code].fetchedAt,
-    ).filter((t): t is number => t !== null);
+    const stamps = DOMESTIC_INDEX_CODES.map((code) => data.quotes[code].fetchedAt).filter(
+      (t): t is number => t !== null
+    );
     return stamps.length > 0 ? Math.min(...stamps) : null;
   }, [data]);
 

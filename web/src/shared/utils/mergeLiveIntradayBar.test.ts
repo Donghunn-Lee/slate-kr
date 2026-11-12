@@ -8,7 +8,7 @@ import { mergeLiveIntradayBar } from "./mergeLiveIntradayBar";
 const bar = (
   time: number,
   ohlc: { open: number; high: number; low: number; close: number },
-  volume: number = 1_000,
+  volume: number = 1_000
 ): ChartBar => ({ time, ...ohlc, volume });
 
 const quote = (over: Partial<LiveQuoteForMerge> = {}): LiveQuoteForMerge => ({
@@ -72,7 +72,7 @@ describe("mergeLiveIntradayBar", () => {
         quote({ price: 105, volume: 999_999 }),
         TODAY,
         TODAY,
-        false,
+        false
       );
       expect(result[0].volume).toBe(7_777);
     });
@@ -146,9 +146,7 @@ describe("mergeLiveIntradayBar", () => {
     it("스냅샷 quote (OHL 삼중 0) → 원본 (프리오픈 08:50~09:00 latePreopen 케이스)", () => {
       // quote-snapshots 의 snapshotToQuote 는 open/high/low 를 명시적 0 으로 채움.
       // price 는 어제 20:00 UN 종가 → 오늘 08:50 pre 봉 close 를 어제 값으로 덮어쓰면 안 됨.
-      const bars = [
-        bar(T("0850"), { open: 100, high: 103, low: 99, close: 102 }),
-      ];
+      const bars = [bar(T("0850"), { open: 100, high: 103, low: 99, close: 102 })];
       const snapshot = quote({ open: 0, high: 0, low: 0, price: 95 });
       const result = mergeLiveIntradayBar(bars, snapshot, TODAY, TODAY, false);
       expect(result).toBe(bars);

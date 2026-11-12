@@ -24,7 +24,7 @@ export const isPreMarketReset = (
   session: KrxSession | undefined,
   market: QuoteMarket,
   now: Date | null,
-  calendar?: MarketCalendar,
+  calendar?: MarketCalendar
 ): boolean =>
   now !== null &&
   market !== "nxt" &&
@@ -37,12 +37,10 @@ export const isPreMarketReset = (
 export const isClosedLikeMiss = (
   session: KrxSession | undefined,
   live: StockQuote | null,
-  isFailedQuote: boolean,
+  isFailedQuote: boolean
 ): boolean =>
   !isFailedQuote &&
-  (session === "after" ||
-    session === "after_close" ||
-    session === "closed") &&
+  (session === "after" || session === "after_close" || session === "closed") &&
   live === null;
 
 // 정규장 종가 줄의 표시 창 — 정규장 마감(15:30)부터 다음 거래일 기준가 리셋(08:00) 전까지.
@@ -51,7 +49,7 @@ export const isClosedLikeMiss = (
 // 없다 — 개장 전 창(openingWindow)이면 기준가가 이미 오늘 축이라 숨긴다.
 export const isRegularCloseWindow = (
   session: KrxSession | undefined,
-  openingWindow: boolean,
+  openingWindow: boolean
 ): boolean =>
   session === "after" ||
   session === "after_close" ||
@@ -152,8 +150,7 @@ export const computeHeaderLabel = ({
   // 미지정 경로의 after 라이브는 UN 통합가 — 비NXT 종목은 KRX 애프터마켓 개시(16:00) 전까지
   // 마감가 그대로라 "애프터마켓" 이 사실과 어긋난다. 값은 그대로 두고 라벨만 마감 축으로 —
   // live 를 죽이면 EOD 미적재 창에서 표시 값이 전일로 퇴행한다.
-  const beforeKrxAfterMarket =
-    market === undefined && session === "after" && !krxAfterMarketOpen;
+  const beforeKrxAfterMarket = market === undefined && session === "after" && !krxAfterMarketOpen;
   // NXT 탭의 정규장 마감 구간(15:20~15:40). 세션은 15:30 에서 regular→after 로 바뀌지만
   // NXT 는 15:20 에 정규장을 닫고 15:40 에 애프터마켓을 연다 — regular 의 뒤 10분과 after 의
   // 앞 10분을 한 라벨로 묶는다. 값 소스는 그대로(regular=NX 정규장 · after=NX 애프터).

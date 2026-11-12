@@ -30,20 +30,14 @@ export const GET = async () => {
   if (result.error.kind === "corrupt") {
     return json<WatchlistGetResponse>({ ok: true, data: null });
   }
-  return json<WatchlistGetResponse>(
-    { ok: false, error: { kind: "db_error" } },
-    503
-  );
+  return json<WatchlistGetResponse>({ ok: false, error: { kind: "db_error" } }, 503);
 };
 
 export const PUT = async (req: NextRequest) => {
   const text = await req.text();
   const parsed = parsePutBody(text, WatchlistSnapshotSchema);
   if (!parsed.ok) {
-    return json<WatchlistPutResponse>(
-      { ok: false, error: { kind: parsed.kind } },
-      parsed.status
-    );
+    return json<WatchlistPutResponse>({ ok: false, error: { kind: parsed.kind } }, parsed.status);
   }
 
   const existing = await readAnonId();
@@ -51,10 +45,7 @@ export const PUT = async (req: NextRequest) => {
 
   const result = await upsertAnonWatchlist(anonId, parsed.snapshot);
   if (!result.ok) {
-    return json<WatchlistPutResponse>(
-      { ok: false, error: { kind: "db_error" } },
-      503
-    );
+    return json<WatchlistPutResponse>({ ok: false, error: { kind: "db_error" } }, 503);
   }
 
   // 신규·기존 무관하게 매번 set — Max-Age rolling 갱신.

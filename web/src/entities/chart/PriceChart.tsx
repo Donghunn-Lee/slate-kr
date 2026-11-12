@@ -123,7 +123,7 @@ const applyLockedRange = (
   chart: IChartApi,
   bars: ChartBar[],
   dimBefore: number | undefined,
-  lookbackBars: number,
+  lookbackBars: number
 ) => {
   if (bars.length === 0) return;
 
@@ -177,29 +177,25 @@ export const PriceChart = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   // seriesKind 변경 시 config effect 가 재실행되어 재생성하므로 union 참조로 유지.
-  const seriesRef = useRef<
-    ISeriesApi<"Candlestick" | "Area" | "Baseline"> | null
-  >(null);
+  const seriesRef = useRef<ISeriesApi<"Candlestick" | "Area" | "Baseline"> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   // period 별 라인 시리즈. bars.length < period 로 생성 스킵된 항목은 배열에 없음.
   // colorIdx = 원본 maPeriods 인덱스 → 라인과 MA 범례 색을 동일 팔레트 인덱스로 매칭.
-  const maSeriesRef = useRef<
-    { period: number; colorIdx: number; series: ISeriesApi<"Line"> }[]
-  >([]);
+  const maSeriesRef = useRef<{ period: number; colorIdx: number; series: ISeriesApi<"Line"> }[]>(
+    []
+  );
   const prevBarsRef = useRef<ChartBar[] | null>(null);
   const barsRef = useRef<ChartBar[]>(bars);
   // visibleBars 최신값 — 데이터 effect 등 다른 effect 에서 참조하되 자기 deps 에 넣기 싫을 때.
   const visibleBarsRef = useRef<number | null | undefined>(visibleBars);
   // 현재 살아있는 차트에 대한 visible-range 적용 함수. config effect 가 chart 재생성마다 새로 셋업.
   // 다른 effect 에서 호출할 수 있도록 ref 로 노출.
-  const applyRangeRef = useRef<((n: number | null | undefined) => void) | null>(
-    null,
-  );
+  const applyRangeRef = useRef<((n: number | null | undefined) => void) | null>(null);
   // intraday auto-range 적용 함수 — applyingRangeRef 로 감싸 subscribe 콜백이 programmatic
   // 변경을 사용자 스크롤로 오인식하지 않게 한다.
-  const runLockedRangeRef = useRef<
-    ((bars: ChartBar[], dim: number | undefined) => void) | null
-  >(null);
+  const runLockedRangeRef = useRef<((bars: ChartBar[], dim: number | undefined) => void) | null>(
+    null
+  );
   // programmatic setVisibleLogicalRange 로 인한 subscribe 콜백을 무시하기
   // 위한 재진입 가드. lightweight-charts 가 range change 이벤트를 다음 rAF 사이클 이후에
   // 발화하는 경우가 있어 rAF 한 번으론 놓친다 — 두 번의 rAF (= 다음 프레임의 다음 프레임) 로
@@ -484,8 +480,7 @@ export const PriceChart = ({
       const ts = chart.timeScale();
       const r = ts.getVisibleLogicalRange();
       // 표시 조건 = 트리거 조건과 동형 (실봉 앞 whitespace 슬롯이 뷰에 들어옴).
-      const show =
-        status !== "idle" && r !== null && marginBars > 0 && r.from < marginBars;
+      const show = status !== "idle" && r !== null && marginBars > 0 && r.from < marginBars;
       if (!show) {
         el.style.display = "none";
         return;
@@ -532,11 +527,7 @@ export const PriceChart = ({
       const marginBars = leftMarginBarsRef.current ?? 0;
       // 좌측 여백 진입 트리거 — 실봉 앞 whitespace 슬롯이 뷰에 들어오면 1회 발화.
       // guard 통과 후 실행되므로 programmatic 초기 range 세팅은 걸리지 않는다.
-      if (
-        !leftEdgeFiredRef.current &&
-        marginBars > 0 &&
-        incoming.from < marginBars
-      ) {
+      if (!leftEdgeFiredRef.current && marginBars > 0 && incoming.from < marginBars) {
         leftEdgeFiredRef.current = true;
         onNearLeftEdgeRef.current?.();
       }
@@ -710,9 +701,7 @@ export const PriceChart = ({
     return () => {
       removed = true;
       if (crosshairHandler) chart.unsubscribeCrosshairMove(crosshairHandler);
-      chart
-        .timeScale()
-        .unsubscribeVisibleLogicalRangeChange(logicalRangeHandler);
+      chart.timeScale().unsubscribeVisibleLogicalRangeChange(logicalRangeHandler);
       resizeObserver.disconnect();
       if (reportTimerRef.current !== null) {
         window.clearTimeout(reportTimerRef.current);
@@ -731,7 +720,22 @@ export const PriceChart = ({
     };
     // maPeriodsKey 로 배열 값 변화를 감지 (참조 대신 값 비교).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [precision, priceFormatter, lastValueVisible, barTimeZone, timeVisible, interactive, resolvedTheme, intraday, dimBefore, showVolume, maPeriodsKey, showLegend, seriesKind, hasBaseline]);
+  }, [
+    precision,
+    priceFormatter,
+    lastValueVisible,
+    barTimeZone,
+    timeVisible,
+    interactive,
+    resolvedTheme,
+    intraday,
+    dimBefore,
+    showVolume,
+    maPeriodsKey,
+    showLegend,
+    seriesKind,
+    hasBaseline,
+  ]);
 
   // baseline 값만 바뀌면 baseValue 만 갱신 — 시리즈 재생성 회피. Baseline 시리즈가 아니면 no-op.
   useEffect(() => {
@@ -831,10 +835,7 @@ export const PriceChart = ({
         bars[bars.length - prev.length + 1].close === prev[1].close;
       const ws = generateWhitespace(bars, leftMarginBars ?? 0);
       if (seriesKind === "line") {
-        (series as ISeriesApi<"Area" | "Baseline">).setData([
-          ...ws,
-          ...bars.map(mapLine),
-        ]);
+        (series as ISeriesApi<"Area" | "Baseline">).setData([...ws, ...bars.map(mapLine)]);
       } else {
         (series as ISeriesApi<"Candlestick">).setData([
           ...ws,
@@ -871,7 +872,18 @@ export const PriceChart = ({
       const legendPrice = priceFormatter ?? ((v: number) => formatOhlc(v, precision));
       paintLegend(legendRef.current, last, prev, c, legendPrice, seriesKind, showVolume);
     }
-  }, [bars, intraday, dimBefore, resolvedTheme, showLegend, showVolume, precision, priceFormatter, seriesKind, leftMarginBars]);
+  }, [
+    bars,
+    intraday,
+    dimBefore,
+    resolvedTheme,
+    showLegend,
+    showVolume,
+    precision,
+    priceFormatter,
+    seriesKind,
+    leftMarginBars,
+  ]);
 
   // "기본 배율" 버튼 트리거. resetKey 가 0 → 양수로 최초 변경되거나 이후 증가할 때마다
   // 현재 뷰의 초기 visible range 를 재적용. mount 시엔 default(0) 라 skip → config effect
@@ -929,10 +941,7 @@ export const PriceChart = ({
           ) : (
             <>
               <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
-              <span
-                ref={marginOverlayTextRef}
-                className="ml-1.5 whitespace-nowrap text-micro"
-              >
+              <span ref={marginOverlayTextRef} className="ml-1.5 whitespace-nowrap text-micro">
                 과거 데이터를 불러오지 못했어요
               </span>
             </>

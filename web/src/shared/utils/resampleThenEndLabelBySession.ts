@@ -33,10 +33,7 @@ const dateKeyOf = (barSec: number): string => {
   return `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
 };
 
-const boundarySecsFromBarTime = (
-  barSec: number,
-  closeHmsList: readonly string[],
-): number[] => {
+const boundarySecsFromBarTime = (barSec: number, closeHmsList: readonly string[]): number[] => {
   const d = new Date(barSec * 1000);
   const y = d.getUTCFullYear();
   const m = d.getUTCMonth();
@@ -49,9 +46,9 @@ const boundarySecsFromBarTime = (
         day,
         Number(hms.slice(0, 2)),
         Number(hms.slice(2, 4)),
-        Number(hms.slice(4, 6)),
-      ) / 1000,
-    ),
+        Number(hms.slice(4, 6))
+      ) / 1000
+    )
   );
 };
 
@@ -64,17 +61,13 @@ type Segment = {
 export const resampleThenEndLabelBySession = (
   bars: readonly ChartBar[],
   minutes: number,
-  closeHmsList: readonly string[],
+  closeHmsList: readonly string[]
 ): ChartBar[] => {
   if (bars.length === 0) return [];
 
   // 경계 없음 → 세션 분할 무의미. 전 배열을 리샘플→toEndLabelBars 직결.
   if (closeHmsList.length === 0) {
-    return toEndLabelBars(
-      resampleIntradayBars([...bars], minutes),
-      minutes * 60,
-      [],
-    );
+    return toEndLabelBars(resampleIntradayBars([...bars], minutes), minutes * 60, []);
   }
 
   const segmentsByKey = new Map<string, Segment>();

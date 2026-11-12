@@ -5,7 +5,7 @@
 export const resolveListChange = (
   live: number | null,
   eod: number | null | undefined,
-  preReset: boolean,
+  preReset: boolean
 ): number | null => {
   if (live !== null) return live;
   if (eod === undefined) return null;

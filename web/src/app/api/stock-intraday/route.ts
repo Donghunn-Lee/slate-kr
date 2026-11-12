@@ -1,8 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import {
-  fetchStockIntradayChart,
-  type StockIntradayChartResult,
-} from "@/lib/quote-source";
+import { fetchStockIntradayChart, type StockIntradayChartResult } from "@/lib/quote-source";
 import { getMarketCalendar } from "@/lib/market-calendar";
 import { applyDemoFault } from "@/lib/demo-fault";
 import { TickerSchema } from "@/shared/types/schemas";
@@ -13,14 +10,9 @@ export const dynamic = "force-dynamic";
 // 동시 요청 dedup 만 — 순차 요청은 항상 생성기 직행. 클라 폴링(60s) 이 자연 rate limiter.
 // key 는 ticker 단일: fetchStockIntradayChart 가 내부 now() 로 session 을 재계산하므로
 // 동시 요청은 caller session 과 무관하게 같은 응답을 공유해도 안전.
-const inflight = new Map<
-  string,
-  Promise<StockIntradayChartResult | null>
->();
+const inflight = new Map<string, Promise<StockIntradayChartResult | null>>();
 
-const dedupedFetch = (
-  ticker: string,
-): Promise<StockIntradayChartResult | null> => {
+const dedupedFetch = (ticker: string): Promise<StockIntradayChartResult | null> => {
   const existing = inflight.get(ticker);
   if (existing) return existing;
   const promise = fetchStockIntradayChart(ticker).finally(() => {
@@ -35,10 +27,7 @@ export const GET = async (req: NextRequest) => {
   // 시세 없는 종목과 같은 경로로 흐른다.
   const parsedTicker = TickerSchema.safeParse(req.nextUrl.searchParams.get("ticker"));
   if (!parsedTicker.success) {
-    return NextResponse.json(
-      { error: "ticker 파라미터가 올바르지 않습니다" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "ticker 파라미터가 올바르지 않습니다" }, { status: 400 });
   }
   const ticker = parsedTicker.data;
 
@@ -82,7 +71,7 @@ export const GET = async (req: NextRequest) => {
         previousDay: false,
         failed: true,
       },
-      { status: 200 },
+      { status: 200 }
     );
   }
 };

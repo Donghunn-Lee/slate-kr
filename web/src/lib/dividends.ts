@@ -24,9 +24,7 @@ export type DividendMetrics = {
 // dart_yield / payout_ratio 는 ÷100 하여 정규화한다.
 const toDecimalPct = (v: number | null): number | null => (v === null ? null : v / 100);
 
-export const rowsToDividendMap = (
-  rows: readonly DividendRow[]
-): Map<number, DividendMetrics> => {
+export const rowsToDividendMap = (rows: readonly DividendRow[]): Map<number, DividendMetrics> => {
   const map = new Map<number, DividendMetrics>();
   for (const row of rows) {
     map.set(row.year, {
@@ -56,9 +54,7 @@ export const attachDividends = (
 
 // 배당 조회 실패는 재무 섹션 전체를 죽이지 않도록 catch 후 빈 Map 반환.
 // (market-calendar.ts 패턴 준용)
-export const getDividendsByYear = async (
-  ticker: string
-): Promise<Map<number, DividendMetrics>> => {
+export const getDividendsByYear = async (ticker: string): Promise<Map<number, DividendMetrics>> => {
   try {
     const [rows] = await pool.query<DividendRow[]>(
       "SELECT ticker, year, stock_kind, dps, dart_yield, payout_ratio FROM dividends WHERE ticker = $1 AND stock_kind = 'common'",

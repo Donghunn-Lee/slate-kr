@@ -68,11 +68,7 @@ export const MemoButton = ({ ticker, name, market }: MemoButtonProps) => {
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          aria-label={label}
-        >
+        <Button variant="outline" size="sm" aria-label={label}>
           {hasMemo ? (
             <NotebookText className="text-sky-accent" />
           ) : (
@@ -126,7 +122,10 @@ export const MemoButton = ({ ticker, name, market }: MemoButtonProps) => {
                   {draft.length}/{MAX_MEMO_BODY_LENGTH}
                 </span>
                 {showSyncBadge && (
-                  <StatusBadge label="서버 저장 안 됨" title="메모가 이 브라우저에만 저장되어 있어요" />
+                  <StatusBadge
+                    label="서버 저장 안 됨"
+                    title="메모가 이 브라우저에만 저장되어 있어요"
+                  />
                 )}
               </div>
               <Button
@@ -145,20 +144,10 @@ export const MemoButton = ({ ticker, name, market }: MemoButtonProps) => {
           <div className="px-3 pb-3">
             <p className="text-body">정말 메모를 삭제할까요?</p>
             <div className="mt-3 flex items-center justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setView("edit")}
-              >
+              <Button type="button" variant="outline" size="sm" onClick={() => setView("edit")}>
                 취소
               </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={handleConfirmDelete}
-              >
+              <Button type="button" variant="destructive" size="sm" onClick={handleConfirmDelete}>
                 삭제
               </Button>
             </div>

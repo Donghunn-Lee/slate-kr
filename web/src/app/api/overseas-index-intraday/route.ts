@@ -11,10 +11,7 @@ import {
   type OverseasIndexSessionState,
 } from "@/shared/utils/market";
 import { overseasIntradayRevalidate } from "@/lib/session-cache";
-import {
-  OVERSEAS_INTRADAY_CODES,
-  type OverseasIntradayCode,
-} from "@/shared/constants/indices";
+import { OVERSEAS_INTRADAY_CODES, type OverseasIntradayCode } from "@/shared/constants/indices";
 import type { IndexIntradaySnapshot } from "@/shared/types/quote";
 
 export const dynamic = "force-dynamic";
@@ -34,19 +31,17 @@ const cacheKeyOf = (
   code: OverseasIntradayCode,
   session: OverseasIndexSessionState,
   tradingDate: string,
-  revalidate: number,
+  revalidate: number
 ): string => `${code}::${session}::${tradingDate}::${revalidate}`;
 
-const cacheTagOf = (
-  code: OverseasIntradayCode,
-  session: OverseasIndexSessionState,
-): string => `overseas-index-intraday-${code.toLowerCase()}-${session}`;
+const cacheTagOf = (code: OverseasIntradayCode, session: OverseasIndexSessionState): string =>
+  `overseas-index-intraday-${code.toLowerCase()}-${session}`;
 
 const getCachedFetcher = (
   code: OverseasIntradayCode,
   session: OverseasIndexSessionState,
   tradingDate: string,
-  minutesSinceClose: number | null,
+  minutesSinceClose: number | null
 ): OverseasFetcher => {
   const revalidate = overseasIntradayRevalidate(session, minutesSinceClose);
   const key = cacheKeyOf(code, session, tradingDate, revalidate);
@@ -61,7 +56,7 @@ const getCachedFetcher = (
     {
       revalidate,
       tags: [cacheTagOf(code, session)],
-    },
+    }
   );
   fetchers.set(key, fresh);
   return fresh;
@@ -76,7 +71,7 @@ type OverseasResolveResult = {
 const resolve = (
   code: OverseasIntradayCode,
   session: OverseasIndexSessionState,
-  r: PromiseSettledResult<CachedOverseasBars>,
+  r: PromiseSettledResult<CachedOverseasBars>
 ): OverseasResolveResult => {
   if (r.status !== "fulfilled" || r.value.bars === null) {
     revalidateTag(cacheTagOf(code, session), { expire: 0 });
@@ -88,7 +83,7 @@ const resolve = (
 // 전체 예외 시 계약 유지용 empty. Record 로 조립.
 const emptyQuotes = (): Record<OverseasIntradayCode, IndexIntradaySnapshot[]> =>
   Object.fromEntries(
-    OVERSEAS_INTRADAY_CODES.map((c) => [c, [] as IndexIntradaySnapshot[]]),
+    OVERSEAS_INTRADAY_CODES.map((c) => [c, [] as IndexIntradaySnapshot[]])
   ) as Record<OverseasIntradayCode, IndexIntradaySnapshot[]>;
 
 const allFailed = (): Record<OverseasIntradayCode, boolean> =>
@@ -115,23 +110,25 @@ export const GET = async (req: NextRequest) => {
     await applyDemoFault(req);
     const results = await Promise.allSettled(
       perCode.map(({ code, session, tradingDate, sinceClose }) =>
-        getCachedFetcher(code, session, tradingDate, sinceClose)(),
-      ),
+        getCachedFetcher(code, session, tradingDate, sinceClose)()
+      )
     );
     const resolved = perCode.map(
-      ({ code, session }, i) => [code, resolve(code, session, results[i])] as const,
+      ({ code, session }, i) => [code, resolve(code, session, results[i])] as const
     );
 
-    const quotes = Object.fromEntries(
-      resolved.map(([code, r]) => [code, r.bars]),
-    ) as Record<OverseasIntradayCode, IndexIntradaySnapshot[]>;
-    const failed = Object.fromEntries(
-      resolved.map(([code, r]) => [code, r.failed]),
-    ) as Record<OverseasIntradayCode, boolean>;
+    const quotes = Object.fromEntries(resolved.map(([code, r]) => [code, r.bars])) as Record<
+      OverseasIntradayCode,
+      IndexIntradaySnapshot[]
+    >;
+    const failed = Object.fromEntries(resolved.map(([code, r]) => [code, r.failed])) as Record<
+      OverseasIntradayCode,
+      boolean
+    >;
     // 정규장 코드 셀 중 가장 오래된 조립 시각 — 클라 stale 판정 축. closed 코드는 TTL 3600s 라
     // 섞이면 항상 stale 로 보이므로 제외. 정규장 코드가 없으면 null.
     const regularTimes = resolved.flatMap(([, r], i) =>
-      perCode[i].session === "regular" && r.fetchedAt !== null ? [r.fetchedAt] : [],
+      perCode[i].session === "regular" && r.fetchedAt !== null ? [r.fetchedAt] : []
     );
     const fetchedAt = regularTimes.length > 0 ? Math.min(...regularTimes) : null;
 
@@ -146,7 +143,7 @@ export const GET = async (req: NextRequest) => {
         failed: allFailed(),
         fetchedAt: null,
       },
-      { status: 200 },
+      { status: 200 }
     );
   }
 };

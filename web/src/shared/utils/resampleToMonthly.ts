@@ -2,9 +2,7 @@ import type { IndexDailySnapshot } from "@/shared/types/quote";
 
 // 일봉 → 월봉. open=월 첫 거래일 시가, close=월 마지막 거래일 종가, high/low=월간 극값.
 // 입력은 ASC 가정이지만 안전하게 한 번 정렬.
-export const resampleToMonthly = (
-  prices: IndexDailySnapshot[]
-): IndexDailySnapshot[] => {
+export const resampleToMonthly = (prices: IndexDailySnapshot[]): IndexDailySnapshot[] => {
   if (prices.length === 0) return [];
 
   const sorted = [...prices].sort((a, b) => (a.date < b.date ? -1 : 1));

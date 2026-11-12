@@ -72,12 +72,7 @@ type StatCellProps = {
 };
 
 const StatCell = ({ label, children, className }: StatCellProps) => (
-  <div
-    className={cn(
-      "flex flex-row items-baseline gap-1.5 sm:flex-col sm:gap-0.5",
-      className,
-    )}
-  >
+  <div className={cn("flex flex-row items-baseline gap-1.5 sm:flex-col sm:gap-0.5", className)}>
     <span className="text-micro font-medium uppercase tracking-widest text-muted-foreground">
       {label}
     </span>
@@ -92,7 +87,7 @@ export const resolveDomesticVolume = (
   live: { volume?: number } | null | undefined,
   openingWindow: boolean,
   liveDate: string | undefined,
-  eod: { date: string; volume: number | null } | null,
+  eod: { date: string; volume: number | null } | null
 ): { volume: number | null; asOf: string | null } => {
   if (live?.volume !== undefined && liveDate !== undefined && !openingWindow) {
     return { volume: live.volume, asOf: liveDate.slice(5) };
@@ -108,13 +103,7 @@ type StatsBlockProps = {
   refDate: string | null;
 };
 
-const StatsBlock = ({
-  stats,
-  isDomestic,
-  volume,
-  volumeAsOf,
-  refDate,
-}: StatsBlockProps) => {
+const StatsBlock = ({ stats, isDomestic, volume, volumeAsOf, refDate }: StatsBlockProps) => {
   const { range52w, returns } = stats;
   // flex-wrap 은 항목 수가 가변인 stats 행에 media-query grid 보다 견고 —
   // 넓은 pane 에선 한 줄, 좁은 pane 이나 모바일에선 자연 reflow.
@@ -123,12 +112,8 @@ const StatsBlock = ({
       <StatCell label="52주" className="w-full sm:w-auto">
         {range52w !== null ? (
           <div className="flex items-baseline gap-3 whitespace-nowrap font-medium">
-            <span className="text-price-down">
-              저 {formatIndexPrice(range52w.low)}
-            </span>
-            <span className="text-price-up">
-              고 {formatIndexPrice(range52w.high)}
-            </span>
+            <span className="text-price-down">저 {formatIndexPrice(range52w.low)}</span>
+            <span className="text-price-up">고 {formatIndexPrice(range52w.high)}</span>
           </div>
         ) : (
           <span className="text-muted-foreground">—</span>
@@ -181,31 +166,26 @@ export const IndexDetailPane = ({
   const overseasIntradayQuery = useOverseasIndexIntraday();
   const overseasQuotesQuery = useOverseasIndexQuotes();
   const prices = dailyByIndex[selected];
-  const latestDaily =
-    prices && prices.length > 0 ? prices[prices.length - 1] : null;
+  const latestDaily = prices && prices.length > 0 ? prices[prices.length - 1] : null;
 
   // 해외 intraday 지수(SPX/COMP/NDX): 최신 봉. quote 부재 시 fallback.
   const overseasBars = isOverseasIntraday
-    ? overseasIntradayQuery.data?.quotes[selected as OverseasIntradayCode] ?? []
+    ? (overseasIntradayQuery.data?.quotes[selected as OverseasIntradayCode] ?? [])
     : [];
-  const overseasLatestBar =
-    overseasBars.length > 0 ? overseasBars[overseasBars.length - 1] : null;
+  const overseasLatestBar = overseasBars.length > 0 ? overseasBars[overseasBars.length - 1] : null;
   // 해외 quote — 8종 전부 커버. 상세 헤더의 라이브 소스는 quote 우선.
   const overseasQuote = isDomestic
     ? null
-    : overseasQuotesQuery.data?.quotes[selected as OverseasIndexCode] ?? null;
+    : (overseasQuotesQuery.data?.quotes[selected as OverseasIndexCode] ?? null);
 
   // 개장 전 창 판정은 클라 시계 축. now=null(SSR·첫 렌더)은 false.
-  const openingWindow =
-    now !== null && isKrxOpeningWindow(data?.session, now, calendar);
+  const openingWindow = now !== null && isKrxOpeningWindow(data?.session, now, calendar);
 
   // 셀 합성 규칙은 buildIndexCell 참조 (Rail·홈과 공용).
   const cell = buildIndexCell({
     isDomestic,
     name: INDEX_LABEL[selected],
-    domesticCell: isDomestic
-      ? data?.quotes[selected as DomesticIndexCode]
-      : undefined,
+    domesticCell: isDomestic ? data?.quotes[selected as DomesticIndexCode] : undefined,
     overseasQuote,
     overseasLatestBar,
     latestDaily,
@@ -214,7 +194,8 @@ export const IndexDetailPane = ({
   });
 
   // 라벨은 request time 기준: 국내는 client clock 으로 세션 판정, 해외는 quote.time 판정.
-  const isKrxRegular = isDomestic && now !== null && getKrxSessionState(now, calendar) === "regular";
+  const isKrxRegular =
+    isDomestic && now !== null && getKrxSessionState(now, calendar) === "regular";
   // 정규장이라도 라이브 값이 없으면(조회 실패 → EOD 폴백) 정규장 라벨·dot 을 붙이지 않는다 —
   // 셀 fetchedAt 은 실패 시각이라 "정규장 · HH:MM" 이 전일 값에 붙어 오표기된다.
   // 첫 응답 전(로딩)은 정규장 유지 — 스켈레톤 위에서 라벨이 전일→정규장으로 튀지 않게.
@@ -227,19 +208,15 @@ export const IndexDetailPane = ({
   const domesticLastCloseDate = now ? getKrxLastCloseDate(now, calendar) : null;
   const kstToday = now ? getKstDateAndMinutes(now).date : null;
   const domesticSourceIsToday =
-    domesticLastCloseDate !== null &&
-    kstToday !== null &&
-    domesticLastCloseDate === kstToday;
+    domesticLastCloseDate !== null && kstToday !== null && domesticLastCloseDate === kstToday;
   // 장중 시각은 클라 시계가 아닌 셀 fetchedAt — 응답이 서버 캐시 히트여도 라벨이
   // 실제 시세 조립 시각을 가리키게 한다.
   const domesticFetchedAt = isDomestic
-    ? data?.quotes[selected as DomesticIndexCode]?.fetchedAt ?? null
+    ? (data?.quotes[selected as DomesticIndexCode]?.fetchedAt ?? null)
     : null;
   // 개장 전 창은 오늘 거래일 기준가로 리셋된 상태 — 날짜를 오늘로 표기하고
   // 값 출처(전일 종가)는 붙이지 않는다.
-  const domesticOpeningLabel = kstToday
-    ? `개장전 · ${formatMonthDay(kstToday)}`
-    : "개장전";
+  const domesticOpeningLabel = kstToday ? `개장전 · ${formatMonthDay(kstToday)}` : "개장전";
   const domesticSourceLabel = domesticSourceIsToday
     ? `정규장 마감 · ${formatMonthDay(domesticLastCloseDate)} 15:30`
     : domesticLastCloseDate
@@ -248,17 +225,11 @@ export const IndexDetailPane = ({
 
   // 해외 표시 상태 판정 (live/closed/eod_only). 시각 포맷은 formatOverseasQuoteTime 재사용.
   const overseasState = !isDomestic
-    ? resolveOverseasDisplayState(
-        overseasQuote?.time ?? null,
-        selected as OverseasIndexCode,
-      )
+    ? resolveOverseasDisplayState(overseasQuote?.time ?? null, selected as OverseasIndexCode)
     : null;
   const overseasKstTime =
     overseasQuote && !isDomestic
-      ? formatOverseasQuoteTime(
-          overseasQuote.time,
-          selected as OverseasIndexCode,
-        )
+      ? formatOverseasQuoteTime(overseasQuote.time, selected as OverseasIndexCode)
       : null;
   // 해외 stats 기준일 — 라이브/EOD 어느 소스든 daily 스냅샷 date 유지 (52주·수익률 계산 기준).
   const overseasRefDate = latestDaily?.date ?? null;
@@ -271,10 +242,7 @@ export const IndexDetailPane = ({
       : overseasRefDate;
   const overseasCloseLabel =
     overseasSessionDate !== null
-      ? resolveOverseasCloseLabel(
-          overseasSessionDate,
-          selected as OverseasIndexCode,
-        )
+      ? resolveOverseasCloseLabel(overseasSessionDate, selected as OverseasIndexCode)
       : null;
 
   const stats = statsByIndex[selected];
@@ -285,7 +253,7 @@ export const IndexDetailPane = ({
         cell?.live,
         openingWindow,
         data?.date,
-        latestDaily ? { date: latestDaily.date, volume: volumeByIndex[selected] } : null,
+        latestDaily ? { date: latestDaily.date, volume: volumeByIndex[selected] } : null
       )
     : { volume: null, asOf: null };
 
@@ -297,8 +265,7 @@ export const IndexDetailPane = ({
   // dot = 실시간(지연 없음) live 전용. 국내 정규장 or 해외 live && delay 확정 0.
   const showDot = isKrxLive || (isOverseasLive && overseasDelayMin === 0);
   // 지연 확정된 해외 지수만 pill 배지. 미실측(undefined)·실시간(0)·비 live 는 배지 없음.
-  const showDelayBadge =
-    isOverseasLive && overseasDelayMin !== undefined && overseasDelayMin > 0;
+  const showDelayBadge = isOverseasLive && overseasDelayMin !== undefined && overseasDelayMin > 0;
   const referenceLabel = isDomestic
     ? now === null
       ? "정규장 마감"
@@ -311,32 +278,25 @@ export const IndexDetailPane = ({
           : domesticSourceLabel
     : overseasState?.kind === "live" && overseasKstTime
       ? `${overseasKstTime} 기준`
-      : overseasCloseLabel ?? "전일 종가 · —";
+      : (overseasCloseLabel ?? "전일 종가 · —");
 
   return (
     <StockPanel variant="lavender" className="overflow-hidden p-0">
       <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-b border-lavender-border/60 px-4 py-3 sm:px-6 sm:py-4">
         <div className="flex items-baseline gap-3">
           <h2 className="text-value font-medium">{INDEX_LABEL[selected]}</h2>
-          <span className="text-value font-medium text-muted-foreground/80">
-            {meta.overline}
-          </span>
+          <span className="text-value font-medium text-muted-foreground/80">{meta.overline}</span>
         </div>
         {/* 배지가 붙으면 좁은 폭에서 제목 옆 여유가 시각 숫자 폭 몇 px 차이로 갈려 줄이
             오간다 — sm 미만은 둘째 줄로 고정. */}
         <div
           className={cn(
             "flex items-center gap-1.5 text-body-sm text-muted-foreground",
-            showDelayBadge && "w-full sm:w-auto",
+            showDelayBadge && "w-full sm:w-auto"
           )}
         >
           {/* emerald dot 은 실시간(지연 0) live 전용. 지연 지수는 pill 배지로 신호. */}
-          {showDot && (
-            <span
-              className="inline-block size-1.5 rounded-full bg-live"
-              aria-hidden
-            />
-          )}
+          {showDot && <span className="inline-block size-1.5 rounded-full bg-live" aria-hidden />}
           <span>{referenceLabel}</span>
           {showDelayBadge && (
             <span
@@ -361,7 +321,7 @@ export const IndexDetailPane = ({
               <span
                 className={cn(
                   "text-headline font-semibold tabular-nums",
-                  priceToneClass(cell.live.sign),
+                  priceToneClass(cell.live.sign)
                 )}
               >
                 <PriceCountUp key={selected} value={cell.live.price} format={formatIndexPrice} />
@@ -380,7 +340,7 @@ export const IndexDetailPane = ({
               <span
                 className={cn(
                   "text-headline font-semibold tabular-nums",
-                  priceToneClass(cell.fallback.change),
+                  priceToneClass(cell.fallback.change)
                 )}
               >
                 {formatIndexPrice(cell.fallback.close)}
@@ -409,9 +369,7 @@ export const IndexDetailPane = ({
             <span className="text-micro font-medium uppercase tracking-widest text-muted-foreground">
               {domesticVolumeAsOf ? `거래량 (${domesticVolumeAsOf})` : "거래량"}
             </span>
-            <span className="text-micro tabular-nums">
-              {volume.toLocaleString("ko-KR")}
-            </span>
+            <span className="text-micro tabular-nums">{volume.toLocaleString("ko-KR")}</span>
           </div>
         )}
 
@@ -436,9 +394,7 @@ export const IndexDetailPane = ({
             intradayEnabled={isDomestic || isOverseasIntraday}
           />
         ) : (
-          <p className="text-body text-muted-foreground">
-            차트 데이터를 불러오지 못했습니다
-          </p>
+          <p className="text-body text-muted-foreground">차트 데이터를 불러오지 못했습니다</p>
         )}
       </div>
     </StockPanel>

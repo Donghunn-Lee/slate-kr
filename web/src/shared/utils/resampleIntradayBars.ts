@@ -4,10 +4,7 @@ import type { ChartBar } from "@/shared/types/quote";
 // OHLC 표준: 첫 open / max high / min low / 마지막 close. 볼륨은 버킷 내 합산.
 // minutes ≤ 1 이면 raw 를 그대로 반환 — 호출부에서 분기 없이 항상 통과시켜도 안전.
 // time 이 number 아닌 봉은 스킵 (intraday 는 number 로 통일이지만 방어적).
-export const resampleIntradayBars = (
-  bars: ChartBar[],
-  minutes: number,
-): ChartBar[] => {
+export const resampleIntradayBars = (bars: ChartBar[], minutes: number): ChartBar[] => {
   if (bars.length === 0 || minutes <= 1) return bars;
   const bucketSec = minutes * 60;
   const groups = new Map<number, ChartBar[]>();

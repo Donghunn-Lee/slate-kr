@@ -116,7 +116,9 @@ export const SearchInput = ({
           aria-expanded={listboxOpen}
           aria-controls={listboxOpen ? listId : undefined}
           aria-autocomplete="list"
-          aria-activedescendant={listboxOpen && activeIndex >= 0 ? `${listId}-${activeIndex}` : undefined}
+          aria-activedescendant={
+            listboxOpen && activeIndex >= 0 ? `${listId}-${activeIndex}` : undefined
+          }
           placeholder={placeholder}
           value={value}
           onChange={(e) => handleChange(e.target.value)}
@@ -146,7 +148,9 @@ export const SearchInput = ({
         </button>
         {isOpen && (
           <div className="absolute inset-x-0 top-full z-50 mt-1 overflow-hidden rounded-md border bg-popover shadow-md">
-            {isLoading && <div className="px-4 py-3 text-body text-muted-foreground">검색 중...</div>}
+            {isLoading && (
+              <div className="px-4 py-3 text-body text-muted-foreground">검색 중...</div>
+            )}
             {!isLoading && results.length === 0 && (
               <div className="px-4 py-3 text-body text-muted-foreground">검색 결과가 없습니다</div>
             )}
@@ -174,7 +178,9 @@ export const SearchInput = ({
                           {stock.ticker}
                         </span>
                       </div>
-                      <span className="text-caption text-muted-foreground shrink-0">{stock.market}</span>
+                      <span className="text-caption text-muted-foreground shrink-0">
+                        {stock.market}
+                      </span>
                     </div>
                   </li>
                 ))}

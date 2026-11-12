@@ -6,11 +6,7 @@ import {
   getDemoHistoryStart,
   type DemoUniverseEntry,
 } from "@/lib/demo/universe";
-import {
-  getKrxLastCloseDate,
-  type KrxSession,
-  type QuoteMarket,
-} from "@/shared/utils/market";
+import { getKrxLastCloseDate, type KrxSession, type QuoteMarket } from "@/shared/utils/market";
 import type { MarketCalendar } from "@/shared/types/marketCalendar";
 import type { PriceSign, StockQuote } from "@/shared/types/quote";
 
@@ -39,8 +35,7 @@ type QuoteSnapshotRow = {
   nx_volume: number | null;
 };
 
-const signOf = (change: number): PriceSign =>
-  change > 0 ? "up" : change < 0 ? "down" : "flat";
+const signOf = (change: number): PriceSign => (change > 0 ? "up" : change < 0 ? "down" : "flat");
 
 // 순수 변환 — UN 축. 리스트(multi) 경로는 이 축만 쓴다.
 export const snapshotToQuote = (row: QuoteSnapshotRow): StockQuote => {
@@ -83,10 +78,8 @@ export const isSnapshotSession = (session: KrxSession | undefined): boolean =>
 
 // 스냅샷 조회 키 축. 캡처본은 직전 정규장 마감 뒤 20:10 산출물이므로 "마지막 마감일"
 // 이 조회 키다 — 응답 date/tradingDate 가 쓰는 거래일 축(getKrxTradingDate)과 별개.
-export const getSnapshotLookupDate = (
-  now: Date = new Date(),
-  calendar?: MarketCalendar,
-): string => getKrxLastCloseDate(now, calendar);
+export const getSnapshotLookupDate = (now: Date = new Date(), calendar?: MarketCalendar): string =>
+  getKrxLastCloseDate(now, calendar);
 
 // ── 단건 fetch + 결정 ────────────────────────────────────────
 export type SingleSnapshotDecision =
@@ -99,7 +92,7 @@ export const decideSingleSnapshot = (
   session: KrxSession | undefined,
   row: QuoteSnapshotRow | undefined,
   dateExists: boolean,
-  market: QuoteMarket | null,
+  market: QuoteMarket | null
 ): SingleSnapshotDecision => {
   if (!isSnapshotSession(session)) return { kind: "fallback" };
   if (!dateExists) return { kind: "fallback" };
@@ -113,10 +106,7 @@ const round2 = (x: number): number => Math.round(x * 100) / 100;
 // 조회 키 날짜의 20:00 마감 일봉에서 스냅샷 행을 조립. 상장 전 날짜는 행 부재(부분 miss).
 // nx_close 는 20:00 봉의 NXT 가격 — 20:00 봉의 NX 현재가와 같은 값이고 un_close 와는 틱 몇 개 다를 수 있다.
 // 거래량은 시장별로 나누지 않아 UN 과 같은 값. 비NXT 종목은 NX 축이 null.
-const buildSnapshotRow = (
-  entry: DemoUniverseEntry,
-  date: string,
-): QuoteSnapshotRow | undefined => {
+const buildSnapshotRow = (entry: DemoUniverseEntry, date: string): QuoteSnapshotRow | undefined => {
   if (date < getDemoHistoryStart(entry)) return undefined;
   const bar = getDailyBar(entry.ticker, entry.profile, date);
   const basePrice = bar.basePrice ?? bar.regularClose;
@@ -142,7 +132,7 @@ const snapshotDateExists = (date: string, now: Date): boolean => date <= getDemo
 export const fetchQuoteSnapshot = async (
   ticker: string,
   now: Date,
-  calendar?: MarketCalendar,
+  calendar?: MarketCalendar
 ): Promise<{ row: QuoteSnapshotRow | undefined; dateExists: boolean }> => {
   const date = getSnapshotLookupDate(now, calendar);
   const dateExists = snapshotDateExists(date, now);
@@ -160,7 +150,7 @@ export const decideMultiSnapshot = (
   session: KrxSession | undefined,
   tickers: string[],
   byTicker: Record<string, QuoteSnapshotRow>,
-  dateExists: boolean,
+  dateExists: boolean
 ): MultiSnapshotDecision => {
   if (!isSnapshotSession(session)) return { kind: "fallback" };
   if (!dateExists) return { kind: "fallback" };
@@ -174,21 +164,19 @@ export const decideMultiSnapshot = (
 
 // 미등록 종목·조회 실패 → null (안전 기본 = "판정 불가").
 // React.cache 로 요청 단위 memo — 같은 요청 내 다중 소비자가 공유.
-export const fetchNxEligible = cache(
-  async (ticker: string): Promise<boolean | null> => {
-    try {
-      const entry = await getDemoEntry(ticker);
-      return entry ? entry.profile.nxEligible : null;
-    } catch {
-      return null;
-    }
-  },
-);
+export const fetchNxEligible = cache(async (ticker: string): Promise<boolean | null> => {
+  try {
+    const entry = await getDemoEntry(ticker);
+    return entry ? entry.profile.nxEligible : null;
+  } catch {
+    return null;
+  }
+});
 
 export const fetchQuoteSnapshots = async (
   tickers: string[],
   now: Date,
-  calendar?: MarketCalendar,
+  calendar?: MarketCalendar
 ): Promise<{
   byTicker: Record<string, QuoteSnapshotRow>;
   dateExists: boolean;

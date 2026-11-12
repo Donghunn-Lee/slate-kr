@@ -56,30 +56,28 @@ export const parseAnonWatchlistRow = (row: unknown): AnonWatchlistRecord | null 
   };
 };
 
-export const getAnonWatchlist = cache(
-  async (anonId: string): Promise<AnonWatchlistReadResult> => {
-    AnonIdSchema.parse(anonId);
+export const getAnonWatchlist = cache(async (anonId: string): Promise<AnonWatchlistReadResult> => {
+  AnonIdSchema.parse(anonId);
 
-    try {
-      const [rows] = await pool.query<AnonWatchlistRow[]>(
-        "SELECT snapshot, version, updated_at FROM anon_watchlists WHERE anon_id = $1",
-        [anonId]
-      );
-      if (rows.length === 0) return { ok: true, data: null };
+  try {
+    const [rows] = await pool.query<AnonWatchlistRow[]>(
+      "SELECT snapshot, version, updated_at FROM anon_watchlists WHERE anon_id = $1",
+      [anonId]
+    );
+    if (rows.length === 0) return { ok: true, data: null };
 
-      const record = parseAnonWatchlistRow(rows[0]);
-      if (record === null) {
-        console.error(`[anon-watchlist] corrupt snapshot for anon_id=${anonId}`);
-        return { ok: false, error: { kind: "corrupt" } };
-      }
-      return { ok: true, data: record };
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error(`[anon-watchlist] read failed: ${message}`);
-      return { ok: false, error: { kind: "db_error" } };
+    const record = parseAnonWatchlistRow(rows[0]);
+    if (record === null) {
+      console.error(`[anon-watchlist] corrupt snapshot for anon_id=${anonId}`);
+      return { ok: false, error: { kind: "corrupt" } };
     }
+    return { ok: true, data: record };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[anon-watchlist] read failed: ${message}`);
+    return { ok: false, error: { kind: "db_error" } };
   }
-);
+});
 
 export const upsertAnonWatchlist = async (
   anonId: string,

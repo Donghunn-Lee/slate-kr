@@ -28,7 +28,10 @@ describe("getIndexIntradayPrices (국내)", () => {
     expect(minuteOf(today[today.length - 1])).toBe(10 * 60 + 30);
     const [prevDaily] = generateIndexDailyBars("KOSPI", PREV, PREV);
     expect(today[0].change).toBeCloseTo(today[0].close - prevDaily.close, 2);
-    expect(today[5].changeRate).toBeCloseTo(((today[5].close - prevDaily.close) / prevDaily.close) * 100, 2);
+    expect(today[5].changeRate).toBeCloseTo(
+      ((today[5].close - prevDaily.close) / prevDaily.close) * 100,
+      2
+    );
     expect(today.every((b) => b.volume > 0)).toBe(true);
   });
 
@@ -61,21 +64,25 @@ describe("getOverseasIndexIntradayPrices (해외)", () => {
 });
 
 describe("toIntradaySnapshots", () => {
-  const barSec = (hh: number, mm: number): number =>
-    Date.UTC(2026, 7, 28, hh, mm) / 1000;
+  const barSec = (hh: number, mm: number): number => Date.UTC(2026, 7, 28, hh, mm) / 1000;
 
   it("해외 기본 → volume 0 강제 · 국내 useBarVolume=true → bar.volume 전달", () => {
     const bars: ChartBar[] = [
-      { time: barSec(15, 30), open: 6788.89, high: 6788.89, low: 6788.89, close: 6788.88, volume: 7547 },
+      {
+        time: barSec(15, 30),
+        open: 6788.89,
+        high: 6788.89,
+        low: 6788.89,
+        close: 6788.88,
+        volume: 7547,
+      },
     ];
     const overseasOut = toIntradaySnapshots("SPX", bars, 6800);
     expect(overseasOut[0].volume).toBe(0);
     expect(overseasOut[0].change).toBeCloseTo(-11.12, 2);
     const domesticOut = toIntradaySnapshots("KOSPI", bars, 6800, true);
     expect(domesticOut[0].volume).toBe(7547);
-    const noVol: ChartBar[] = [
-      { time: barSec(15, 31), open: 1, high: 1, low: 1, close: 1 },
-    ];
+    const noVol: ChartBar[] = [{ time: barSec(15, 31), open: 1, high: 1, low: 1, close: 1 }];
     expect(toIntradaySnapshots("KOSPI", noVol, 0, true)[0].volume).toBe(0);
     expect(toIntradaySnapshots("KOSPI", noVol, 0, true)[0].change).toBe(0);
   });

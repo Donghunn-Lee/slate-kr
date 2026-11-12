@@ -14,10 +14,7 @@ export type AnonCookieOptions = {
   httpOnly: boolean;
 };
 
-export const buildAnonCookieOptions = (
-  isProd: boolean,
-  httpOnly: boolean
-): AnonCookieOptions => ({
+export const buildAnonCookieOptions = (isProd: boolean, httpOnly: boolean): AnonCookieOptions => ({
   path: "/",
   sameSite: "lax",
   secure: isProd,

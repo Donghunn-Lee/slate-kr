@@ -12,10 +12,7 @@ import {
   type KrxSession,
 } from "@/shared/utils/market";
 import { krxIndexRevalidate } from "@/lib/session-cache";
-import {
-  DOMESTIC_INDEX_CODES,
-  type DomesticIndexCode,
-} from "@/shared/constants/indices";
+import { DOMESTIC_INDEX_CODES, type DomesticIndexCode } from "@/shared/constants/indices";
 import type { IndexDailySnapshot, IndexQuote } from "@/shared/types/quote";
 
 export const dynamic = "force-dynamic";
@@ -45,7 +42,7 @@ const cacheKeyOf = (
   code: IndexKisCode,
   session: KrxSession,
   tradingDate: string,
-  revalidate: number,
+  revalidate: number
 ): string => `${code}::${session}::${tradingDate}::${revalidate}`;
 
 const cacheTagOf = (code: IndexKisCode, session: KrxSession): string =>
@@ -55,7 +52,7 @@ const getCachedQuote = (
   code: IndexKisCode,
   session: KrxSession,
   tradingDate: string,
-  minutesSinceClose: number | null,
+  minutesSinceClose: number | null
 ): IndexQuoteFetcher => {
   const revalidate = krxIndexRevalidate(session, minutesSinceClose);
   const key = cacheKeyOf(code, session, tradingDate, revalidate);
@@ -70,7 +67,7 @@ const getCachedQuote = (
     {
       revalidate,
       tags: [cacheTagOf(code, session)],
-    },
+    }
   );
   quoteFetchers.set(key, fresh);
   return fresh;
@@ -89,7 +86,7 @@ const pick = <T>(r: PromiseSettledResult<T | null>): T | null =>
 // EOD 폴백 조회 실패는 응답에서 데이터 없음(null)과 같은 모양으로 접히므로 원인을 로그로 남긴다.
 const pickFallback = (
   code: DomesticIndexCode,
-  r: PromiseSettledResult<IndexDailySnapshot | null>,
+  r: PromiseSettledResult<IndexDailySnapshot | null>
 ): IndexDailySnapshot | null => {
   if (r.status === "rejected") {
     const message = r.reason instanceof Error ? r.reason.message : String(r.reason);
@@ -102,7 +99,7 @@ const pickFallback = (
 const resolveCell = (
   code: IndexKisCode,
   session: KrxSession,
-  r: PromiseSettledResult<CachedIndexCell>,
+  r: PromiseSettledResult<CachedIndexCell>
 ): CachedIndexCell | null => {
   const value = pick(r);
   if (value === null || value.live === null) {
@@ -124,12 +121,10 @@ export const GET = async (req: NextRequest) => {
     const [liveResults, fallbackResults] = await Promise.all([
       Promise.allSettled(
         DOMESTIC_INDEX_CODES.map((code) =>
-          getCachedQuote(KIS_BY_DOMESTIC[code], session, tradingDate, sinceClose)(),
-        ),
+          getCachedQuote(KIS_BY_DOMESTIC[code], session, tradingDate, sinceClose)()
+        )
       ),
-      Promise.allSettled(
-        DOMESTIC_INDEX_CODES.map((code) => getLatestIndexPrice(code)),
-      ),
+      Promise.allSettled(DOMESTIC_INDEX_CODES.map((code) => getLatestIndexPrice(code))),
     ]);
 
     const quotes = Object.fromEntries(
@@ -145,7 +140,7 @@ export const GET = async (req: NextRequest) => {
             fetchedAt: cached?.fetchedAt ?? now.getTime(),
           } satisfies IndexCellData,
         ];
-      }),
+      })
     ) as Record<DomesticIndexCode, IndexCellData>;
 
     return NextResponse.json({
@@ -155,9 +150,6 @@ export const GET = async (req: NextRequest) => {
       date: tradingDate,
     });
   } catch {
-    return NextResponse.json(
-      { error: "지수 시세를 불러오지 못했습니다" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "지수 시세를 불러오지 못했습니다" }, { status: 500 });
   }
 };

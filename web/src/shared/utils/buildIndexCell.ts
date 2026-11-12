@@ -1,8 +1,4 @@
-import type {
-  IndexDailySnapshot,
-  IndexIntradaySnapshot,
-  IndexQuote,
-} from "@/shared/types/quote";
+import type { IndexDailySnapshot, IndexIntradaySnapshot, IndexQuote } from "@/shared/types/quote";
 import type { IndexCellData } from "@/features/index-quotes/useIndexQuotes";
 import type { KrxSession } from "@/shared/utils/market";
 
@@ -95,12 +91,7 @@ export const buildIndexCell = ({
         price: overseasLatestBar.close,
         change: overseasLatestBar.change,
         changeRate: overseasLatestBar.changeRate,
-        sign:
-          overseasLatestBar.change > 0
-            ? "up"
-            : overseasLatestBar.change < 0
-              ? "down"
-              : "flat",
+        sign: overseasLatestBar.change > 0 ? "up" : overseasLatestBar.change < 0 ? "down" : "flat",
         open: overseasLatestBar.open,
         high: overseasLatestBar.high,
         low: overseasLatestBar.low,

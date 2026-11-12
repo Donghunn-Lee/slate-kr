@@ -35,8 +35,7 @@ const percentText = (pct: number | null, sign: PriceSign): string => {
 // RankingRow.compactShares 와 동일 규칙 — 축약 단위(만주/억주)로 데스크톱 폭 절약.
 const compactShares = (n: number): string => {
   if (n >= 100_000_000) return (n / 100_000_000).toFixed(1) + "억주";
-  if (n >= 10_000)
-    return Math.round(n / 10_000).toLocaleString("ko-KR") + "만주";
+  if (n >= 10_000) return Math.round(n / 10_000).toLocaleString("ko-KR") + "만주";
   return n.toLocaleString("ko-KR") + "주";
 };
 
@@ -89,8 +88,7 @@ const SearchResultRow = ({
   const displayVolume = liveVolume ?? price?.volume ?? null;
   const sign = liveSign ?? resolveSign(displayChange);
   // 거래대금 = close × volume 근사(일봉 관례). 소스 섞기 방지 위해 라이브·EOD 각각 계산 후 폴백.
-  const liveTradeValue =
-    liveClose !== null && liveVolume !== null ? liveClose * liveVolume : null;
+  const liveTradeValue = liveClose !== null && liveVolume !== null ? liveClose * liveVolume : null;
   const eodTradeValue = price ? price.close * price.volume : null;
   const displayTradeValue = liveTradeValue ?? eodTradeValue;
 
@@ -106,18 +104,13 @@ const SearchResultRow = ({
       >
         <div className="flex min-w-0 items-center gap-2">
           <span className="truncate text-body font-semibold text-foreground">{stock.name}</span>
-          {isLiveFailed && (
-            <StatusBadge label="일시 지연" className="shrink-0" />
-          )}
+          {isLiveFailed && <StatusBadge label="일시 지연" className="shrink-0" />}
         </div>
         <span className="hidden font-mono text-micro text-muted-foreground md:block">
           {stock.market}
         </span>
         <span
-          className={cn(
-            "justify-self-end text-body font-bold tabular-nums",
-            priceToneClass(sign)
-          )}
+          className={cn("justify-self-end text-body font-bold tabular-nums", priceToneClass(sign))}
         >
           {displayClose !== null ? displayClose.toLocaleString("ko-KR") : "—"}
           <span className="hidden md:inline">원</span>

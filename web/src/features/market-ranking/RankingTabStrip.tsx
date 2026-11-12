@@ -3,10 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  computeScrollAvailability,
-  type ScrollAvailability,
-} from "./scrollAvailability";
+import { computeScrollAvailability, type ScrollAvailability } from "./scrollAvailability";
 import { nearestScrollLeft } from "./nearestScrollLeft";
 
 export type RankingTabItem<TId extends string> = {
@@ -38,9 +35,7 @@ export const RankingTabStrip = <TId extends string>({
     const el = scrollRef.current;
     if (!el) return;
     const recompute = () =>
-      setAvail(
-        computeScrollAvailability(el.scrollLeft, el.scrollWidth, el.clientWidth),
-      );
+      setAvail(computeScrollAvailability(el.scrollLeft, el.scrollWidth, el.clientWidth));
     recompute();
     const ro = new ResizeObserver(recompute);
     ro.observe(el);
@@ -74,7 +69,7 @@ export const RankingTabStrip = <TId extends string>({
   const chevronClass = cn(
     "flex shrink-0 items-center border-b-2 border-transparent pb-1.5 text-muted-foreground transition-colors",
     "hover:text-foreground disabled:cursor-default disabled:opacity-30",
-    "disabled:hover:text-muted-foreground",
+    "disabled:hover:text-muted-foreground"
   );
 
   // overflow 가 있을 때만 canLeft·canRight 중 하나 이상이 true. 없으면 화살표 자체 미렌더.
@@ -94,10 +89,7 @@ export const RankingTabStrip = <TId extends string>({
         </button>
       )}
       <div className="relative min-w-0 flex-1">
-        <div
-          ref={scrollRef}
-          className="flex items-end gap-4 overflow-x-auto scrollbar-hide"
-        >
+        <div ref={scrollRef} className="flex items-end gap-4 overflow-x-auto scrollbar-hide">
           {items.map((item) => {
             const active = item.id === activeId;
             return (
@@ -111,7 +103,7 @@ export const RankingTabStrip = <TId extends string>({
                   "shrink-0 whitespace-nowrap border-b-2 pb-1.5 text-body-sm transition-colors",
                   active
                     ? "border-foreground font-medium text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground",
+                    : "border-transparent text-muted-foreground hover:text-foreground"
                 )}
               >
                 {item.label}

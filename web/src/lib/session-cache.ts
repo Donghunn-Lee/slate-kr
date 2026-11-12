@@ -11,10 +11,8 @@ import {
 export const KRX_INDEX_SETTLE_WINDOW_MIN = 15;
 export const OVERSEAS_INDEX_SETTLE_WINDOW_MIN = 45;
 
-const withinSettleWindow = (
-  minutesSinceClose: number | null,
-  windowMin: number,
-): boolean => minutesSinceClose !== null && minutesSinceClose < windowMin;
+const withinSettleWindow = (minutesSinceClose: number | null, windowMin: number): boolean =>
+  minutesSinceClose !== null && minutesSinceClose < windowMin;
 
 // 지수 route TTL. session·tradingDate 를 cache key 축으로 넣어
 // 세션·일 경계에서 자동 miss 를 보장한 다음, TTL 은 최소한만 남긴다.
@@ -24,7 +22,7 @@ const withinSettleWindow = (
 // 여기 편입하지 않는다 — 각 route 소유.
 export const krxIndexRevalidate = (
   session: KrxSession,
-  minutesSinceClose: number | null,
+  minutesSinceClose: number | null
 ): number => {
   if (session === "regular") return 60;
   return withinSettleWindow(minutesSinceClose, KRX_INDEX_SETTLE_WINDOW_MIN) ? 60 : 3600;
@@ -42,7 +40,7 @@ export const krxRankingRevalidate = (session: KrxSession): number =>
 // session 축은 코드별 거래소 세션 (`getOverseasIndexSessionState`) — US 3종·아시아 3종·DAX 모두 동일 정책.
 export const overseasIntradayRevalidate = (
   session: OverseasIndexSessionState,
-  minutesSinceClose: number | null,
+  minutesSinceClose: number | null
 ): number => {
   if (session === "regular") return 120;
   return withinSettleWindow(minutesSinceClose, OVERSEAS_INDEX_SETTLE_WINDOW_MIN) ? 60 : 3600;
@@ -51,6 +49,5 @@ export const overseasIntradayRevalidate = (
 // 해외 지수 quote (8종 폴링) TTL. 클라 폴링 60s 와 정렬. idle(KST 05:45~09:00)
 // 은 폴링 중단 창이라 3600s. EDT 기간 US 마감 직후 정산 창
 // (05:00~05:45) 은 idle 시작 전이라 active 60s 로 커버된다.
-export const globalOverseasQuoteRevalidate = (
-  session: GlobalOverseasSession,
-): number => (session === "active" ? 60 : 3600);
+export const globalOverseasQuoteRevalidate = (session: GlobalOverseasSession): number =>
+  session === "active" ? 60 : 3600;

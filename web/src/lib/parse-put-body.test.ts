@@ -6,9 +6,7 @@ const GID = "11111111-1111-4111-8111-111111111111";
 
 const validSnapshot = {
   groups: [{ id: GID, name: "내 관심 종목", order: 0, createdAt: 1_700_000_000_000 }],
-  memberships: [
-    { groupId: GID, ticker: "005930", addedAt: 1_700_000_200_000, order: 0 },
-  ],
+  memberships: [{ groupId: GID, ticker: "005930", addedAt: 1_700_000_200_000, order: 0 }],
   stockMeta: {
     "005930": { name: "삼성전자", market: "KOSPI" },
   },
@@ -16,10 +14,7 @@ const validSnapshot = {
 
 describe("parsePutBody", () => {
   it("returns snapshot for a valid JSON body", () => {
-    const result = parsePutBody(
-      JSON.stringify(validSnapshot),
-      WatchlistSnapshotSchema
-    );
+    const result = parsePutBody(JSON.stringify(validSnapshot), WatchlistSnapshotSchema);
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.snapshot.memberships[0].ticker).toBe("005930");

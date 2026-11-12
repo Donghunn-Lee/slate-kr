@@ -4,7 +4,7 @@
 // 반환 = bars[0].time − k·step, k = count..1 (오름차순).
 export const makeLeadingWhitespace = (
   bars: readonly { time: number }[],
-  count: number,
+  count: number
 ): { time: number }[] => {
   if (count <= 0 || bars.length < 2) return [];
   const window = Math.min(5, bars.length - 1);

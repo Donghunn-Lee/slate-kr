@@ -1,10 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { fetchMultiQuote } from "@/lib/quote-source";
-import {
-  decideMultiSnapshot,
-  fetchQuoteSnapshots,
-  isSnapshotSession,
-} from "@/lib/quote-snapshots";
+import { decideMultiSnapshot, fetchQuoteSnapshots, isSnapshotSession } from "@/lib/quote-snapshots";
 import { getMarketCalendar } from "@/lib/market-calendar";
 import { applyDemoFault } from "@/lib/demo-fault";
 import { getKrxSessionState, getKrxTradingDate } from "@/shared/utils/market";
@@ -21,8 +17,8 @@ export const GET = async (req: NextRequest) => {
       raw
         .split(",")
         .map((t) => t.trim())
-        .filter(Boolean),
-    ),
+        .filter(Boolean)
+    )
   ).slice(0, MULTI_QUOTE_LIMIT);
 
   // 요청 시작에서 캘린더 1회 로드 (memo). 세션·거래일 산출에 관통.
@@ -32,8 +28,7 @@ export const GET = async (req: NextRequest) => {
   // catch 경로에서도 그대로 재사용 (초기 로드 스켈레톤 게이트 해소용).
   const session = getKrxSessionState(now, calendar);
   // 폴링 게이트: 활성 세션(regular/after/pre)만 true. after_close는 1회 호출 후 정지.
-  const marketOpen =
-    session === "regular" || session === "after" || session === "pre";
+  const marketOpen = session === "regular" || session === "after" || session === "pre";
   const date = getKrxTradingDate(now, calendar);
 
   try {

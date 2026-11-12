@@ -160,9 +160,10 @@ export const WatchlistPageClient = () => {
     { key: RECENT_TAB, label: "최근 조회" },
     { key: MEMO_TAB, label: "메모" },
   ];
-  const groupTabs: Array<{ key: string; label: string }> = sortedGroups.map(
-    (g) => ({ key: g.id, label: g.name })
-  );
+  const groupTabs: Array<{ key: string; label: string }> = sortedGroups.map((g) => ({
+    key: g.id,
+    label: g.name,
+  }));
 
   const tabButtonClass = (selected: boolean, layout: "horizontal" | "vertical") =>
     cn(
@@ -201,9 +202,7 @@ export const WatchlistPageClient = () => {
             {t.label}
           </button>
         ))}
-        {groupTabs.length > 0 && (
-          <span aria-hidden className="mx-1 h-5 w-px shrink-0 bg-border" />
-        )}
+        {groupTabs.length > 0 && <span aria-hidden className="mx-1 h-5 w-px shrink-0 bg-border" />}
         {groupTabs.map((t) => (
           <button
             key={t.key}
@@ -252,9 +251,7 @@ export const WatchlistPageClient = () => {
         <section className="min-w-0 flex-1">
           <header className="mb-3 flex h-8 items-center gap-2">
             {currentTabLabel !== null && (
-              <h2 className="truncate text-body font-medium text-foreground">
-                {currentTabLabel}
-              </h2>
+              <h2 className="truncate text-body font-medium text-foreground">{currentTabLabel}</h2>
             )}
             {countsQuery.isError && !pricesQuery.isError && (
               <StatusBadge label="로딩 실패" title="최근 공시 건수를 불러오지 못했어요" />

@@ -64,15 +64,15 @@ describe("1. 결정론", () => {
     const b = getTickerProfile("005930", EPS_ANCHOR);
     expect(a).toEqual(b);
     expect(generateDailyBars("005930", a, "2026-01-02", "2026-03-31")).toEqual(
-      generateDailyBars("005930", b, "2026-01-02", "2026-03-31"),
+      generateDailyBars("005930", b, "2026-01-02", "2026-03-31")
     );
     const other = getTickerProfile("000660", EPS_ANCHOR);
     expect(generateDailyBars("000660", other, "2026-01-02", "2026-03-31")).not.toEqual(
-      generateDailyBars("005930", a, "2026-01-02", "2026-03-31"),
+      generateDailyBars("005930", a, "2026-01-02", "2026-03-31")
     );
     const [prev, today] = dayBars("005930", a);
     expect(generateIntradayBars("005930", a, TODAY, prev, today, "UN")).toEqual(
-      generateIntradayBars("005930", a, TODAY, prev, today, "UN"),
+      generateIntradayBars("005930", a, TODAY, prev, today, "UN")
     );
   });
 });
@@ -122,7 +122,9 @@ describe("11. 평균회귀", () => {
       if (profile.tier !== "small") continue;
       const pinDate = profile.pins[0].date;
       const target = listTradingDates(pinDate, "2026-12-31").slice(1)[199];
-      samples.push(Math.log(getDailyBar(ticker, profile, target).regularClose / profile.pins[0].price));
+      samples.push(
+        Math.log(getDailyBar(ticker, profile, target).regularClose / profile.pins[0].price)
+      );
     }
     const mean = samples.reduce((a, b) => a + b, 0) / samples.length;
     const sd = Math.sqrt(samples.reduce((a, x) => a + (x - mean) ** 2, 0) / (samples.length - 1));
@@ -169,7 +171,7 @@ describe("12. 거래량 수준", () => {
       const ticker = String(500_000 + i);
       const absent = getTickerProfile(ticker, EPS_ANCHOR);
       expect(getTickerProfile(ticker, { ...EPS_ANCHOR, shares: null }).volumeScale).toBe(
-        absent.volumeScale,
+        absent.volumeScale
       );
       for (const profile of [absent, getTickerProfile(ticker, null)]) {
         const [min, max] = range[profile.tier];
@@ -231,10 +233,12 @@ describe("5. 정합 — 분봉 집계 = 일봉", () => {
     expect(bars.reduce((s, b) => s + b.volume, 0)).toBe(today.volume);
     const atClose = bars.find((b) => minuteOf(b) === hhmm(15, 30)) as DemoMinuteBar;
     expect([atClose.open, atClose.high, atClose.low, atClose.close]).toEqual(
-      Array(4).fill(today.regularClose),
+      Array(4).fill(today.regularClose)
     );
     expect((bars.find((b) => minuteOf(b) === hhmm(9, 0)) as DemoMinuteBar).open).toBe(today.open);
-    expect(bars.some((b) => minuteOf(b) >= hhmm(15, 20) && minuteOf(b) <= hhmm(15, 29))).toBe(false);
+    expect(bars.some((b) => minuteOf(b) >= hhmm(15, 20) && minuteOf(b) <= hhmm(15, 29))).toBe(
+      false
+    );
     const beforeCall = bars.find((b) => minuteOf(b) === hhmm(15, 19)) as DemoMinuteBar;
     expect(beforeCall.close).toBeGreaterThanOrEqual(today.low);
     expect(beforeCall.close).toBeLessThanOrEqual(today.high);
@@ -254,7 +258,14 @@ describe("5. 정합 — 분봉 집계 = 일봉", () => {
 
   it("NXT 프리마켓 마지막 봉(08:49) 종가는 일봉 고저 안", () => {
     const [prev, today] = dayBars(NXT.ticker, NXT.profile);
-    const bars = generateIntradayBars(NXT.ticker, NXT.profile, TODAY, prev, today, "UN") as DemoMinuteBar[];
+    const bars = generateIntradayBars(
+      NXT.ticker,
+      NXT.profile,
+      TODAY,
+      prev,
+      today,
+      "UN"
+    ) as DemoMinuteBar[];
     const preBars = bars.filter((b) => minuteOf(b) < hhmm(9, 0));
     const last = preBars[preBars.length - 1];
     expect(minuteOf(last)).toBe(hhmm(8, 49));
@@ -271,8 +282,17 @@ describe("5. 정합 — 분봉 집계 = 일봉", () => {
       let openMultiple = 0;
       let closeMultiple = 0;
       for (let d = 1; d < days.length; d++) {
-        const bars = generateIntradayBars(ticker, profile, days[d].date, days[d - 1], days[d], "UN") as DemoMinuteBar[];
-        const regular = bars.filter((b) => minuteOf(b) >= hhmm(9, 0) && minuteOf(b) <= hhmm(15, 30));
+        const bars = generateIntradayBars(
+          ticker,
+          profile,
+          days[d].date,
+          days[d - 1],
+          days[d],
+          "UN"
+        ) as DemoMinuteBar[];
+        const regular = bars.filter(
+          (b) => minuteOf(b) >= hhmm(9, 0) && minuteOf(b) <= hhmm(15, 30)
+        );
         const mean = regular.reduce((s, b) => s + b.volume, 0) / regular.length;
         openMultiple += regular[0].volume / mean;
         closeMultiple += regular[regular.length - 1].volume / mean;
@@ -280,14 +300,21 @@ describe("5. 정합 — 분봉 집계 = 일봉", () => {
       expect(days).toHaveLength(6);
       expect(openMultiple / 5).toBeGreaterThanOrEqual(4);
       expect(closeMultiple / 5).toBeGreaterThanOrEqual(8);
-    },
+    }
   );
 });
 
 describe("6. 세션 창", () => {
   it("비NXT: 08:xx · 15:31~15:59 없음, 09:00 시작 · 16:00 재개", () => {
     const [prev, today] = dayBars(KRX_ONLY.ticker, KRX_ONLY.profile);
-    const bars = generateIntradayBars(KRX_ONLY.ticker, KRX_ONLY.profile, TODAY, prev, today, "UN") as DemoMinuteBar[];
+    const bars = generateIntradayBars(
+      KRX_ONLY.ticker,
+      KRX_ONLY.profile,
+      TODAY,
+      prev,
+      today,
+      "UN"
+    ) as DemoMinuteBar[];
     const minutes = bars.map(minuteOf);
     expect(minutes[0]).toBe(hhmm(9, 0));
     expect(minutes.some((m) => m < hhmm(9, 0))).toBe(false);
@@ -298,25 +325,41 @@ describe("6. 세션 창", () => {
 
   it("NXT: 08:00 시작, 15:40 부터 애프터 연속 · J 는 KRX 일정(16:00 재개, 봉은 UN 과 같음)", () => {
     const [prev, today] = dayBars(NXT.ticker, NXT.profile);
-    const bars = generateIntradayBars(NXT.ticker, NXT.profile, TODAY, prev, today, "UN") as DemoMinuteBar[];
+    const bars = generateIntradayBars(
+      NXT.ticker,
+      NXT.profile,
+      TODAY,
+      prev,
+      today,
+      "UN"
+    ) as DemoMinuteBar[];
     const minutes = bars.map(minuteOf);
     expect(minutes[0]).toBe(hhmm(8, 0));
     expect(minutes).toContain(hhmm(15, 45));
     expect(minutes.some((m) => m > hhmm(15, 30) && m < hhmm(15, 40))).toBe(false);
     expect(bars).toHaveLength(50 + 381 + 261);
-    const j = generateIntradayBars(NXT.ticker, NXT.profile, TODAY, prev, today, "J") as DemoMinuteBar[];
+    const j = generateIntradayBars(
+      NXT.ticker,
+      NXT.profile,
+      TODAY,
+      prev,
+      today,
+      "J"
+    ) as DemoMinuteBar[];
     expect(minuteOf(j[0])).toBe(hhmm(9, 0));
     expect(j[0].open).toBe(today.open);
     expect(j).toHaveLength(381 + 241);
     expect(j.some((b) => minuteOf(b) > hhmm(15, 30) && minuteOf(b) < hhmm(16, 0))).toBe(false);
     expect(j.filter((b) => minuteOf(b) >= hhmm(16, 0))).toEqual(
-      bars.filter((b) => minuteOf(b) >= hhmm(16, 0)),
+      bars.filter((b) => minuteOf(b) >= hhmm(16, 0))
     );
   });
 
   it("NX & !nxEligible → null", () => {
     const [prev, today] = dayBars(KRX_ONLY.ticker, KRX_ONLY.profile);
-    expect(generateIntradayBars(KRX_ONLY.ticker, KRX_ONLY.profile, TODAY, prev, today, "NX")).toBeNull();
+    expect(
+      generateIntradayBars(KRX_ONLY.ticker, KRX_ONLY.profile, TODAY, prev, today, "NX")
+    ).toBeNull();
     expect(quoteAt(KRX_ONLY.ticker, KRX_ONLY.profile, kst(TODAY, "1030"), "NX")).toBeNull();
   });
 });
@@ -337,13 +380,17 @@ describe("7. quoteAt", () => {
     expect(quote.high).toBe(Math.max(...upTo.map((b) => b.high)));
     expect(quote.low).toBe(Math.min(...upTo.map((b) => b.low)));
     const next = quoteAt(ticker, profile, kst(TODAY, "1031"), "UN") as NonNullable<typeof q>;
-    expect(next.price).toBe((bars.find((b) => minuteOf(b) === hhmm(10, 31)) as DemoMinuteBar).close);
+    expect(next.price).toBe(
+      (bars.find((b) => minuteOf(b) === hhmm(10, 31)) as DemoMinuteBar).close
+    );
   });
 
   it("주말 → 금요일 20:00 종가 고정, 등락은 금요일 기준가 대비", () => {
     const { ticker, profile } = NXT;
     const [thu, fri] = generateDailyBars(ticker, profile, "2026-11-12", "2026-11-13");
-    const sat = quoteAt(ticker, profile, kst("2026-11-14", "1200"), "UN") as NonNullable<ReturnType<typeof quoteAt>>;
+    const sat = quoteAt(ticker, profile, kst("2026-11-14", "1200"), "UN") as NonNullable<
+      ReturnType<typeof quoteAt>
+    >;
     expect(sat.price).toBe(fri.close);
     expect(sat.change).toBe(fri.close - thu.regularClose);
     expect(sat.volume).toBe(fri.volume);
@@ -360,28 +407,33 @@ describe("7. quoteAt", () => {
     { ...KRX_ONLY, channel: "UN" as const },
     { ...KRX_ONLY, channel: "J" as const },
     { ...NXT, channel: "J" as const },
-  ])("$ticker $channel 개장 전(08:30) — 전일 정규장 종가 · 등락 0 + OHL 0", ({ ticker, profile, channel }) => {
-    const [prev] = dayBars(ticker, profile);
-    const q = quoteAt(ticker, profile, kst(TODAY, "0830"), channel);
-    expect(q).toEqual({
-      ticker,
-      price: prev.regularClose,
-      change: 0,
-      changeRate: 0,
-      sign: "flat",
-      open: 0,
-      high: 0,
-      low: 0,
-      volume: 0,
-    });
-  });
+  ])(
+    "$ticker $channel 개장 전(08:30) — 전일 정규장 종가 · 등락 0 + OHL 0",
+    ({ ticker, profile, channel }) => {
+      const [prev] = dayBars(ticker, profile);
+      const q = quoteAt(ticker, profile, kst(TODAY, "0830"), channel);
+      expect(q).toEqual({
+        ticker,
+        price: prev.regularClose,
+        change: 0,
+        changeRate: 0,
+        sign: "flat",
+        open: 0,
+        high: 0,
+        low: 0,
+        volume: 0,
+      });
+    }
+  );
 
   // 15:45 는 NXT 애프터 단독 구간 안, 16:05 는 KRX 애프터 재개 직후
   it("NXT J 15:45 — 15:31 과 같은 정규장 종가 · 거래량, 16:05 — UN 과 같은 가격", () => {
     const { ticker, profile } = NXT;
     const [, today] = dayBars(ticker, profile);
     const at = (time: string, channel: "UN" | "J") =>
-      quoteAt(ticker, profile, kst(TODAY, time), channel) as NonNullable<ReturnType<typeof quoteAt>>;
+      quoteAt(ticker, profile, kst(TODAY, time), channel) as NonNullable<
+        ReturnType<typeof quoteAt>
+      >;
     const j1531 = at("1531", "J");
     const j1545 = at("1545", "J");
     expect(j1545.price).toBe(j1531.price);
@@ -395,7 +447,9 @@ describe("7. quoteAt", () => {
     const [prev, today] = dayBars(ticker, profile);
     const bars = generateIntradayBars(ticker, profile, TODAY, prev, today, "UN") as DemoMinuteBar[];
     const upTo = bars.filter((b) => minuteOf(b) <= hhmm(8, 30));
-    const q = quoteAt(ticker, profile, kst(TODAY, "0830"), "UN") as NonNullable<ReturnType<typeof quoteAt>>;
+    const q = quoteAt(ticker, profile, kst(TODAY, "0830"), "UN") as NonNullable<
+      ReturnType<typeof quoteAt>
+    >;
     expect(q.price).toBe(upTo[upTo.length - 1].close);
     expect(q.change).toBe(q.price - prev.regularClose);
     expect(q.open).toBe(today.open);
@@ -453,7 +507,14 @@ describe("8. NXT 가격", () => {
     for (const { ticker, profile } of NXT_SAMPLE) {
       const [prev, today] = dayBars(ticker, profile);
       const band = limitPrices(prev.regularClose);
-      const bars = generateIntradayBars(ticker, profile, TODAY, prev, today, "UN") as DemoMinuteBar[];
+      const bars = generateIntradayBars(
+        ticker,
+        profile,
+        TODAY,
+        prev,
+        today,
+        "UN"
+      ) as DemoMinuteBar[];
       for (const bar of bars) {
         const minute = minuteOf(bar);
         if (!tradesOnBothMarkets(minute)) continue;
@@ -525,7 +586,10 @@ describe("10. 성능", () => {
   it("2,700 ticker × quoteAt(14:00) < 1,000ms", () => {
     const universe = Array.from({ length: 2700 }, (_, i) => {
       const ticker = String(400_000 + i);
-      return { ticker, profile: getTickerProfile(ticker, { eps: 100 + (i % 50) * 400, bps: null }) };
+      return {
+        ticker,
+        profile: getTickerProfile(ticker, { eps: 100 + (i % 50) * 400, bps: null }),
+      };
     });
     const now = kst(TODAY, "1400");
     const t0 = performance.now();

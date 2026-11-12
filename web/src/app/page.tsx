@@ -2,10 +2,7 @@ import { HomeHero } from "@/entities/home/HomeHero";
 import { IndexSlate } from "@/features/index-quotes/IndexSlate";
 import { MarketRankingSlate } from "@/features/market-ranking/MarketRankingSlate";
 import { WatchlistPreview } from "@/features/watchlist/WatchlistPreview";
-import {
-  OVERSEAS_INDEX_CODES,
-  type OverseasIndexCode,
-} from "@/shared/constants/indices";
+import { OVERSEAS_INDEX_CODES, type OverseasIndexCode } from "@/shared/constants/indices";
 import { getIndexDailyPrices } from "@/lib/indices";
 import type { IndexDailySnapshot } from "@/shared/types/quote";
 
@@ -25,12 +22,9 @@ const fetchOverseasSnapshots = async (): Promise<
         console.error(`[home] overseas daily load failed for ${code}: ${message}`);
         return [code, null] as const;
       }
-    }),
+    })
   );
-  return Object.fromEntries(entries) as Record<
-    OverseasIndexCode,
-    IndexDailySnapshot | null
-  >;
+  return Object.fromEntries(entries) as Record<OverseasIndexCode, IndexDailySnapshot | null>;
 };
 
 async function HomePage() {

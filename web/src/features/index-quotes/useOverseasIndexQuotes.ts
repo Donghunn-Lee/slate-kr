@@ -54,7 +54,6 @@ export const useOverseasIndexQuotes = () => {
       return res.json();
     },
     enabled: ready,
-    refetchInterval: (query) =>
-      query.state.data?.active ? POLL_INTERVAL_MS : CLOSED_POLL_MS,
+    refetchInterval: (query) => (query.state.data?.active ? POLL_INTERVAL_MS : CLOSED_POLL_MS),
   });
 };

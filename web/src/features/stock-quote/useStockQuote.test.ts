@@ -31,7 +31,7 @@ describe("stockQuoteQueryKey — 헤더·차트 구독 키 일치", () => {
   it("캘린더 임시 휴장일 08:30 · nxEligible=true → krx", () => {
     const calendar: MarketCalendar = { KRX: { "2026-10-02": false } };
     expect(
-      stockQuoteQueryKey("005930", initialQuoteMarket(true, kst(2026, 10, 2, 8, 30), calendar)),
+      stockQuoteQueryKey("005930", initialQuoteMarket(true, kst(2026, 10, 2, 8, 30), calendar))
     ).toEqual(["stock-quote", "005930", "krx"]);
   });
 });

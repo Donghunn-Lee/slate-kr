@@ -77,7 +77,7 @@ export const isShareBasisMismatch = (
 ): boolean => {
   if (netIncome === null || eps === null || currentShares === null) return false;
   if (netIncome === 0 || eps === 0 || currentShares <= 0) return false;
-  if ((netIncome > 0) !== (eps > 0)) return false;
+  if (netIncome > 0 !== eps > 0) return false;
   const r = currentShares / (netIncome / eps);
   return r < SHARE_BASIS_RATIO_MIN || r > SHARE_BASIS_RATIO_MAX;
 };
@@ -114,10 +114,7 @@ const calcPbr = (close: number | undefined, bps: number | null): number | null =
 
 // query-time 배당수익률 = dps / 현재가 (소수 규약, formatPercent 가 100× 하여 표시).
 // DART 원본 dividendYield 는 결산 시점 시가 기준이라 별개 값.
-export const calcDividendYield = (
-  close: number | null,
-  dps: number | null,
-): number | null => {
+export const calcDividendYield = (close: number | null, dps: number | null): number | null => {
   if (close === null || close <= 0) return null;
   if (dps === null || dps <= 0) return null;
   return dps / close;
@@ -142,9 +139,7 @@ export const calcGrowth = (cur: number | null, prev: number | null): number | nu
 
 // 입력 배열 내부에서 비교 행(annual: 전년, quarter: 전년 동분기)을 찾아 3필드 채움.
 // 원본 배열/요소 불변, 입력 순서 그대로 반환. annual·quarterly 를 섞어 넣지 말 것.
-export const attachGrowthRates = (
-  periods: readonly FinancialPeriod[],
-): FinancialPeriod[] => {
+export const attachGrowthRates = (periods: readonly FinancialPeriod[]): FinancialPeriod[] => {
   const byKey = new Map<string, FinancialPeriod>();
   for (const p of periods) {
     byKey.set(`${p.year}-${p.quarter ?? "A"}`, p);
@@ -475,9 +470,7 @@ export const computeTtmEps = (
     if (anyMismatch(used)) return BASIS_MISMATCH;
     const sum = sumFlow(used.map((q) => q.eps));
     if (sum === null) return annualFallback;
-    return sum > 0
-      ? { value: sum, source: "ttm" }
-      : { value: null, source: "ttm_negative" };
+    return sum > 0 ? { value: sum, source: "ttm" } : { value: null, source: "ttm_negative" };
   }
 
   // #3: EPS 있는 분기 4개 미만 & 최근부터 2~3분기 연속 → 연환산

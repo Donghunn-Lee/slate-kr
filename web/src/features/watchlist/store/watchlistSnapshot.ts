@@ -2,12 +2,8 @@ import type { WatchlistSnapshot } from "@/shared/types/watchlist";
 
 export const MAX_WATCHLIST_SIZE = 100;
 
-export const createGroupIn = (
-  s: WatchlistSnapshot,
-  name: string
-): WatchlistSnapshot => {
-  const maxOrder =
-    s.groups.length === 0 ? -1 : Math.max(...s.groups.map((g) => g.order));
+export const createGroupIn = (s: WatchlistSnapshot, name: string): WatchlistSnapshot => {
+  const maxOrder = s.groups.length === 0 ? -1 : Math.max(...s.groups.map((g) => g.order));
   return {
     ...s,
     groups: [
@@ -31,10 +27,7 @@ export const renameGroupIn = (
   groups: s.groups.map((g) => (g.id === id ? { ...g, name } : g)),
 });
 
-export const deleteGroupIn = (
-  s: WatchlistSnapshot,
-  id: string
-): WatchlistSnapshot => {
+export const deleteGroupIn = (s: WatchlistSnapshot, id: string): WatchlistSnapshot => {
   const removedTickers = new Set(
     s.memberships.filter((m) => m.groupId === id).map((m) => m.ticker)
   );
@@ -79,11 +72,7 @@ export const addMembershipIn = (
   item: { ticker: string; name: string; market: "KOSPI" | "KOSDAQ" },
   groupId: string
 ): WatchlistSnapshot | null => {
-  if (
-    s.memberships.some(
-      (m) => m.groupId === groupId && m.ticker === item.ticker
-    )
-  ) {
+  if (s.memberships.some((m) => m.groupId === groupId && m.ticker === item.ticker)) {
     return s;
   }
   const isNewTicker = !s.memberships.some((m) => m.ticker === item.ticker);
@@ -93,9 +82,7 @@ export const addMembershipIn = (
   }
   const groupMemberships = s.memberships.filter((m) => m.groupId === groupId);
   const maxOrder =
-    groupMemberships.length === 0
-      ? -1
-      : Math.max(...groupMemberships.map((m) => m.order));
+    groupMemberships.length === 0 ? -1 : Math.max(...groupMemberships.map((m) => m.order));
   return {
     ...s,
     memberships: [

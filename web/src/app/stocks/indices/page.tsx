@@ -17,13 +17,11 @@ type PageProps = {
 
 // ?index= 는 국내·해외 어느 코드든 허용. 미매칭이면 KOSPI 로 fallback.
 const resolveIndex = (raw: string | undefined): IndexCode =>
-  (INDEX_CODES as readonly string[]).includes(raw ?? "")
-    ? (raw as IndexCode)
-    : "KOSPI";
+  (INDEX_CODES as readonly string[]).includes(raw ?? "") ? (raw as IndexCode) : "KOSPI";
 
 export const generateMetadata = async (
   { searchParams }: PageProps,
-  parent: ResolvingMetadata,
+  parent: ResolvingMetadata
 ): Promise<Metadata> => {
   const { index } = await searchParams;
   const selected = resolveIndex(index);
@@ -56,7 +54,7 @@ export default async function IndicesPage({ searchParams }: PageProps) {
         console.error(`[indices] daily load failed for ${code}: ${message}`);
         return [code, null] as const;
       }
-    }),
+    })
   );
   const dailyByIndex = Object.fromEntries(dailyEntries) as Record<
     IndexCode,
@@ -70,7 +68,7 @@ export default async function IndicesPage({ searchParams }: PageProps) {
     INDEX_CODES.map((code) => {
       const daily = dailyByIndex[code];
       return [code, daily && daily.length > 0 ? getPriceStats(daily) : null];
-    }),
+    })
   ) as Record<IndexCode, PriceStats | null>;
 
   const volumeByIndex = Object.fromEntries(
@@ -78,7 +76,7 @@ export default async function IndicesPage({ searchParams }: PageProps) {
       const daily = dailyByIndex[code];
       const last = daily && daily.length > 0 ? daily[daily.length - 1] : null;
       return [code, last?.volume ?? null];
-    }),
+    })
   ) as Record<IndexCode, number | null>;
 
   return (

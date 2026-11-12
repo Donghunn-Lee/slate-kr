@@ -34,8 +34,7 @@ export const useIndexIntraday = () => {
       if (!res.ok) throw new Error("index intraday fetch failed");
       return res.json();
     },
-    refetchInterval: (query) =>
-      query.state.data?.marketOpen ? POLL_INTERVAL_MS : CLOSED_POLL_MS,
+    refetchInterval: (query) => (query.state.data?.marketOpen ? POLL_INTERVAL_MS : CLOSED_POLL_MS),
   });
   const { dataUpdatedAt, refetch } = query;
   const fetchedAt = query.data?.fetchedAt ?? null;

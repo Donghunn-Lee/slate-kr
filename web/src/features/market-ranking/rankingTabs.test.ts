@@ -63,12 +63,8 @@ describe("toRankingKind", () => {
 describe("toRankingHref", () => {
   it("tab + market 만 세팅", () => {
     expect(toRankingHref("up", "all")).toBe("/ranking?tab=up&market=all");
-    expect(toRankingHref("market-cap", "kospi")).toBe(
-      "/ranking?tab=market-cap&market=kospi",
-    );
-    expect(toRankingHref("top-interest", "kosdaq")).toBe(
-      "/ranking?tab=top-interest&market=kosdaq",
-    );
+    expect(toRankingHref("market-cap", "kospi")).toBe("/ranking?tab=market-cap&market=kospi");
+    expect(toRankingHref("top-interest", "kosdaq")).toBe("/ranking?tab=top-interest&market=kosdaq");
   });
 });
 

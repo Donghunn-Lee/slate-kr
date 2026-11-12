@@ -1,5 +1,5 @@
-import { clsx, type ClassValue } from "clsx"
-import { extendTailwindMerge } from "tailwind-merge"
+import { clsx, type ClassValue } from "clsx";
+import { extendTailwindMerge } from "tailwind-merge";
 
 // Register SlateKR typography role utilities as font-size so tw-merge treats
 // them as a distinct group from text-color. Without this, `text-<role>` gets
@@ -9,12 +9,14 @@ const twMerge = extendTailwindMerge({
   extend: {
     classGroups: {
       "font-size": [
-        { text: ["display", "headline", "value", "body-lg", "body", "body-sm", "caption", "micro"] },
+        {
+          text: ["display", "headline", "value", "body-lg", "body", "body-sm", "caption", "micro"],
+        },
       ],
     },
   },
 });
 
 export const cn = (...inputs: ClassValue[]) => {
-  return twMerge(clsx(inputs))
-}
+  return twMerge(clsx(inputs));
+};
