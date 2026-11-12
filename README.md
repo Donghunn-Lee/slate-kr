@@ -281,7 +281,7 @@ type DisclosureSummaryContent = {
   → 세션 계획: 이번 범위와 멈출 지점
     → [CC] 조사: 현 코드와 제약을 묻는 프롬프트 → 보고
       → 방향 결정: 보고를 근거로
-        → [CC] 구현: 구현 프롬프트 → 코드 + 검사(tsc · ESLint · build · Vitest)
+        → [CC] 구현: 구현 프롬프트 → 코드 + 검사(tsc · ESLint · Prettier · build · Vitest)
           → 리뷰 · 커밋: 지시와 다른 부분은 이유를 받고 채택/기각 기록
             → 개발 일지 · 블로그
               → 로드맵 갱신 ↺
@@ -289,7 +289,7 @@ type DisclosureSummaryContent = {
 
 프로젝트 지침(CLAUDE.md)에 아키텍처 원칙 · 컨벤션 · 금지 사항을 고정하고, Claude Code가 만든 코드를 리뷰하는 기준으로 사용했습니다.
 
-작업 세션 194회 · 커밋 930 · Vitest 케이스 1,220(2026-11-13 기준). 작업 세션 단위 개발 일지는 같은 번호로 [블로그 시리즈](https://donghunn-lee-blog.vercel.app/blog/slatekr/)에 있고, 각 결정의 배경과 실측 결과는 해당 편에 정리했습니다.
+작업 세션 194회 · 커밋 931 · Vitest 케이스 1,220(2026-11-13 기준). 작업 세션 단위 개발 일지는 같은 번호로 [블로그 시리즈](https://donghunn-lee-blog.vercel.app/blog/slatekr/)에 있고, 각 결정의 배경과 실측 결과는 해당 편에 정리했습니다.
 
 ## 회고
 
@@ -305,10 +305,10 @@ type DisclosureSummaryContent = {
 ```bash
 cd web
 npm install
-npm run typecheck && npm run lint && npm run test:run   # tsc --noEmit · ESLint · Vitest
+npm run typecheck && npm run lint && npm run format:check && npm run test:run   # tsc --noEmit · ESLint · Prettier · Vitest
 cd ../collector
 pip install -r requirements.txt
-python -m unittest discover -s tests                    # collector 단위 테스트
+python -m unittest discover -s tests                                            # collector 단위 테스트
 ```
 
 앱 실행은 `.env.example`을 `.env.local`로 복사해 DART · Gemini API 키와 Neon `DATABASE_URL`을 채운 뒤 `npm run dev`입니다. 가격은 생성기가 계산하지만 종목 목록 · 재무는 `collector/` 스크립트로 적재해야 하므로, 동작 확인은 [Live](https://slate-kr.vercel.app)를 권장합니다.
