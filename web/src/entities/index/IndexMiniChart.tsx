@@ -120,10 +120,16 @@ export const IndexMiniChart = ({
       },
       // 모바일 반폭 셀은 가격축 라벨이 값과 시각적으로 인접해 혼선 유발 → 축 숨김.
       // 현재가는 셀 상단 텍스트로 이미 표시. scaleMargins 는 축이 숨겨져도 플롯 배치에 적용된다.
+      // 마진이 작아 눈금이 pane 가장자리에 걸리면 라벨이 반쯤 잘려 그려진다 — entireTextOnly 로
+      // 다 들어가는 라벨만 남긴다. 빠진 눈금의 격자선도 함께 빠지므로 라벨이 없는 compact 에는 두지 않는다.
       rightPriceScale: {
         ...(compact
           ? { visible: false }
-          : { borderColor: palette.border, minimumWidth: PRICE_SCALE_MIN_WIDTH }),
+          : {
+              borderColor: palette.border,
+              minimumWidth: PRICE_SCALE_MIN_WIDTH,
+              entireTextOnly: true,
+            }),
         scaleMargins: PRICE_SCALE_MARGINS,
       },
       handleScroll: false,
