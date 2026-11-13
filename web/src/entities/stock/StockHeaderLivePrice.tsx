@@ -6,6 +6,7 @@ import { useStockQuote } from "@/features/stock-quote/useStockQuote";
 import { PriceChange } from "@/shared/components/PriceChange";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { useMarketCalendar } from "@/shared/contexts/MarketCalendarContext";
+import { useMounted } from "@/shared/hooks/useMounted";
 import type { QuoteMarket } from "@/shared/utils/market";
 import {
   getKrxLastCloseDate,
@@ -100,12 +101,16 @@ export const StockHeaderLivePrice = ({
   // 캐시 항목을 차트 구독과 공유하므로, 조회가 꺼진 동안엔 차트가 채운 응답을 읽지 않는다 —
   // 꺼진 헤더는 응답 없음 축(SSR 값·clientSession)으로만 표시해야 차트의 실패가 "일시 지연"
   // 배지로, 차트가 받아 둔 지난 세션이 개장 전 창 리셋 판정으로 새지 않는다.
-  const data = queryEnabled ? sharedData : undefined;
-  const dataUpdatedAt = queryEnabled ? sharedUpdatedAt : 0;
+  // hydration 렌더도 응답 없음 축으로 그린다 — 차트 경계가 먼저 hydrate 돼 받아 둔 응답을 읽으면
+  // 서버 HTML(응답 없음 분기)과 어긋난다. 클라 내비게이션 마운트는 첫 렌더부터 캐시를 읽는다.
+  const mounted = useMounted();
+  const readsQuote = queryEnabled && mounted;
+  const data = readsQuote ? sharedData : undefined;
+  const dataUpdatedAt = readsQuote ? sharedUpdatedAt : 0;
   // 전송 실패(차단·5xx) = 마지막으로 끝난 조회가 실패. isError 를 쓰지 않는 이유: 응답 없이
   // 실패한 쿼리는 refetch 가 시작되면 status 가 pending 으로 돌아가 isError 가 풀린다 — 폴링마다
   // 스켈레톤이 깜빡인다. 직전 정상 응답이 있으면 TanStack 이 data 를 남기므로 배지만 얹힌다.
-  const isTransportFailed = queryEnabled && sharedErrorUpdatedAt > sharedUpdatedAt;
+  const isTransportFailed = readsQuote && sharedErrorUpdatedAt > sharedUpdatedAt;
 
   const live = data?.quote ?? null;
   // 응답 없는 전송 실패는 200 failed 응답과 같은 입력(session 있음 · live null · failed)으로
@@ -278,8 +283,8 @@ const RegularCloseRow = ({ value }: { value: RegularClose | null }) => {
   );
 };
 
-// 통계 행 — 스켈레톤 게이트 밖에서도 그린다. SSR·첫 클라 렌더는 저장 행 값으로 같은 행이라
-// 레이아웃 이동·hydration 불일치가 없다.
+// 통계 행 — 스켈레톤 게이트 밖에서도 그린다. SSR·hydration 렌더는 응답을 읽지 않아 저장 행 값으로
+// 같은 행이라 레이아웃 이동·hydration 불일치가 없다.
 const StatsRow = ({ stats }: { stats: HeaderStats }) => (
   <div className="mt-3 flex flex-wrap gap-4 text-body text-muted-foreground">
     <span>거래량 {formatVolume(stats.volume)}</span>
