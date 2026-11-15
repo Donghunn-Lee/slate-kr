@@ -13,8 +13,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { useMounted } from "@/shared/hooks/useMounted";
-import { MAX_MEMO_BODY_LENGTH } from "@/shared/types/memo";
 import { isSyncPending } from "@/shared/utils/isSyncPending";
+import { MAX_MEMO_BODY_LENGTH } from "./store/memoSnapshot";
 import { useMemoStore } from "./store/useMemoStore";
 
 type MemoButtonProps = {

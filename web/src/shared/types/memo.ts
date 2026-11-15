@@ -1,8 +1,6 @@
 import { z } from "zod";
 import { MarketSchema, TickerSchema } from "./schemas";
-
-export const MAX_MEMO_BODY_LENGTH = 500;
-export const MAX_MEMO_COUNT = 200;
+import { MAX_MEMO_BODY_LENGTH, MAX_MEMO_COUNT } from "@/features/memo/store/memoSnapshot";
 
 export const MemoEntrySchema = z
   .object({

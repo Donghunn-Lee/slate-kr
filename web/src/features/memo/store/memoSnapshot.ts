@@ -1,5 +1,8 @@
 import type { MemoSnapshot } from "@/shared/types/memo";
 
+export const MAX_MEMO_BODY_LENGTH = 500;
+export const MAX_MEMO_COUNT = 200;
+
 export const selectSnapshot = (s: { memos: MemoSnapshot["memos"] }): MemoSnapshot => ({
   memos: s.memos,
 });

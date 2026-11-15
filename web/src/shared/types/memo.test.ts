@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { MAX_MEMO_BODY_LENGTH, MAX_MEMO_COUNT, MemoSnapshotSchema } from "./memo";
+import { MAX_MEMO_BODY_LENGTH, MAX_MEMO_COUNT } from "@/features/memo/store/memoSnapshot";
+import { MemoSnapshotSchema } from "./memo";
 
 const validEntry = {
   body: "메모 내용",
