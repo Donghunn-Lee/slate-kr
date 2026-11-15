@@ -1,6 +1,7 @@
 import type { WatchlistSnapshot } from "@/shared/types/watchlist";
 
 export const MAX_WATCHLIST_SIZE = 100;
+export const MAX_GROUP_NAME_LENGTH = 100;
 
 export const createGroupIn = (s: WatchlistSnapshot, name: string): WatchlistSnapshot => {
   const maxOrder = s.groups.length === 0 ? -1 : Math.max(...s.groups.map((g) => g.order));

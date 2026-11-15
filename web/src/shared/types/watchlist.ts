@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { MarketSchema, TickerSchema } from "./schemas";
-import { MAX_WATCHLIST_SIZE } from "@/features/watchlist/store/watchlistSnapshot";
-
-export const MAX_GROUP_NAME_LENGTH = 100;
+import {
+  MAX_GROUP_NAME_LENGTH,
+  MAX_WATCHLIST_SIZE,
+} from "@/features/watchlist/store/watchlistSnapshot";
 
 export const WatchlistGroupSchema = z
   .object({

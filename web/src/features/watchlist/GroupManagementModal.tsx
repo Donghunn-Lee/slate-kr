@@ -32,17 +32,14 @@ import {
   addMembershipIn,
   createGroupIn,
   deleteGroupIn,
+  MAX_GROUP_NAME_LENGTH,
   MAX_WATCHLIST_SIZE,
   moveGroupIn,
   moveMembershipIn,
   removeMembershipIn,
   renameGroupIn,
 } from "./store/watchlistSnapshot";
-import {
-  MAX_GROUP_NAME_LENGTH,
-  type WatchlistGroup,
-  type WatchlistSnapshot,
-} from "@/shared/types/watchlist";
+import type { WatchlistGroup, WatchlistSnapshot } from "@/shared/types/watchlist";
 
 type GroupManagementModalProps = {
   open: boolean;
