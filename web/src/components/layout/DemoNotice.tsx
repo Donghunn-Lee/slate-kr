@@ -5,17 +5,14 @@ import Link from "next/link";
 import { FlaskConical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { DEMO_NOTICE_STORAGE_KEY, DEMO_NOTICE_VERSION } from "@/shared/constants/demoNotice";
 import { useMounted } from "@/shared/hooks/useMounted";
-
-const STORAGE_KEY = "slatekr_demo_notice";
-// 문구를 바꾸면 올린다 — 이전 버전을 닫은 방문자에게도 다시 뜬다.
-const NOTICE_VERSION = "v1";
 
 const EMPHASIS = "font-semibold text-foreground";
 
 const hasSeenNotice = (): boolean => {
   try {
-    return window.localStorage.getItem(STORAGE_KEY) === NOTICE_VERSION;
+    return window.localStorage.getItem(DEMO_NOTICE_STORAGE_KEY) === DEMO_NOTICE_VERSION;
   } catch {
     // 저장소가 막힌 브라우저는 접근 자체가 throw 한다 — 안 본 것으로 보고 연다.
     return false;
@@ -24,7 +21,7 @@ const hasSeenNotice = (): boolean => {
 
 const markNoticeSeen = (): void => {
   try {
-    window.localStorage.setItem(STORAGE_KEY, NOTICE_VERSION);
+    window.localStorage.setItem(DEMO_NOTICE_STORAGE_KEY, DEMO_NOTICE_VERSION);
   } catch {
     // 기록 실패는 이번 화면에서만 닫힐 뿐 — 다음 방문에 다시 뜬다.
   }
@@ -32,12 +29,13 @@ const markNoticeSeen = (): void => {
 
 // 결정을 요구하지 않는 안내라 모달로 화면을 막지 않고, 포커스도 가져가지 않는다.
 export const DemoNotice = () => {
-  // 저장소는 마운트 뒤에만 읽는다 — 서버 · hydration 렌더는 닫힌 상태.
+  // 저장소는 마운트 뒤에만 읽는다 — 서버 · hydration 렌더는 열린 상태라 카드가 첫 HTML 에 실린다.
+  // 이미 닫은 방문자에게는 layout 의 인라인 스크립트가 첫 페인트 전에 숨긴다.
   const mounted = useMounted();
   const [dismissed, setDismissed] = useState(false);
   const titleId = useId();
 
-  if (!mounted || dismissed || hasSeenNotice()) return null;
+  if (dismissed || (mounted && hasSeenNotice())) return null;
 
   const dismiss = () => {
     markNoticeSeen();
@@ -52,7 +50,7 @@ export const DemoNotice = () => {
         // 탭 바 · 맨 위로 버튼(z-40)과 겹치면 카드가 위.
         "fixed inset-x-4 z-50 flex flex-col gap-3 rounded-lg border border-default bg-elevated p-4 shadow-slate",
         "bottom-[calc(3.5rem+env(safe-area-inset-bottom)+0.75rem)] md:inset-x-auto md:right-4 md:bottom-4 md:w-88",
-        "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:duration-200"
+        "in-data-demo-notice-seen:hidden"
       )}
     >
       <h2 id={titleId} className="flex items-center gap-2 text-body font-semibold text-foreground">

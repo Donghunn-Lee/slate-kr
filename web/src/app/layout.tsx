@@ -12,6 +12,7 @@ import { WatchlistSync } from "@/features/watchlist/WatchlistSync";
 import { MemoSync } from "@/features/memo/MemoSync";
 import { getBaseUrl } from "@/lib/base-url";
 import { getMarketCalendar } from "@/lib/market-calendar";
+import { DEMO_NOTICE_SEEN_SCRIPT } from "@/shared/constants/demoNotice";
 import { notoSansKr } from "@/shared/fonts";
 
 export const viewport: Viewport = {
@@ -40,17 +41,20 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="ko" suppressHydrationWarning className={notoSansKr.variable}>
       <body className="flex min-h-screen flex-col pb-[calc(3.5rem+env(safe-area-inset-bottom))] font-sans antialiased md:pb-0">
+        {/* next/script 의 beforeInteractive 는 Next 런타임이 나중에 실행한다 — 첫 페인트 전에 돌아야 해 일반 script 로 둔다. */}
+        <script dangerouslySetInnerHTML={{ __html: DEMO_NOTICE_SEEN_SCRIPT }} />
         <Providers calendar={calendar}>
           <IosInputZoomFix />
           <WatchlistSync />
           <MemoSync />
           <Navbar />
+          {/* 카드는 fixed 라 DOM 순서가 화면 위치와 무관하다 — 앞쪽에 둬야 첫 페인트 전에 파싱된다. */}
+          <DemoNotice />
           <RecentVisitedBar />
           <div className="flex-1">{children}</div>
           <Footer />
           <ScrollToTopButton />
           <BottomTabBar />
-          <DemoNotice />
         </Providers>
       </body>
     </html>

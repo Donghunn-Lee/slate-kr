@@ -1,8 +1,11 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { hydrateRoot, type Root } from "react-dom/client";
+import { renderToString } from "react-dom/server";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@/test/domSetup";
+import { DEMO_NOTICE_SEEN_SCRIPT } from "@/shared/constants/demoNotice";
 import { DemoNotice } from "./DemoNotice";
 
 type User = ReturnType<typeof userEvent.setup>;
@@ -95,5 +98,103 @@ describe("DemoNotice", () => {
     await user.click(screen.getByRole("button", { name: "확인" }));
 
     expect(queryNotice()).not.toBeInTheDocument();
+  });
+});
+
+describe("DemoNotice hydration", () => {
+  let container: HTMLDivElement;
+  let root: Root | undefined;
+
+  beforeEach(() => {
+    localStorage.clear();
+    container = document.createElement("div");
+    document.body.appendChild(container);
+  });
+
+  afterEach(() => {
+    act(() => root?.unmount());
+    root = undefined;
+    container.remove();
+    vi.restoreAllMocks();
+  });
+
+  const hydrate = async () => {
+    const consoleError = vi.spyOn(console, "error");
+    const onRecoverableError = vi.fn();
+    await act(async () => {
+      root = hydrateRoot(container, <DemoNotice />, { onRecoverableError });
+    });
+    return { consoleError, onRecoverableError };
+  };
+
+  it("서버 HTML 에 카드가 있다", () => {
+    container.innerHTML = renderToString(<DemoNotice />);
+
+    expect(queryNotice()).toBeInTheDocument();
+  });
+
+  it("저장소가 비어 있으면 서버가 그린 카드를 그대로 이어받는다", async () => {
+    container.innerHTML = renderToString(<DemoNotice />);
+    const card = queryNotice();
+    expect(card).toBeInTheDocument();
+
+    const { consoleError, onRecoverableError } = await hydrate();
+
+    expect(onRecoverableError).not.toHaveBeenCalled();
+    expect(consoleError).not.toHaveBeenCalled();
+    expect(queryNotice()).toBe(card);
+  });
+
+  it('"v1" 이 기록돼 있으면 어긋남 없이 hydration 한 뒤 카드를 지운다', async () => {
+    container.innerHTML = renderToString(<DemoNotice />);
+    localStorage.setItem(STORAGE_KEY, "v1");
+
+    const { consoleError, onRecoverableError } = await hydrate();
+
+    expect(onRecoverableError).not.toHaveBeenCalled();
+    expect(consoleError).not.toHaveBeenCalled();
+    expect(queryNotice()).not.toBeInTheDocument();
+  });
+});
+
+describe("DEMO_NOTICE_SEEN_SCRIPT", () => {
+  const SEEN_ATTR = "data-demo-notice-seen";
+
+  const runScript = () => new Function(DEMO_NOTICE_SEEN_SCRIPT)();
+
+  beforeEach(() => {
+    localStorage.clear();
+    document.documentElement.removeAttribute(SEEN_ATTR);
+  });
+
+  afterEach(() => {
+    document.documentElement.removeAttribute(SEEN_ATTR);
+    vi.restoreAllMocks();
+  });
+
+  it('"v1" 이 기록돼 있으면 <html> 에 속성을 붙인다', () => {
+    localStorage.setItem(STORAGE_KEY, "v1");
+    runScript();
+
+    expect(document.documentElement).toHaveAttribute(SEEN_ATTR);
+  });
+
+  it.each([
+    ["비어 있으면", null],
+    ["다른 버전이면", "v0"],
+  ])("저장소가 %s 붙이지 않는다", (_, stored) => {
+    if (stored !== null) localStorage.setItem(STORAGE_KEY, stored);
+    runScript();
+
+    expect(document.documentElement).not.toHaveAttribute(SEEN_ATTR);
+  });
+
+  it("저장소 접근이 throw 해도 예외 없이 붙이지 않는다", () => {
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+
+    expect(runScript).not.toThrow();
+    expect(document.documentElement).not.toHaveAttribute(SEEN_ATTR);
   });
 });
