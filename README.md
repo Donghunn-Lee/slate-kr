@@ -152,14 +152,15 @@ page 파일은 전부 Server Component이고, `use client`는 이벤트 · 브�
 - Live에서는 상단 배너의 장애 시뮬레이션으로 가격 API를 지연 · 실패시켜 볼 수 있습니다. 헤더는 저장된 종가에 "일시 지연" 배지를 붙이고, 차트는 그 섹션 안에서만 오류와 다시 시도를 표시합니다.
   <img src="docs/images/demo-banner.png" width="100%" alt="데모 배너 — 장애 시뮬레이션(정상 · 지연 3초 · 실패 응답)">
 
-<sub>코드 · [`stocks/[ticker]/layout.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/app/stocks/%5Bticker%5D/layout.tsx) · [`StockHeader.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/entities/stock/StockHeader.tsx)</sub><br>
+<sub>코드 · [`stocks/[ticker]/layout.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.2-demo/web/src/app/stocks/%5Bticker%5D/layout.tsx) · [`StockHeader.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.2-demo/web/src/entities/stock/StockHeader.tsx)</sub><br>
 <sub>글 · [#037 empty와 error 분리](https://donghunn-lee-blog.vercel.app/blog/slatekr/037/) · [#155 분봉 실패 처리](https://donghunn-lee-blog.vercel.app/blog/slatekr/155/) · [#174 헤더 스트리밍 실측](https://donghunn-lee-blog.vercel.app/blog/slatekr/174/)</sub>
 
 ### 2. 클라이언트 데이터 흐름
 
 시세와 분봉은 브라우저에서 TanStack Query로 폴링하고, 차트는 lightweight-charts가 React 렌더 밖에서 직접 그립니다.
 
-- 폴링은 장 세션 중에만 실행합니다. 차트는 따로 요청하지 않고 헤더가 받아 둔 시세 캐시를 구독만 해서, 같은 종목의 폴링이 중복되지 않습니다. 다른 탭이나 창에 있다가 돌아오면 분봉을 한 번 새로 받되, 장이 끝난 뒤에는 받지 않습니다.
+- 폴링은 장 세션 중에만 실행합니다. 차트는 따로 폴링하지 않고 헤더와 같은 시세 캐시를 구독해서, 같은 종목의 요청이 중복되지 않습니다. 다른 탭이나 창에 있다가 돌아오면 분봉을 한 번 새로 받되, 장이 끝난 뒤에는 받지 않습니다.
+- 헤더와 차트가 같은 시세 캐시를 쓰기 때문에, 차트가 먼저 hydrate되어 응답이 일찍 도착하면 헤더의 첫 렌더가 서버 HTML과 달라졌습니다(로컬 재현 80회 중 4회). 헤더가 hydration 렌더에서는 캐시를 읽지 않게 하고, 캐시를 미리 채운 상태로 hydrate하는 테스트로 고정했습니다.
 - Route Handler는 조회가 실패해도 가능한 한 HTTP 200에 `failed` 플래그를 담아 응답합니다. 클라이언트는 이 플래그가 붙은 분봉 응답으로 직전 정상 데이터를 덮어쓰지 않고, 직전 데이터가 없을 때만 실패 화면을 띄웁니다.
 - 차트 컴포넌트는 React state를 사용하지 않습니다. 차트 인스턴스는 ref에 보관하고 범례는 DOM에 직접 그리므로 마우스를 움직여도 리렌더가 일어나지 않습니다. 사용자가 차트를 움직이면 최신 봉 따라가기를 멈추는데, 코드가 차트를 움직일 때도 같은 이벤트가 나기 때문에 가드 플래그로 걸러냅니다.
 
@@ -170,8 +171,8 @@ page 파일은 전부 Server Component이고, `use client`는 이벤트 · 브�
 
 </details>
 
-<sub>코드 · [`useStockIntraday.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/features/stock-intraday/useStockIntraday.ts) · [`useStockQuote.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/features/stock-quote/useStockQuote.ts) · [`PriceChart.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/entities/chart/PriceChart.tsx)</sub><br>
-<sub>글 · [#140 "실시간" 표기 제거](https://donghunn-lee-blog.vercel.app/blog/slatekr/140/)</sub>
+<sub>코드 · [`useStockIntraday.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.2-demo/web/src/features/stock-intraday/useStockIntraday.ts) · [`useStockQuote.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.2-demo/web/src/features/stock-quote/useStockQuote.ts) · [`PriceChart.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.2-demo/web/src/entities/chart/PriceChart.tsx) · [`StockHeaderLivePrice.test.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.2-demo/web/src/entities/stock/StockHeaderLivePrice.test.tsx)</sub><br>
+<sub>글 · [#140 "실시간" 표기 제거](https://donghunn-lee-blog.vercel.app/blog/slatekr/140/) · [#195 헤더 hydration 불일치](https://donghunn-lee-blog.vercel.app/blog/slatekr/195/)</sub>
 
 ### 3. 서버 캐시
 
@@ -179,8 +180,9 @@ page 파일은 전부 Server Component이고, `use client`는 이벤트 · 브�
 
 - 페이지 전체를 캐시하는 ISR은 홈에만 적용하고, 나머지 페이지는 요청마다 서버에서 렌더합니다. 대신 지수 · 순위 API 응답을 서버에서 캐시하고, 유지 시간은 장 세션에 따라 60초에서 1시간 사이로 바꿉니다. Next.js 16의 `cacheComponents`는 앱 전체에 한 번에 적용해야 하는 옵션이라 도입하지 않았습니다.
 - 실패 응답은 감지 즉시 캐시에서 지웁니다. 외부 API 장애 때 빈 차트가 캐시 유지 시간 내내 그대로 나가는 경우가 있어 이렇게 바꿨습니다.
+- 캐시는 유지 시간이 지난 뒤 첫 요청에 이전 값을 주고 뒤에서 다시 계산합니다. 방문자가 적으면 매 방문이 그 첫 요청이라 지난 방문 때 값으로 화면이 열렸습니다. 응답에 서버가 값을 만든 시각을 싣고, 유지 시간보다 오래됐으면 3초 뒤 한 번 다시 받습니다.
 
-<sub>코드 · [`session-cache.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/lib/session-cache.ts) · [`index-quotes/route.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/app/api/index-quotes/route.ts)</sub><br>
+<sub>코드 · [`session-cache.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.2-demo/web/src/lib/session-cache.ts) · [`index-quotes/route.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.2-demo/web/src/app/api/index-quotes/route.ts) · [`useStaleRefetch.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.2-demo/web/src/shared/hooks/useStaleRefetch.ts)</sub><br>
 <sub>글 · [#075 실패 응답 캐시 결함](https://donghunn-lee-blog.vercel.app/blog/slatekr/075/) · [#174 선언만 있던 revalidate](https://donghunn-lee-blog.vercel.app/blog/slatekr/174/)</sub>
 
 ### 4. 런타임 검증: AI 공시 요약
@@ -202,7 +204,7 @@ type DisclosureSummaryContent = {
 
 <p align="center"><img src="docs/images/disclosure-summary.png" width="600" alt="AI 공시 요약 — 공시 행 인라인 확장"></p>
 
-<sub>코드 · [`disclosureSummary.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/shared/types/disclosureSummary.ts) · [`disclosure-summary.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/lib/disclosure-summary.ts)</sub><br>
+<sub>코드 · [`disclosureSummary.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.2-demo/web/src/shared/types/disclosureSummary.ts) · [`disclosure-summary.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.2-demo/web/src/lib/disclosure-summary.ts)</sub><br>
 <sub>글 · [#019 에러 분기 설계](https://donghunn-lee-blog.vercel.app/blog/slatekr/019/) · [#081 출력 구조화](https://donghunn-lee-blog.vercel.app/blog/slatekr/081/) · [#168 3.8 승격과 폴백](https://donghunn-lee-blog.vercel.app/blog/slatekr/168/)</sub>
 
 ### 5. 익명 동기화
@@ -213,7 +215,7 @@ type DisclosureSummaryContent = {
 - 관심종목과 메모는 브라우저마다 각각 JSONB 스냅샷 한 행으로 저장합니다. 로그인 없이 쓰기가 열려 있어서 요청 본문은 스키마 검증과 64KB 상한을 거칩니다.
 - 서버 조회에 실패한 상태에서 쓰면 비어 있는 로컬 목록이 서버 목록을 덮어쓸 수 있습니다. 그래서 첫 조회가 끝나기 전에는 편집을 비활성화하고, 조회에 실패하면 쓰지 않은 채 "서버 저장 안 됨" 배지를 띄웁니다. 편집 저장이 실패하면 마지막으로 서버에 저장된 상태로 되돌립니다.
 
-<sub>코드 · [`useWatchlistSync.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/features/watchlist/useWatchlistSync.ts) · [`anon-id.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/lib/anon-id.ts)</sub><br>
+<sub>코드 · [`useWatchlistSync.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.2-demo/web/src/features/watchlist/useWatchlistSync.ts) · [`anon-id.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.2-demo/web/src/lib/anon-id.ts)</sub><br>
 <sub>글 · [#141 로그인 없는 식별과 스냅샷 동기화](https://donghunn-lee-blog.vercel.app/blog/slatekr/141/)</sub>
 
 ### 6. 가상 시세 생성기
@@ -224,7 +226,7 @@ type DisclosureSummaryContent = {
 - **입력은 DART와 시드뿐입니다.** 실제 시세는 쓰지 않습니다. 가격 수준은 공시 재무(배당금 ÷ 시가배당률, 없으면 EPS · BPS)에서 잡고, 그 사이는 종목과 날짜로 정해지는 난수 경로로 잇습니다. 같은 종목 · 같은 시각이면 언제 요청해도 같은 값입니다.
 - **화면 사이의 값이 맞는지 테스트로 고정했습니다.** 일봉 → 분봉 → 현재가를 한 경로에서 파생하고, 동시호가 · 단일가 · 프리/애프터마켓 같은 장 규칙을 재현했습니다. 생성기는 오늘 종가를 미리 알 수 있어서, 아직 오지 않은 시각의 값은 서버가 응답에 싣지 않습니다.
 
-<sub>코드 · [`price-model.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/lib/demo/price-model.ts) · [`universe.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/lib/demo/universe.ts) · [`quote-source.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/lib/quote-source.ts) · [`swap.test.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/lib/demo/swap.test.ts)</sub><br>
+<sub>코드 · [`price-model.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.2-demo/web/src/lib/demo/price-model.ts) · [`universe.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.2-demo/web/src/lib/demo/universe.ts) · [`quote-source.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.2-demo/web/src/lib/quote-source.ts) · [`swap.test.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.2-demo/web/src/lib/demo/swap.test.ts)</sub><br>
 <sub>글 · [#188 시세 약관 조사와 배포 중단](https://donghunn-lee-blog.vercel.app/blog/slatekr/188/) · [#188-2 생성기 명세](https://donghunn-lee-blog.vercel.app/blog/slatekr/188-2/) · [PR #1](https://github.com/Donghunn-Lee/slate-kr/pull/1)</sub>
 
 ## 품질
@@ -235,20 +237,20 @@ type DisclosureSummaryContent = {
 - 모바일에서는 하단 탭 바가 내비게이션을 대신합니다.
   <p align="center"><img src="docs/images/stock-detail-mobile.png" width="240" alt="종목 상세 — 모바일, 하단 탭 바"></p>
 
-성능은 PageSpeed Insights lab 측정값입니다(2026년 10월 실시세 연동 시기 측정, 조합당 3회 중앙값, 실사용자 데이터 없음).
+성능은 PageSpeed Insights lab 측정값입니다(2026년 11월 16일 정규장 중 측정, 조합당 6회 중앙값(SEO는 마지막 3회), 실사용자 데이터 없음). 수치는 가상 시세 기준입니다. 실시세를 연동하던 시기에는 종목 상세 헤더가 외부 시세 API 등을 기다리는 시간이 로컬 측정에서 약 1.4초였고, 지금은 헤더가 첫 응답과 함께 옵니다.
 
 | 페이지    | 기기     | 성능 | 접근성 | 권장사항 | SEO | LCP  | CLS   |
 | --------- | -------- | ---- | ------ | -------- | --- | ---- | ----- |
-| 홈        | 모바일   | 70   | 96     | 100      | 100 | 5.6s | 0     |
-| 홈        | 데스크톱 | 99   | 96     | 100      | 100 | 0.6s | 0.015 |
-| 종목 상세 | 모바일   | 82   | 100    | 100      | 100 | 4.7s | 0     |
-| 종목 상세 | 데스크톱 | 100  | 100    | 100      | 100 | 0.7s | 0.001 |
-| 지수      | 모바일   | 77   | 100    | 100      | 100 | 5.4s | 0.001 |
-| 지수      | 데스크톱 | 98   | 100    | 100      | 100 | 1.1s | 0.031 |
+| 홈        | 모바일   | 99   | 96     | 100      | 100 | 1.1s | 0.002 |
+| 홈        | 데스크톱 | 100  | 96     | 100      | 100 | 0.3s | 0.034 |
+| 종목 상세 | 모바일   | 100  | 100    | 100      | 100 | 0.9s | 0.002 |
+| 종목 상세 | 데스크톱 | 100  | 100    | 100      | 100 | 0.3s | 0.003 |
+| 지수      | 모바일   | 98   | 100    | 100      | 100 | 1.7s | 0.003 |
+| 지수      | 데스크톱 | 100  | 100    | 100      | 100 | 0.4s | 0.025 |
 
-홈 모바일은 회차마다 편차가 큽니다(성능 66 ~ 77, LCP 4.1 ~ 5.6초). LCP는 Lighthouse 시뮬레이션에서만 길게 나왔고, CPU · 네트워크를 실제로 늦춘 로컬 측정에서는 약 1.5초였습니다. 접근성 96은 캐러셀의 비활성 슬라이드를 일부러 흐리게 한 결과입니다.
+회차에 따라 성능이 모바일 95 ~ 100, 데스크톱 91 ~ 100으로 갈리고, 모바일 LCP는 0.9 ~ 1.7초입니다. 모바일 LCP 요소는 세 페이지 모두 첫 방문 안내 카드입니다. 이 카드가 hydration 뒤에 그려져 LCP를 늦추던 것을 서버 HTML에 포함해 고쳤고, 수정 전후 빌드를 번갈아 잰 로컬 측정에서 모바일 성능이 홈 +7 · 종목 상세 +8 · 지수 +3이었습니다. 접근성 96은 캐러셀의 비활성 슬라이드를 일부러 흐리게 한 결과입니다.
 
-<sub>코드 · [`classifyDisclosure.test.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/shared/utils/classifyDisclosure.test.ts) · [`StockMetrics.test.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/entities/stock/StockMetrics.test.tsx) · [`SearchInput.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/features/search/SearchInput.tsx) · [`BottomTabBar.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/components/layout/BottomTabBar.tsx)</sub><br>
+<sub>코드 · [`classifyDisclosure.test.ts`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.2-demo/web/src/shared/utils/classifyDisclosure.test.ts) · [`StockMetrics.test.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.2-demo/web/src/entities/stock/StockMetrics.test.tsx) · [`SearchInput.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.2-demo/web/src/features/search/SearchInput.tsx) · [`BottomTabBar.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.2-demo/web/src/components/layout/BottomTabBar.tsx)</sub><br>
 <sub>글 · [#087 Vitest 도입](https://donghunn-lee-blog.vercel.app/blog/slatekr/087/)</sub>
 
 ## 알려진 한계
@@ -259,9 +261,10 @@ type DisclosureSummaryContent = {
 
 **성능 · 코드 부채**
 
-- PageSpeed Insights 기준 모바일 LCP가 4.7 ~ 5.6초이고, 홈과 종목 상세에 렌더링 차단 CSS가 2개 있습니다. CSS를 HTML에 인라인하는 Next.js 옵션(`inlineCss`)은 로컬 측정에서 홈 HTML이 압축 기준 12KB에서 155KB로 커지고 점수가 4 ~ 6점 내려가 적용하지 않았습니다.
+- 모바일 성능 수치는 첫 방문 기준입니다. 첫 방문에서는 안내 카드가 LCP 요소이고, 안내를 닫은 재방문에서는 지수 페이지의 LCP 요소가 분봉 응답을 받은 뒤 그려지는 차트 캡션이라 더 늦습니다. 재방문 상태의 PageSpeed Insights 값은 재지 못했습니다.
+- 한글 웹 글꼴은 페이지당 160 ~ 230KB를 받습니다. 로컬 측정에서 한글 글꼴을 빼면 Lighthouse의 모바일 FCP 추정이 홈 기준 2.7초에서 0.9초로 줄었지만, 화면 일관성 때문에 유지했습니다.
 - 종목명이 길어 헤더가 여러 줄로 감기는 종목은 모바일 CLS가 0.17 ~ 0.23 남습니다. 대체 글꼴로 먼저 그려질 때 줄이 더 많이 감겼다가, 웹 글꼴이 적용되면서 헤더가 줄어드는 이동입니다(412px 폭 로컬 측정).
-- 차트 컴포넌트([`PriceChart.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.1-demo/web/src/entities/chart/PriceChart.tsx))는 순수 로직을 분리한 뒤에도 944줄 단일 클라이언트 컴포넌트입니다. effect · ref 구조 분해는 차트 동작의 회귀를 장중에 검증해야 해서 미뤘습니다.
+- 차트 컴포넌트([`PriceChart.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.2-demo/web/src/entities/chart/PriceChart.tsx))는 순수 로직을 분리한 뒤에도 953줄 단일 클라이언트 컴포넌트입니다. effect · ref 구조 분해는 차트 동작의 회귀를 장중에 검증해야 해서 미뤘습니다.
 
 **데이터**
 
@@ -289,7 +292,7 @@ type DisclosureSummaryContent = {
 
 프로젝트 지침(CLAUDE.md)에 아키텍처 원칙 · 컨벤션 · 금지 사항을 고정하고, Claude Code가 만든 코드를 리뷰하는 기준으로 사용했습니다.
 
-작업 세션 194회 · 커밋 931 · Vitest 케이스 1,220(2026-11-13 기준). 작업 세션 단위 개발 일지는 같은 번호로 [블로그 시리즈](https://donghunn-lee-blog.vercel.app/blog/slatekr/)에 있고, 각 결정의 배경과 실측 결과는 해당 편에 정리했습니다.
+작업 세션 196회 · 커밋 941 · Vitest 케이스 1,235(2026-11-16 기준). 작업 세션 단위 개발 일지는 같은 번호로 [블로그 시리즈](https://donghunn-lee-blog.vercel.app/blog/slatekr/)에 있고, 각 결정의 배경과 실측 결과는 해당 편에 정리했습니다.
 
 ## 회고
 
