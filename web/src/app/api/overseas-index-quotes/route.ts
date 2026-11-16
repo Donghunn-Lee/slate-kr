@@ -23,8 +23,15 @@ export const dynamic = "force-dynamic";
 // session·date 를 key 축으로 넣어 세션·일 경계 자동 miss.
 // active 60s / idle 3600s (US 마감 45분 후 ~ KST 09:00 만 idle). null(호출 실패) 도 캐시되므로
 // 실패 시 tag evict 로 stale null 재서빙 방지.
-type OverseasQuoteFetcher = () => Promise<IndexQuote | null>;
+// 캐시 단위 = 시세 + 조립 시각 (index-quotes 와 같은 모양). fetchedAt 을 이 안에서 캡처해야
+// SWR 히트 시 원 조립 시각이 그대로 실려 클라가 stale 응답을 판정할 수 있다.
+type CachedOverseasQuote = { live: IndexQuote | null; fetchedAt: number };
+type OverseasQuoteFetcher = () => Promise<CachedOverseasQuote>;
 const quoteFetchers = new Map<string, OverseasQuoteFetcher>();
+
+// Data Cache 는 배포를 넘어 남는다 — 캐시 값(CachedOverseasQuote) 형태가 바뀌면 이 버전을 올려
+// 이전 형태로 저장된 엔트리를 새 코드가 읽지 않게 한다.
+const CACHE_SHAPE_VERSION = "v2";
 
 const cacheKeyOf = (
   code: OverseasIndexCode,
@@ -44,8 +51,11 @@ const getCachedQuote = (
   const cached = quoteFetchers.get(key);
   if (cached) return cached;
   const fresh = unstable_cache(
-    () => fetchOverseasIndexQuote(code, INDEX_LABEL[code]),
-    ["overseas-index-quote", code, session, date],
+    async () => {
+      const live = await fetchOverseasIndexQuote(code, INDEX_LABEL[code]);
+      return { live, fetchedAt: Date.now() } satisfies CachedOverseasQuote;
+    },
+    ["overseas-index-quote", CACHE_SHAPE_VERSION, code, session, date],
     {
       revalidate: globalOverseasQuoteRevalidate(session),
       tags: [cacheTagOf(code, session)],
@@ -59,13 +69,13 @@ const pick = <T>(r: PromiseSettledResult<T | null>): T | null =>
   r.status === "fulfilled" ? r.value : null;
 
 // null 실패 신호 시 세션 tag evict — index-quotes route 와 동형.
-const resolveLive = (
+const resolveCell = (
   code: OverseasIndexCode,
   session: GlobalOverseasSession,
-  r: PromiseSettledResult<IndexQuote | null>
-): IndexQuote | null => {
+  r: PromiseSettledResult<CachedOverseasQuote>
+): CachedOverseasQuote | null => {
   const value = pick(r);
-  if (value === null) {
+  if (value === null || value.live === null) {
     revalidateTag(cacheTagOf(code, session), { expire: 0 });
   }
   return value;
@@ -82,18 +92,25 @@ export const GET = async (req: NextRequest) => {
     const results = await Promise.allSettled(
       OVERSEAS_INTRADAY_CODES.map((code) => getCachedQuote(code, session, date)())
     );
+    const cells = OVERSEAS_INTRADAY_CODES.map((code, i) => resolveCell(code, session, results[i]));
     const live = Object.fromEntries(
-      OVERSEAS_INTRADAY_CODES.map((code, i) => [code, resolveLive(code, session, results[i])])
+      OVERSEAS_INTRADAY_CODES.map((code, i) => [code, cells[i]?.live ?? null])
     ) as Partial<Record<OverseasIndexCode, IndexQuote | null>>;
 
     const quotes = Object.fromEntries(
       OVERSEAS_INDEX_CODES.map((code) => [code, live[code] ?? null])
     ) as Record<OverseasIndexCode, IndexQuote | null>;
 
+    // active 셀 중 가장 오래된 조립 시각 — 클라 stale 판정 축. idle 은 TTL 3600s 라 판정 대상이
+    // 아니므로 null. 조회 실패 셀(live null)은 축출돼 다음 요청이 새로 조립하므로 제외.
+    const cellTimes = cells.flatMap((c) => (c === null || c.live === null ? [] : [c.fetchedAt]));
+    const fetchedAt = session === "active" && cellTimes.length > 0 ? Math.min(...cellTimes) : null;
+
     return NextResponse.json({
       quotes,
       active: isGlobalOverseasActive(),
       date,
+      fetchedAt,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);

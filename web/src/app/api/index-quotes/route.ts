@@ -143,11 +143,19 @@ export const GET = async (req: NextRequest) => {
       })
     ) as Record<DomesticIndexCode, IndexCellData>;
 
+    const marketOpen = isKrxMarketOpen(now, calendar);
+    // 정규장 셀 중 가장 오래된 조립 시각 — 클라 stale 판정 축. 정규장 밖은 null: TTL 3600s 이거나,
+    // 마감 직후 정산 창은 TTL 60s 라도 클라 폴링이 120s 라 정상 tick 도 판정 경계를 넘는다.
+    // 조회 실패 셀(live null)은 축출돼 다음 요청이 새로 조립하므로 제외.
+    const cellTimes = Object.values(quotes).flatMap((c) => (c.live === null ? [] : [c.fetchedAt]));
+    const fetchedAt = marketOpen && cellTimes.length > 0 ? Math.min(...cellTimes) : null;
+
     return NextResponse.json({
       quotes,
-      marketOpen: isKrxMarketOpen(now, calendar),
+      marketOpen,
       session,
       date: tradingDate,
+      fetchedAt,
     });
   } catch {
     return NextResponse.json({ error: "지수 시세를 불러오지 못했습니다" }, { status: 500 });

@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { DomesticIndexCode } from "@/shared/constants/indices";
 import type { IndexDailySnapshot, IndexQuote } from "@/shared/types/quote";
 import type { KrxSession } from "@/shared/utils/market";
+import { useStaleRefetch } from "@/shared/hooks/useStaleRefetch";
 
 export type IndexCellData = {
   live: IndexQuote | null;
@@ -19,16 +20,19 @@ export type IndexQuotesResponse = {
   // (useStockQuote 응답 session 과 동형).
   session: KrxSession;
   date: string; // KST 거래일 'YYYY-MM-DD' (당일 봉 병합용)
+  // 정규장 셀 중 가장 오래된 서버 조립 시각 (epoch ms). 정규장 밖·전체 실패는 null.
+  fetchedAt: number | null;
 };
 
+// route regular TTL(60s) 과 정렬된 값 — stale 응답 판정의 TTL 로도 겸한다.
 const POLL_INTERVAL_MS = 60_000;
 // closed 에서도 느린 cadence 유지 — 개장 전 로드된 held 탭이 09:00 을 감지해
 // marketOpen=true 수신 시 regular cadence 로 자동 승격. 서버 세션 캐시 히트라 생성기 재계산 없음.
 const CLOSED_POLL_MS = 120_000;
 
 // 직전 응답 marketOpen=true 일 때 60s, 그 외 120s 로 2단 cadence.
-export const useIndexQuotes = () =>
-  useQuery<IndexQuotesResponse>({
+export const useIndexQuotes = () => {
+  const query = useQuery<IndexQuotesResponse>({
     queryKey: ["index-quotes"],
     queryFn: async () => {
       const res = await fetch("/api/index-quotes");
@@ -37,3 +41,11 @@ export const useIndexQuotes = () =>
     },
     refetchInterval: (query) => (query.state.data?.marketOpen ? POLL_INTERVAL_MS : CLOSED_POLL_MS),
   });
+  useStaleRefetch({
+    fetchedAt: query.data?.fetchedAt ?? null,
+    dataUpdatedAt: query.dataUpdatedAt,
+    ttlMs: POLL_INTERVAL_MS,
+    refetch: query.refetch,
+  });
+  return query;
+};

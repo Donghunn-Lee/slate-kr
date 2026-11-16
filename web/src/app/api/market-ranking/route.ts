@@ -8,6 +8,7 @@ import { applyDemoFault } from "@/lib/demo-fault";
 import {
   getKrxSessionState,
   getKrxTradingDate,
+  isKrxActiveSession,
   isKrxMarketOpen,
   type KrxSession,
 } from "@/shared/utils/market";
@@ -57,15 +58,20 @@ const parseKind = (params: URLSearchParams): MarketRankingKind | null => {
 };
 
 // marketResolved: stocks 매핑 조회 성공 여부. true 일 때만 market 부재가 "미등록 종목"을 뜻한다.
+// fetchedAt: 조립 시각 (epoch ms). 캐시 안에서 캡처해야 SWR 히트 시 원 조립 시각이 그대로 실려
+// 클라가 stale 응답을 판정할 수 있다.
 type RankingPayload = {
   items: MarketRankingItem[];
   marketResolved: boolean;
+  fetchedAt: number;
 };
 
 // DB 조회로 종목별 시장 구분을 매핑. KIS 순위 응답에는 per-row market 이 없다.
 // 실패는 items 그대로 + marketResolved=false — 순위 응답 실패 계약(failed flag)에는 영향 없음.
 // unstable_cache 내부에서 호출되므로 캐시 hit 시 DB 재조회하지 않는다.
-const enrichWithMarket = async (items: MarketRankingItem[]): Promise<RankingPayload> => {
+const enrichWithMarket = async (
+  items: MarketRankingItem[]
+): Promise<Omit<RankingPayload, "fetchedAt">> => {
   if (items.length === 0) return { items, marketResolved: true };
   try {
     const marketByTicker = await getMarketsByTickers(items.map((i) => i.ticker));
@@ -91,7 +97,7 @@ const runFetch = async (
 ): Promise<RankingPayload | null> => {
   const r = await fetchRanking(kind, session);
   if (!r.ok) return null;
-  return enrichWithMarket(r.items);
+  return { ...(await enrichWithMarket(r.items)), fetchedAt: Date.now() };
 };
 
 const cacheTag = (key: string, session: KrxSession): string => `market-ranking-${key}-${session}`;
@@ -109,7 +115,7 @@ const cacheKeyOf = (key: string, session: KrxSession, tradingDate: string): stri
 
 // Data Cache 는 배포를 넘어 남는다 — 캐시 값(RankingPayload) 형태가 바뀌면 이 버전을 올려
 // 이전 형태로 저장된 엔트리를 새 코드가 읽지 않게 한다.
-const CACHE_SHAPE_VERSION = "v2";
+const CACHE_SHAPE_VERSION = "v3";
 
 const getCachedFetcher = (
   kind: MarketRankingKind,
@@ -136,6 +142,9 @@ type RankingResponse = {
   marketResolved: boolean;
   session: KrxSession;
   marketOpen: boolean;
+  // 활성 세션(TTL 60s) 응답만 조립 시각을 싣는다 — 그 밖은 TTL 3600s 라 판정 대상이 아니다.
+  // 실패 응답은 null.
+  fetchedAt: number | null;
 };
 
 export const GET = async (req: NextRequest) => {
@@ -170,6 +179,7 @@ export const GET = async (req: NextRequest) => {
         marketResolved: false,
         session,
         marketOpen,
+        fetchedAt: null,
       };
       return NextResponse.json(body);
     }
@@ -183,6 +193,7 @@ export const GET = async (req: NextRequest) => {
       marketResolved: payload.marketResolved,
       session,
       marketOpen,
+      fetchedAt: isKrxActiveSession(session) ? payload.fetchedAt : null,
     };
     return NextResponse.json(body);
   } catch (err: unknown) {
@@ -194,6 +205,7 @@ export const GET = async (req: NextRequest) => {
       marketResolved: false,
       session,
       marketOpen,
+      fetchedAt: null,
     };
     return NextResponse.json(body);
   }

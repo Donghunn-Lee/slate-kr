@@ -236,7 +236,7 @@ DB / 외부 API / 가격 생성기
 - 지수 quote·분봉: API route 층 unstable_cache + 세션 기반 revalidate
   (국내 regular 60s·마감 후 정산 15분 60s·그 외 3600s / 해외 quote active 60s·idle 3600s / 해외 분봉 regular 120s·마감 후 정산 45분 60s·그 외 3600s)
 - 순위 route: 세션 TTL(`krxRankingRevalidate`, active 60s / 그 외 3600s)
-- 순위 캐시 키의 `CACHE_SHAPE_VERSION`: Data Cache는 배포를 넘어 남으므로 캐시 값(`RankingPayload`) 형태가 바뀌면 올린다
+- 순위·해외 지수 quote 캐시 키의 `CACHE_SHAPE_VERSION`: Data Cache는 배포를 넘어 남으므로 캐시 값(`RankingPayload`·`CachedOverseasQuote`) 형태가 바뀌면 올린다
 - 지수 캐시 태그: `{도메인}-{code}-{session}` 형식.
   조회 실패(null) 시 revalidateTag로 즉시 축출 (unstable_cache는 null도 캐시하므로)
 - unstable_cache의 revalidate는 래퍼 생성 시 고정된다 — 세션 안에서 TTL이 바뀌는 route(국내 지수 quote·분봉, 해외 분봉)는 memo 키와 keyParts에 revalidate 값을 포함한다

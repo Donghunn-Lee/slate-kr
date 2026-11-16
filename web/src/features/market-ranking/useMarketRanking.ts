@@ -1,4 +1,5 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useStaleRefetch } from "@/shared/hooks/useStaleRefetch";
 import type { MarketRankingItem, MarketRankingKind } from "@/shared/types/ranking";
 import { isKrxActiveSession, type KrxSession } from "@/shared/utils/market";
 
@@ -9,8 +10,11 @@ type MarketRankingResponse = {
   marketResolved: boolean;
   session: KrxSession;
   marketOpen: boolean;
+  // 서버 조립 시각 (epoch ms). 활성 세션 밖·실패는 null.
+  fetchedAt: number | null;
 };
 
+// route 활성 세션 TTL(60s) 과 정렬된 값 — stale 응답 판정의 TTL 로도 겸한다.
 const POLL_INTERVAL_MS = 60_000;
 
 // kind × market 조합에 대해 queryKey 를 안정 문자열로 분리. 탭/시장 전환 시
@@ -82,6 +86,13 @@ export const useMarketRanking = (kind: MarketRankingKind): UseMarketRankingResul
     },
     placeholderData: keepPreviousData,
     refetchInterval: (q) => (isKrxActiveSession(q.state.data?.session) ? POLL_INTERVAL_MS : false),
+  });
+  useStaleRefetch({
+    // placeholder 는 이전 카테고리의 응답이라 그 조립 시각으로 판정하지 않는다.
+    fetchedAt: query.isPlaceholderData ? null : (query.data?.fetchedAt ?? null),
+    dataUpdatedAt: query.dataUpdatedAt,
+    ttlMs: POLL_INTERVAL_MS,
+    refetch: query.refetch,
   });
 
   return {
