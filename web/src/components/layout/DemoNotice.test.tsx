@@ -17,9 +17,13 @@ const queryNotice = () => screen.queryByRole("region", { name: "가상 시세 �
 // jsdom 은 문서 이동을 구현하지 않는다 — 링크 클릭의 기본 동작만 막고 닫기 처리는 그대로 본다.
 const preventNavigation = (e: MouseEvent) => e.preventDefault();
 
+// jsdom 은 Tailwind 를 싣지 않아 sr-only 스팬이 inline 으로 계산되고, 이름 계산이 스팬 끝 공백을 잘라
+// "안내자세히"로 붙인다 — 브라우저의 이름(공백 있음)과 둘 다 맞도록 공백을 선택으로 둔다.
+const DETAIL_LINK_NAME = /^가상 데이터 안내 ?자세히$/;
+
 const CLOSE_PATHS: ReadonlyArray<[string, (user: User) => Promise<void>]> = [
   ["확인", (user) => user.click(screen.getByRole("button", { name: "확인" }))],
-  ["자세히", (user) => user.click(screen.getByRole("link", { name: "자세히" }))],
+  ["자세히", (user) => user.click(screen.getByRole("link", { name: DETAIL_LINK_NAME }))],
 ];
 
 describe("DemoNotice", () => {

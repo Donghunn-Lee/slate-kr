@@ -71,7 +71,7 @@ export const DemoNotice = () => {
       <div className="flex justify-end gap-2">
         <Button variant="outline" size="sm" asChild>
           <Link href="/credits#demo" onClick={dismiss}>
-            자세히
+            <span className="sr-only">가상 데이터 안내 </span>자세히
           </Link>
         </Button>
         <Button size="sm" onClick={dismiss}>

@@ -20,7 +20,7 @@ export const DemoBanner = () => (
         href="/credits#demo"
         className="shrink-0 underline underline-offset-2 transition-colors hover:text-foreground"
       >
-        자세히
+        <span className="sr-only">가상 데이터 안내 </span>자세히
       </Link>
       <div className="ml-auto shrink-0">
         <DemoFaultControl />
