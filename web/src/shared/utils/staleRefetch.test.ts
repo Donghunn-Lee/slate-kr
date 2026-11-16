@@ -1,44 +1,42 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   decideStaleRefetch,
-  isStaleIntradayResponse,
+  isStaleResponse,
   scheduleStaleRefetch,
   STALE_REFETCH_DELAY_MS,
   STALE_TOLERANCE_MS,
-} from "./staleIntradayRefetch";
+} from "./staleRefetch";
 
 const NOW = 1_789_015_175_778;
 const KRX_TTL = 60_000;
 const OVERSEAS_TTL = 120_000;
 
-describe("isStaleIntradayResponse — 응답 fetchedAt 나이 vs TTL + 여유", () => {
+describe("isStaleResponse — 응답 fetchedAt 나이 vs TTL + 여유", () => {
   it("fetchedAt null (정규장 밖·전체 실패) → false", () => {
-    expect(isStaleIntradayResponse(null, KRX_TTL, NOW)).toBe(false);
+    expect(isStaleResponse(null, KRX_TTL, NOW)).toBe(false);
   });
   it("나이 3.2s (재검증 직후 캐시 히트) → false", () => {
-    expect(isStaleIntradayResponse(NOW - 3_200, KRX_TTL, NOW)).toBe(false);
+    expect(isStaleResponse(NOW - 3_200, KRX_TTL, NOW)).toBe(false);
   });
   // 정상 tick 실측값 — 폴링 지터로 TTL 을 살짝 넘긴 엔트리는 cadence 가 약속한 신선도.
   it("정상 tick — 나이 64.6s → false", () => {
-    expect(isStaleIntradayResponse(NOW - 64_600, KRX_TTL, NOW)).toBe(false);
+    expect(isStaleResponse(NOW - 64_600, KRX_TTL, NOW)).toBe(false);
   });
   it("나이 == TTL + 여유 → false", () => {
-    expect(isStaleIntradayResponse(NOW - KRX_TTL - STALE_TOLERANCE_MS, KRX_TTL, NOW)).toBe(false);
+    expect(isStaleResponse(NOW - KRX_TTL - STALE_TOLERANCE_MS, KRX_TTL, NOW)).toBe(false);
   });
   it("나이 TTL + 여유 + 1ms → true", () => {
-    expect(isStaleIntradayResponse(NOW - KRX_TTL - STALE_TOLERANCE_MS - 1, KRX_TTL, NOW)).toBe(
-      true
-    );
+    expect(isStaleResponse(NOW - KRX_TTL - STALE_TOLERANCE_MS - 1, KRX_TTL, NOW)).toBe(true);
   });
   it("hidden 90s → true", () => {
-    expect(isStaleIntradayResponse(NOW - 90_000, KRX_TTL, NOW)).toBe(true);
+    expect(isStaleResponse(NOW - 90_000, KRX_TTL, NOW)).toBe(true);
   });
   it("탭 복귀 — 나이 3분 → true", () => {
-    expect(isStaleIntradayResponse(NOW - 180_000, KRX_TTL, NOW)).toBe(true);
+    expect(isStaleResponse(NOW - 180_000, KRX_TTL, NOW)).toBe(true);
   });
   it("해외 TTL 120s — 나이 130s 는 정상 tick, 150s 는 stale", () => {
-    expect(isStaleIntradayResponse(NOW - 130_000, OVERSEAS_TTL, NOW)).toBe(false);
-    expect(isStaleIntradayResponse(NOW - 150_000, OVERSEAS_TTL, NOW)).toBe(true);
+    expect(isStaleResponse(NOW - 130_000, OVERSEAS_TTL, NOW)).toBe(false);
+    expect(isStaleResponse(NOW - 150_000, OVERSEAS_TTL, NOW)).toBe(true);
   });
 });
 

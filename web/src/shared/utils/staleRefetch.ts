@@ -1,6 +1,6 @@
-// 지수 인트라데이 route 는 unstable_cache SWR — TTL 만료 후 첫 요청은 stale 엔트리를 받고
-// 재검증만 트리거한다. 탭 복귀·저트래픽 첫 로드가 그 첫 요청이 되면 hidden 기간만큼 오래된
-// 봉이 다음 tick 까지 남으므로, 조립 시각(fetchedAt) 이 TTL + 여유를 넘긴 응답은 짧은 지연
+// 시세 route 는 unstable_cache SWR — TTL 만료 후 첫 요청은 stale 엔트리를 받고
+// 재검증만 트리거한다. 탭 복귀·저트래픽 첫 로드가 그 첫 요청이 되면 직전 계산 시점의
+// 값이 다음 tick 까지 남으므로, 조립 시각(fetchedAt) 이 TTL + 여유를 넘긴 응답은 짧은 지연
 // 뒤 1회 재조회한다. 재검증이 끝난 캐시를 히트하므로 재조회는 새 계산을 만들지 않는다.
 export const STALE_REFETCH_DELAY_MS = 3_000;
 // TTL 위 여유. 폴링과 TTL 이 정렬돼 있어 정상 tick 도 경계를 폴링 지터(수 초)만큼 넘긴
@@ -8,8 +8,8 @@ export const STALE_REFETCH_DELAY_MS = 3_000;
 // 15s 는 지터를 덮으면서 hidden 90s 이상은 잡는 폭.
 export const STALE_TOLERANCE_MS = 15_000;
 
-// fetchedAt null = route 가 판정 대상이 아니라고 알린 응답(정규장 셀 없음·전체 실패).
-export const isStaleIntradayResponse = (
+// fetchedAt null = route 가 판정 대상이 아니라고 알린 응답(판정 구간 밖·전체 실패).
+export const isStaleResponse = (
   fetchedAt: number | null,
   ttlMs: number,
   now: number = Date.now()
@@ -26,8 +26,8 @@ export const scheduleStaleRefetch = (refetch: () => void): (() => void) => {
 };
 
 // 응답 1건당 재조회 판정. 응답당 최대 1회 — 직전 예약이 실제로 나갔으면(retried) 그 결과 응답은
-// 재검증 미완료로 또 stale 이어도 판정하지 않고 플래그만 내린다(체이닝 차단). 국내·해외 지수
-// 훅이 같은 판정을 쓰도록 effect 본체와 분리한 순수 함수.
+// 재검증 미완료로 또 stale 이어도 판정하지 않고 플래그만 내린다(체이닝 차단). useStaleRefetch
+// effect 본체와 분리한 순수 함수 — 판정 경계를 렌더 없이 검증한다.
 export const decideStaleRefetch = (
   retried: boolean,
   fetchedAt: number | null,
@@ -35,5 +35,5 @@ export const decideStaleRefetch = (
   now: number = Date.now()
 ): { schedule: boolean; retried: boolean } => {
   if (retried) return { schedule: false, retried: false };
-  return { schedule: isStaleIntradayResponse(fetchedAt, ttlMs, now), retried: false };
+  return { schedule: isStaleResponse(fetchedAt, ttlMs, now), retried: false };
 };
