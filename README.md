@@ -129,7 +129,8 @@ page 파일은 전부 Server Component이고, `use client`는 이벤트 · 브�
 
 가격 · 지수 · 순위는 서버의 생성기(`lib/demo/`)가 요청 시점에 계산합니다. 재무 · 배당 · 종목 목록 · 주식 수는 Python collector가 DART에서 주 1회 수집해 Neon(PostgreSQL)에 적재하고, 실행은 cron-job.org가 GitHub Actions 워크플로우를 호출하는 방식입니다. 수집 주기와 외화 재무 처리는 [collector/README.md](collector/README.md)에 정리했습니다.
 
-### Tech Stack
+<details>
+<summary>Tech Stack</summary>
 
 | 영역      | 구성                                                                                                                                |
 | --------- | ----------------------------------------------------------------------------------------------------------------------------------- |
@@ -137,6 +138,8 @@ page 파일은 전부 Server Component이고, `use client`는 이벤트 · 브�
 | Infra     | Neon PostgreSQL · Vercel · GitHub Actions · cron-job.org                                                                            |
 | Data      | Python collector · DART OpenAPI · 가상 시세 생성기(TypeScript)                                                                      |
 | AI · Test | Gemini API · Vitest                                                                                                                 |
+
+</details>
 
 ## 설계 결정
 
@@ -265,9 +268,14 @@ type DisclosureSummaryContent = {
 **성능 · 코드 부채**
 
 - 모바일 성능 수치는 첫 방문 기준입니다. 첫 방문에서는 안내 카드가 LCP 요소이고, 안내를 닫은 재방문에서는 지수 페이지의 LCP 요소가 분봉 응답을 받은 뒤 그려지는 차트 캡션이라 더 늦습니다. 재방문 상태의 PageSpeed Insights 값은 재지 못했습니다.
+- 차트 컴포넌트([`PriceChart.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.2-demo/web/src/entities/chart/PriceChart.tsx))는 순수 로직을 분리한 뒤에도 953줄 단일 클라이언트 컴포넌트입니다. effect · ref 구조 분해는 차트 동작의 회귀를 장중에 검증해야 해서 미뤘습니다.
+
+<details><summary>그 밖의 성능 한계 2건</summary>
+
 - 한글 웹 글꼴은 페이지당 160 ~ 230KB를 받습니다. 로컬 측정에서 한글 글꼴을 빼면 Lighthouse의 모바일 FCP 추정이 홈 기준 2.7초에서 0.9초로 줄었지만, 화면 일관성 때문에 유지했습니다.
 - 종목명이 길어 헤더가 여러 줄로 감기는 종목은 모바일 CLS가 0.17 ~ 0.23 남습니다. 대체 글꼴로 먼저 그려질 때 줄이 더 많이 감겼다가, 웹 글꼴이 적용되면서 헤더가 줄어드는 이동입니다(412px 폭 로컬 측정).
-- 차트 컴포넌트([`PriceChart.tsx`](https://github.com/Donghunn-Lee/slate-kr/blob/v1.2-demo/web/src/entities/chart/PriceChart.tsx))는 순수 로직을 분리한 뒤에도 953줄 단일 클라이언트 컴포넌트입니다. effect · ref 구조 분해는 차트 동작의 회귀를 장중에 검증해야 해서 미뤘습니다.
+
+</details>
 
 **데이터**
 
@@ -300,7 +308,7 @@ type DisclosureSummaryContent = {
 
 프로젝트 지침(CLAUDE.md)에 아키텍처 원칙 · 컨벤션 · 금지 사항을 고정하고, Claude Code가 만든 코드를 리뷰하는 기준으로 사용했습니다.
 
-작업 세션 196회 · 커밋 943 · Vitest 케이스 1,235(2026-11-17 기준). 작업 세션마다 같은 번호로 [블로그 시리즈](https://donghunn-lee-blog.vercel.app/blog/slatekr/)에 글을 썼고, 각 결정의 배경과 실측 결과는 해당 편에 정리했습니다.
+작업 세션 196회 · 커밋 944 · Vitest 케이스 1,235(2026-11-17 기준). 작업 세션마다 같은 번호로 [블로그 시리즈](https://donghunn-lee-blog.vercel.app/blog/slatekr/)에 글을 썼고, 각 결정의 배경과 실측 결과는 해당 편에 정리했습니다.
 
 ## 회고
 
@@ -310,6 +318,8 @@ type DisclosureSummaryContent = {
 - 측정값이 회차마다 갈리면 가설로 한쪽을 고르지 않고, 로컬에서 재현해 원인을 가립니다. 지수 페이지 모바일 CLS가 PageSpeed Insights에서 0.001과 0.439로 갈렸습니다. 높이가 안 맞는 문제라면 매번 같은 값이 나와야 하므로 가끔 생기는 스크롤 이동을 의심했고, 좋은 쪽을 본래 값으로 봤습니다. 그런데 로컬에서 layout shift를 전부 합산하자 매번 0.516이었고, 스크롤 이동을 없애도 값이 같았습니다. 원인은 스켈레톤과 실제 값의 크기 · display 차이였고, 크기만 맞추면 0.06, 둘 다 맞추면 0.001이었습니다. 이후 스켈레톤은 실제 값과 크기 · display를 함께 맞추고, 종목 상세에도 같은 기준을 적용했습니다. ([#185](https://donghunn-lee-blog.vercel.app/blog/slatekr/185/) · [#186](https://donghunn-lee-blog.vercel.app/blog/slatekr/186/))
 
 ## 로컬 실행
+
+<details><summary>테스트 · 실행 명령</summary>
 
 테스트와 타입 검사만 돌릴 때는 외부 키가 필요 없습니다. Vitest 설정이 더미 `DATABASE_URL`을 주입하므로 DB 연결 없이 통과합니다.
 
@@ -323,6 +333,8 @@ python -m unittest discover -s tests                                            
 ```
 
 앱 실행은 `.env.example`을 `.env.local`로 복사해 DART · Gemini API 키와 Neon `DATABASE_URL`을 채운 뒤 `npm run dev`입니다. 가격은 생성기가 계산하지만 종목 목록 · 재무는 `collector/` 스크립트로 적재해야 하므로, 동작 확인은 [Live](https://slate-kr.vercel.app)를 권장합니다.
+
+</details>
 
 ## Author
 
