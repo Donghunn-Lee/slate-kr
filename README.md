@@ -6,52 +6,16 @@
 
 **부분 실패 UI · 클라이언트 데이터 흐름 · 서버 캐시 · 런타임 검증 · 익명 동기화 · 가상 시세 생성기**
 
-[![Web CI](https://github.com/Donghunn-Lee/slate-kr/actions/workflows/web-ci.yml/badge.svg)](https://github.com/Donghunn-Lee/slate-kr/actions/workflows/web-ci.yml) [![Collector CI](https://github.com/Donghunn-Lee/slate-kr/actions/workflows/collector-ci.yml/badge.svg)](https://github.com/Donghunn-Lee/slate-kr/actions/workflows/collector-ci.yml) ![Next.js 16](https://img.shields.io/badge/Next.js_16-24292F?style=flat&logo=nextdotjs&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white) ![Tailwind CSS v4](https://img.shields.io/badge/Tailwind_CSS_v4-06B6D4?style=flat&logo=tailwindcss&logoColor=white) ![TanStack Query v5](https://img.shields.io/badge/TanStack_Query_v5-FF4154?style=flat&logo=reactquery&logoColor=white) ![Zustand](https://img.shields.io/badge/Zustand-555?style=flat) ![Zod](https://img.shields.io/badge/Zod-3E67B1?style=flat&logo=zod&logoColor=white) ![Vitest](https://img.shields.io/badge/Vitest-6E9F18?style=flat&logo=vitest&logoColor=white)
+[![Web CI](https://github.com/Donghunn-Lee/slate-kr/actions/workflows/web-ci.yml/badge.svg)](https://github.com/Donghunn-Lee/slate-kr/actions/workflows/web-ci.yml) [![Collector CI](https://github.com/Donghunn-Lee/slate-kr/actions/workflows/collector-ci.yml/badge.svg)](https://github.com/Donghunn-Lee/slate-kr/actions/workflows/collector-ci.yml)<br>
+![Next.js 16](https://img.shields.io/badge/Next.js_16-24292F?style=flat&logo=nextdotjs&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white) ![Tailwind CSS v4](https://img.shields.io/badge/Tailwind_CSS_v4-06B6D4?style=flat&logo=tailwindcss&logoColor=white) ![TanStack Query v5](https://img.shields.io/badge/TanStack_Query_v5-FF4154?style=flat&logo=reactquery&logoColor=white) ![Zustand](https://img.shields.io/badge/Zustand-555?style=flat) ![Zod](https://img.shields.io/badge/Zod-3E67B1?style=flat&logo=zod&logoColor=white) ![Vitest](https://img.shields.io/badge/Vitest-6E9F18?style=flat&logo=vitest&logoColor=white)
 
 [**Live(가상 데이터 데모)**](https://slate-kr.vercel.app) &nbsp;·&nbsp; [Styleguide](https://slate-kr.vercel.app/styleguide) &nbsp;·&nbsp; 2026.04 – 2026.11 &nbsp;·&nbsp; 1인 개발
 
-</div>
-
-> 시세 · 지수 · 순위는 **가상 데이터**입니다. 국내 시세는 재배포가 허용되지 않아, 재무 · 공시(DART)는 실데이터로 두고 가격 계열만 [결정론적 생성기](#6-가상-시세-생성기)로 대체했습니다. 상단 배너의 장애 시뮬레이션으로 가격 API 실패 · 지연 시의 화면을 직접 볼 수 있습니다.
-
 <img src="docs/images/hero.png" width="100%" alt="홈 히어로 — 헤드라인과 서비스 캐러셀">
 
-## 한눈에 보기
+</div>
 
-<table>
-  <thead>
-    <tr>
-      <th nowrap>설계 결정</th>
-      <th>한 일</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td nowrap><a href="#1-부분-실패-ui">1. 부분 실패 UI</a></td>
-      <td>종목 상세를 섹션 단위 Suspense로 스트리밍하고, 섹션마다 loading · empty · error · 부분 실패를 구분</td>
-    </tr>
-    <tr>
-      <td nowrap><a href="#2-클라이언트-데이터-흐름">2. 클라이언트 데이터 흐름</a></td>
-      <td>장 세션 중에만 폴링하고, 실패 응답이 와도 직전 정상 데이터를 유지. 차트는 React state 없이 ref와 DOM으로 그림</td>
-    </tr>
-    <tr>
-      <td nowrap><a href="#3-서버-캐시">3. 서버 캐시</a></td>
-      <td>지수 · 순위 API 응답을 서버에서 캐시해 원본 조회 수를 사용자 수와 분리. 실패 응답은 감지 즉시 캐시에서 지움</td>
-    </tr>
-    <tr>
-      <td nowrap><a href="#4-런타임-검증-ai-공시-요약">4. 런타임 검증</a></td>
-      <td>외부 API 응답 · 저장 스냅샷 · 요청 본문을 Zod로 검증. AI 요약은 스키마 하나로 응답 형식 지정과 검증을 함께 처리</td>
-    </tr>
-    <tr>
-      <td nowrap><a href="#5-익명-동기화">5. 익명 동기화</a></td>
-      <td>로그인 없이 쿠키로 브라우저를 식별해 관심종목 · 메모를 서버에 저장</td>
-    </tr>
-    <tr>
-      <td nowrap><a href="#6-가상-시세-생성기">6. 가상 시세 생성기</a></td>
-      <td>재배포할 수 없는 시세를 결정론적 생성기로 대체. 기존 시세 API와 같은 형태로 응답해 화면 · route 구조는 그대로이고, 화면 사이의 값 정합을 테스트로 고정</td>
-    </tr>
-  </tbody>
-</table>
+> 시세 · 지수 · 순위는 **가상 데이터**입니다. 2026년 11월 초까지 실시세(KIS OpenAPI)로 운영했지만 국내 시세는 재배포가 허용되지 않아, 재무 · 공시(DART)는 실데이터로 두고 가격 계열만 [결정론적 생성기](#6-가상-시세-생성기)로 대체했습니다. 상단 배너의 장애 시뮬레이션으로 가격 API 실패 · 지연 시의 화면을 직접 볼 수 있습니다.
 
 ## 주요 화면
 
@@ -83,6 +47,43 @@
 </table>
 
 UI는 정보 단위마다 독립 패널로 나누는 "슬레이트(판)" 구조이며, 패널 색은 공시 · 가격 · 재무 · 차트 · 지표마다 하나씩 고정했습니다. 토큰과 컴포넌트를 [`/styleguide`](https://slate-kr.vercel.app/styleguide)에 먼저 등재하고, 화면은 이를 기반으로 구현했습니다. shadcn은 Dialog · Popover · Tabs처럼 상호작용을 다루는 기본 컴포넌트에만 사용하고, 카드 · 표 · 배지처럼 값을 보여주는 컴포넌트는 토큰 기준으로 직접 만들었습니다.
+
+## 한눈에 보기
+
+<table>
+  <thead>
+    <tr>
+      <th nowrap>설계 결정</th>
+      <th>내용</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td nowrap><a href="#1-부분-실패-ui">1. 부분 실패 UI</a></td>
+      <td>종목 상세를 섹션 단위 Suspense로 스트리밍하고, 섹션마다 loading · empty · error · 부분 실패를 구분</td>
+    </tr>
+    <tr>
+      <td nowrap><a href="#2-클라이언트-데이터-흐름">2. 클라이언트 데이터 흐름</a></td>
+      <td>장 세션 중에만 폴링하고, 실패 응답이 와도 직전 정상 데이터를 유지. 차트는 React state 없이 ref와 DOM으로 그림</td>
+    </tr>
+    <tr>
+      <td nowrap><a href="#3-서버-캐시">3. 서버 캐시</a></td>
+      <td>지수 · 순위 API 응답을 서버에서 캐시해 원본 조회 수를 사용자 수와 분리. 실패 응답은 감지 즉시 캐시에서 지움</td>
+    </tr>
+    <tr>
+      <td nowrap><a href="#4-런타임-검증-ai-공시-요약">4. 런타임 검증</a></td>
+      <td>외부 API 응답 · 저장 스냅샷 · 요청 본문을 Zod로 검증. AI 요약은 스키마 하나로 응답 형식 지정과 검증을 함께 처리</td>
+    </tr>
+    <tr>
+      <td nowrap><a href="#5-익명-동기화">5. 익명 동기화</a></td>
+      <td>로그인 없이 쿠키로 브라우저를 식별해 관심종목 · 메모를 서버에 저장</td>
+    </tr>
+    <tr>
+      <td nowrap><a href="#6-가상-시세-생성기">6. 가상 시세 생성기</a></td>
+      <td>재배포할 수 없는 시세를 결정론적 생성기로 대체. 기존 시세 API와 같은 형태로 응답해 화면 · route 구조는 그대로이고, 화면 사이의 값 정합을 테스트로 고정</td>
+    </tr>
+  </tbody>
+</table>
 
 ## 배경
 
@@ -139,7 +140,9 @@ page 파일은 전부 Server Component이고, `use client`는 이벤트 · 브�
 
 ## 설계 결정
 
-1~5는 실시세(KIS OpenAPI)를 연동해 운영하던 2026년 4~10월의 결정이고, 구조는 지금도 그대로 동작합니다. 가격 소스만 6번의 생성기로 바꿨습니다.
+1 ~ 5는 실시세(KIS OpenAPI)를 연동해 운영하던 2026년 4 ~ 10월의 결정이고, 구조는 지금도 그대로 동작합니다. 가격 소스만 6번의 생성기로 바꿨습니다.
+
+방향과 범위는 직접 정했고, 설계안은 Claude와 논의해 검토한 뒤 채택 여부를 결정했습니다. 조사와 코드 생성은 Claude Code에 위임했고, 결과는 측정값과 실제 화면으로 확인했습니다([개발 방식](#개발-방식)). 각 절 끝의 "글"은 작업 세션 번호를 붙인 블로그 글입니다.
 
 ### 1. 부분 실패 UI
 
@@ -167,7 +170,7 @@ page 파일은 전부 Server Component이고, `use client`는 이벤트 · 브�
 <details>
 <summary>"실시간" 표기를 내린 이유</summary>
 
-초기 라벨은 "실시간"이었습니다. 종목 시세는 약 1분, 지수는 1~2분 주기의 폴링이므로 표기를 내렸습니다. 라벨은 장 세션 명칭(정규장 · 애프터마켓 · 마감 시각)으로 표기하고, 갱신 주기는 [`/credits`](https://slate-kr.vercel.app/credits)에 명시했습니다. 실시간은 증권사 WebSocket과 상시 연결 서버가 필요한 별개 작업입니다.
+초기 라벨은 "실시간"이었습니다. 종목 시세는 약 1분, 지수는 1 ~ 2분 주기의 폴링이므로 표기를 내렸습니다. 라벨은 장 세션 명칭(정규장 · 애프터마켓 · 마감 시각)으로 표기하고, 갱신 주기는 [`/credits`](https://slate-kr.vercel.app/credits)에 명시했습니다. 실시간은 증권사 WebSocket과 상시 연결 서버가 필요한 별개 작업입니다.
 
 </details>
 
@@ -222,7 +225,7 @@ type DisclosureSummaryContent = {
 
 2026년 11월, 사용하던 시세 소스(증권사 API · 거래소 · 공공데이터)가 모두 제3자 제공을 허용하지 않는다는 것을 확인하고 배포를 중단했습니다. 이용 제한이 없는 DART 재무 · 공시는 그대로 두고, 가격 · 지수 · 순위만 서버에서 계산하는 생성기로 바꿨습니다.
 
-- **교체 범위는 `lib/` 안입니다.** 생성기가 기존 시세 API와 같은 형태로 응답해서 route의 조회 · 캐시 · 실패 처리 코드는 손대지 않았고, 1~5의 화면 · 폴링 · 캐시 구조는 그대로 동작합니다.
+- **교체 범위는 `lib/` 안입니다.** 생성기가 기존 시세 API와 같은 형태로 응답해서 route의 조회 · 캐시 · 실패 처리 코드는 손대지 않았고, 1 ~ 5의 화면 · 폴링 · 캐시 구조는 그대로 동작합니다.
 - **입력은 DART와 시드뿐입니다.** 실제 시세는 쓰지 않습니다. 가격 수준은 공시 재무(배당금 ÷ 시가배당률, 없으면 EPS · BPS)에서 잡고, 그 사이는 종목과 날짜로 정해지는 난수 경로로 잇습니다. 같은 종목 · 같은 시각이면 언제 요청해도 같은 값입니다.
 - **화면 사이의 값이 맞는지 테스트로 고정했습니다.** 일봉 → 분봉 → 현재가를 한 경로에서 파생하고, 동시호가 · 단일가 · 프리/애프터마켓 같은 장 규칙을 재현했습니다. 생성기는 오늘 종가를 미리 알 수 있어서, 아직 오지 않은 시각의 값은 서버가 응답에 싣지 않습니다.
 
@@ -269,15 +272,20 @@ type DisclosureSummaryContent = {
 **데이터**
 
 - 가격 · 지수 · 순위는 생성기가 만든 값이라, 가격으로 계산하는 지표(PER · PBR · 시가배당률 · 시가총액)도 실제와 다릅니다. 종목 간 움직임은 시장 팩터 하나만 공유하고(업종 동조 없음), 변동성 등급과 NXT 거래 여부는 종목 규모와 무관하게 정해집니다.
+
+<details><summary>그 밖의 데이터 한계 5건</summary>
+
 - 다우존스는 일봉 종가만 표시합니다. 실시세 소스에서 장중 시세 · 분봉을 받을 수 없던 제약을 생성기도 그대로 따릅니다.
 - 일봉은 애프터마켓 체결까지 포함한 20:00 마감 캔들이라, 애프터마켓 거래가 있었던 종목은 정규장 종가 기준 차트와 종가 · 거래량이 다를 수 있습니다. 등락률은 전일 정규장 종가 기준이며, 헤더는 15:30 이후 정규장 종가를 따로 표시합니다.
 - 병합 · 분할 · 무상증자로 주식수가 바뀐 종목은 공시 EPS의 기준 주식수가 현재와 달라 PER · EPS · 시가배당률이 어긋날 수 있습니다. 감지되면 "—"와 툴팁 사유를 표시하지만, 변동 폭이 작거나 최근에 생긴 변동은 감지하지 못합니다.
 - 재무제표를 원화가 아닌 통화로 공시하는 종목(23개)은 재무 요약 · 핵심 지표 대신 안내를 표시합니다. 환산 없이 외화 금액을 원 단위로 저장하지 않기 위한 조치이고, 새로 발견되는 종목은 weekly 수집이 격리 조건을 전부 통과한 건만 자동으로 처리합니다.
 - 12월 결산이 아닌 종목(46개)은 분기 라벨이 회계 기간과 어긋나 PER · EPS가 틀릴 수 있습니다. DART의 보고서 구분이 달력 분기가 아니라 회계 분기 기준이기 때문이며, 원인은 파악했고 수정은 다음 작업입니다.
 
+</details>
+
 ## 개발 방식
 
-조사와 코드 생성은 Claude Code에 위임했고, 설계 · 검증 · 판단은 직접 처리했습니다. 작업 세션 하나가 아래 루프 한 사이클이고, `[CC]`가 위임 구간입니다.
+방향과 범위, 설계안의 채택 여부, 결과 확인은 직접 맡았습니다. 설계안은 Claude와 논의해 정했고, 조사와 코드 생성은 Claude Code에 위임했습니다. 작업 세션 하나가 아래 루프 한 사이클이고, `[CC]`가 위임 구간입니다.
 
 ```
 로드맵
@@ -292,7 +300,7 @@ type DisclosureSummaryContent = {
 
 프로젝트 지침(CLAUDE.md)에 아키텍처 원칙 · 컨벤션 · 금지 사항을 고정하고, Claude Code가 만든 코드를 리뷰하는 기준으로 사용했습니다.
 
-작업 세션 196회 · 커밋 941 · Vitest 케이스 1,235(2026-11-16 기준). 작업 세션 단위 개발 일지는 같은 번호로 [블로그 시리즈](https://donghunn-lee-blog.vercel.app/blog/slatekr/)에 있고, 각 결정의 배경과 실측 결과는 해당 편에 정리했습니다.
+작업 세션 196회 · 커밋 942 · Vitest 케이스 1,235(2026-11-17 기준). 작업 세션마다 같은 번호로 [블로그 시리즈](https://donghunn-lee-blog.vercel.app/blog/slatekr/)에 글을 썼고, 각 결정의 배경과 실측 결과는 해당 편에 정리했습니다.
 
 ## 회고
 
